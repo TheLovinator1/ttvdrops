@@ -1,0 +1,7 @@
+[project]
+name = "ttvdrops"
+version = "0.1.0"
+description = "Get notified when a new drop is available on Twitch."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = ["django>=5.2.4"]
