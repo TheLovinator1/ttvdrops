@@ -1,5 +1,8 @@
 {
     "cSpell.words": [
+        "ASGI",
+        "isort",
+        "pydocstyle",
         "ttvdrops"
     ]
 }
