@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from pathlib import Path
@@ -7,6 +8,8 @@ from typing import Any
 
 from dotenv import load_dotenv
 from platformdirs import user_data_dir
+
+logger: logging.Logger = logging.getLogger("ttvdrops.settings")
 
 load_dotenv(verbose=True)
 
@@ -43,6 +46,9 @@ BASE_DIR: Path = Path(__file__).resolve().parent.parent
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ROOT_URLCONF = "config.urls"
 SECRET_KEY: str = os.getenv("DJANGO_SECRET_KEY", default="")
+if not SECRET_KEY:
+    logger.error("DJANGO_SECRET_KEY environment variable is not set.")
+    sys.exit(1)
 
 DEFAULT_FROM_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
 EMAIL_HOST: str = os.getenv(key="EMAIL_HOST", default="smtp.gmail.com")
@@ -108,8 +114,8 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.sites",
-    "core",
+    "core.apps.CoreConfig",
+    "twitch.apps.TwitchConfig",
 ]
 
 MIDDLEWARE: list[str] = [
