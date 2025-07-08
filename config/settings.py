@@ -1,24 +1,105 @@
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
+from typing import Any
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+from dotenv import load_dotenv
+from platformdirs import user_data_dir
+
+load_dotenv(verbose=True)
+
+DEBUG: bool = os.getenv(key="DEBUG", default="True").lower() == "true"
+
+
+def get_data_dir() -> Path:
+    r"""Get the directory where the application data will be stored.
+
+    This directory is created if it does not exist.
+
+    Returns:
+        Path: The directory where the application data will be stored.
+
+            For example, on Windows, it might be:
+            `C:\Users\lovinator\AppData\Roaming\TheLovinator\TTVDrops`
+
+            In this directory, the SQLite database file will be stored as `db.sqlite3`.
+    """
+    data_dir: str = user_data_dir(
+        appname="TTVDrops",
+        appauthor="TheLovinator",
+        roaming=True,
+        ensure_exists=True,
+    )
+    return Path(data_dir)
+
+
+DATA_DIR: Path = get_data_dir()
+
+ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
+AUTH_USER_MODEL = "core.User"
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+ROOT_URLCONF = "config.urls"
+SECRET_KEY: str = os.getenv("DJANGO_SECRET_KEY", default="")
+
+DEFAULT_FROM_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
+EMAIL_HOST: str = os.getenv(key="EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_HOST_PASSWORD: str | None = os.getenv(key="EMAIL_HOST_PASSWORD", default=None)
+EMAIL_HOST_USER: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
+EMAIL_PORT: int = int(os.getenv(key="EMAIL_PORT", default="587"))
+EMAIL_SUBJECT_PREFIX = "[TTVDrops] "
+EMAIL_TIMEOUT: int = int(os.getenv(key="EMAIL_TIMEOUT", default="10"))
+EMAIL_USE_LOCALTIME = True
+EMAIL_USE_TLS: bool = os.getenv(key="EMAIL_USE_TLS", default="True").lower() == "true"
+EMAIL_USE_SSL: bool = os.getenv(key="EMAIL_USE_SSL", default="False").lower() == "true"
+SERVER_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
+
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+MEDIA_ROOT: Path = DATA_DIR / "media"
+MEDIA_ROOT.mkdir(exist_ok=True)
+MEDIA_URL = "/media/"
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+STATIC_ROOT: Path = BASE_DIR / "staticfiles"
+STATIC_ROOT.mkdir(exist_ok=True)
+STATIC_URL = "static/"
+STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-5b+c(lxr3-8o356!qd3_u&x0$)j))56at=&_go+@4gmai-oe2v"
+TIME_ZONE = "UTC"
+WSGI_APPLICATION = "config.wsgi.application"
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+if DEBUG:
+    INTERNAL_IPS: list[str] = ["127.0.0.1", "localhost"]
 
-ALLOWED_HOSTS = []
+if not DEBUG:
+    ALLOWED_HOSTS: list[str] = ["ttvdrops.lovinator.space"]
 
-
-# Application definition
+LOGGING: dict[str, Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "django.utils.autoreload": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+    },
+}
 
 INSTALLED_APPS: list[str] = [
     "django.contrib.admin",
@@ -27,6 +108,8 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.sites",
+    "core",
 ]
 
 MIDDLEWARE: list[str] = [
@@ -36,42 +119,45 @@ MIDDLEWARE: list[str] = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "config.urls"
 
-TEMPLATES = [
+TEMPLATES: list[dict[str, str | list[Path] | bool | dict[str, list[str] | list[tuple[str, list[str]]]]]] = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
-                "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
+                "django.template.context_processors.i18n",
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
                 "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = "config.wsgi.application"
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-DATABASES = {
+DATABASES: dict[str, dict[str, str | Path | dict[str, str | int]]] = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+        "NAME": DATA_DIR / "db.sqlite3",
+        "OPTIONS": {
+            "transaction_mode": "IMMEDIATE",
+            "timeout": 5,
+            "init_command": """
+            PRAGMA journal_mode=WAL;
+            PRAGMA synchronous=NORMAL;
+            PRAGMA mmap_size=134217728;
+            PRAGMA journal_size_limit=27103364;
+            PRAGMA cache_size=2000;
+            """,
+        },
+    },
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = [
     {
@@ -88,25 +174,15 @@ AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = [
     },
 ]
 
+TESTING: bool = "test" in sys.argv or "PYTEST_VERSION" in os.environ
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
-
-USE_I18N = True
-
-USE_TZ = True
-
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = "static/"
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+if not TESTING:
+    DEBUG_TOOLBAR_CONFIG: dict[str, str] = {"ROOT_TAG_EXTRA_ATTRS": "hx-preserve"}
+    INSTALLED_APPS = [  # pyright: ignore[reportConstantRedefinition]
+        *INSTALLED_APPS,
+        "debug_toolbar",
+    ]
+    MIDDLEWARE = [  # pyright: ignore[reportConstantRedefinition]
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+        *MIDDLEWARE,
+    ]

@@ -4,28 +4,30 @@ version = "0.1.0"
 description = "Get notified when a new drop is available on Twitch."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["django>=5.2.4"]
+dependencies = [
+    "django>=5.2.4",
+    "django-debug-toolbar>=5.2.0",
+    "platformdirs>=4.3.8",
+    "python-dotenv>=1.1.1",
+]
 
 [dependency-groups]
-dev = ["pytest>=8.4.1", "pytest-django>=4.11.1"]
+dev = ["pytest>=8.4.1", "pytest-django>=4.11.1", "pytest-xdist[psutil]>=3.8.0"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]
+addopts = ["-n", "auto", "--reuse-db", "--no-migrations"]
 
 
 [tool.ruff]
 lint.select = ["ALL"]
-preview = true
-unsafe-fixes = true
-fix = true
 
 # Don't automatically remove unused variables
 lint.unfixable = ["F841"]
 
 lint.pydocstyle.convention = "google"
 lint.isort.required-imports = ["from __future__ import annotations"]
-line-length = 140
 
 lint.ignore = [
     "CPY001", # Checks for the absence of copyright notices within Python files.
@@ -52,7 +54,20 @@ lint.ignore = [
     "Q003",   # Checks for strings that include escaped quotes, and suggests changing the quote style to avoid the need to escape them.
     "W191",   # Checks for indentation that uses tabs.
 ]
+preview = true
+unsafe-fixes = true
+fix = true
+line-length = 140
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["ARG", "FBT", "PLR2004", "S101", "S311"]
+"**/tests/**" = [
+    "ARG",
+    "FBT",
+    "PLR2004",
+    "S101",
+    "S311",
+    "S106",
+    "PLR6301",
+    "S105",
+]
 "**/migrations/**" = ["RUF012"]

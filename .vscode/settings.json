@@ -1,8 +1,22 @@
 {
     "cSpell.words": [
+        "adminpass",
+        "apikey",
+        "appauthor",
+        "appname",
         "ASGI",
+        "docstrings",
+        "dotenv",
+        "Hellsén",
         "isort",
+        "Joakim",
+        "lovinator",
+        "Mailgun",
         "pydocstyle",
-        "ttvdrops"
+        "regularuser",
+        "sendgrid",
+        "testpass",
+        "ttvdrops",
+        "wrongpassword"
     ]
 }
