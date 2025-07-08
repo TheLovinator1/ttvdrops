@@ -19,6 +19,8 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]
 addopts = ["-n", "auto", "--reuse-db", "--no-migrations"]
 
+[tool.pyright]
+exclude = ["**/migrations/**"]
 
 [tool.ruff]
 lint.select = ["ALL"]

@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "addopts",
         "adminpass",
         "apikey",
         "appauthor",
@@ -12,11 +13,16 @@
         "Joakim",
         "lovinator",
         "Mailgun",
+        "platformdirs",
+        "psutil",
         "pydocstyle",
+        "pyright",
+        "pytest",
         "regularuser",
         "sendgrid",
         "testpass",
         "ttvdrops",
-        "wrongpassword"
+        "wrongpassword",
+        "xdist"
     ]
 }
