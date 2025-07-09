@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}{{ campaign.name }} - Twitch Drops Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'twitch:dashboard' %}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'twitch:campaign_list' %}">Campaigns</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ campaign.name }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="mb-3">{{ campaign.name }}</h1>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <span class="badge bg-primary">{{ campaign.game.display_name }}</span>
+            {% if campaign.start_at <= now and campaign.end_at >= now %}
+            {% if campaign.status == 'ACTIVE' %}
+            <span class="badge bg-success">Active</span>
+            {% else %}
+            <span class="badge bg-warning text-dark">{{ campaign.status|title }}</span>
+            {% endif %}
+            {% elif campaign.start_at > now %}
+            <span class="badge bg-info text-dark">Upcoming</span>
+            {% else %}
+            <span class="badge bg-secondary">Expired</span>
+            {% endif %}
+        </div>
+        <p>{{ campaign.description }}</p>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <p><strong><i class="far fa-calendar-alt me-2"></i>Start Date:</strong>
+                    {{ campaign.start_at|date:"F j, Y, g:i a" }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong><i class="far fa-calendar-alt me-2"></i>End Date:</strong>
+                    {{ campaign.end_at|date:"F j, Y, g:i a" }}</p>
+            </div>
+        </div>
+        {% if campaign.details_url %}
+        <p>
+            <a href="{{ campaign.details_url }}" target="_blank" class="btn btn-outline-primary">
+                <i class="fas fa-external-link-alt me-2"></i>Official Details
+            </a>
+        </p>
+        {% endif %}
+        {% if campaign.account_link_url %}
+        <p>
+            <a href="{{ campaign.account_link_url }}" target="_blank" class="btn btn-success">
+                <i class="fas fa-link me-2"></i>Connect Account
+            </a>
+        </p>
+        {% endif %}
+    </div>
+    <div class="col-md-4">
+        {% if campaign.image_url %}
+        <img src="{{ campaign.image_url }}" class="img-fluid rounded shadow-sm" alt="{{ campaign.name }}">
+        {% else %}
+        <div class="bg-light rounded shadow-sm p-4 text-center">
+            <i class="fas fa-image fa-5x text-muted mb-3"></i>
+            <p class="text-muted">No image available</p>
+        </div>
+        {% endif %}
+        <div class="card mt-3 border-0 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Campaign Info</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Owner:</strong> {{ campaign.owner.name }}</p>
+                <p><strong>Status:</strong> {{ campaign.status }}</p>
+                <p><strong>Account Connected:</strong> {% if campaign.is_account_connected %}<span
+                        class="text-success">Yes</span>{% else %}<span class="text-danger">No</span>{% endif %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-twitch">
+                <h5 class="mb-0"><i class="fas fa-gift me-2"></i>Rewards</h5>
+            </div>
+            <div class="card-body">
+                {% if drops %}
+                <div class="timeline-container">
+                    {% for drop in drops %}
+                    <div class="card mb-4 drop-item">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h4>{{ drop.name }}</h4>
+                                    <p class="mb-2">
+                                        <span class="badge bg-primary">{{ drop.required_minutes_watched }} minutes
+                                            watched</span>
+                                        {% if drop.required_subs > 0 %}
+                                        <span class="badge bg-info">{{ drop.required_subs }} subscriptions
+                                            required</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="mb-2">
+                                        <small class="text-muted">
+                                            <i class="far fa-clock me-1"></i>Available:
+                                            {{ drop.start_at|date:"M d, Y" }} - {{ drop.end_at|date:"M d, Y" }}
+                                        </small>
+                                    </p>
+                                    <div class="progress mb-3" style="height: 25px;">
+                                        <div class="progress-bar bg-twitch" role="progressbar" style="width: 0%;"
+                                            aria-valuenow="0" aria-valuemin="0"
+                                            aria-valuemax="{{ drop.required_minutes_watched }}">
+                                            0 / {{ drop.required_minutes_watched }} minutes
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    {% for benefit in drop.benefits.all %}
+                                    <div class="mb-2">
+                                        {% if benefit.image_asset_url %}
+                                        <img src="{{ benefit.image_asset_url }}" class="benefit-img mb-2"
+                                            alt="{{ benefit.name }}">
+                                        {% else %}
+                                        <div class="bg-light rounded p-3 mb-2">
+                                            <i class="fas fa-gift fa-3x text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                        <p class="mb-0"><strong>{{ benefit.name }}</strong></p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No drops found for this campaign.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

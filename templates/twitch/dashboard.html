@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Twitch Drops Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="mb-4"><i class="fas fa-tachometer-alt me-2 twitch-color"></i>Dashboard</h1>
+        <p class="lead">Track your active Twitch drop campaigns and progress.</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-twitch">
+                <h5 class="mb-0"><i class="fas fa-fire me-2"></i>Active Campaigns</h5>
+            </div>
+            <div class="card-body">
+                {% if active_campaigns %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for campaign in active_campaigns %}
+                    <div class="col">
+                        <div class="card h-100 campaign-card campaign-active">
+                            {% if campaign.image_url %}
+                            <img src="{{ campaign.image_url }}" class="card-img-top" alt="{{ campaign.name }}">
+                            {% endif %}
+                            <div class="card-body">
+                                <h5 class="card-title">{{ campaign.name }}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">{{ campaign.game.display_name }}</h6>
+                                <p class="card-text small">{{ campaign.description|truncatewords:20 }}</p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-success">Active</span>
+                                    <a href="{% url 'twitch:campaign_detail' campaign.id %}"
+                                        class="btn btn-sm btn-outline-primary">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>No active campaigns at the moment.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="p-3 border rounded">
+                            <h2 class="twitch-color">{{ active_campaigns.count }}</h2>
+                            <p class="mb-0 text-muted">Active Campaigns</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="p-3 border rounded">
+                            <h2 class="text-primary">{{ now|date:"F j, Y" }}</h2>
+                            <p class="mb-0 text-muted">Current Date</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded">
+                            <a href="{% url 'twitch:campaign_list' %}" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-list me-2"></i>View All Campaigns
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
