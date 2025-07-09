@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -10,9 +11,9 @@ from twitch.models import DropBenefit, DropBenefitEdge, DropCampaign, Game, Orga
 
 
 class Command(BaseCommand):
-    """Import Twitch drop campaign data from a JSON file."""
+    """Import Twitch drop campaign data from a JSON file or directory of JSON files."""
 
-    help = "Import Twitch drop campaign data from a JSON file"
+    help = "Import Twitch drop campaign data from a JSON file or directory"
 
     def add_arguments(self, parser: CommandParser) -> None:
         """Add command arguments.
@@ -21,9 +22,15 @@ class Command(BaseCommand):
             parser: The command argument parser.
         """
         parser.add_argument(
-            "json_file",
+            "path",
             type=str,
-            help="Path to the JSON file containing the drop campaign data",
+            help="Path to the JSON file or directory containing JSON files with drop campaign data",
+        )
+        parser.add_argument(
+            "--processed-dir",
+            type=str,
+            default="processed",
+            help="Name of subdirectory to move processed files to (default: 'processed')",
         )
 
     def handle(self, **options: str) -> None:
@@ -33,19 +40,65 @@ class Command(BaseCommand):
             **options: Arbitrary keyword arguments.
 
         Raises:
-            CommandError: If the file doesn't exist, isn't a JSON file,
+            CommandError: If the file/directory doesn't exist, isn't a JSON file,
                 or has an invalid JSON structure.
         """
-        json_file_path: str = options["json_file"]
-        file_path = Path(json_file_path)
+        path: str = options["path"]
+        processed_dir: str = options["processed_dir"]
+        path_obj = Path(path)
 
-        # Validate file exists and is a JSON file
-        if not file_path.exists():
-            msg = f"File {json_file_path} does not exist"
+        # Check if path exists
+        if not path_obj.exists():
+            msg = f"Path {path} does not exist"
             raise CommandError(msg)
 
-        if not json_file_path.endswith(".json"):
-            msg = f"File {json_file_path} is not a JSON file"
+        # Process single file or directory
+        if path_obj.is_file():
+            self._process_file(path_obj, processed_dir)
+        elif path_obj.is_dir():
+            self._process_directory(path_obj, processed_dir)
+        else:
+            msg = f"Path {path} is neither a file nor a directory"
+            raise CommandError(msg)
+
+    def _process_directory(self, directory: Path, processed_dir: str) -> None:
+        """Process all JSON files in a directory.
+
+        Args:
+            directory: Path to the directory.
+            processed_dir: Name of subdirectory to move processed files to.
+        """
+        # Create processed directory if it doesn't exist
+        processed_path = directory / processed_dir
+        if not processed_path.exists():
+            processed_path.mkdir()
+            self.stdout.write(f"Created directory for processed files: {processed_path}")
+
+        # Process all JSON files in the directory
+        json_files = list(directory.glob("*.json"))
+        if not json_files:
+            self.stdout.write(self.style.WARNING(f"No JSON files found in {directory}"))
+            return
+
+        for json_file in json_files:
+            try:
+                self._process_file(json_file, processed_dir)
+            except CommandError as e:
+                self.stdout.write(self.style.ERROR(f"Error processing {json_file}: {e}"))
+
+    def _process_file(self, file_path: Path, processed_dir: str) -> None:
+        """Process a single JSON file.
+
+        Args:
+            file_path: Path to the JSON file.
+            processed_dir: Name of subdirectory to move processed files to.
+
+        Raises:
+            CommandError: If the file isn't a JSON file or has invalid JSON structure.
+        """
+        # Validate file is a JSON file
+        if not file_path.name.endswith(".json"):
+            msg = f"File {file_path} is not a JSON file"
             raise CommandError(msg)
 
         # Load JSON data
@@ -66,6 +119,17 @@ class Command(BaseCommand):
 
         # Process the data
         self._import_drop_campaign(drop_campaign_data)
+
+        # Move the processed file to the processed directory
+        if processed_dir:
+            processed_path = file_path.parent / processed_dir
+            if not processed_path.exists():
+                processed_path.mkdir()
+
+            # Move the file to the processed directory
+            new_path = processed_path / file_path.name
+            shutil.move(str(file_path), str(new_path))
+            self.stdout.write(f"Moved processed file to: {new_path}")
 
         self.stdout.write(self.style.SUCCESS(f"Successfully imported drop campaign: {drop_campaign_data['name']}"))
 
