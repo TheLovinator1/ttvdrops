@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from django.db.models import Count, Q
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
@@ -107,41 +108,38 @@ class GameListView(ListView):
     context_object_name = "games"
 
     def get_queryset(self) -> QuerySet[Game]:
-        """Get queryset of games.
-
-        Returns:
-            QuerySet: Sorted games.
-        """
-        return super().get_queryset().order_by("display_name")
+        """Get queryset of games, annotated with campaign counts to avoid N+1 queries."""
+        now = timezone.now()
+        return (
+            super()
+            .get_queryset()
+            .annotate(
+                campaign_count=Count("drop_campaigns", distinct=True),
+                active_count=Count(
+                    "drop_campaigns",
+                    filter=Q(
+                        drop_campaigns__start_at__lte=now,
+                        drop_campaigns__end_at__gte=now,
+                        drop_campaigns__status="ACTIVE",
+                    ),
+                    distinct=True,
+                ),
+            )
+            .order_by("display_name")
+        )
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
-        """Add additional context data.
-
-        Args:
-            **kwargs: Additional arguments.
-
-        Returns:
-            dict: Context data.
-        """
+        """Add additional context data."""
         context = super().get_context_data(**kwargs)
-
-        # Get campaign count for each game
-        games_with_counts = []
-        for game in context["games"]:
-            campaign_count = DropCampaign.objects.filter(game=game).count()
-            active_count = DropCampaign.objects.filter(
-                game=game,
-                start_at__lte=timezone.now(),
-                end_at__gte=timezone.now(),
-                status="ACTIVE",
-            ).count()
-            games_with_counts.append({
+        # Use annotated counts directly, no extra queries
+        context["games_with_counts"] = [
+            {
                 "game": game,
-                "campaign_count": campaign_count,
-                "active_count": active_count,
-            })
-
-        context["games_with_counts"] = games_with_counts
+                "campaign_count": getattr(game, "campaign_count", 0),
+                "active_count": getattr(game, "active_count", 0),
+            }
+            for game in context["games"]
+        ]
         return context
 
 
