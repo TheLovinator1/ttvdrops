@@ -67,6 +67,30 @@ class DropCampaign(models.Model):
         now = timezone.now()
         return self.start_at <= now <= self.end_at and self.status == "ACTIVE"
 
+    @property
+    def clean_name(self) -> str:
+        """Return the campaign name without the game name prefix.
+
+        Examples:
+            "Ravendawn - July 2" -> "July 2"
+            "Party Animals Twitch Drop" -> "Twitch Drop"
+        """
+        if not self.game or not self.game.display_name:
+            return self.name
+
+        game_name = self.game.display_name
+
+        # Remove game name if it's at the beginning of the campaign name
+        if self.name.startswith(game_name):
+            # Check if it's followed by a separator like " - "
+            if self.name[len(game_name) :].startswith(" - "):
+                return self.name[len(game_name) + 3 :].strip()
+            # Or just remove the game name if it's followed by a space
+            if len(self.name) > len(game_name) and self.name[len(game_name)] == " ":
+                return self.name[len(game_name) + 1 :].strip()
+
+        return self.name
+
 
 class DropBenefit(models.Model):
     """Represents a benefit that can be earned from a drop."""

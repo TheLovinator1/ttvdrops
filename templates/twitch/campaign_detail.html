@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ campaign.name }} - Twitch Drops Tracker{% endblock %}
+{% block title %}{{ campaign.clean_name }} - Twitch Drops Tracker{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -9,7 +9,7 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'twitch:dashboard' %}">Dashboard</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'twitch:campaign_list' %}">Campaigns</a></li>
-                <li class="breadcrumb-item active" aria-current="page">{{ campaign.name }}</li>
+                <li class="breadcrumb-item active" aria-current="page">{{ campaign.clean_name }}</li>
             </ol>
         </nav>
     </div>
@@ -17,7 +17,7 @@
 
 <div class="row mb-4">
     <div class="col-md-8">
-        <h1 class="mb-3">{{ campaign.name }}</h1>
+        <h1 class="mb-3">{{ campaign.clean_name }}</h1>
         <div class="d-flex flex-wrap gap-2 mb-3">
             <a href="{% url 'twitch:game_detail' campaign.game.id %}" class="badge bg-primary text-decoration-none">
                 <i class="fas fa-gamepad me-1"></i>{{ campaign.game.display_name }}

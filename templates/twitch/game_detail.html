@@ -39,7 +39,7 @@
                         <tbody>
                             {% for campaign in active_campaigns %}
                             <tr>
-                                <td>{{ campaign.name }}</td>
+                                <td>{{ campaign.clean_name }}</td>
                                 <td>{{ campaign.owner.name }}</td>
                                 <td>
                                     <span class="badge bg-success" data-bs-toggle="tooltip"
@@ -85,7 +85,7 @@
                         <tbody>
                             {% for campaign in upcoming_campaigns %}
                             <tr>
-                                <td>{{ campaign.name }}</td>
+                                <td>{{ campaign.clean_name }}</td>
                                 <td>{{ campaign.owner.name }}</td>
                                 <td>
                                     <span class="badge bg-info text-dark" data-bs-toggle="tooltip"
@@ -131,7 +131,7 @@
                         <tbody>
                             {% for campaign in expired_campaigns %}
                             <tr>
-                                <td>{{ campaign.name }}</td>
+                                <td>{{ campaign.clean_name }}</td>
                                 <td>{{ campaign.owner.name }}</td>
                                 <td>
                                     <span class="badge bg-secondary" data-bs-toggle="tooltip"
