@@ -3,43 +3,48 @@
 {% block title %}Dashboard - Twitch Drops Tracker{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col">
-        <h1 class="mb-4"><i class="fas fa-tachometer-alt me-2 twitch-color"></i>Dashboard</h1>
-        <p class="lead">Track your active Twitch drop campaigns and progress.</p>
+        <h1 class="mb-2"><i class="fas fa-tachometer-alt me-2 twitch-color"></i>Dashboard</h1>
+        <p class="lead mb-3">Track your active Twitch drop campaigns and progress.</p>
     </div>
 </div>
 
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-twitch">
+            <div class="card-header bg-twitch py-2">
                 <h5 class="mb-0"><i class="fas fa-fire me-2"></i>Active Campaigns</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body py-3">
                 {% if active_campaigns %}
-                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <div class="row g-3">
                     {% for campaign in active_campaigns %}
-                    <div class="col">
-                        <div class="card h-100 campaign-card campaign-active">
-                            {% if campaign.image_url %}
-                            <img src="{{ campaign.image_url }}" class="card-img-top" alt="{{ campaign.name }}">
-                            {% endif %}
-                            <div class="card-body">
-                                <h5 class="card-title">{{ campaign.name }}</h5>
-                                <h6 class="card-subtitle mb-2 text-muted">
+                    <div class="col-md-6 col-lg-4 col-xl-3">
+                        <div class="d-flex campaign-card campaign-active border rounded p-2">
+                            <div class="campaign-image me-3">
+                                {% if campaign.image_url %}
+                                <img src="{{ campaign.image_url }}" width="80" height="80" class="rounded"
+                                    alt="{{ campaign.name }}" style="object-fit: cover;">
+                                {% else %}
+                                <div class="bg-light rounded"
+                                    style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-image text-muted" style="font-size: 1.5rem;"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="campaign-details flex-grow-1">
+                                <h6 class="mb-1 text-truncate" title="{{ campaign.name }}">{{ campaign.name }}</h6>
+                                <p class="mb-1 small text-muted">
                                     <a href="{% url 'twitch:game_detail' campaign.game.id %}"
                                         class="text-decoration-none">
                                         <i class="fas fa-gamepad me-1"></i>{{ campaign.game.display_name }}
                                     </a>
-                                </h6>
-                                <p class="card-text small">{{ campaign.description|truncatewords:20 }}</p>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <div class="d-flex justify-content-between align-items-center">
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
                                     <span class="badge bg-success">Active</span>
                                     <a href="{% url 'twitch:campaign_detail' campaign.id %}"
-                                        class="btn btn-sm btn-outline-primary">View Details</a>
+                                        class="btn btn-sm btn-outline-primary">Details</a>
                                 </div>
                             </div>
                         </div>
@@ -47,7 +52,7 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="alert alert-info">
+                <div class="alert alert-info py-2">
                     <i class="fas fa-info-circle me-2"></i>No active campaigns at the moment.
                 </div>
                 {% endif %}
@@ -59,27 +64,27 @@
 <div class="row">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-dark text-white">
+            <div class="card-header bg-dark text-white py-2">
                 <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h5>
             </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-4 mb-3 mb-md-0">
-                        <div class="p-3 border rounded">
-                            <h2 class="twitch-color">{{ active_campaigns.count }}</h2>
-                            <p class="mb-0 text-muted">Active Campaigns</p>
+            <div class="card-body py-3">
+                <div class="row text-center g-2">
+                    <div class="col-md-4 mb-2 mb-md-0">
+                        <div class="p-2 border rounded">
+                            <h3 class="twitch-color mb-0">{{ active_campaigns.count }}</h3>
+                            <p class="mb-0 small text-muted">Active Campaigns</p>
                         </div>
                     </div>
-                    <div class="col-md-4 mb-3 mb-md-0">
-                        <div class="p-3 border rounded">
-                            <h2 class="text-primary">{{ now|date:"F j, Y" }}</h2>
-                            <p class="mb-0 text-muted">Current Date</p>
+                    <div class="col-md-4 mb-2 mb-md-0">
+                        <div class="p-2 border rounded">
+                            <h3 class="text-primary mb-0">{{ now|date:"F j, Y" }}</h3>
+                            <p class="mb-0 small text-muted">Current Date</p>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="p-3 border rounded">
-                            <a href="{% url 'twitch:campaign_list' %}" class="btn btn-primary btn-lg w-100">
-                                <i class="fas fa-list me-2"></i>View All Campaigns
+                        <div class="p-2 border rounded">
+                            <a href="{% url 'twitch:campaign_list' %}" class="btn btn-primary w-100">
+                                <i class="fas fa-list me-1"></i>All Campaigns
                             </a>
                         </div>
                     </div>
