@@ -184,10 +184,8 @@ class GameDetailView(DetailView):
             DropCampaign.objects.filter(game=game, start_at__gt=now, status="UPCOMING").select_related("owner").order_by("start_at")
         )
 
-        # Expired campaigns
-        expired_campaigns = (
-            DropCampaign.objects.filter(game=game, end_at__lt=now).select_related("owner").order_by("-end_at")[:10]
-        )  # Limit to 10 most recent
+        # Past campaigns (show all campaigns for this game)
+        expired_campaigns = DropCampaign.objects.filter(game=game).select_related("owner").order_by("-end_at")
 
         context.update({
             "active_campaigns": active_campaigns,
