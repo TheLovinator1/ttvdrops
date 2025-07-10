@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}{{ game.display_name }} - Twitch Drops Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'twitch:game_list' %}">Games</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ game.display_name }}</li>
+            </ol>
+        </nav>
+        <h1 class="mb-4">
+            <i class="fas fa-gamepad me-2 twitch-color"></i>{{ game.display_name }}
+        </h1>
+        <p class="lead">View all drop campaigns for {{ game.display_name }}.</p>
+    </div>
+</div>
+
+{% if active_campaigns %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-circle-play me-2"></i>Active Campaigns</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Organization</th>
+                                <th>Time Remaining</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campaign in active_campaigns %}
+                            <tr>
+                                <td>{{ campaign.name }}</td>
+                                <td>{{ campaign.owner.name }}</td>
+                                <td>
+                                    <span class="badge bg-success" data-bs-toggle="tooltip"
+                                        title="Ends on {{ campaign.end_at|date:'M d, Y H:i' }}">
+                                        Ends in {{ campaign.end_at|timeuntil }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'twitch:campaign_detail' campaign.id %}"
+                                        class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye me-1"></i> View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if upcoming_campaigns %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Upcoming Campaigns</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Organization</th>
+                                <th>Starts In</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campaign in upcoming_campaigns %}
+                            <tr>
+                                <td>{{ campaign.name }}</td>
+                                <td>{{ campaign.owner.name }}</td>
+                                <td>
+                                    <span class="badge bg-info text-dark" data-bs-toggle="tooltip"
+                                        title="Starts on {{ campaign.start_at|date:'M d, Y H:i' }}">
+                                        Starts in {{ campaign.start_at|timeuntil }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'twitch:campaign_detail' campaign.id %}"
+                                        class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye me-1"></i> View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if expired_campaigns %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Past Campaigns</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Organization</th>
+                                <th>Ended</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campaign in expired_campaigns %}
+                            <tr>
+                                <td>{{ campaign.name }}</td>
+                                <td>{{ campaign.owner.name }}</td>
+                                <td>
+                                    <span class="badge bg-secondary" data-bs-toggle="tooltip"
+                                        title="Ended on {{ campaign.end_at|date:'M d, Y H:i' }}">
+                                        {{ campaign.end_at|timesince }} ago
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'twitch:campaign_detail' campaign.id %}"
+                                        class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye me-1"></i> View Details
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No campaigns found for this game.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

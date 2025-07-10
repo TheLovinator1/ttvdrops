@@ -27,7 +27,12 @@
                             {% endif %}
                             <div class="card-body">
                                 <h5 class="card-title">{{ campaign.name }}</h5>
-                                <h6 class="card-subtitle mb-2 text-muted">{{ campaign.game.display_name }}</h6>
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <a href="{% url 'twitch:game_detail' campaign.game.id %}"
+                                        class="text-decoration-none">
+                                        <i class="fas fa-gamepad me-1"></i>{{ campaign.game.display_name }}
+                                    </a>
+                                </h6>
                                 <p class="card-text small">{{ campaign.description|truncatewords:20 }}</p>
                             </div>
                             <div class="card-footer bg-transparent">

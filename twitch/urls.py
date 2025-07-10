@@ -10,4 +10,6 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("campaigns/", views.DropCampaignListView.as_view(), name="campaign_list"),
     path("campaigns/<str:pk>/", views.DropCampaignDetailView.as_view(), name="campaign_detail"),
+    path("games/", views.GameListView.as_view(), name="game_list"),
+    path("games/<str:pk>/", views.GameDetailView.as_view(), name="game_detail"),
 ]

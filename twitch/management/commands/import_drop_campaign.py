@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import transaction, OperationalError
+from django.db import OperationalError, transaction
 
 from twitch.models import DropBenefit, DropBenefitEdge, DropCampaign, Game, Organization, TimeBasedDrop
 
@@ -60,7 +60,7 @@ class Command(BaseCommand):
             help="Delay in seconds between retries for database operations (default: 0.5)",
         )
 
-    def handle(self, **options) -> None:
+    def handle(self, **options) -> None:  # noqa: ANN003
         """Execute the command.
 
         Args:
@@ -235,14 +235,14 @@ class Command(BaseCommand):
 
         Args:
             campaign_data: The drop campaign data to import.
-            
+
         Raises:
             OperationalError: If the database is still locked after max retries.
         """
         # Retry logic for database operations
         max_retries = getattr(self, "max_retries", 5)  # Default to 5 if not set
         retry_delay = getattr(self, "retry_delay", 0.5)  # Default to 0.5 seconds if not set
-        
+
         for attempt in range(max_retries):
             try:
                 with transaction.atomic():
@@ -326,11 +326,9 @@ class Command(BaseCommand):
                 # Check if this is a database lock error
                 if "database is locked" in str(e).lower():
                     if attempt < max_retries - 1:  # Don't sleep on the last attempt
-                        sleep_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                        sleep_time = retry_delay * (2**attempt)  # Exponential backoff
                         self.stdout.write(
-                            self.style.WARNING(
-                                f"Database locked, retrying in {sleep_time:.2f}s (attempt {attempt + 1}/{max_retries})"
-                            )
+                            self.style.WARNING(f"Database locked, retrying in {sleep_time:.2f}s (attempt {attempt + 1}/{max_retries})")
                         )
                         time.sleep(sleep_time)
                     else:

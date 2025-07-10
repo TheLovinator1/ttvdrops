@@ -19,7 +19,9 @@
     <div class="col-md-8">
         <h1 class="mb-3">{{ campaign.name }}</h1>
         <div class="d-flex flex-wrap gap-2 mb-3">
-            <span class="badge bg-primary">{{ campaign.game.display_name }}</span>
+            <a href="{% url 'twitch:game_detail' campaign.game.id %}" class="badge bg-primary text-decoration-none">
+                <i class="fas fa-gamepad me-1"></i>{{ campaign.game.display_name }}
+            </a>
             {% if campaign.start_at <= now and campaign.end_at >= now %}
             {% if campaign.status == 'ACTIVE' %}
             <span class="badge bg-success">Active</span>

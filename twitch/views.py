@@ -40,7 +40,7 @@ class DropCampaignListView(ListView):
 
         return queryset.select_related("game", "owner").order_by("-start_at")
 
-    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
 
         Args:
@@ -74,7 +74,7 @@ class DropCampaignDetailView(DetailView):
     template_name = "twitch/campaign_detail.html"
     context_object_name = "campaign"
 
-    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
 
         Args:
@@ -95,6 +95,106 @@ class DropCampaignDetailView(DetailView):
 
         # Current time for active campaign highlighting
         context["now"] = timezone.now()
+
+        return context
+
+
+class GameListView(ListView):
+    """List view for games."""
+
+    model = Game
+    template_name = "twitch/game_list.html"
+    context_object_name = "games"
+
+    def get_queryset(self) -> QuerySet[Game]:
+        """Get queryset of games.
+
+        Returns:
+            QuerySet: Sorted games.
+        """
+        return super().get_queryset().order_by("display_name")
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        """Add additional context data.
+
+        Args:
+            **kwargs: Additional arguments.
+
+        Returns:
+            dict: Context data.
+        """
+        context = super().get_context_data(**kwargs)
+
+        # Get campaign count for each game
+        games_with_counts = []
+        for game in context["games"]:
+            campaign_count = DropCampaign.objects.filter(game=game).count()
+            active_count = DropCampaign.objects.filter(
+                game=game,
+                start_at__lte=timezone.now(),
+                end_at__gte=timezone.now(),
+                status="ACTIVE",
+            ).count()
+            games_with_counts.append({
+                "game": game,
+                "campaign_count": campaign_count,
+                "active_count": active_count,
+            })
+
+        context["games_with_counts"] = games_with_counts
+        return context
+
+
+class GameDetailView(DetailView):
+    """Detail view for a game."""
+
+    model = Game
+    template_name = "twitch/game_detail.html"
+    context_object_name = "game"
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        """Add additional context data.
+
+        Args:
+            **kwargs: Additional arguments.
+
+        Returns:
+            dict: Context data.
+        """
+        context = super().get_context_data(**kwargs)
+        game = self.get_object()
+
+        # Get all campaigns for this game
+        now = timezone.now()
+
+        # Active campaigns
+        active_campaigns = (
+            DropCampaign.objects.filter(
+                game=game,
+                start_at__lte=now,
+                end_at__gte=now,
+                status="ACTIVE",
+            )
+            .select_related("owner")
+            .order_by("end_at")
+        )
+
+        # Upcoming campaigns
+        upcoming_campaigns = (
+            DropCampaign.objects.filter(game=game, start_at__gt=now, status="UPCOMING").select_related("owner").order_by("start_at")
+        )
+
+        # Expired campaigns
+        expired_campaigns = (
+            DropCampaign.objects.filter(game=game, end_at__lt=now).select_related("owner").order_by("-end_at")[:10]
+        )  # Limit to 10 most recent
+
+        context.update({
+            "active_campaigns": active_campaigns,
+            "upcoming_campaigns": upcoming_campaigns,
+            "expired_campaigns": expired_campaigns,
+            "now": now,
+        })
 
         return context
 
