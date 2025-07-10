@@ -41,7 +41,7 @@ class DropCampaignListView(ListView):
         # Prefetch related objects to reduce queries
         return queryset.select_related("game", "owner").order_by("-start_at")
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
+    def get_context_data(self, **kwargs: object) -> dict[str, Any]:
         """Add additional context data.
 
         Args:
@@ -75,7 +75,7 @@ class DropCampaignDetailView(DetailView):
     template_name = "twitch/campaign_detail.html"
     context_object_name = "campaign"
 
-    def get_object(self, queryset=None):
+    def get_object(self, queryset: QuerySet[DropCampaign] | None = None) -> DropCampaign:
         """Get the campaign object with related data prefetched.
 
         Args:
@@ -93,9 +93,9 @@ class DropCampaignDetailView(DetailView):
         # We don't need to prefetch time_based_drops here since we're fetching them separately in get_context_data
         # with proper ordering and prefetching of benefits
 
-        return super().get_object(queryset=queryset)
+        return super().get_object(queryset=queryset)  # type: ignore[return-value]
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
+    def get_context_data(self, **kwargs: object) -> dict[str, Any]:
         """Add additional context data.
 
         Args:
@@ -129,7 +129,11 @@ class GameListView(ListView):
     context_object_name = "games"
 
     def get_queryset(self) -> QuerySet[Game]:
-        """Get queryset of games, annotated with campaign counts to avoid N+1 queries."""
+        """Get queryset of games, annotated with campaign counts to avoid N+1 queries.
+
+        Returns:
+            QuerySet[Game]: Queryset of games with annotations.
+        """
         now = timezone.now()
         return (
             super()
@@ -149,7 +153,7 @@ class GameListView(ListView):
             .order_by("display_name")
         )
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
+    def get_context_data(self, **kwargs: object) -> dict[str, Any]:
         """Add additional context data with games grouped by organization.
 
         Args:
@@ -225,14 +229,15 @@ class GameDetailView(DetailView):
     template_name = "twitch/game_detail.html"
     context_object_name = "game"
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
+    def get_context_data(self, **kwargs: object) -> dict[str, Any]:
         """Add additional context data.
 
         Args:
             **kwargs: Additional arguments.
 
         Returns:
-            dict: Context data.
+            dict: Context data with active, upcoming, and expired campaigns.
+                 Expired campaigns are filtered based on either end date or status.
         """
         context = super().get_context_data(**kwargs)
         game = self.get_object()
@@ -250,12 +255,13 @@ class GameDetailView(DetailView):
         upcoming_campaigns = [campaign for campaign in all_campaigns if campaign.start_at > now and campaign.status == "UPCOMING"]
         upcoming_campaigns.sort(key=lambda c: c.start_at)  # Sort by start_at ascending
 
-        # No need to fetch expired_campaigns separately as we already have all_campaigns
+        # Filter for expired campaigns
+        expired_campaigns = [campaign for campaign in all_campaigns if campaign.end_at < now or campaign.status == "EXPIRED"]
 
         context.update({
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
-            "expired_campaigns": all_campaigns,  # We already have all campaigns sorted by -end_at
+            "expired_campaigns": expired_campaigns,  # Only include expired campaigns
             "now": now,
         })
 
