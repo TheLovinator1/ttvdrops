@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
 
-from twitch.models import DropCampaign, Game, TimeBasedDrop
+from twitch.models import DropCampaign, Game, Organization, TimeBasedDrop
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -31,14 +31,14 @@ class DropCampaignListView(ListView):
         status_filter = self.request.GET.get("status")
         game_filter = self.request.GET.get("game")
 
-        # Filter by status if provided
+        # Apply filters
         if status_filter:
             queryset = queryset.filter(status=status_filter)
 
-        # Filter by game if provided
         if game_filter:
             queryset = queryset.filter(game__id=game_filter)
 
+        # Prefetch related objects to reduce queries
         return queryset.select_related("game", "owner").order_by("-start_at")
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
@@ -52,8 +52,8 @@ class DropCampaignListView(ListView):
         """
         context = super().get_context_data(**kwargs)
 
-        # Add games for filtering
-        context["games"] = Game.objects.all()
+        # Load all games in a single query instead of multiple queries per game
+        context["games"] = Game.objects.all().order_by('display_name')
 
         # Add status options for filtering
         context["status_options"] = [status[0] for status in DropCampaign.STATUS_CHOICES]
@@ -74,6 +74,26 @@ class DropCampaignDetailView(DetailView):
     model = DropCampaign
     template_name = "twitch/campaign_detail.html"
     context_object_name = "campaign"
+    
+    def get_object(self, queryset=None):
+        """Get the campaign object with related data prefetched.
+        
+        Args:
+            queryset: Optional queryset to use.
+            
+        Returns:
+            DropCampaign: The campaign object with prefetched relations.
+        """
+        # Prefetch all needed related objects in a single query
+        if queryset is None:
+            queryset = self.get_queryset()
+            
+        queryset = queryset.select_related("game", "owner")
+        
+        # We don't need to prefetch time_based_drops here since we're fetching them separately in get_context_data
+        # with proper ordering and prefetching of benefits
+        
+        return super().get_object(queryset=queryset)
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
@@ -85,10 +105,11 @@ class DropCampaignDetailView(DetailView):
             dict: Context data.
         """
         context = super().get_context_data(**kwargs)
+        campaign = context["campaign"]  # Get the campaign from context
 
-        # Add drops for this campaign with benefits preloaded
+        # Add drops for this campaign with benefits preloaded in a single efficient query
         context["drops"] = (
-            TimeBasedDrop.objects.filter(campaign=self.get_object())
+            TimeBasedDrop.objects.filter(campaign=campaign)
             .select_related("campaign")
             .prefetch_related("benefits")
             .order_by("required_minutes_watched")
@@ -101,7 +122,7 @@ class DropCampaignDetailView(DetailView):
 
 
 class GameListView(ListView):
-    """List view for games."""
+    """List view for games grouped by organization."""
 
     model = Game
     template_name = "twitch/game_list.html"
@@ -129,17 +150,87 @@ class GameListView(ListView):
         )
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
-        """Add additional context data."""
+        """Add additional context data with games grouped by organization.
+        
+        Args:
+            **kwargs: Additional keyword arguments.
+            
+        Returns:
+            dict: Context data with games grouped by organization.
+        """
         context = super().get_context_data(**kwargs)
-        # Use annotated counts directly, no extra queries
-        context["games_with_counts"] = [
-            {
-                "game": game,
-                "campaign_count": getattr(game, "campaign_count", 0),
-                "active_count": getattr(game, "active_count", 0),
-            }
-            for game in context["games"]
-        ]
+        
+        # Create a dictionary to hold games by organization
+        games_by_org = {}
+        now = timezone.now()
+        
+        # Step 1: Get all organizations with games in a single query
+        # We'll prefetch the games related to each organization through drop_campaigns
+        organizations_with_games = Organization.objects.filter(
+            drop_campaigns__isnull=False
+        ).distinct().order_by('name')
+        
+        # Step 2: Get all game-organization relationships in a single efficient query
+        # This query gets all games with their campaign counts and organization info
+        game_org_relations = DropCampaign.objects.values(
+            'game_id', 'owner_id', 'owner__name'
+        ).annotate(
+            campaign_count=Count('id', distinct=True),
+            active_count=Count(
+                'id',
+                filter=Q(
+                    start_at__lte=now,
+                    end_at__gte=now,
+                    status="ACTIVE"
+                ),
+                distinct=True
+            )
+        )
+        
+        # Step 3: Get all games in a single query with their display names
+        all_games = {
+            game.id: game for game in Game.objects.all()
+        }
+        
+        # Step 4: Create a mapping of organization_id to organization_name
+        org_names = {
+            org.id: org.name for org in organizations_with_games
+        }
+        
+        # Step 5: Group games by organization
+        game_org_map = {}
+        for relation in game_org_relations:
+            org_id = relation['owner_id']
+            game_id = relation['game_id']
+            
+            if org_id not in game_org_map:
+                game_org_map[org_id] = {}
+                
+            if game_id not in game_org_map[org_id]:
+                game = all_games.get(game_id)
+                if game:
+                    game_org_map[org_id][game_id] = {
+                        'game': game,
+                        'campaign_count': relation['campaign_count'],
+                        'active_count': relation['active_count']
+                    }
+        
+        # Step 6: Convert the nested dictionary to the format expected by the template
+        for org_id, games in game_org_map.items():
+            if org_id in org_names:
+                # Create an Organization-like object with id and name
+                org_obj = type('Organization', (), {'id': org_id, 'name': org_names[org_id]})
+                games_by_org[org_obj] = list(games.values())
+        
+        # Create the flattened games_with_counts for backward compatibility
+        games_with_counts = []
+        for org_games in games_by_org.values():
+            games_with_counts.extend(org_games)
+        
+        # Add to context
+        context["games_with_counts"] = games_with_counts  # Keep the original list for backward compatibility
+        context["games_by_org"] = games_by_org  # Add the new organized structure
+        
         return context
 
 
@@ -162,33 +253,31 @@ class GameDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         game = self.get_object()
 
-        # Get all campaigns for this game
+        # Get all campaigns for this game in a single query with prefetching
         now = timezone.now()
+        all_campaigns = DropCampaign.objects.filter(
+            game=game
+        ).select_related("owner").order_by('-end_at')
+        
+        # Filter the campaigns in Python instead of making multiple queries
+        active_campaigns = [
+            campaign for campaign in all_campaigns
+            if campaign.start_at <= now and campaign.end_at >= now and campaign.status == "ACTIVE"
+        ]
+        active_campaigns.sort(key=lambda c: c.end_at)  # Sort by end_at ascending
+        
+        upcoming_campaigns = [
+            campaign for campaign in all_campaigns
+            if campaign.start_at > now and campaign.status == "UPCOMING"
+        ]
+        upcoming_campaigns.sort(key=lambda c: c.start_at)  # Sort by start_at ascending
 
-        # Active campaigns
-        active_campaigns = (
-            DropCampaign.objects.filter(
-                game=game,
-                start_at__lte=now,
-                end_at__gte=now,
-                status="ACTIVE",
-            )
-            .select_related("owner")
-            .order_by("end_at")
-        )
-
-        # Upcoming campaigns
-        upcoming_campaigns = (
-            DropCampaign.objects.filter(game=game, start_at__gt=now, status="UPCOMING").select_related("owner").order_by("start_at")
-        )
-
-        # Past campaigns (show all campaigns for this game)
-        expired_campaigns = DropCampaign.objects.filter(game=game).select_related("owner").order_by("-end_at")
-
+        # No need to fetch expired_campaigns separately as we already have all_campaigns
+        
         context.update({
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
-            "expired_campaigns": expired_campaigns,
+            "expired_campaigns": all_campaigns,  # We already have all campaigns sorted by -end_at
             "now": now,
         })
 
@@ -204,9 +293,23 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered dashboard template.
     """
-    # Get active campaigns
+    # Get active campaigns with prefetching to reduce queries
     now = timezone.now()
-    active_campaigns = DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now, status="ACTIVE").select_related("game", "owner")
+    active_campaigns = (
+        DropCampaign.objects.filter(
+            start_at__lte=now,
+            end_at__gte=now,
+            status="ACTIVE"
+        )
+        .select_related("game", "owner")
+        # Prefetch the time-based drops with their benefits to avoid N+1 queries
+        .prefetch_related(
+            Prefetch(
+                'time_based_drops',
+                queryset=TimeBasedDrop.objects.prefetch_related('benefits')
+            )
+        )
+    )
 
     return render(
         request,

@@ -1,49 +1,60 @@
 {% extends "base.html" %}
 
-{% block title %}Games - Twitch Drops Tracker{% endblock %}
+{% block title %}Games by Organization - Twitch Drops Tracker{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col">
-        <h1 class="mb-4"><i class="fas fa-gamepad me-2 twitch-color"></i>Games</h1>
-        <p class="lead">Browse all games with Twitch drop campaigns.</p>
+        <h1 class="mb-4"><i class="fas fa-gamepad me-2 twitch-color"></i>Games by Organization</h1>
+        <p class="lead">Browse all games with Twitch drop campaigns, grouped by organization.</p>
     </div>
 </div>
 
-<div class="row row-cols-1 row-cols-md-3 g-4">
-    {% for item in games_with_counts %}
-    <div class="col">
-        <div class="card h-100 border-0 shadow-sm hover-effect">
+{% if games_by_org %}
+    {% for organization, games in games_by_org.items %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <h3 class="mb-0">
+                    <i class="fas fa-building me-2"></i>{{ organization.name }}
+                </h3>
+            </div>
             <div class="card-body">
-                <h5 class="card-title">
-                    <a href="{% url 'twitch:game_detail' item.game.id %}" class="text-decoration-none">
-                        {{ item.game.display_name }}
-                    </a>
-                </h5>
-                <div class="d-flex justify-content-between mt-3">
-                    <span class="badge bg-secondary">
-                        <i class="fas fa-gift me-1"></i> {{ item.campaign_count }} Campaigns
-                    </span>
-                    {% if item.active_count > 0 %}
-                    <span class="badge bg-success">
-                        <i class="fas fa-circle-play me-1"></i> {{ item.active_count }} Active
-                    </span>
-                    {% endif %}
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    {% for item in games %}
+                    <div class="col">
+                        <div class="card h-100 border-0 shadow-sm hover-effect">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="{% url 'twitch:game_detail' item.game.id %}" class="text-decoration-none">
+                                        {{ item.game.display_name }}
+                                    </a>
+                                </h5>
+                                <div class="d-flex justify-content-between mt-3">
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-gift me-1"></i> {{ item.campaign_count }} Campaigns
+                                    </span>
+                                    {% if item.active_count > 0 %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-circle-play me-1"></i> {{ item.active_count }} Active
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-footer bg-transparent border-0">
+                                <a href="{% url 'twitch:game_detail' item.game.id %}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye me-1"></i> View Campaigns
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
-            <div class="card-footer bg-transparent border-0">
-                <a href="{% url 'twitch:game_detail' item.game.id %}" class="btn btn-sm btn-primary">
-                    <i class="fas fa-eye me-1"></i> View Campaigns
-                </a>
-            </div>
         </div>
-    </div>
-    {% empty %}
-    <div class="col-12">
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i> No games found.
-        </div>
-    </div>
     {% endfor %}
-</div>
+{% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i> No games found.
+    </div>
+{% endif %}
 {% endblock %}
