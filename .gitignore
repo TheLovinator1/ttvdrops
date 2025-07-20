@@ -208,3 +208,7 @@ __marimo__/
 
 # TTVDrops
 responses/
+
+# Django static files
+#  Django collects static files into a single directory for production use.
+staticfiles/
