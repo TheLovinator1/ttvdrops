@@ -18,7 +18,7 @@
             </div>
             <div class="card-body py-3">
                 <form method="get" action="{% url 'twitch:campaign_list' %}" class="row g-3">
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <label for="game" class="form-label">Game</label>
                         <select class="form-select" id="game" name="game">
                             <option value="">All Games</option>
@@ -29,7 +29,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-3">
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" id="status" name="status">
                             <option value="">All Statuses</option>
@@ -40,7 +40,17 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
+                    <div class="col-md-2">
+                        <label for="per_page" class="form-label">Per Page</label>
+                        <select class="form-select" id="per_page" name="per_page">
+                            {% for option in per_page_options %}
+                            <option value="{{ option }}" {% if selected_per_page == option %}selected{% endif %}>
+                                {{ option }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search me-2"></i>Apply Filters
                         </button>
@@ -136,6 +146,105 @@
                 </div>
             </div>
 
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="row mt-3">
+                <div class="col-12">
+                    <nav aria-label="Campaign pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page=1"
+                                    aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                                    aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </span>
+                            </li>
+                            {% endif %}
+
+                            {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
+                            </li>
+                            {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
+                            </li>
+                            {% elif num == page_obj.number|add:'-4' or num == page_obj.number|add:'4' %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.next_page_number }}"
+                                    aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link"
+                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
+                                    aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </span>
+                            </li>
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12 text-center">
+                    <small class="text-muted">
+                        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+                        campaigns
+                        (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+                    </small>
+                </div>
+            </div>
+            {% endif %}
+
             <div class="row mt-3">
                 <div class="col-12">
                     <div class="card border-0 shadow-sm">
@@ -146,7 +255,13 @@
                             <div class="row text-center g-2">
                                 <div class="col-md-4 mb-2 mb-md-0">
                                     <div class="p-2 border rounded">
-                                        <h3 class="twitch-color mb-0">{{ campaigns|length }}</h3>
+                                        <h3 class="twitch-color mb-0">
+                                            {% if is_paginated %}
+                                            {{ page_obj.paginator.count }}
+                                            {% else %}
+                                            {{ campaigns|length }}
+                                            {% endif %}
+                                        </h3>
                                         <p class="mb-0 small text-muted">Total Campaigns</p>
                                     </div>
                                 </div>

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import Count, Prefetch, Q
+from django.db.models.query import QuerySet
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
@@ -20,6 +21,24 @@ class DropCampaignListView(ListView):
     model = DropCampaign
     template_name = "twitch/campaign_list.html"
     context_object_name = "campaigns"
+    paginate_by = 24  # 24 campaigns per page (6x4 grid on larger screens)
+
+    def get_paginate_by(self, queryset) -> int:
+        """Get the pagination size, allowing override via URL parameter.
+
+        Args:
+            queryset: The queryset being paginated.
+
+        Returns:
+            int: Number of items per page.
+        """
+        per_page: str | None = self.request.GET.get("per_page")
+        if per_page and per_page.isdigit():
+            per_page_int = int(per_page)
+            # Limit to reasonable values to prevent performance issues
+            if per_page_int in {12, 24, 48, 96}:
+                return per_page_int
+        return self.paginate_by
 
     def get_queryset(self) -> QuerySet[DropCampaign]:
         """Get queryset of drop campaigns.
@@ -27,9 +46,9 @@ class DropCampaignListView(ListView):
         Returns:
             QuerySet: Filtered drop campaigns.
         """
-        queryset = super().get_queryset()
-        status_filter = self.request.GET.get("status")
-        game_filter = self.request.GET.get("game")
+        queryset: QuerySet[DropCampaign] = super().get_queryset()
+        status_filter: str | None = self.request.GET.get("status")
+        game_filter: str | None = self.request.GET.get("game")
 
         # Apply filters
         if status_filter:
@@ -61,6 +80,18 @@ class DropCampaignListView(ListView):
         # Add selected filters
         context["selected_status"] = self.request.GET.get("status", "")
         context["selected_game"] = self.request.GET.get("game", "")
+
+        # Add per_page options and current selection
+        context["per_page_options"] = [12, 24, 48, 96]
+        per_page: str = self.request.GET.get("per_page", str(self.paginate_by))
+        if per_page.isdigit():
+            per_page_int = int(per_page)
+            if per_page_int in {12, 24, 48, 96}:
+                context["selected_per_page"] = per_page_int
+            else:
+                context["selected_per_page"] = self.paginate_by
+        else:
+            context["selected_per_page"] = self.paginate_by
 
         # Current time for active campaign highlighting
         context["now"] = timezone.now()
