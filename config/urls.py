@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 urlpatterns: list[URLResolver] = [
     path(route="admin/", view=admin.site.urls),
+    path(route="accounts/", view=include("accounts.urls", namespace="accounts")),
     path(route="", view=include("twitch.urls", namespace="twitch")),
 ]
 

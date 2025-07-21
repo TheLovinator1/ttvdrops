@@ -41,7 +41,7 @@ def get_data_dir() -> Path:
 DATA_DIR: Path = get_data_dir()
 
 ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
-AUTH_USER_MODEL = "core.User"
+AUTH_USER_MODEL = "accounts.User"
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ROOT_URLCONF = "config.urls"
@@ -63,12 +63,16 @@ EMAIL_USE_SSL: bool = os.getenv(key="EMAIL_USE_SSL", default="False").lower() ==
 SERVER_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
 
 LOGIN_REDIRECT_URL = "/"
+LOGIN_URL = "/accounts/login/"
 LOGOUT_REDIRECT_URL = "/"
+
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_AUTHENTICATION_METHOD = "username"
+ACCOUNT_EMAIL_REQUIRED = False
 
 MEDIA_ROOT: Path = DATA_DIR / "media"
 MEDIA_ROOT.mkdir(exist_ok=True)
 MEDIA_URL = "/media/"
-
 
 STATIC_ROOT: Path = BASE_DIR / "staticfiles"
 STATIC_ROOT.mkdir(exist_ok=True)
@@ -114,7 +118,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "core.apps.CoreConfig",
+    "accounts.apps.AccountsConfig",
     "twitch.apps.TwitchConfig",
 ]
 
