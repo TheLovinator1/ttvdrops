@@ -318,11 +318,44 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         .prefetch_related(Prefetch("time_based_drops", queryset=TimeBasedDrop.objects.prefetch_related("benefits")))
     )
 
+    # Group active campaigns by organization and then by game
+    campaigns_by_org_game = {}
+
+    for campaign in active_campaigns:
+        org_id = campaign.owner.id
+        org_name = campaign.owner.name
+        game_id = campaign.game.id
+        game_name = campaign.game.display_name
+
+        # Initialize org dict if not exists
+        if org_id not in campaigns_by_org_game:
+            campaigns_by_org_game[org_id] = {"name": org_name, "games": {}}
+
+        # Initialize game list if not exists
+        if game_id not in campaigns_by_org_game[org_id]["games"]:
+            campaigns_by_org_game[org_id]["games"][game_id] = {"name": game_name, "campaigns": []}
+
+        # Add campaign to the game list
+        campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(campaign)
+
+    # Sort organizations alphabetically
+    sorted_campaigns_by_org_game = {
+        org_id: campaigns_by_org_game[org_id]
+        for org_id in sorted(campaigns_by_org_game.keys(), key=lambda k: campaigns_by_org_game[k]["name"])
+    }
+
+    # Sort games alphabetically within each organization
+    for org_data in sorted_campaigns_by_org_game.values():
+        org_data["games"] = {
+            game_id: org_data["games"][game_id] for game_id in sorted(org_data["games"].keys(), key=lambda k: org_data["games"][k]["name"])
+        }
+
     return render(
         request,
         "twitch/dashboard.html",
         {
-            "active_campaigns": active_campaigns,
+            "active_campaigns": active_campaigns,  # Keep the original list for backward compatibility
+            "campaigns_by_org_game": sorted_campaigns_by_org_game,  # Add the new organized structure
             "now": now,
         },
     )
