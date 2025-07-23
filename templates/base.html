@@ -1,135 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ttvdrops{% endblock %}</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <style>
-        /* Custom styles */
-        .campaign-card {
-            height: 100%;
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="description"
+              content="Twitch Drops Tracker - Track your Twitch drops and campaigns easily.">
+        <meta name="keywords" content="Twitch, Drops">
+        <title>
+            {% block title %}
+                ttvdrops
+            {% endblock title %}
+        </title>
+        <style>
+        body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+            Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        padding: 0 15px;
+        max-width: 650px;
+        font-size: 115%;
+        line-height: 1.4;
         }
 
-        .campaign-active {
-            border-left: 4px solid #9147ff;
+        html {
+        color-scheme: light dark;
         }
 
-        .campaign-upcoming {
-            border-left: 4px solid #1d9bf0;
+        img {
+            max-width: 100%;
         }
-
-        .campaign-expired {
-            border-left: 4px solid #6c757d;
-        }
-
-        .drop-item {
-            border-left: 4px solid #9147ff;
-        }
-
-        .twitch-color {
-            color: #9147ff;
-        }
-
-        .bg-twitch {
-            background-color: #9147ff;
-            color: white;
-        }
-
-        .benefit-img {
-            width: 160px;
-            height: 160px;
-        }
-
-        .card-header h3 {
-            font-size: 1.5rem;
-        }
-    </style>
-    {% block extra_css %}{% endblock %}
-</head>
-
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'twitch:dashboard' %}">
-                <i class="fa-brands fa-twitch me-2"></i>ttvdrops
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}"
-                            href="{% url 'twitch:dashboard' %}">
-                            <i class="fas fa-home me-1"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/campaigns/' in request.path %}active{% endif %}"
-                            href="{% url 'twitch:campaign_list' %}">
-                            <i class="fas fa-gift me-1"></i> Campaigns
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if '/games/' in request.path %}active{% endif %}"
-                            href="{% url 'twitch:game_list' %}">
-                            <i class="fas fa-gamepad me-1"></i> Games
-                        </a>
-                    </li>
-                    {% if user.is_authenticated %}
-                    {% if user.is_staff %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin:index' %}">
-                            <i class="fas fa-cog me-1"></i> Admin
-                        </a>
-                    </li>
-                    {% endif %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user me-1"></i> {{ user.username }}
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">
-                                    <i class="fas fa-user-circle me-2"></i> Profile
-                                </a></li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">
-                                    <i class="fas fa-sign-out-alt me-2"></i> Logout
-                                </a></li>
-                        </ul>
-                    </li>
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'accounts:login' %}">
-                            <i class="fas fa-sign-in-alt me-1"></i> Login
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'accounts:signup' %}">
-                            <i class="fas fa-user-plus me-1"></i> Sign Up
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </div>
+        </style>
+    </head>
+    <body>
+        {% include "navbar.html" %}
+        <div class="content">
+            {% block content %}
+                <!-- Main content will be injected here -->
+            {% endblock content %}
         </div>
-    </nav>
-
-    <div class="container mb-5">
-        {% block content %}{% endblock %}
-    </div>
-
-    <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    {% block extra_js %}{% endblock %}
-</body>
-
+    </body>
 </html>

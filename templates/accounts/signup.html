@@ -1,96 +1,40 @@
-{% extends 'base.html' %}
-
-{% block title %}Sign Up{% endblock %}
-
+{% extends "base.html" %}
+{% block title %}
+    Sign Up
+{% endblock title %}
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card shadow">
-                <div class="card-header bg-success text-white">
-                    <h4 class="mb-0"><i class="fas fa-user-plus"></i> Sign Up</h4>
-                </div>
-                <div class="card-body">
-                    {% if form.errors %}
-                    <div class="alert alert-danger">
-                        <ul class="mb-0">
-                            {% for field, errors in form.errors.items %}
-                            {% for error in errors %}
-                            <li>{{ error }}</li>
-                            {% endfor %}
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-
-                    <form method="post">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-user"></i></span>
-                                <input type="text" class="form-control" name="username"
-                                    id="{{ form.username.id_for_label }}" value="{{ form.username.value|default:'' }}"
-                                    required>
-                            </div>
-                            {% if form.username.help_text %}
-                            <div class="form-text">{{ form.username.help_text }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.password1.id_for_label }}" class="form-label">Password</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                                <input type="password" class="form-control" name="password1"
-                                    id="{{ form.password1.id_for_label }}" required>
-                            </div>
-                            {% if form.password1.help_text %}
-                            <div class="form-text">{{ form.password1.help_text }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm Password</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                                <input type="password" class="form-control" name="password2"
-                                    id="{{ form.password2.id_for_label }}" required>
-                            </div>
-                            {% if form.password2.help_text %}
-                            <div class="form-text">{{ form.password2.help_text }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-success btn-lg">
-                                <i class="fas fa-user-plus"></i> Sign Up
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                <div class="card-footer text-center">
-                    <p class="mb-0">Already have an account? <a href="{% url 'accounts:login' %}"
-                            class="text-decoration-none">Login here</a></p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .form-control {
-        border-left: none;
-    }
-
-    .input-group-text {
-        background-color: #f8f9fa;
-        border-right: none;
-    }
-
-    .form-text {
-        font-size: 0.875em;
-        color: #6c757d;
-    }
-</style>
-{% endblock %}
+    <h4>Sign Up</h4>
+    {% if form.errors %}
+        <ul>
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        <input type="text"
+               name="username"
+               id="{{ form.username.id_for_label }}"
+               value="{{ form.username.value|default:'' }}"
+               required>
+        {% if form.username.help_text %}{{ form.username.help_text }}{% endif %}
+        <label for="{{ form.password1.id_for_label }}">Password</label>
+        <input type="password"
+               name="password1"
+               id="{{ form.password1.id_for_label }}"
+               required>
+        {% if form.password1.help_text %}{{ form.password1.help_text }}{% endif %}
+        <label for="{{ form.password2.id_for_label }}">Confirm Password</label>
+        <input type="password"
+               name="password2"
+               id="{{ form.password2.id_for_label }}"
+               required>
+        {% if form.password2.help_text %}{{ form.password2.help_text }}{% endif %}
+        <button type="submit">Sign Up</button>
+    </form>
+    <p>
+        Already have an account? <a href="{% url 'accounts:login' %}">Login here</a>
+    </p>
+{% endblock content %}

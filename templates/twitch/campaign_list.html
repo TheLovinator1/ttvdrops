@@ -1,286 +1,114 @@
 {% extends "base.html" %}
-
-{% block title %}Drop Campaigns - Twitch Drops Tracker{% endblock %}
-
+{% load static %}
+{% block title %}
+    Drop Campaigns - Twitch Drops Tracker
+{% endblock title %}
 {% block content %}
-<div class="row mb-3">
-    <div class="col">
-        <h1 class="mb-2"><i class="fas fa-gift me-2 twitch-color"></i>Drop Campaigns</h1>
-        <p class="lead mb-3">Browse all Twitch drop campaigns.</p>
-    </div>
-</div>
-
-<div class="row mb-3">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-dark text-white py-2">
-                <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filter Campaigns</h5>
-            </div>
-            <div class="card-body py-3">
-                <form method="get" action="{% url 'twitch:campaign_list' %}" class="row g-3">
-                    <div class="col-md-3">
-                        <label for="game" class="form-label">Game</label>
-                        <select class="form-select" id="game" name="game">
-                            <option value="">All Games</option>
-                            {% for game in games %}
-                            <option value="{{ game.id }}" {% if selected_game == game.id %}selected{% endif %}>
-                                {{ game.display_name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="status" class="form-label">Status</label>
-                        <select class="form-select" id="status" name="status">
-                            <option value="">All Statuses</option>
-                            {% for status in status_options %}
-                            <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>
-                                {{ status|title }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="per_page" class="form-label">Per Page</label>
-                        <select class="form-select" id="per_page" name="per_page">
-                            {% for option in per_page_options %}
-                            <option value="{{ option }}" {% if selected_per_page == option %}selected{% endif %}>
-                                {{ option }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="fas fa-search me-2"></i>Apply Filters
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-twitch py-2">
-                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Campaign List</h5>
-            </div>
-            <div class="card-body py-3">
-                {% if campaigns %}
-                <div class="row g-3">
-                    {% for campaign in campaigns %}
-                    <div class="col-md-6 col-lg-4 col-xl-3">
-                        {% if campaign.start_at <= now and campaign.end_at >= now %}
-                        {% if campaign.status == 'ACTIVE' %}
-                        <div class="campaign-card campaign-active border rounded p-2">
-                            {% else %}
-                            <div class="campaign-card border rounded p-2">
-                                {% endif %}
-                                {% elif campaign.start_at > now %}
-                                <div class="campaign-card campaign-upcoming border rounded p-2">
-                                    {% else %}
-                                    <div class="campaign-card campaign-expired border rounded p-2">
-                                        {% endif %}
-                                        <div class="d-flex">
-                                            <div class="campaign-image flex-shrink-0 me-3">
-                                                {% if campaign.image_url %}
-                                                <img src="{{ campaign.image_url }}" width="70" height="70"
-                                                    class="rounded" alt="{{ campaign.name }}"
-                                                    style="object-fit: cover;">
-                                                {% else %}
-                                                <div class="bg-light rounded"
-                                                    style="width: 70px; height: 70px; display: flex; align-items: center; justify-content: center;">
-                                                    <i class="fas fa-image text-muted" style="font-size: 1.5rem;"></i>
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                            <div class="campaign-details min-w-0">
-                                                <div class="title-wrapper" style="min-height: 2.4rem;">
-                                                    <h6 class="mb-1" title="{{ campaign.name }}"
-                                                        style="display: -webkit-box; display: box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; box-orient: vertical; overflow: hidden; font-size: 0.9rem;">
-                                                        {{ campaign.clean_name }}</h6>
-                                                </div>
-                                                <p class="mb-1 small text-muted text-truncate">
-                                                    <a href="{% url 'twitch:game_detail' campaign.game.id %}"
-                                                        class="text-decoration-none"
-                                                        title="{{ campaign.game.display_name }}">
-                                                        <i
-                                                            class="fas fa-gamepad me-1"></i>{{ campaign.game.display_name }}
-                                                    </a>
-                                                </p>
-                                                <p class="mb-0 small text-muted">
-                                                    <i
-                                                        class="far fa-calendar-alt me-1"></i>{{ campaign.start_at|date:"M d, Y" }}
-                                                    - {{ campaign.end_at|date:"M d, Y" }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex justify-content-between align-items-center mt-2">
-                                            {% if campaign.start_at <= now and campaign.end_at >= now %}
-                                            {% if campaign.status == 'ACTIVE' %}
-                                            <span class="badge bg-success">Active</span>
-                                            {% else %}
-                                            <span class="badge bg-warning text-dark">{{ campaign.status|title }}</span>
-                                            {% endif %}
-                                            {% elif campaign.start_at > now %}
-                                            <span class="badge bg-info text-dark">Upcoming</span>
-                                            {% else %}
-                                            <span class="badge bg-secondary">Expired</span>
-                                            {% endif %}
-                                            <a href="{% url 'twitch:campaign_detail' campaign.id %}"
-                                                class="btn btn-sm btn-outline-primary">Details</a>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            {% else %}
-                            <div class="alert alert-info py-2">
-                                <i class="fas fa-info-circle me-2"></i>No campaigns found with the current filters.
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pagination -->
-            {% if is_paginated %}
-            <div class="row mt-3">
-                <div class="col-12">
-                    <nav aria-label="Campaign pagination">
-                        <ul class="pagination justify-content-center">
-                            {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page=1"
-                                    aria-label="First">
-                                    <span aria-hidden="true">&laquo;&laquo;</span>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link"
-                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                                    aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </a>
-                            </li>
-                            {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-label="First">
-                                    <span aria-hidden="true">&laquo;&laquo;</span>
-                                </span>
-                            </li>
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-label="Previous">
-                                    <span aria-hidden="true">&laquo;</span>
-                                </span>
-                            </li>
-                            {% endif %}
-
-                            {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                            <li class="page-item active">
-                                <span class="page-link">{{ num }}</span>
-                            </li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
-                            </li>
-                            {% elif num == 1 or num == page_obj.paginator.num_pages %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
-                            </li>
-                            {% elif num == page_obj.number|add:'-4' or num == page_obj.number|add:'4' %}
-                            <li class="page-item disabled">
-                                <span class="page-link">...</span>
-                            </li>
-                            {% endif %}
-                            {% endfor %}
-
-                            {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.next_page_number }}"
-                                    aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </a>
-                            </li>
-                            <li class="page-item">
-                                <a class="page-link"
-                                    href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
-                                    aria-label="Last">
-                                    <span aria-hidden="true">&raquo;&raquo;</span>
-                                </a>
-                            </li>
-                            {% else %}
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-label="Next">
-                                    <span aria-hidden="true">&raquo;</span>
-                                </span>
-                            </li>
-                            <li class="page-item disabled">
-                                <span class="page-link" aria-label="Last">
-                                    <span aria-hidden="true">&raquo;&raquo;</span>
-                                </span>
-                            </li>
-                            {% endif %}
-                        </ul>
-                    </nav>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-12 text-center">
-                    <small class="text-muted">
-                        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
-                        campaigns
-                        (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
-                    </small>
-                </div>
-            </div>
+    <h1>Drop Campaigns</h1>
+    <form method="get" action="{% url 'twitch:campaign_list' %}">
+        <!-- Game Filter -->
+        <select id="game" name="game">
+            <option value="">All Games</option>
+            {% for game in games %}
+                <option value="{{ game.id }}"
+                        {% if selected_game == game.id %}selected{% endif %}>{{ game.display_name }}</option>
+            {% endfor %}
+        </select>
+        <!-- Status Filter -->
+        <select id="status" name="status">
+            <option value="">All Statuses</option>
+            {% for status in status_options %}
+                <option value="{{ status }}"
+                        {% if selected_status == status %}selected{% endif %}>{{ status|title }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Apply Filters</button>
+    </form>
+    <h5>Campaign List</h5>
+    {% if campaigns %}
+        {% for campaign in campaigns %}
+            {% if campaign.image_url %}
+                <img src="{{ campaign.image_url }}"
+                     width="70"
+                     height="70"
+                     alt="{{ campaign.name }}">
+            {% else %}
+                <img src="{% static 'images/placeholder.png' %}"
+                     width="70"
+                     height="70"
+                     alt="No Image Available">
             {% endif %}
-
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-dark text-white py-2">
-                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h5>
-                        </div>
-                        <div class="card-body py-3">
-                            <div class="row text-center g-2">
-                                <div class="col-md-4 mb-2 mb-md-0">
-                                    <div class="p-2 border rounded">
-                                        <h3 class="twitch-color mb-0">
-                                            {% if is_paginated %}
-                                            {{ page_obj.paginator.count }}
-                                            {% else %}
-                                            {{ campaigns|length }}
-                                            {% endif %}
-                                        </h3>
-                                        <p class="mb-0 small text-muted">Total Campaigns</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4 mb-2 mb-md-0">
-                                    <div class="p-2 border rounded">
-                                        <h3 class="text-primary mb-0">{{ now|date:"F j, Y" }}</h3>
-                                        <p class="mb-0 small text-muted">Current Date</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="p-2 border rounded">
-                                        <a href="{% url 'twitch:game_list' %}" class="btn btn-primary w-100">
-                                            <i class="fas fa-gamepad me-1"></i>All Games
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endblock %}
+            <h6 title="{{ campaign.name }}">{{ campaign.clean_name }}</h6>
+            <p>
+                <a href="{% url 'twitch:game_detail' campaign.game.id %}"
+                   title="{{ campaign.game.display_name }}">{{ campaign.game.display_name }}</a>
+            </p>
+            <p>
+                {{ campaign.start_at|date:"M d, Y" }}
+                - {{ campaign.end_at|date:"M d, Y" }}
+            </p>
+            {% if campaign.start_at <= now and campaign.end_at >= now %}
+                {% if campaign.status == 'ACTIVE' %}Active{% endif %}
+            {% elif campaign.start_at > now %}
+                Upcoming
+            {% else %}
+                Expired
+            {% endif %}
+            <a href="{% url 'twitch:campaign_detail' campaign.id %}">Details</a>
+        {% endfor %}
+    {% else %}
+        No campaigns found with the current filters.
+    {% endif %}
+    <!-- Pagination -->
+    {% if is_paginated %}
+        <nav>
+            <ul>
+                {% if page_obj.has_previous %}
+                    <li>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page=1">
+                            ««
+                        </a>
+                    </li>
+                    <li>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                           aria-label="Previous">«</a>
+                    </li>
+                {% else %}
+                    <li>««</li>
+                    <li>«</li>
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li>{{ num }}</li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li>
+                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                        <li>
+                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% elif num == page_obj.number|add:'-4' or num == page_obj.number|add:'4' %}
+                        <li>...</li>
+                    {% endif %}
+                {% endfor %}
+                {% if page_obj.has_next %}
+                    <li>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.next_page_number }}">»</a>
+                    </li>
+                    <li>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.paginator.num_pages }}">»»</a>
+                    </li>
+                {% else %}
+                    <li>»</li>
+                    <li>»»</li>
+                {% endif %}
+            </ul>
+        </nav>
+        <small>
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+            campaigns
+            (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+        </small>
+    {% endif %}
+{% endblock content %}

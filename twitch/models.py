@@ -74,17 +74,31 @@ class DropCampaign(models.Model):
         Examples:
             "Ravendawn - July 2" -> "July 2"
             "Party Animals Twitch Drop" -> "Twitch Drop"
+            "Skull & Bones - Closed Beta" -> "Closed Beta" (& is replaced with "and")
         """
         if not self.game or not self.game.display_name:
             return self.name
 
-        game_name = self.game.display_name
+        # Try different variations of the game name
+        game_variations = [self.game.display_name]
 
-        # Remove game name if it's at the beginning of the campaign name
-        if self.name.startswith(game_name):
+        # Add & to "and" conversion
+        if "&" in self.game.display_name:
+            game_variations.append(self.game.display_name.replace("&", "and"))
+
+        # Add "and" to & conversion
+        if "and" in self.game.display_name:
+            game_variations.append(self.game.display_name.replace("and", "&"))
+
+        # Check each variation
+        for game_name in game_variations:
+            if not self.name.startswith(game_name):
+                continue
+
             # Check if it's followed by a separator like " - "
             if self.name[len(game_name) :].startswith(" - "):
                 return self.name[len(game_name) + 3 :].strip()
+
             # Or just remove the game name if it's followed by a space
             if len(self.name) > len(game_name) and self.name[len(game_name)] == " ":
                 return self.name[len(game_name) + 1 :].strip()

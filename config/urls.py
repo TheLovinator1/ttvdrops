@@ -17,4 +17,8 @@ urlpatterns: list[URLResolver] = [
 ]
 
 if not settings.TESTING:
-    urlpatterns = [*urlpatterns, *debug_toolbar_urls()]
+    urlpatterns = [
+        *urlpatterns,
+        *debug_toolbar_urls(),
+        path("__reload__/", include("django_browser_reload.urls")),
+    ]

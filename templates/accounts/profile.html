@@ -1,124 +1,29 @@
-{% extends 'base.html' %}
-
-{% block title %}Profile{% endblock %}
-
+{% extends "base.html" %}
+{% block title %}
+    {{ user.username }}
+{% endblock title %}
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow">
-                <div class="card-header bg-info text-white">
-                    <h4 class="mb-0"><i class="fas fa-user-circle"></i> User Profile</h4>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 text-center">
-                            <div class="avatar-placeholder bg-light rounded-circle d-inline-flex align-items-center justify-content-center"
-                                style="width: 120px; height: 120px;">
-                                <i class="fas fa-user fa-3x text-muted"></i>
-                            </div>
-                            <h5 class="mt-3">{{ user.username }}</h5>
-                            <p class="text-muted">Member since {{ user.date_joined|date:"F Y" }}</p>
-                        </div>
-                        <div class="col-md-8">
-                            <h5>Account Information</h5>
-                            <table class="table table-borderless">
-                                <tr>
-                                    <td><strong>Username:</strong></td>
-                                    <td>{{ user.username }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Email:</strong></td>
-                                    <td>{{ user.email|default:"Not provided" }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Date Joined:</strong></td>
-                                    <td>{{ user.date_joined|date:"F d, Y" }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Last Login:</strong></td>
-                                    <td>{{ user.last_login|date:"F d, Y H:i"|default:"Never" }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Account Status:</strong></td>
-                                    <td>
-                                        {% if user.is_active %}
-                                        <span class="badge bg-success">Active</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Inactive</span>
-                                        {% endif %}
-                                        {% if user.is_staff %}
-                                        <span class="badge bg-warning">Staff</span>
-                                        {% endif %}
-                                        {% if user.is_superuser %}
-                                        <span class="badge bg-danger">Superuser</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <div class="d-flex justify-content-between">
-                        <a href="{% url 'twitch:dashboard' %}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Dashboard
-                        </a>
-                        <div>
-                            <button class="btn btn-outline-primary me-2"
-                                onclick="alert('Profile editing feature coming soon!')">
-                                <i class="fas fa-edit"></i> Edit Profile
-                            </button>
-                            <a href="{% url 'accounts:logout' %}" class="btn btn-danger">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Stats Card -->
-            <div class="card shadow mt-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Quick Stats</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-6">
-                            <div class="stat-card">
-                                <h3 class="text-primary">-</h3>
-                                <p class="text-muted">Campaigns Tracked</p>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="stat-card">
-                                <h3 class="text-info">-</h3>
-                                <p class="text-muted">Games Followed</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-    .stat-card {
-        padding: 1rem;
-        border-radius: 0.375rem;
-        background-color: #f8f9fa;
-        margin-bottom: 1rem;
-    }
-
-    .stat-card h3 {
-        font-size: 2rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
-
-    .avatar-placeholder {
-        border: 3px solid #dee2e6;
-    }
-</style>
-{% endblock %}
+    <h2>{{ user.username }}</h2>
+    <p>Joined {{ user.date_joined|date:"F d, Y" }}</p>
+    <table>
+        <tr>
+            <td>
+                <strong>Date Joined:</strong>
+            </td>
+            <td>{{ user.date_joined|date:"F d, Y" }}</td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Last Login:</strong>
+            </td>
+            <td>{{ user.last_login|date:"F d, Y H:i"|default:"Never" }}</td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Email:</strong>
+            </td>
+            <td>{{ user.email|default:"Not provided" }}</td>
+        </tr>
+    </table>
+    <a href="{% url 'accounts:logout' %}">Logout</a>
+{% endblock content %}

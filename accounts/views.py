@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -36,6 +36,20 @@ class CustomLogoutView(LogoutView):
     """Custom logout view."""
 
     next_page = reverse_lazy("twitch:dashboard")
+    http_method_names: ClassVar[list[str]] = ["get", "post", "options"]  # pyright: ignore[reportIncompatibleVariableOverride]
+
+    def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
+        """Allow GET requests for logout.
+
+        Args:
+            request: The HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            HttpResponse: Response after logout.
+        """
+        return self.post(request, *args, **kwargs)
 
 
 class SignUpView(CreateView):

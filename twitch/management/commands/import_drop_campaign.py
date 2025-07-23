@@ -60,7 +60,7 @@ class Command(BaseCommand):
             help="Delay in seconds between retries for database operations (default: 0.5)",
         )
 
-    def handle(self, **options) -> None:  # noqa: ANN003
+    def handle(self, **options) -> None:
         """Execute the command.
 
         Args:
@@ -268,7 +268,7 @@ class Command(BaseCommand):
                         id=campaign_data["id"],
                         defaults={
                             "name": campaign_data["name"],
-                            "description": campaign_data["description"],
+                            "description": campaign_data["description"].replace("\\n", "\n"),
                             "details_url": campaign_data.get("detailsURL", ""),
                             "account_link_url": campaign_data.get("accountLinkURL", ""),
                             "image_url": campaign_data.get("imageURL", ""),

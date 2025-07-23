@@ -189,10 +189,13 @@ TESTING: bool = "test" in sys.argv or "PYTEST_VERSION" in os.environ
 if not TESTING:
     DEBUG_TOOLBAR_CONFIG: dict[str, str] = {"ROOT_TAG_EXTRA_ATTRS": "hx-preserve"}
     INSTALLED_APPS = [  # pyright: ignore[reportConstantRedefinition]
+        "django_watchfiles",
         *INSTALLED_APPS,
         "debug_toolbar",
+        "django_browser_reload",
     ]
     MIDDLEWARE = [  # pyright: ignore[reportConstantRedefinition]
         "debug_toolbar.middleware.DebugToolbarMiddleware",
         *MIDDLEWARE,
+        "django_browser_reload.middleware.BrowserReloadMiddleware",
     ]
