@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import Count, Prefetch, Q
@@ -14,6 +15,8 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
     from django.http import HttpRequest, HttpResponse
 
+logger: logging.Logger = logging.getLogger(__name__)
+
 
 class DropCampaignListView(ListView):
     """List view for drop campaigns."""
@@ -21,7 +24,7 @@ class DropCampaignListView(ListView):
     model = DropCampaign
     template_name = "twitch/campaign_list.html"
     context_object_name = "campaigns"
-    paginate_by = 24  # 24 campaigns per page (6x4 grid on larger screens)
+    paginate_by = 96  # Default pagination size
 
     def get_paginate_by(self, queryset) -> int:
         """Get the pagination size, allowing override via URL parameter.
@@ -82,15 +85,13 @@ class DropCampaignListView(ListView):
         context["selected_game"] = self.request.GET.get("game", "")
 
         # Add per_page options and current selection
-        context["per_page_options"] = [12, 24, 48, 96]
+        context["per_page_options"] = [96, 192, 384, 768]
         per_page: str = self.request.GET.get("per_page", str(self.paginate_by))
         if per_page.isdigit():
             per_page_int = int(per_page)
-            if per_page_int in {12, 24, 48, 96}:
-                context["selected_per_page"] = per_page_int
-            else:
-                context["selected_per_page"] = self.paginate_by
+            context["selected_per_page"] = per_page_int
         else:
+            logger.warning("Invalid per_page value: %s. Using default %d.", per_page, self.paginate_by)
             context["selected_per_page"] = self.paginate_by
 
         # Current time for active campaign highlighting
