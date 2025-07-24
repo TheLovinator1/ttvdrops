@@ -31,7 +31,6 @@ class Command(BaseCommand):
             default=None,
             help="Directory to move files to instead of deleting them (defaults to '<dir>/deleted')",
         )
-        parser.add_argument("--dry-run", action="store_true", help="Only print files that would be moved without actually moving them")
 
     def is_playback_token_only(self, data: dict[str, Any]) -> bool:
         """Determine if a JSON data structure only contains PlaybackAccessToken data.
@@ -56,6 +55,7 @@ class Command(BaseCommand):
         )
 
         if has_playback_token:
+            self.stdout.write(f"Found PlaybackAccessToken only in {data['data']['streamPlaybackAccessToken']['__typename']}")
             return True
 
         # Also check if the operation name in extensions is PlaybackAccessToken and no other data
@@ -66,15 +66,13 @@ class Command(BaseCommand):
             and ("data" not in data or ("data" in data and len(data["data"]) <= 1))
         )
 
-    def process_file(self, file_path: Path, *, dry_run: bool = False, deleted_dir: Path) -> bool:
+    def process_file(self, file_path: Path, *, deleted_dir: Path) -> bool:
         """Process a single JSON file to check if it only contains PlaybackAccessToken data.
 
         Parameters:
         ----------
         file_path : Path
             The path to the JSON file
-        dry_run : bool, keyword-only
-            If True, only log the action without actually moving the file
         deleted_dir : Path, keyword-only
             Directory to move files to instead of deleting them
 
@@ -87,29 +85,26 @@ class Command(BaseCommand):
             data = json.loads(file_path.read_text(encoding="utf-8"))
 
             if self.is_playback_token_only(data):
-                if dry_run:
-                    self.stdout.write(f"Would move: {file_path} to {deleted_dir}")
-                else:
-                    # Create the deleted directory if it doesn't exist
-                    if not deleted_dir.exists():
-                        deleted_dir.mkdir(parents=True, exist_ok=True)
+                # Create the deleted directory if it doesn't exist
+                if not deleted_dir.exists():
+                    deleted_dir.mkdir(parents=True, exist_ok=True)
 
-                    # Get the relative path from the source directory to maintain structure
-                    target_file = deleted_dir / file_path.name
+                # Get the relative path from the source directory to maintain structure
+                target_file = deleted_dir / file_path.name
 
-                    # If a file with the same name already exists in the target dir,
-                    # append a number to the filename
-                    counter = 1
-                    while target_file.exists():
-                        stem = target_file.stem
-                        # If the stem already ends with a counter pattern like "_1", increment it
-                        if stem.rfind("_") > 0 and stem[stem.rfind("_") + 1 :].isdigit():
-                            base_stem = stem[: stem.rfind("_")]
-                            counter = int(stem[stem.rfind("_") + 1 :]) + 1
-                            target_file = deleted_dir / f"{base_stem}_{counter}{target_file.suffix}"
-                        else:
-                            target_file = deleted_dir / f"{stem}_{counter}{target_file.suffix}"
-                        counter += 1
+                # If a file with the same name already exists in the target dir,
+                # append a number to the filename
+                counter = 1
+                while target_file.exists():
+                    stem = target_file.stem
+                    # If the stem already ends with a counter pattern like "_1", increment it
+                    if stem.rfind("_") > 0 and stem[stem.rfind("_") + 1 :].isdigit():
+                        base_stem = stem[: stem.rfind("_")]
+                        counter = int(stem[stem.rfind("_") + 1 :]) + 1
+                        target_file = deleted_dir / f"{base_stem}_{counter}{target_file.suffix}"
+                    else:
+                        target_file = deleted_dir / f"{stem}_{counter}{target_file.suffix}"
+                    counter += 1
 
                     # Move the file
                     file_path.rename(target_file)
@@ -161,13 +156,10 @@ class Command(BaseCommand):
                 continue
 
             file_count += 1
-            if self.process_file(file_path, dry_run=dry_run, deleted_dir=deleted_dir):
+            if self.process_file(file_path, deleted_dir=deleted_dir):
                 moved_count += 1
 
         # Report the results
         self.stdout.write(
-            self.style.SUCCESS(
-                f"{'Dry run completed' if dry_run else 'Cleanup completed'}: "
-                f"Processed {file_count} files, {'would move' if dry_run else 'moved'} {moved_count} files to {deleted_dir}"
-            )
+            self.style.SUCCESS(f"Cleanup completed: Processed {file_count} files, moved {moved_count} files to {deleted_dir}")
         )
