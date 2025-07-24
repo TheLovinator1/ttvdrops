@@ -38,14 +38,14 @@ class Command(BaseCommand):
         parser.add_argument(
             "--max-workers",
             type=int,
-            default=4,
-            help="Maximum number of worker processes to use for parallel importing (default: 4)",
+            default=100,
+            help="Maximum number of worker processes to use for parallel importing (default: 100)",
         )
         parser.add_argument(
             "--batch-size",
             type=int,
-            default=100,
-            help="Number of files to process in each batch (default: 100)",
+            default=500,
+            help="Number of files to process in each batch (default: 500)",
         )
         parser.add_argument(
             "--max-retries",
@@ -96,7 +96,7 @@ class Command(BaseCommand):
             msg = f"Path {path} is neither a file nor a directory"
             raise CommandError(msg)
 
-    def _process_directory(self, directory: Path, processed_dir: str, max_workers: int = 4, batch_size: int = 100) -> None:
+    def _process_directory(self, directory: Path, processed_dir: str, max_workers: int = 100, batch_size: int = 1000) -> None:
         """Process all JSON files in a directory using parallel processing.
 
         Args:
@@ -189,9 +189,13 @@ class Command(BaseCommand):
         try:
             with file_path.open(encoding="utf-8") as f:
                 data = json.load(f)
-        except json.JSONDecodeError as e:
-            msg = f"Error decoding JSON: {e}"
-            raise CommandError(msg) from e
+        except json.JSONDecodeError:
+            error_dir_name = "error"
+            error_dir: Path = file_path.parent / error_dir_name
+            error_dir.mkdir(exist_ok=True)
+            self.stdout.write(self.style.WARNING(f"Invalid JSON in '{file_path.name}'. Moving to '{error_dir_name}'."))
+            shutil.move(str(file_path), str(error_dir / file_path.name))
+            return 0
 
         # Counter for imported campaigns
         campaigns_imported = 0
@@ -274,7 +278,6 @@ class Command(BaseCommand):
                             "image_url": campaign_data.get("imageURL", ""),
                             "start_at": campaign_data["startAt"],
                             "end_at": campaign_data["endAt"],
-                            "status": campaign_data["status"],
                             "is_account_connected": campaign_data["self"]["isAccountConnected"],
                             "game": game,
                             "owner": organization,

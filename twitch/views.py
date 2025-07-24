@@ -26,7 +26,7 @@ class DropCampaignListView(ListView):
     context_object_name = "campaigns"
     paginate_by = 96  # Default pagination size
 
-    def get_paginate_by(self, queryset) -> int:
+    def get_paginate_by(self, queryset) -> int:  # noqa: ANN001, ARG002
         """Get the pagination size, allowing override via URL parameter.
 
         Args:
@@ -50,12 +50,7 @@ class DropCampaignListView(ListView):
             QuerySet: Filtered drop campaigns.
         """
         queryset: QuerySet[DropCampaign] = super().get_queryset()
-        status_filter: str | None = self.request.GET.get("status")
         game_filter: str | None = self.request.GET.get("game")
-
-        # Apply filters
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
 
         if game_filter:
             queryset = queryset.filter(game__id=game_filter)
@@ -78,8 +73,7 @@ class DropCampaignListView(ListView):
         context["games"] = Game.objects.all().order_by("display_name")
 
         # Add status options for filtering
-        context["status_options"] = [status[0] for status in DropCampaign.STATUS_CHOICES]
-
+        context["status_options"] = []
         # Add selected filters
         context["selected_status"] = self.request.GET.get("status", "")
         context["selected_game"] = self.request.GET.get("game", "")
@@ -177,7 +171,6 @@ class GameListView(ListView):
                     filter=Q(
                         drop_campaigns__start_at__lte=now,
                         drop_campaigns__end_at__gte=now,
-                        drop_campaigns__status="ACTIVE",
                     ),
                     distinct=True,
                 ),
@@ -208,7 +201,7 @@ class GameListView(ListView):
         # This query gets all games with their campaign counts and organization info
         game_org_relations = DropCampaign.objects.values("game_id", "owner_id", "owner__name").annotate(
             campaign_count=Count("id", distinct=True),
-            active_count=Count("id", filter=Q(start_at__lte=now, end_at__gte=now, status="ACTIVE"), distinct=True),
+            active_count=Count("id", filter=Q(start_at__lte=now, end_at__gte=now), distinct=True),
         )
 
         # Step 3: Get all games in a single query with their display names
@@ -279,16 +272,14 @@ class GameDetailView(DetailView):
         all_campaigns = DropCampaign.objects.filter(game=game).select_related("owner").order_by("-end_at")
 
         # Filter the campaigns in Python instead of making multiple queries
-        active_campaigns = [
-            campaign for campaign in all_campaigns if campaign.start_at <= now and campaign.end_at >= now and campaign.status == "ACTIVE"
-        ]
+        active_campaigns = [campaign for campaign in all_campaigns if campaign.start_at <= now and campaign.end_at >= now]
         active_campaigns.sort(key=lambda c: c.end_at)  # Sort by end_at ascending
 
-        upcoming_campaigns = [campaign for campaign in all_campaigns if campaign.start_at > now and campaign.status == "UPCOMING"]
+        upcoming_campaigns = [campaign for campaign in all_campaigns if campaign.start_at > now]
         upcoming_campaigns.sort(key=lambda c: c.start_at)  # Sort by start_at ascending
 
         # Filter for expired campaigns
-        expired_campaigns = [campaign for campaign in all_campaigns if campaign.end_at < now or campaign.status == "EXPIRED"]
+        expired_campaigns = [campaign for campaign in all_campaigns if campaign.end_at < now]
 
         context.update({
             "active_campaigns": active_campaigns,
@@ -312,7 +303,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     # Get active campaigns with prefetching to reduce queries
     now = timezone.now()
     active_campaigns = (
-        DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now, status="ACTIVE")
+        DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now)
         .select_related("game", "owner")
         # Prefetch the time-based drops with their benefits to avoid N+1 queries
         .prefetch_related(Prefetch("time_based_drops", queryset=TimeBasedDrop.objects.prefetch_related("benefits")))

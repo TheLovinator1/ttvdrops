@@ -10,8 +10,14 @@ class Game(models.Model):
     """Represents a game on Twitch."""
 
     id = models.TextField(primary_key=True)
-    slug = models.TextField(blank=True, default="")
-    display_name = models.TextField()
+    slug = models.TextField(blank=True, default="", db_index=True)
+    display_name = models.TextField(db_index=True)
+
+    class Meta:
+        indexes: ClassVar[list] = [
+            models.Index(fields=["slug"]),
+            models.Index(fields=["display_name"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the game."""
@@ -22,7 +28,12 @@ class Organization(models.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
     id = models.TextField(primary_key=True)
-    name = models.TextField()
+    name = models.TextField(db_index=True)
+
+    class Meta:
+        indexes: ClassVar[list] = [
+            models.Index(fields=["name"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the organization."""
@@ -32,30 +43,31 @@ class Organization(models.Model):
 class DropCampaign(models.Model):
     """Represents a Twitch drop campaign."""
 
-    STATUS_CHOICES: ClassVar[list[tuple[str, str]]] = [
-        ("ACTIVE", "Active"),
-        ("UPCOMING", "Upcoming"),
-        ("EXPIRED", "Expired"),
-    ]
-
     id = models.TextField(primary_key=True)
-    name = models.TextField()
+    name = models.TextField(db_index=True)
     description = models.TextField(blank=True)
     details_url = models.URLField(max_length=500, blank=True, default="")
     account_link_url = models.URLField(max_length=500, blank=True, default="")
     image_url = models.URLField(max_length=500, blank=True, default="")
-    start_at = models.DateTimeField()
-    end_at = models.DateTimeField()
-    status = models.TextField(choices=STATUS_CHOICES)
+    start_at = models.DateTimeField(db_index=True)
+    end_at = models.DateTimeField(db_index=True)
     is_account_connected = models.BooleanField(default=False)
 
     # Foreign keys
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns")
-    owner = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="drop_campaigns")
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_campaigns", db_index=True)
+    owner = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="drop_campaigns", db_index=True)
 
     # Tracking fields
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes: ClassVar[list] = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["start_at", "end_at"]),
+            models.Index(fields=["game"]),
+            models.Index(fields=["owner"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the drop campaign."""
@@ -65,7 +77,7 @@ class DropCampaign(models.Model):
     def is_active(self) -> bool:
         """Check if the campaign is currently active."""
         now = timezone.now()
-        return self.start_at <= now <= self.end_at and self.status == "ACTIVE"
+        return self.start_at <= now <= self.end_at
 
     @property
     def clean_name(self) -> str:
@@ -115,16 +127,25 @@ class DropBenefit(models.Model):
     ]
 
     id = models.TextField(primary_key=True)
-    name = models.TextField()
+    name = models.TextField(db_index=True)
     image_asset_url = models.URLField(max_length=500, blank=True, default="")
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(db_index=True)
     entitlement_limit = models.PositiveIntegerField(default=1)
     is_ios_available = models.BooleanField(default=False)
-    distribution_type = models.TextField(choices=DISTRIBUTION_TYPES)
+    distribution_type = models.TextField(choices=DISTRIBUTION_TYPES, db_index=True)
 
     # Foreign keys
-    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_benefits")
-    owner_organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="drop_benefits")
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_benefits", db_index=True)
+    owner_organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="drop_benefits", db_index=True)
+
+    class Meta:
+        indexes: ClassVar[list] = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["distribution_type"]),
+            models.Index(fields=["game"]),
+            models.Index(fields=["owner_organization"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the drop benefit."""
@@ -135,15 +156,23 @@ class TimeBasedDrop(models.Model):
     """Represents a time-based drop in a drop campaign."""
 
     id = models.TextField(primary_key=True)
-    name = models.TextField()
-    required_minutes_watched = models.PositiveIntegerField()
+    name = models.TextField(db_index=True)
+    required_minutes_watched = models.PositiveIntegerField(db_index=True)
     required_subs = models.PositiveIntegerField(default=0)
-    start_at = models.DateTimeField()
-    end_at = models.DateTimeField()
+    start_at = models.DateTimeField(db_index=True)
+    end_at = models.DateTimeField(db_index=True)
 
     # Foreign keys
-    campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="time_based_drops")
+    campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="time_based_drops", db_index=True)
     benefits = models.ManyToManyField(DropBenefit, through="DropBenefitEdge", related_name="drops")
+
+    class Meta:
+        indexes: ClassVar[list] = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["start_at", "end_at"]),
+            models.Index(fields=["campaign"]),
+            models.Index(fields=["required_minutes_watched"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the time-based drop."""
@@ -153,12 +182,15 @@ class TimeBasedDrop(models.Model):
 class DropBenefitEdge(models.Model):
     """Represents the relationship between a TimeBasedDrop and a DropBenefit."""
 
-    drop = models.ForeignKey(TimeBasedDrop, on_delete=models.CASCADE)
-    benefit = models.ForeignKey(DropBenefit, on_delete=models.CASCADE)
+    drop = models.ForeignKey(TimeBasedDrop, on_delete=models.CASCADE, db_index=True)
+    benefit = models.ForeignKey(DropBenefit, on_delete=models.CASCADE, db_index=True)
     entitlement_limit = models.PositiveIntegerField(default=1)
 
     class Meta:
         unique_together = ("drop", "benefit")
+        indexes: ClassVar[list] = [
+            models.Index(fields=["drop", "benefit"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the drop benefit edge."""

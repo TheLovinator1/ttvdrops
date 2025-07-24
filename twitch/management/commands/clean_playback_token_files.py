@@ -142,11 +142,7 @@ class Command(BaseCommand):
             return
 
         # Set up the deleted directory
-        if deleted_dir_path:
-            deleted_dir = Path(str(deleted_dir_path))
-        else:
-            # Default to a 'deleted' subdirectory in the source directory
-            deleted_dir = base_dir / "deleted"
+        deleted_dir: Path = Path(str(deleted_dir_path)) if deleted_dir_path else base_dir / "deleted"
 
         if not dry_run and not deleted_dir.exists():
             deleted_dir.mkdir(parents=True, exist_ok=True)

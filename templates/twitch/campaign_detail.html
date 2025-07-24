@@ -17,7 +17,7 @@
              src="{{ campaign.image_url }}"
              alt="{{ campaign.name }}">
     {% endif %}
-    <p>{{ campaign.description }}</p>
+    <p>{{ campaign.description|linebreaksbr }}</p>
     <p>
         Start:
         {{ campaign.start_at }}
