@@ -1,0 +1,45 @@
+services:
+  ttvdrops_postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_USER: ttvdrops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?You must set POSTGRES_PASSWORD}
+      POSTGRES_DB: ttvdrops
+      PGDATA: /data
+    command: postgres -c config_file=/config/postgresql.conf
+    shm_size: 5g
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "ttvdrops", "-U", "ttvdrops"]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 30s
+    restart: always
+    networks:
+      - ttvdrops
+    volumes:
+      - /mnt/Docker/Data/ttvdrops/postgresql/data:/data
+      - /mnt/Docker/Data/ttvdrops/postgresql/config:/config
+
+  ttvdrops_pgbouncer:
+    image: edoburu/pgbouncer
+    restart: always
+    depends_on:
+      - ttvdrops_postgres
+    ports:
+      - "6432:6432"
+    environment:
+      DB_USER: ttvdrops
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_HOST: ttvdrops_postgres
+      DB_NAME: ttvdrops
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 20
+    networks:
+      - ttvdrops
+
+networks:
+  ttvdrops:
