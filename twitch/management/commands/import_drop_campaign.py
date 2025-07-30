@@ -168,11 +168,11 @@ class Command(BaseCommand):
 
         Args:
             campaign_data: The drop campaign data to import.
-            game: The game this drop campaing is for.
+            game: The game this drop campaign is for.
             organization: The company that owns the game.
 
         Returns:
-            Returns the DropCampaing object.
+            Returns the DropCampaign object.
         """
         drop_campaign, created = DropCampaign.objects.update_or_create(
             id=campaign_data["id"],
@@ -194,7 +194,7 @@ class Command(BaseCommand):
         return drop_campaign
 
     def owner_update_or_create(self, campaign_data: dict[str, Any]) -> Organization:
-        """Update or create an orgnization.
+        """Update or create an organization.
 
         Args:
             campaign_data: The drop campaign data to import.
