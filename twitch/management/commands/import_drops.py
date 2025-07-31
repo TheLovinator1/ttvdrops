@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import shutil
+import traceback
 from pathlib import Path
 from typing import Any
 
+import orjson
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
@@ -15,6 +17,7 @@ class Command(BaseCommand):
     """Import Twitch drop campaign data from a JSON file or directory of JSON files."""
 
     help = "Import Twitch drop campaign data from a JSON file or directory"
+    requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:
         """Add command arguments.
@@ -74,12 +77,17 @@ class Command(BaseCommand):
                 self._process_file(json_file, processed_path)
             except CommandError as e:
                 self.stdout.write(self.style.ERROR(f"Error processing {json_file}: {e}"))
-            except (ValueError, TypeError, AttributeError, KeyError, IndexError, json.JSONDecodeError) as e:
-                self.stdout.write(self.style.ERROR(f"Data error processing {json_file}: {e!s}"))
+            except (orjson.JSONDecodeError, json.JSONDecodeError):
+                broken_json_dir: Path = processed_path / "broken_json"
+                broken_json_dir.mkdir(exist_ok=True)
+                self.stdout.write(self.style.WARNING(f"Invalid JSON in '{json_file}'. Moving to '{broken_json_dir}'."))
+                shutil.move(str(json_file), str(broken_json_dir))
+            except (ValueError, TypeError, AttributeError, KeyError, IndexError):
+                self.stdout.write(self.style.ERROR(f"Data error processing {json_file}"))
+                self.stdout.write(self.style.ERROR(traceback.format_exc()))
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Completed processing {total_files} JSON files in {directory}. Processed files moved to {processed_path}.")
-        )
+        msg: str = f"Processed {total_files} JSON files in {directory}. Moved processed files to {processed_path}."
+        self.stdout.write(self.style.SUCCESS(msg))
 
     def _process_file(self, file_path: Path, processed_path: Path) -> None:
         """Process a single JSON file.
@@ -91,8 +99,27 @@ class Command(BaseCommand):
         Raises:
             CommandError: If the file isn't a JSON file or has invalid JSON structure.
         """
-        with file_path.open(encoding="utf-8") as f:
-            data = json.load(f)
+        data = orjson.loads(file_path.read_text(encoding="utf-8"))
+        broken_dir: Path = processed_path / "broken"
+
+        # Remove shit
+        if not isinstance(data, list):
+            try:
+                token = data["data"]["streamPlaybackAccessToken"]
+                if token["__typename"] == "PlaybackAccessToken" and len(data["data"]) == 1:
+                    shutil.move(str(file_path), str(broken_dir))
+                    self.stdout.write(f"Moved {file_path} to {broken_dir}. This file only contains PlaybackAccessToken data.")
+                    return
+
+                if data["extensions"]["operationName"] == "PlaybackAccessToken" and ("data" not in data or len(data["data"]) <= 1):
+                    shutil.move(str(file_path), str(broken_dir))
+                    self.stdout.write(f"Moved {file_path} to {broken_dir}. This file only contains PlaybackAccessToken data.")
+                    return
+            except KeyError:
+                return
+
+        # Move DropsHighlightService_AvailableDrops to its own dir
+        # TODO(TheLovinator): Check if we should import this  # noqa: TD003
 
         if isinstance(data, list):
             for item in data:

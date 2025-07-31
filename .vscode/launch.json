@@ -11,6 +11,18 @@
             "django": true,
             "autoStartBrowser": false,
             "program": "${workspaceFolder}\\manage.py"
+        },
+        {
+            "name": "Python Debugger: Import Drops",
+            "type": "debugpy",
+            "request": "launch",
+            "args": [
+                "import_drops",
+                "C:\\Code\\TwitchDropsMiner\\responses"
+            ],
+            "django": false,
+            "autoStartBrowser": false,
+            "program": "${workspaceFolder}\\manage.py"
         }
     ]
 }
