@@ -118,6 +118,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_tables2",
     "accounts.apps.AccountsConfig",
     "twitch.apps.TwitchConfig",
 ]
