@@ -4,6 +4,14 @@
 {% endblock title %}
 {% block content %}
     <h1>{{ game.display_name }}</h1>
+    <div>
+        <input type="checkbox" id="found" />
+        <label for="found">🔔 Get notified as soon as a drop for {{ game.display_name }} appears on Twitch.</label>
+    </div>
+    <div>
+        <input type="checkbox" id="live" />
+        <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
+    </div>
     {% if active_campaigns %}
         <h5>Active Campaigns</h5>
         <table>

@@ -10,11 +10,6 @@ class User(AbstractUser):
     while maintaining all the default Django User functionality.
     """
 
-    # Add any custom fields here in the future
-    # For example:
-    # bio = models.TextField(max_length=500, blank=True)
-    # avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-
     class Meta:
         db_table = "auth_user"  # Keep the same table name as Django's default User
         verbose_name = "User"

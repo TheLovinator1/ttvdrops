@@ -6,42 +6,24 @@
 {% block content %}
     {% if campaigns_by_org_game %}
         {% for org_id, org_data in campaigns_by_org_game.items %}
-            <h2>{{ org_data.name }}</h2>
             {% for game_id, game_data in org_data.games.items %}
-                <h3>
+                <h1>
                     <a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a>
-                </h3>
-                <p>{{ game_data.campaigns.0.description|default:"No description available."|linebreaksbr }}</p>
-                <table style="width:100%">
-                    <tr>
-                        <th style="width:25%">Image</th>
-                        <th>Campaign</th>
-                        <th>Ends In</th>
-                    </tr>
-                    {% for campaign in game_data.campaigns %}
-                        <tr>
-                            <td>
-                                {% if campaign.image_url %}
-                                    <img height="160"
-                                         width="160"
-                                         src="{{ campaign.image_url }}"
-                                         alt="{{ campaign.name }}">
-                                {% else %}
-                                    <img height="160"
-                                         width="160"
-                                         src="{% static 'images/placeholder.png' %}"
-                                         alt="No Image Available">
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
-                            </td>
-                            <td>
-                                <span title="{{ campaign.end_at|date:'M d, Y H:i' }}">Ends in {{ campaign.end_at|timeuntil }}</span>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </table>
+                </h1>
+                {% for campaign in game_data.campaigns %}
+                    <h2>{{ campaign.clean_name }}</h2>
+                    <p>
+                        <h4>
+                            <a href="{% url 'twitch:campaign_detail' campaign.id %}">
+                                <img height="160"
+                                     width="160"
+                                     src="{{ campaign.image_url }}"
+                                     alt="{{ campaign.name }}">
+                            </a>
+                        </h4>
+                        <span title="{{ campaign.end_at|date:'c' }}">Ends in {{ campaign.end_at|timeuntil }}</span>
+                    </p>
+                {% endfor %}
             {% endfor %}
         {% endfor %}
     {% else %}
