@@ -203,12 +203,17 @@ class NotificationSubscription(models.Model):
     """Users can subscribe to games to get notified."""
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    game = models.ForeignKey(Game, on_delete=models.CASCADE)
+    game = models.ForeignKey(Game, null=True, blank=True, on_delete=models.CASCADE)
+    organization = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.CASCADE)
+
     notify_found = models.BooleanField(default=False)
     notify_live = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ("user", "game")
+        unique_together: ClassVar[list[tuple[str, str]]] = [
+            ("user", "game"),
+            ("user", "organization"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.user} subscription to {Game.display_name}"

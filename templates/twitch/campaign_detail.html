@@ -9,7 +9,7 @@
     </h1>
     <p>
         {# TODO: Link to organization #}
-        <a href="#">{{ campaign.owner.name }}</a>
+        <a href="{% url 'twitch:org_detail' campaign.owner.id %}">{{ campaign.owner.name }}</a>
     </p>
     {% if campaign.image_url %}
         <img height="70"

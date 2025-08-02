@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% block title %}
-    Games by Organization - Twitch Drops Tracker
+    Games
 {% endblock title %}
 {% block content %}
-    <h1>Games by Organization</h1>
+    <h1>Games</h1>
     {% if games_by_org %}
         {% for organization, games in games_by_org.items %}
             <h2>{{ organization.name }}</h2>

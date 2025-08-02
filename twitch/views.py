@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Prefetch, Q
 from django.db.models.query import QuerySet
+from django.http.response import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
@@ -22,6 +23,37 @@ if TYPE_CHECKING:
     from django.http.response import HttpResponseRedirect
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+class OrgListView(ListView):
+    """List view for organization."""
+
+    model = Organization
+    template_name = "twitch/org_list.html"
+    context_object_name = "orgs"
+
+
+class OrgDetailView(DetailView):
+    """Detail view for organization."""
+
+    model = Organization
+    template_name = "twitch/organization_detail.html"
+    context_object_name = "organization"
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        """Add additional context data.
+
+        Args:
+            **kwargs: Additional arguments.
+
+        Returns:
+            dict: Context data.
+        """
+        organization: Organization = self.object
+        context = super().get_context_data(**kwargs)
+        games = Game.objects.filter(drop_campaigns__owner=organization).distinct()
+        context["games"] = games
+        return context
 
 
 class DropCampaignListView(ListView):
@@ -318,8 +350,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-def subscribe_notifications(request: HttpRequest, game_id: str) -> HttpResponseRedirect:
-    """Update notification for a user.
+def subscribe_game_notifications(request: HttpRequest, game_id: str) -> HttpResponseRedirect:
+    """Update Game notification for a user.
 
     Args:
         request: The HTTP request.
@@ -338,22 +370,67 @@ def subscribe_notifications(request: HttpRequest, game_id: str) -> HttpResponseR
         changes = []
         if not created:
             if subscription.notify_found != notify_found:
-                changes.append(f"Notify when drop is found: {'enabled' if notify_found else 'disabled'}")
+                changes.append(f"{'Enabled' if notify_found else 'Disabled'} notification when drop is found")
             if subscription.notify_live != notify_live:
-                changes.append(f"Notify when drop is farmable: {'enabled' if notify_live else 'disabled'}")
+                changes.append(f"{'Enabled' if notify_live else 'Disabled'} notification when drop is farmable")
 
         subscription.notify_found = notify_found
         subscription.notify_live = notify_live
         subscription.save()
 
         if created:
-            message = "You have subscribed to notifications for this game."
+            message = f"You have subscribed to notifications for {game.display_name}"
         elif changes:
-            message = "Updated notification preferences: " + ", ".join(changes)
+            message = "\n".join(changes)
         else:
-            message = "No changes were made to your notification preferences."
+            message = ""
 
         messages.success(request, message)
         return redirect("twitch:game_detail", pk=game.id)
 
+    messages.warning(request, "Only POST is available for this view.")
     return redirect("twitch:game_detail", pk=game.id)
+
+
+@login_required
+def subscribe_org_notifications(request: HttpRequest, org_id: str) -> HttpResponseRedirect:
+    """Update Organization notification for a user.
+
+    Args:
+        request: The HTTP request.
+        org_id: The org we are updating.
+
+    Returns:
+        Redirect back to the twitch:organization_detail.
+    """
+    organization: Organization = get_object_or_404(Organization, pk=org_id)
+
+    if request.method == "POST":
+        notify_found = bool(request.POST.get("notify_found"))
+        notify_live = bool(request.POST.get("notify_live"))
+
+        subscription, created = NotificationSubscription.objects.get_or_create(user=request.user, organization=organization)
+
+        changes = []
+        if not created:
+            if subscription.notify_found != notify_found:
+                changes.append(f"{'Enabled' if notify_found else 'Disabled'} notification when drop is found")
+            if subscription.notify_live != notify_live:
+                changes.append(f"{'Enabled' if notify_live else 'Disabled'} notification when drop is farmable")
+
+        subscription.notify_found = notify_found
+        subscription.notify_live = notify_live
+        subscription.save()
+
+        if created:
+            message = f"You have subscribed to notifications for this {organization.name}"
+        elif changes:
+            message = "\n".join(changes)
+        else:
+            message = ""
+
+        messages.success(request, message)
+        return redirect("organization_detail", org_id=organization.id)
+
+    messages.warning(request, "Only POST is available for this view.")
+    return redirect("organization_detail", org_id=organization.id)

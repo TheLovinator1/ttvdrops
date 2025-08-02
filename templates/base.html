@@ -46,6 +46,7 @@
         <a href="{% url 'twitch:dashboard' %}">Dashboard</a> |
         <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> |
         <a href="{% url 'twitch:game_list' %}">Games</a> |
+        <a href="{% url 'twitch:org_list' %}">Organizations</a> |
         {% if user.is_authenticated %}
             {% if user.is_staff %}
                 <a href="{% url 'admin:index' %}">Admin</a> |
@@ -60,7 +61,7 @@
                 {% for message in messages %}
                     <li>
                         {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}Important:{% endif %}
-                        {{ message }}
+                        {{ message|linebreaksbr }}
                     </li>
                 {% endfor %}
             </ul>
