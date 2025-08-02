@@ -4,14 +4,29 @@
 {% endblock title %}
 {% block content %}
     <h1>{{ game.display_name }}</h1>
-    <div>
-        <input type="checkbox" id="found" />
-        <label for="found">🔔 Get notified as soon as a drop for {{ game.display_name }} appears on Twitch.</label>
-    </div>
-    <div>
-        <input type="checkbox" id="live" />
-        <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
-    </div>
+    {% if user.is_authenticated %}
+        <form method="post"
+              action="{% url 'twitch:subscribe_notifications' game_id=game.id %}">
+            {% csrf_token %}
+            <div>
+                <input type="checkbox"
+                       id="found"
+                       name="notify_found"
+                       {% if subscription and subscription.notify_found %}checked{% endif %} />
+                <label for="found">🔔 Get notified as soon as a drop for {{ game.display_name }} appears on Twitch.</label>
+            </div>
+            <div>
+                <input type="checkbox"
+                       id="live"
+                       name="notify_live"
+                       {% if subscription and subscription.notify_live %}checked{% endif %} />
+                <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
+            </div>
+            <button type="submit">Save notification preferences</button>
+        </form>
+    {% else %}
+        Login to subscribe!
+    {% endif %}
     {% if active_campaigns %}
         <h5>Active Campaigns</h5>
         <table>

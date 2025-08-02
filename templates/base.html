@@ -55,6 +55,16 @@
             <a href="{% url 'accounts:login' %}">Login</a> |
             <a href="{% url 'accounts:signup' %}">Sign Up</a>
         {% endif %}
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li>
+                        {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}Important:{% endif %}
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         {% block content %}
             <!-- Main content will be injected here -->
         {% endblock content %}

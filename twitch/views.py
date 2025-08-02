@@ -4,19 +4,22 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Prefetch, Q
 from django.db.models.query import QuerySet
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
 
-from twitch.models import DropCampaign, Game, Organization, TimeBasedDrop
+from twitch.models import DropCampaign, Game, NotificationSubscription, Organization, TimeBasedDrop
 
 if TYPE_CHECKING:
     import datetime
 
     from django.db.models import QuerySet
     from django.http import HttpRequest, HttpResponse
+    from django.http.response import HttpResponseRedirect
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -229,6 +232,12 @@ class GameDetailView(DetailView):
         context: dict[str, Any] = super().get_context_data(**kwargs)
         game: Game = self.get_object()
 
+        user = self.request.user
+        if not user.is_authenticated:
+            subscription: NotificationSubscription | None = None
+        else:
+            subscription = NotificationSubscription.objects.filter(user=user, game=game).first()
+
         now: datetime.datetime = timezone.now()
         all_campaigns: QuerySet[DropCampaign, DropCampaign] = (
             DropCampaign.objects.filter(game=game).select_related("owner").order_by("-end_at")
@@ -248,6 +257,7 @@ class GameDetailView(DetailView):
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
+            "subscription": subscription,
             "now": now,
         })
 
@@ -305,3 +315,45 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "now": now,
         },
     )
+
+
+@login_required
+def subscribe_notifications(request: HttpRequest, game_id: str) -> HttpResponseRedirect:
+    """Update notification for a user.
+
+    Args:
+        request: The HTTP request.
+        game_id: The game we are updating.
+
+    Returns:
+        Redirect back to the twitch:game_detail.
+    """
+    game: Game = get_object_or_404(Game, pk=game_id)
+    if request.method == "POST":
+        notify_found = bool(request.POST.get("notify_found"))
+        notify_live = bool(request.POST.get("notify_live"))
+
+        subscription, created = NotificationSubscription.objects.get_or_create(user=request.user, game=game)
+
+        changes = []
+        if not created:
+            if subscription.notify_found != notify_found:
+                changes.append(f"Notify when drop is found: {'enabled' if notify_found else 'disabled'}")
+            if subscription.notify_live != notify_live:
+                changes.append(f"Notify when drop is farmable: {'enabled' if notify_live else 'disabled'}")
+
+        subscription.notify_found = notify_found
+        subscription.notify_live = notify_live
+        subscription.save()
+
+        if created:
+            message = "You have subscribed to notifications for this game."
+        elif changes:
+            message = "Updated notification preferences: " + ", ".join(changes)
+        else:
+            message = "No changes were made to your notification preferences."
+
+        messages.success(request, message)
+        return redirect("twitch:game_detail", pk=game.id)
+
+    return redirect("twitch:game_detail", pk=game.id)

@@ -5,6 +5,8 @@ from typing import ClassVar
 from django.db import models
 from django.utils import timezone
 
+from accounts.models import User
+
 
 class Game(models.Model):
     """Represents a game on Twitch."""
@@ -195,3 +197,18 @@ class DropBenefitEdge(models.Model):
     def __str__(self) -> str:
         """Return a string representation of the drop benefit edge."""
         return f"{self.drop.name} - {self.benefit.name}"
+
+
+class NotificationSubscription(models.Model):
+    """Users can subscribe to games to get notified."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    game = models.ForeignKey(Game, on_delete=models.CASCADE)
+    notify_found = models.BooleanField(default=False)
+    notify_live = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ("user", "game")
+
+    def __str__(self) -> str:
+        return f"{self.user} subscription to {Game.display_name}"
