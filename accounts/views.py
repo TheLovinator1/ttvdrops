@@ -85,7 +85,7 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Rendered profile template.
     """
-    subscriptions = NotificationSubscription.objects.filter(user=request.user)
+    subscriptions = NotificationSubscription.objects.filter(user=request.user)  # type: ignore[misc]
     return render(
         request,
         "accounts/profile.html",

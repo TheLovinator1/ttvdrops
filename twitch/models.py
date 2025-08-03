@@ -166,7 +166,7 @@ class TimeBasedDrop(models.Model):
 
     # Foreign keys
     campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="time_based_drops", db_index=True)
-    benefits = models.ManyToManyField(DropBenefit, through="DropBenefitEdge", related_name="drops")
+    benefits = models.ManyToManyField(DropBenefit, through="DropBenefitEdge", related_name="drops")  # type: ignore[var-annotated]
 
     class Meta:
         indexes: ClassVar[list] = [

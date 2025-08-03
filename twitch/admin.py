@@ -35,7 +35,7 @@ class DropCampaignAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "game", "owner", "start_at", "end_at", "is_active")
     list_filter = ("game", "owner")
     search_fields = ("id", "name", "description")
-    inlines = [TimeBasedDropInline]  # noqa: RUF012
+    inlines = [TimeBasedDropInline]
     readonly_fields = ("created_at", "updated_at")
 
 
@@ -61,7 +61,7 @@ class TimeBasedDropAdmin(admin.ModelAdmin):
     )
     list_filter = ("campaign__game", "campaign")
     search_fields = ("id", "name")
-    inlines = [DropBenefitEdgeInline]  # noqa: RUF012
+    inlines = [DropBenefitEdgeInline]
 
 
 @admin.register(DropBenefit)

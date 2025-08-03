@@ -23,6 +23,7 @@
         "pydocstyle",
         "pyright",
         "pytest",
+        "Ravendawn",
         "regularuser",
         "runserver",
         "sendgrid",

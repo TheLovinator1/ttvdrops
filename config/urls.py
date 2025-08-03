@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from debug_toolbar.toolbar import debug_toolbar_urls  # pyright: ignore[reportMissingTypeStubs]
+from debug_toolbar.toolbar import debug_toolbar_urls  # type: ignore[import-untyped] # pyright: ignore[reportMissingTypeStubs]
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
