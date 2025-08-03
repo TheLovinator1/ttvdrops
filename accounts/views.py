@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -11,6 +11,7 @@ from django.views.generic import CreateView
 
 from accounts.forms import CustomUserCreationForm
 from accounts.models import User
+from twitch.models import NotificationSubscription
 
 if TYPE_CHECKING:
     from django.forms import BaseModelForm
@@ -36,7 +37,7 @@ class CustomLogoutView(LogoutView):
     """Custom logout view."""
 
     next_page = reverse_lazy("twitch:dashboard")
-    http_method_names: ClassVar[list[str]] = ["get", "post", "options"]  # pyright: ignore[reportIncompatibleVariableOverride]
+    http_method_names = ["get", "post", "options"]
 
     def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
         """Allow GET requests for logout.
@@ -84,4 +85,12 @@ def profile_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Rendered profile template.
     """
-    return render(request, "accounts/profile.html", {"user": request.user})
+    subscriptions = NotificationSubscription.objects.filter(user=request.user)
+    return render(
+        request,
+        "accounts/profile.html",
+        {
+            "user": request.user,
+            "subscriptions": subscriptions,
+        },
+    )

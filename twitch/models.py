@@ -216,4 +216,8 @@ class NotificationSubscription(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.user} subscription to {Game.display_name}"
+        if self.game:
+            return f"{self.user} subscription to game: {self.game.display_name}"
+        if self.organization:
+            return f"{self.user} subscription to organization: {self.organization.name}"
+        return f"{self.user} subscription"

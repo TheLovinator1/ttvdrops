@@ -49,10 +49,21 @@ class OrgDetailView(DetailView):
         Returns:
             dict: Context data.
         """
-        organization: Organization = self.object
         context = super().get_context_data(**kwargs)
-        games = Game.objects.filter(drop_campaigns__owner=organization).distinct()
-        context["games"] = games
+        organization: Organization = self.object
+
+        user = self.request.user
+        if not user.is_authenticated:
+            subscription: NotificationSubscription | None = None
+        else:
+            subscription = NotificationSubscription.objects.filter(user=user, organization=organization).first()
+
+        games: QuerySet[Game, Game] = Game.objects.filter(drop_campaigns__owner=organization).distinct()
+        context.update({
+            "subscription": subscription,
+            "games": games,
+        })
+
         return context
 
 
@@ -290,6 +301,7 @@ class GameDetailView(DetailView):
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
             "subscription": subscription,
+            "owner": active_campaigns[0].owner if active_campaigns else None,
             "now": now,
         })
 
@@ -430,7 +442,7 @@ def subscribe_org_notifications(request: HttpRequest, org_id: str) -> HttpRespon
             message = ""
 
         messages.success(request, message)
-        return redirect("organization_detail", org_id=organization.id)
+        return redirect("twitch:organization_detail", pk=organization.id)
 
     messages.warning(request, "Only POST is available for this view.")
-    return redirect("organization_detail", org_id=organization.id)
+    return redirect("twitch:organization_detail", pk=organization.id)

@@ -4,6 +4,9 @@
 {% endblock title %}
 {% block content %}
     <h1>{{ game.display_name }}</h1>
+    {% if owner %}
+        <small><a href="{% url 'twitch:organization_detail' owner.id %}">{{ owner.name }}</a></small>
+    {% endif %}
     {% if user.is_authenticated %}
         <form method="post"
               action="{% url 'twitch:subscribe_notifications' game_id=game.id %}">

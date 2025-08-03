@@ -13,14 +13,14 @@
                        id="found"
                        name="notify_found"
                        {% if subscription and subscription.notify_found %}checked{% endif %} />
-                <label for="found">🔔 Notify me when a drop for {{ organization.name }} appears on Twitch.</label>
+                <label for="found">🔔 Get notified as soon as a drop for {{ organization.name }} appears on Twitch.</label>
             </div>
             <div>
                 <input type="checkbox"
                        id="live"
                        name="notify_live"
                        {% if subscription and subscription.notify_live %}checked{% endif %} />
-                <label for="live">🎮 Notify me when the drop is live and ready to be farmed.</label>
+                <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
             </div>
             <button type="submit">Save preferences</button>
         </form>
