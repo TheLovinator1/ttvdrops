@@ -123,18 +123,13 @@ class DropCampaign(models.Model):
 class DropBenefit(models.Model):
     """Represents a benefit that can be earned from a drop."""
 
-    DISTRIBUTION_TYPES: ClassVar[list[tuple[str, str]]] = [
-        ("DIRECT_ENTITLEMENT", "Direct Entitlement"),
-        ("CODE", "Code"),
-    ]
-
     id = models.TextField(primary_key=True)
     name = models.TextField(db_index=True)
     image_asset_url = models.URLField(max_length=500, blank=True, default="")
     created_at = models.DateTimeField(db_index=True)
     entitlement_limit = models.PositiveIntegerField(default=1)
     is_ios_available = models.BooleanField(default=False)
-    distribution_type = models.TextField(choices=DISTRIBUTION_TYPES, db_index=True)
+    distribution_type = models.TextField(db_index=True)
 
     # Foreign keys
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_benefits", db_index=True)
