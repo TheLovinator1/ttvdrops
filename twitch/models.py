@@ -14,6 +14,7 @@ class Game(models.Model):
     id = models.TextField(primary_key=True)
     slug = models.TextField(blank=True, default="", db_index=True)
     display_name = models.TextField(db_index=True)
+    box_art = models.URLField(max_length=500, blank=True, default="")
 
     class Meta:
         indexes: ClassVar[list] = [

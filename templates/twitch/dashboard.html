@@ -4,29 +4,39 @@
     Dashboard
 {% endblock title %}
 {% block content %}
-    {% if campaigns_by_org_game %}
-        {% for org_id, org_data in campaigns_by_org_game.items %}
-            {% for game_id, game_data in org_data.games.items %}
-                <h1>
-                    <a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a>
-                </h1>
-                {% for campaign in game_data.campaigns %}
-                    <h2>{{ campaign.clean_name }}</h2>
-                    <p>
-                        <h4>
-                            <a href="{% url 'twitch:campaign_detail' campaign.id %}">
-                                <img height="160"
-                                     width="160"
-                                     src="{{ campaign.image_url }}"
-                                     alt="{{ campaign.name }}">
-                            </a>
-                        </h4>
-                        <span title="{{ campaign.end_at|date:'c' }}">Ends in {{ campaign.end_at|timeuntil }}</span>
-                    </p>
+    <main>
+        {% if campaigns_by_org_game %}
+            {% for org_id, org_data in campaigns_by_org_game.items %}
+                {% for game_id, game_data in org_data.games.items %}
+                    <section>
+                        <header>
+                            <h2>
+                                <a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a>
+                            </h2>
+                        </header>
+                        <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
+                            {% for campaign in game_data.campaigns %}
+                                <article style="flex: 0 1 300px;">
+                                    <a href="{% url 'twitch:campaign_detail' campaign.id %}">
+                                        <img src="{{ campaign.image_url }}"
+                                             alt="Image for {{ campaign.name }}"
+                                             width="160"
+                                             height="160"
+                                             style="border-radius: 0.5rem">
+                                    </a>
+                                    <h3>{{ campaign.clean_name }}</h3>
+                                    <time datetime="{{ campaign.end_at|date:'c' }}"
+                                          title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">
+                                        Ends in {{ campaign.end_at|timeuntil }}
+                                    </time>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    </section>
                 {% endfor %}
             {% endfor %}
-        {% endfor %}
-    {% else %}
-        No active campaigns at the moment.
-    {% endif %}
+        {% else %}
+            <p>No active campaigns at the moment.</p>
+        {% endif %}
+    </main>
 {% endblock content %}

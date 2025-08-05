@@ -79,9 +79,9 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(f"Error processing {json_file}: {e}"))
             except (orjson.JSONDecodeError, json.JSONDecodeError):
                 broken_json_dir: Path = processed_path / "broken_json"
-                broken_json_dir.mkdir(exist_ok=True)
+                broken_json_dir.mkdir(parents=True, exist_ok=True)
                 self.stdout.write(self.style.WARNING(f"Invalid JSON in '{json_file}'. Moving to '{broken_json_dir}'."))
-                shutil.move(str(json_file), str(broken_json_dir))
+                self.move_file(json_file, broken_json_dir / json_file.name)
             except (ValueError, TypeError, AttributeError, KeyError, IndexError):
                 self.stdout.write(self.style.ERROR(f"Data error processing {json_file}"))
                 self.stdout.write(self.style.ERROR(traceback.format_exc()))
@@ -95,47 +95,88 @@ class Command(BaseCommand):
         Args:
             file_path: Path to the JSON file.
             processed_path: Subdirectory to move processed files to.
-
-        Raises:
-            CommandError: If the file isn't a JSON file or has invalid JSON structure.
         """
         data = orjson.loads(file_path.read_text(encoding="utf-8"))
         broken_dir: Path = processed_path / "broken"
+        broken_dir.mkdir(parents=True, exist_ok=True)
 
-        # Remove shit
-        if not isinstance(data, list):
-            try:
-                token = data["data"]["streamPlaybackAccessToken"]
-                if token["__typename"] == "PlaybackAccessToken" and len(data["data"]) == 1:
-                    shutil.move(str(file_path), str(broken_dir))
-                    self.stdout.write(f"Moved {file_path} to {broken_dir}. This file only contains PlaybackAccessToken data.")
-                    return
+        probably_shit: list[str] = [
+            "ChannelPointsContext",
+            "DropCurrentSessionContext",
+            "DropsHighlightService_AvailableDrops",
+            "DropsPage_ClaimDropRewards",
+            "Inventory",
+            "PlaybackAccessToken",
+            "streamPlaybackAccessToken",
+            "VideoPlayerStreamInfoOverlayChannel",
+            "OnsiteNotifications_DeleteNotification",
+            "DirectoryPage_Game",
+        ]
 
-                if data["extensions"]["operationName"] == "PlaybackAccessToken" and ("data" not in data or len(data["data"]) <= 1):
-                    shutil.move(str(file_path), str(broken_dir))
-                    self.stdout.write(f"Moved {file_path} to {broken_dir}. This file only contains PlaybackAccessToken data.")
-                    return
-            except KeyError:
+        for keyword in probably_shit:
+            if f'"operationName": "{keyword}"' in file_path.read_text():
+                target_dir: Path = broken_dir / keyword
+                target_dir.mkdir(parents=True, exist_ok=True)
+
+                self.stdout.write(msg=f"Trying to move {file_path!s} to {target_dir / file_path.name!s}")
+
+                self.move_file(file_path, target_dir / file_path.name)
+                self.stdout.write(f"Moved {file_path} to {target_dir} (matched '{keyword}')")
                 return
 
-        # Move DropsHighlightService_AvailableDrops to its own dir
-        # TODO(TheLovinator): Check if we should import this  # noqa: TD003
-
         if isinstance(data, list):
-            for item in data:
-                drop_campaign_data = item["data"]["user"]["dropCampaign"]
-                self._import_drop_campaign_with_retry(drop_campaign_data)
+            for _item in data:
+                self.import_drop_campaign(_item)
         else:
-            if "data" not in data or "user" not in data["data"] or "dropCampaign" not in data["data"]["user"]:
-                msg = "Invalid JSON structure: Missing data.user.dropCampaign"
-                raise CommandError(msg)
+            self.import_drop_campaign(data)
 
+        self.move_file(file_path, processed_path)
+
+    def move_file(self, file_path: Path, processed_path: Path) -> None:
+        """Move file and check if already exists."""
+        try:
+            shutil.move(str(file_path), str(processed_path))
+        except FileExistsError:
+            # Rename the file if contents is different than the existing one
+            with file_path.open("rb") as f1, (processed_path / file_path.name).open("rb") as f2:
+                if f1.read() != f2.read():
+                    new_name: Path = processed_path / f"{file_path.stem}_duplicate{file_path.suffix}"
+                    shutil.move(str(file_path), str(new_name))
+                    self.stdout.write(f"Moved {file_path!s} to {new_name!s} (content differs)")
+                else:
+                    self.stdout.write(f"{file_path!s} already exists in {processed_path!s}, removing original file.")
+                    file_path.unlink()
+        except (PermissionError, OSError, shutil.Error) as e:
+            self.stdout.write(self.style.ERROR(f"Error moving {file_path!s} to {processed_path!s}: {e}"))
+            traceback.print_exc()
+
+    def import_drop_campaign(self, data: dict[str, Any]) -> None:
+        """Find the key with all the data.
+
+        Args:
+            data: The JSON data.
+
+        Raises:
+            CommandError: If the JSON structure is invalid.
+        """
+        if "data" not in data:
+            msg = "Invalid JSON structure: Missing top-level 'data'"
+            raise CommandError(msg)
+
+        if "user" in data["data"] and "dropCampaign" in data["data"]["user"]:
             drop_campaign_data = data["data"]["user"]["dropCampaign"]
-            self._import_drop_campaign_with_retry(drop_campaign_data)
+            self.import_to_db(drop_campaign_data)
 
-        shutil.move(str(file_path), str(processed_path))
+        elif "currentUser" in data["data"] and "dropCampaigns" in data["data"]["currentUser"]:
+            campaigns = data["data"]["currentUser"]["dropCampaigns"]
+            for drop_campaign_data in campaigns:
+                self.import_to_db(drop_campaign_data)
 
-    def _import_drop_campaign_with_retry(self, campaign_data: dict[str, Any]) -> None:
+        else:
+            msg = "Invalid JSON structure: Missing either data.user.dropCampaign or data.currentUser.dropCampaigns"
+            raise CommandError(msg)
+
+    def import_to_db(self, campaign_data: dict[str, Any]) -> None:
         """Import drop campaign data into the database with retry logic for SQLite locks.
 
         Args:
@@ -204,14 +245,14 @@ class Command(BaseCommand):
         drop_campaign, created = DropCampaign.objects.update_or_create(
             id=campaign_data["id"],
             defaults={
-                "name": campaign_data["name"],
-                "description": campaign_data["description"].replace("\\n", "\n"),
+                "name": campaign_data.get("name", ""),
+                "description": campaign_data.get("description", "").replace("\\n", "\n"),
                 "details_url": campaign_data.get("detailsURL", ""),
                 "account_link_url": campaign_data.get("accountLinkURL", ""),
                 "image_url": campaign_data.get("imageURL", ""),
-                "start_at": campaign_data["startAt"],
-                "end_at": campaign_data["endAt"],
-                "is_account_connected": campaign_data["self"]["isAccountConnected"],
+                "start_at": campaign_data.get("startAt"),
+                "end_at": campaign_data.get("endAt"),
+                "is_account_connected": campaign_data.get("self", {}).get("isAccountConnected", False),
                 "game": game,
                 "owner": organization,
             },
@@ -253,6 +294,7 @@ class Command(BaseCommand):
             defaults={
                 "slug": game_data.get("slug", ""),
                 "display_name": game_data["displayName"],
+                "box_art": game_data.get("boxArtURL", ""),
             },
         )
         if created:
