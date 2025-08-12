@@ -35,8 +35,17 @@ class Command(BaseCommand):
         Args:
             parser: The command argument parser.
         """
-        parser.add_argument("path", type=str, help="Path to the JSON file or directory containing JSON files.")
-        parser.add_argument("--processed-dir", type=str, default="processed", help="Subdirectory to move processed files to")
+        parser.add_argument(
+            "path",
+            type=str,
+            help="Path to the JSON file or directory containing JSON files.",
+        )
+        parser.add_argument(
+            "--processed-dir",
+            type=str,
+            default="processed",
+            help="Subdirectory to move processed files to",
+        )
 
     def handle(self, **options) -> None:
         """Execute the command.
@@ -98,9 +107,7 @@ class Command(BaseCommand):
                     # Still invalid after cleanup, move to broken_json
                     broken_json_dir: Path = processed_path / "broken_json"
                     broken_json_dir.mkdir(parents=True, exist_ok=True)
-                    self.stdout.write(
-                        self.style.WARNING(f"Invalid JSON in '{json_file}', even after cleanup. Moving to '{broken_json_dir}'.")
-                    )
+                    self.stdout.write(self.style.WARNING(f"Invalid JSON in '{json_file}', even after cleanup. Moving to '{broken_json_dir}'."))
                     self.move_file(json_file, broken_json_dir / json_file.name)
             except (ValueError, TypeError, AttributeError, KeyError, IndexError):
                 self.stdout.write(self.style.ERROR(f"Data error processing {json_file}"))
@@ -109,7 +116,7 @@ class Command(BaseCommand):
         msg: str = f"Processed {total_files} JSON files in {directory}. Moved processed files to {processed_path}."
         self.stdout.write(self.style.SUCCESS(msg))
 
-    def _process_file(self, file_path: Path, processed_path: Path) -> None:  # noqa: C901, PLR0911, PLR0912
+    def _process_file(self, file_path: Path, processed_path: Path) -> None:
         """Process a single JSON file.
 
         Args:
@@ -191,10 +198,7 @@ class Command(BaseCommand):
                 return
 
         # If file has "__typename": "DropCurrentSession" move it to the "drop_current_session" directory so we can process it separately.
-        if (
-            isinstance(data, dict)
-            and data.get("data", {}).get("currentUser", {}).get("dropCurrentSession", {}).get("__typename") == "DropCurrentSession"
-        ):
+        if isinstance(data, dict) and data.get("data", {}).get("currentUser", {}).get("dropCurrentSession", {}).get("__typename") == "DropCurrentSession":
             drop_current_session_dir: Path = processed_path / "drop_current_session"
             drop_current_session_dir.mkdir(parents=True, exist_ok=True)
             self.move_file(file_path, drop_current_session_dir / file_path.name)
@@ -226,7 +230,10 @@ class Command(BaseCommand):
             shutil.move(str(file_path), str(processed_path))
         except FileExistsError:
             # Rename the file if contents is different than the existing one
-            with file_path.open("rb") as f1, (processed_path / file_path.name).open("rb") as f2:
+            with (
+                file_path.open("rb") as f1,
+                (processed_path / file_path.name).open("rb") as f2,
+            ):
                 if f1.read() != f2.read():
                     new_name: Path = processed_path / f"{file_path.stem}_duplicate{file_path.suffix}"
                     shutil.move(str(file_path), str(new_name))
@@ -348,7 +355,7 @@ class Command(BaseCommand):
                     )
             self.stdout.write(self.style.SUCCESS(f"Successfully imported drop campaign {drop_campaign.name} (ID: {drop_campaign.id})"))
 
-    def create_time_based_drop(self, drop_campaign: DropCampaign, drop_data: dict[str, Any]) -> TimeBasedDrop:  # noqa: C901
+    def create_time_based_drop(self, drop_campaign: DropCampaign, drop_data: dict[str, Any]) -> TimeBasedDrop:
         """Creates or updates a TimeBasedDrop instance based on the provided drop data.
 
         Args:
@@ -409,13 +416,16 @@ class Command(BaseCommand):
 
         time_based_drop, created = TimeBasedDrop.objects.update_or_create(id=drop_data["id"], defaults=defaults)
         if created:
-            self.stdout.write(
-                self.style.SUCCESS(f"Successfully imported time-based drop {time_based_drop.name} (ID: {time_based_drop.id})")
-            )
+            self.stdout.write(self.style.SUCCESS(f"Successfully imported time-based drop {time_based_drop.name} (ID: {time_based_drop.id})"))
 
         return time_based_drop
 
-    def drop_campaign_update_or_get(self, campaign_data: dict[str, Any], game: Game, organization: Organization | None) -> DropCampaign:  # noqa: C901
+    def drop_campaign_update_or_get(
+        self,
+        campaign_data: dict[str, Any],
+        game: Game,
+        organization: Organization | None,
+    ) -> DropCampaign:
         """Update or create a drop campaign.
 
         Args:
