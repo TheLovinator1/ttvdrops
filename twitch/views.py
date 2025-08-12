@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import models
 from django.db.models import Count, Prefetch, Q
 from django.db.models.query import QuerySet
 from django.http.response import HttpResponseRedirect
@@ -14,7 +15,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
 
-from twitch.models import DropCampaign, Game, NotificationSubscription, Organization, TimeBasedDrop
+from twitch.models import (
+    DropBenefit,
+    DropCampaign,
+    Game,
+    NotificationSubscription,
+    Organization,
+    TimeBasedDrop,
+)
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -286,7 +294,9 @@ class GameDetailView(DetailView):
         )
 
         active_campaigns: list[DropCampaign] = [
-            campaign for campaign in all_campaigns if campaign.start_at <= now and campaign.end_at is not None and campaign.end_at >= now
+            campaign
+            for campaign in all_campaigns
+            if campaign.start_at is not None and campaign.start_at <= now and campaign.end_at is not None and campaign.end_at >= now
         ]
         active_campaigns.sort(key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
 
@@ -363,6 +373,66 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "now": now,
         },
     )
+
+
+@login_required
+def debug_view(request: HttpRequest) -> HttpResponse:
+    """Debug view showing potentially broken or inconsistent data.
+
+    Only staff users may access this endpoint.
+
+    Returns:
+        HttpResponse: Rendered debug template or redirect if unauthorized.
+    """
+    # Was previously staff-only; now any authenticated user can view.
+
+    now = timezone.now()
+
+    # Games with no organizations (no campaigns linking to an org)
+    games_without_orgs: QuerySet[Game, Game] = Game.objects.filter(drop_campaigns__isnull=True).order_by("display_name")
+
+    # Campaigns with missing or obviously broken images (empty or very short or not http)
+    broken_image_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
+        Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http")
+    ).select_related("game", "owner")
+
+    # Benefits with missing images
+    broken_benefit_images: QuerySet[DropBenefit, DropBenefit] = DropBenefit.objects.filter(
+        Q(image_asset_url__isnull=True) | Q(image_asset_url__exact="") | ~Q(image_asset_url__startswith="http")
+    ).select_related("game", "owner_organization")
+
+    # Time-based drops without any benefits
+    drops_without_benefits: QuerySet[TimeBasedDrop, TimeBasedDrop] = TimeBasedDrop.objects.filter(benefits__isnull=True).select_related(
+        "campaign"
+    )
+
+    # Campaigns with invalid dates (start after end or missing either)
+    invalid_date_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
+        Q(start_at__gt=models.F("end_at")) | Q(start_at__isnull=True) | Q(end_at__isnull=True)
+    ).select_related("game", "owner")
+
+    # Duplicate campaign names per game
+    duplicate_name_campaigns = (
+        DropCampaign.objects.values("game_id", "name").annotate(name_count=Count("id")).filter(name_count__gt=1).order_by("-name_count")
+    )
+
+    # Campaigns currently active but image missing
+    active_missing_image = DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now).filter(
+        Q(image_url__isnull=True) | Q(image_url__exact="")
+    )
+
+    context: dict[str, Any] = {
+        "now": now,
+        "games_without_orgs": games_without_orgs,
+        "broken_image_campaigns": broken_image_campaigns,
+        "broken_benefit_images": broken_benefit_images,
+        "drops_without_benefits": drops_without_benefits,
+        "invalid_date_campaigns": invalid_date_campaigns,
+        "duplicate_name_campaigns": duplicate_name_campaigns,
+        "active_missing_image": active_missing_image,
+    }
+
+    return render(request, "twitch/debug.html", context)
 
 
 @login_required

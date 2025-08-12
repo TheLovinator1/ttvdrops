@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}
+    Debug
+{% endblock title %}
+{% block content %}
+    <h1>Debug Data Integrity Report</h1>
+    <p>Generated at: {{ now }}</p>
+    <section>
+        <h2>Games Without Campaigns / Orgs ({{ games_without_orgs|length }})</h2>
+        {% if games_without_orgs %}
+            <ul>
+                {% for game in games_without_orgs %}
+                    <li>
+                        <a href="{% url 'twitch:game_detail' game.id %}">{{ game.display_name }}</a> ({{ game.id }})
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
+        <h2>Campaigns With Broken Image URLs ({{ broken_image_campaigns|length }})</h2>
+        {% if broken_image_campaigns %}
+            <ul>
+                {% for c in broken_image_campaigns %}
+                    <li>
+                        <a href="{% url 'twitch:campaign_detail' c.id %}">{{ c.name }}</a> - {{ c.image_url|default:'(empty)' }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
+        <h2>Active Campaigns Missing Image ({{ active_missing_image|length }})</h2>
+        {% if active_missing_image %}
+            <ul>
+                {% for c in active_missing_image %}
+                    <li>
+                        <a href="{% url 'twitch:campaign_detail' c.id %}">{{ c.name }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
+        <h2>Benefits With Broken Image URLs ({{ broken_benefit_images|length }})</h2>
+        {% if broken_benefit_images %}
+            <ul>
+                {% for b in broken_benefit_images %}
+                    <li>
+                        {{ b.name }} (Game: <a href="{% url 'twitch:game_detail' b.game.id %}">{{ b.game.display_name }}</a>) - {{ b.image_asset_url|default:'(empty)' }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
+        <h2>Time-Based Drops Without Benefits ({{ drops_without_benefits|length }})</h2>
+        {% if drops_without_benefits %}
+            <ul>
+                {% for d in drops_without_benefits %}
+                    <li>
+                        {{ d.name }} (Campaign: <a href="{% url 'twitch:campaign_detail' d.campaign.id %}">{{ d.campaign.name }}</a>)
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
+        <h2>Campaigns With Invalid Dates ({{ invalid_date_campaigns|length }})</h2>
+        {% if invalid_date_campaigns %}
+            <ul>
+                {% for c in invalid_date_campaigns %}
+                    <li>
+                        <a href="{% url 'twitch:campaign_detail' c.id %}">{{ c.name }}</a> - Start: {{ c.start_at|default:'(none)' }} / End: {{ c.end_at|default:'(none)' }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
+        <h2>Duplicate Campaign Names Per Game ({{ duplicate_name_campaigns|length }})</h2>
+        {% if duplicate_name_campaigns %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Game</th>
+                        <th>Name</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in duplicate_name_campaigns %}
+                        <tr>
+                            <td>{{ row.game_id }}</td>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.name_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+{% endblock content %}

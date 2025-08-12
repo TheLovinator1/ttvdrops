@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import shutil
 import traceback
@@ -17,6 +18,9 @@ from twitch.models import DropBenefit, DropBenefitEdge, DropCampaign, Game, Orga
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -113,6 +117,7 @@ class Command(BaseCommand):
             processed_path: Subdirectory to move processed files to.
         """
         data = orjson.loads(file_path.read_bytes())
+
         broken_dir: Path = processed_path / "broken"
         broken_dir.mkdir(parents=True, exist_ok=True)
 
@@ -128,14 +133,13 @@ class Command(BaseCommand):
             "DropCurrentSessionContext",
             "DropsHighlightService_AvailableDrops",
             "DropsPage_ClaimDropRewards",
-            "Inventory",
             "OnsiteNotifications_DeleteNotification",
             "PlaybackAccessToken",
             "streamPlaybackAccessToken",
             "VideoPlayerStreamInfoOverlayChannel",
         ]
         for keyword in probably_shit:
-            if f'"operationName": "{keyword}"' in data:
+            if f'"operationName": "{keyword}"' in str(data):
                 target_dir: Path = broken_dir / keyword
                 target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -264,6 +268,13 @@ class Command(BaseCommand):
                     self.import_to_db(drop_campaign_data, file_path=file_path)
             elif isinstance(campaigns, dict):
                 self.import_to_db(campaigns, file_path=file_path)
+
+        elif "currentUser" in data["data"] and "inventory" in data["data"]["currentUser"]:
+            inventory = data["data"]["currentUser"]["inventory"]
+            if "dropCampaignsInProgress" in inventory:
+                campaigns = inventory["dropCampaignsInProgress"]
+                for drop_campaign_data in campaigns:
+                    self.import_to_db(drop_campaign_data, file_path=file_path)
 
         else:
             msg = "Invalid JSON structure: Missing either data.user.dropCampaign or data.currentUser.dropCampaigns"

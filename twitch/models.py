@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import logging
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from django.db import models
 from django.utils import timezone
 
 from accounts.models import User
+
+if TYPE_CHECKING:
+    import datetime
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
 
@@ -97,7 +100,9 @@ class DropCampaign(models.Model):
     @property
     def is_active(self) -> bool:
         """Check if the campaign is currently active."""
-        now = timezone.now()
+        now: datetime.datetime = timezone.now()
+        if self.start_at is None or self.end_at is None:
+            return False
         return self.start_at <= now <= self.end_at
 
     @property

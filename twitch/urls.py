@@ -8,6 +8,7 @@ app_name = "twitch"
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("debug/", views.debug_view, name="debug"),
     path("campaigns/", views.DropCampaignListView.as_view(), name="campaign_list"),
     path("campaigns/<str:pk>/", views.DropCampaignDetailView.as_view(), name="campaign_detail"),
     path("games/", views.GameListView.as_view(), name="game_list"),

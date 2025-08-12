@@ -48,6 +48,7 @@
         <a href="{% url 'twitch:game_list' %}">Games</a> |
         <a href="{% url 'twitch:org_list' %}">Organizations</a> |
         {% if user.is_authenticated %}
+            <a href="{% url 'twitch:debug' %}">Debug</a> |
             {% if user.is_staff %}
                 <a href="{% url 'admin:index' %}">Admin</a> |
             {% endif %}
