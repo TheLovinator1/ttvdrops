@@ -18,7 +18,8 @@
             "request": "launch",
             "args": [
                 "import_drops",
-                "C:\\Code\\TwitchDropsMiner\\responses"
+                // C:\Code\TwitchDropsMiner\responses\processed\broken_json
+                "C:\\Code\\TwitchDropsMiner\\responses\\processed\\broken_json"
             ],
             "django": false,
             "autoStartBrowser": false,

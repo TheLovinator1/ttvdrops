@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
@@ -16,8 +17,6 @@ from django.views.generic import DetailView, ListView
 from twitch.models import DropCampaign, Game, NotificationSubscription, Organization, TimeBasedDrop
 
 if TYPE_CHECKING:
-    import datetime
-
     from django.db.models import QuerySet
     from django.http import HttpRequest, HttpResponse
     from django.http.response import HttpResponseRedirect
@@ -287,14 +286,19 @@ class GameDetailView(DetailView):
         )
 
         active_campaigns: list[DropCampaign] = [
-            campaign for campaign in all_campaigns if campaign.start_at <= now and campaign.end_at >= now
+            campaign for campaign in all_campaigns if campaign.start_at <= now and campaign.end_at is not None and campaign.end_at >= now
         ]
-        active_campaigns.sort(key=lambda c: c.end_at)
+        active_campaigns.sort(key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
 
-        upcoming_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.start_at > now]
-        upcoming_campaigns.sort(key=lambda c: c.start_at)
+        upcoming_campaigns: list[DropCampaign] = [
+            campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now
+        ]
 
-        expired_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.end_at < now]
+        upcoming_campaigns.sort(key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
+
+        expired_campaigns: list[DropCampaign] = [
+            campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now
+        ]
 
         context.update({
             "active_campaigns": active_campaigns,

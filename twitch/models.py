@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import ClassVar
 
 from django.db import models
@@ -7,24 +8,41 @@ from django.utils import timezone
 
 from accounts.models import User
 
+logger: logging.Logger = logging.getLogger("ttvdrops")
+
 
 class Game(models.Model):
     """Represents a game on Twitch."""
 
     id = models.TextField(primary_key=True)
     slug = models.TextField(blank=True, default="", db_index=True)
-    display_name = models.TextField(db_index=True)
+    name = models.TextField(blank=True, default="", db_index=True)
+    display_name = models.TextField(blank=True, default="", db_index=True)
     box_art = models.URLField(max_length=500, blank=True, default="")
 
     class Meta:
         indexes: ClassVar[list] = [
             models.Index(fields=["slug"]),
             models.Index(fields=["display_name"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["box_art"]),
         ]
 
     def __str__(self) -> str:
         """Return a string representation of the game."""
-        return self.display_name
+        if (self.display_name and self.name) and (self.display_name != self.name):
+            logger.warning(
+                "Game display name '%s' does not match name '%s'.",
+                self.display_name,
+                self.name,
+            )
+            return f"{self.display_name} ({self.name})"
+        return self.name or self.slug or self.id
+
+    @property
+    def organizations(self) -> models.QuerySet[Organization]:
+        """Return all organizations that have drop campaigns for this game."""
+        return Organization.objects.filter(drop_campaigns__game=self).distinct()
 
 
 class Organization(models.Model):
@@ -52,8 +70,8 @@ class DropCampaign(models.Model):
     details_url = models.URLField(max_length=500, blank=True, default="")
     account_link_url = models.URLField(max_length=500, blank=True, default="")
     image_url = models.URLField(max_length=500, blank=True, default="")
-    start_at = models.DateTimeField(db_index=True)
-    end_at = models.DateTimeField(db_index=True)
+    start_at = models.DateTimeField(db_index=True, null=True)
+    end_at = models.DateTimeField(db_index=True, null=True)
     is_account_connected = models.BooleanField(default=False)
 
     # Foreign keys
@@ -125,12 +143,12 @@ class DropBenefit(models.Model):
     """Represents a benefit that can be earned from a drop."""
 
     id = models.TextField(primary_key=True)
-    name = models.TextField(db_index=True)
+    name = models.TextField(db_index=True, blank=True, default="N/A")
     image_asset_url = models.URLField(max_length=500, blank=True, default="")
-    created_at = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(db_index=True, null=True)
     entitlement_limit = models.PositiveIntegerField(default=1)
     is_ios_available = models.BooleanField(default=False)
-    distribution_type = models.TextField(db_index=True)
+    distribution_type = models.TextField(db_index=True, blank=True, default="")
 
     # Foreign keys
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name="drop_benefits", db_index=True)
@@ -155,10 +173,10 @@ class TimeBasedDrop(models.Model):
 
     id = models.TextField(primary_key=True)
     name = models.TextField(db_index=True)
-    required_minutes_watched = models.PositiveIntegerField(db_index=True)
+    required_minutes_watched = models.PositiveIntegerField(db_index=True, null=True)
     required_subs = models.PositiveIntegerField(default=0)
-    start_at = models.DateTimeField(db_index=True)
-    end_at = models.DateTimeField(db_index=True)
+    start_at = models.DateTimeField(db_index=True, null=True)
+    end_at = models.DateTimeField(db_index=True, null=True)
 
     # Foreign keys
     campaign = models.ForeignKey(DropCampaign, on_delete=models.CASCADE, related_name="time_based_drops", db_index=True)
