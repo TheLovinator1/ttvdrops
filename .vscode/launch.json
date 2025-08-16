@@ -18,8 +18,8 @@
             "request": "launch",
             "args": [
                 "import_drops",
-                // C:\Code\TwitchDropsMiner\responses\processed\broken_json
-                "C:\\Code\\TwitchDropsMiner\\responses\\processed\\broken_json"
+                // uv run python manage.py import_drops "E:\2025-01-27\Code\twitch-drop-notifier\json"
+                "E:\\2025-01-27\\Code\\twitch-drop-notifier\\json"
             ],
             "django": false,
             "autoStartBrowser": false,
