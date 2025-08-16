@@ -244,6 +244,8 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(f"{file_path!s} already exists in {processed_path!s}, removing original file.")
                     file_path.unlink()
+        except FileNotFoundError:
+            self.stdout.write(f"{file_path!s} not found, skipping.")
         except (PermissionError, OSError, shutil.Error) as e:
             self.stdout.write(self.style.ERROR(f"Error moving {file_path!s} to {processed_path!s}: {e}"))
             traceback.print_exc()
@@ -547,6 +549,7 @@ class Command(BaseCommand):
 
             # If not found, move the file for manual review
             self.stdout.write(self.style.WARNING("No organization found for this campaign, moving file for review."))
+
             todo_dir: Path = Path("check_these_please")
             todo_dir.mkdir(parents=True, exist_ok=True)
             self.move_file(
