@@ -18,8 +18,7 @@
             "request": "launch",
             "args": [
                 "import_drops",
-                // uv run python manage.py import_drops "E:\2025-01-27\Code\twitch-drop-notifier\json"
-                "E:\\2025-01-27\\Code\\twitch-drop-notifier\\json"
+                "C:\\Responses"
             ],
             "django": false,
             "autoStartBrowser": false,
