@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING, ClassVar
 
 from django.db import models
@@ -46,6 +47,23 @@ class Game(models.Model):
     def organizations(self) -> models.QuerySet[Organization]:
         """Return all organizations that have drop campaigns for this game."""
         return Organization.objects.filter(drop_campaigns__game=self).distinct()
+
+    @property
+    def box_art_base_url(self) -> str:
+        """Return the base box art URL without size suffix.
+
+        Twitch box art URLs often include size suffixes like '-120x160.jpg'.
+        This property returns the base URL without the size suffix.
+
+        Examples:
+            'https://static-cdn.jtvnw.net/ttv-boxart/512710-120x160.jpg'
+            -> 'https://static-cdn.jtvnw.net/ttv-boxart/512710.jpg'
+        """
+        if not self.box_art:
+            return ""
+
+        # Remove size suffix pattern like '-120x160' from the filename
+        return re.sub(r"-\d+x\d+(\.jpg|\.png|\.jpeg|\.gif|\.webp)$", r"\1", self.box_art)
 
 
 class Organization(models.Model):

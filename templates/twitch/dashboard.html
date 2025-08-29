@@ -5,35 +5,64 @@
 {% endblock title %}
 {% block content %}
     <main>
+        <h1>Twitch Drops Dashboard</h1>
+        <p>Track active campaigns and upcoming drops</p>
         {% if campaigns_by_org_game %}
             {% for org_id, org_data in campaigns_by_org_game.items %}
-                {% for game_id, game_data in org_data.games.items %}
-                    <section>
-                        <header>
-                            <h2>
-                                <a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a>
-                            </h2>
-                        </header>
-                        <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
-                            {% for campaign in game_data.campaigns %}
-                                <article style="flex: 0 1 300px;">
-                                    <a href="{% url 'twitch:campaign_detail' campaign.id %}">
-                                        <img src="{{ campaign.image_url }}"
-                                             alt="Image for {{ campaign.name }}"
-                                             width="160"
-                                             height="160"
-                                             style="border-radius: 0.5rem">
-                                    </a>
-                                    <h3>{{ campaign.clean_name }}</h3>
-                                    <time datetime="{{ campaign.end_at|date:'c' }}"
-                                          title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">
-                                        Ends in {{ campaign.end_at|timeuntil }}
-                                    </time>
-                                </article>
-                            {% endfor %}
-                        </div>
-                    </section>
-                {% endfor %}
+                <section>
+                    <h2>
+                        {% if org_data.name %}
+                            {{ org_data.name }}
+                        {% else %}
+                            Organization {{ org_id }}
+                        {% endif %}
+                    </h2>
+                    {% for game_id, game_data in org_data.games.items %}
+                        <article>
+                            <header style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
+                                <div style="flex-shrink: 0; margin-right: 1rem;">
+                                    <img src="{{ game_data.box_art }}"
+                                         alt="Box art for {{ game_data.name }}"
+                                         width="200"
+                                         height="267"
+                                         style="border-radius: 8px">
+                                </div>
+                                <div style="flex: 1;">
+                                    <h3 style="margin: 0 0 0.5rem 0;">
+                                        <a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a>
+                                    </h3>
+                                </div>
+                            </header>
+                            <div>
+                                {% for campaign in game_data.campaigns %}
+                                    <article style="display: flex;
+                                                    align-items: center;
+                                                    margin-bottom: 1rem;
+                                                    padding: 0.5rem;
+                                                    border: 1px solid #ddd;
+                                                    border-radius: 8px">
+                                        <div style="flex: 1;">
+                                            <a href="{% url 'twitch:campaign_detail' campaign.id %}">
+                                                <img src="{{ campaign.image_url }}"
+                                                     alt="Image for {{ campaign.name }}"
+                                                     width="120"
+                                                     height="120"
+                                                     style="border-radius: 4px">
+                                                <h4 style="margin: 0.5rem 0;">{{ campaign.clean_name }}</h4>
+                                            </a>
+                                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                                  title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}"
+                                                  style="font-size: 0.9rem;
+                                                         color: #666">
+                                                Ends in {{ campaign.end_at|timeuntil }}
+                                            </time>
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </section>
             {% endfor %}
         {% else %}
             <p>No active campaigns at the moment.</p>

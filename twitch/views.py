@@ -337,6 +337,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         if game_id not in campaigns_by_org_game[org_id]["games"]:
             campaigns_by_org_game[org_id]["games"][game_id] = {
                 "name": game_name,
+                "box_art": campaign.game.box_art_base_url,
                 "campaigns": [],
             }
 
