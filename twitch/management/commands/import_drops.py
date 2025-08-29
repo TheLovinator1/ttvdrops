@@ -356,7 +356,13 @@ class Command(BaseCommand):
             for drop_data in campaign_data.get("timeBasedDrops", []):
                 time_based_drop: TimeBasedDrop = self.create_time_based_drop(drop_campaign=drop_campaign, drop_data=drop_data)
 
-                for benefit_edge in drop_data.get("benefitEdges", []):
+                benefit_edges: list[dict[str, Any]] = drop_data.get("benefitEdges", [])
+                if not benefit_edges:
+                    self.stdout.write(self.style.WARNING(f"No benefit edges found for drop {time_based_drop.name} (ID: {time_based_drop.id})"))
+                    self.move_file(file_path, Path("no_benefit_edges") / file_path.name)
+                    continue
+
+                for benefit_edge in benefit_edges:
                     benefit_defaults: dict[str, Any] = {}
 
                     benefit_data: dict[str, Any] = benefit_edge["benefit"]
