@@ -4,111 +4,244 @@
     Drop Campaigns - Twitch Drops Tracker
 {% endblock title %}
 {% block content %}
-    <h1>Drop Campaigns</h1>
-    <form method="get" action="{% url 'twitch:campaign_list' %}">
-        <!-- Game Filter -->
-        <select id="game" name="game">
-            <option value="">All Games</option>
-            {% for game in games %}
-                <option value="{{ game.id }}"
-                        {% if selected_game == game.id %}selected{% endif %}>{{ game.display_name }}</option>
+    <main>
+        <header>
+            <h1>Drop Campaigns</h1>
+            <p>Browse all available drop campaigns</p>
+        </header>
+        <form method="get"
+              action="{% url 'twitch:campaign_list' %}"
+              style="margin-bottom: 2rem;
+                     padding: 1rem;
+                     border-radius: 8px">
+            <div style="display: flex;
+                        gap: 1rem;
+                        align-items: center;
+                        flex-wrap: wrap">
+                <!-- Game Filter -->
+                <div>
+                    <label for="game" style="margin-right: 0.5rem; font-weight: 600;">Game:</label>
+                    <select id="game"
+                            name="game"
+                            style="padding: 0.5rem;
+                                   border-radius: 4px;
+                                   border: 1px solid #ddd">
+                        <option value="">All Games</option>
+                        {% for game in games %}
+                            <option value="{{ game.id }}"
+                                    {% if selected_game == game.id %}selected{% endif %}>
+                                {{ game.display_name|default:game.name|default:game.slug|default:game.id }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Status Filter -->
+                <div>
+                    <label for="status" style="margin-right: 0.5rem; font-weight: 600;">Status:</label>
+                    <select id="status"
+                            name="status"
+                            style="padding: 0.5rem;
+                                   border-radius: 4px;
+                                   border: 1px solid #ddd">
+                        <option value="">All Statuses</option>
+                        {% for status in status_options %}
+                            <option value="{{ status }}"
+                                    {% if selected_status == status %}selected{% endif %}>{{ status|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit"
+                        style="padding: 0.5rem 1rem;
+                               background: #9146ff;
+                               color: white;
+                               border: none;
+                               border-radius: 4px;
+                               cursor: pointer">Apply Filters</button>
+            </div>
+        </form>
+        {% if campaigns %}
+            {% regroup campaigns by game as campaigns_by_game %}
+            {% for game_group in campaigns_by_game %}
+                <section style="margin-bottom: 3rem;">
+                    <header style="display: flex; align-items: flex-start; margin-bottom: 1rem;">
+                        <div style="flex-shrink: 0; margin-right: 1rem;">
+                            {% if game_group.grouper.box_art_base_url %}
+                                <img src="{{ game_group.grouper.box_art_base_url }}"
+                                     alt="Box art for {{ game_group.grouper.display_name }}"
+                                     width="200"
+                                     height="267"
+                                     style="border-radius: 8px">
+                            {% else %}
+                                <div style="width: 200px;
+                                            height: 267px;
+                                            border: 1px solid #444;
+                                            border-radius: 8px;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            color: #ccc;
+                                            font-size: 1.2rem">
+                                    🎮
+                                    <br>
+                                    No Image
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div style="flex: 1;">
+                            <h2 style="margin: 0 0 0.5rem 0;">
+                                <a href="{% url 'twitch:game_detail' game_group.grouper.id %}">{{ game_group.grouper.display_name }}</a>
+                            </h2>
+                            <p style="margin: 0; color: #666;">
+                                <a href="{% url 'twitch:organization_detail' game_group.list.0.owner.id %}">{{ game_group.list.0.owner.name }}</a>
+                            </p>
+                        </div>
+                    </header>
+                    <div style="overflow-x: auto;">
+                        <div style="display: flex; gap: 1rem; min-width: max-content;">
+                            {% for campaign in game_group.list %}
+                                <article style="display: flex;
+                                                flex-direction: column;
+                                                align-items: flex-start;
+                                                padding: 0.5rem;
+                                                flex-shrink: 0">
+                                    <div>
+                                        <a href="{% url 'twitch:campaign_detail' campaign.id %}">
+                                            {% if campaign.image_url %}
+                                                <img src="{{ campaign.image_url }}"
+                                                     alt="Campaign artwork for {{ campaign.name }}"
+                                                     width="120"
+                                                     height="120"
+                                                     style="border-radius: 4px">
+                                            {% else %}
+                                                <div style="width: 120px;
+                                                            height: 120px;
+                                                            border: 1px solid #444;
+                                                            border-radius: 4px;
+                                                            display: flex;
+                                                            align-items: center;
+                                                            justify-content: center;
+                                                            color: #ccc;
+                                                            font-size: 0.9rem">
+                                                    📦
+                                                    <br>
+                                                    No Image
+                                                </div>
+                                            {% endif %}
+                                            <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign.clean_name }}</h4>
+                                        </a>
+                                        <div style="font-size: 0.9rem; color: #666;">
+                                            <time datetime="{{ campaign.start_at|date:'c' }}"
+                                                  title="Start: {{ campaign.start_at|date:'DATETIME_FORMAT' }}">
+                                                {{ campaign.start_at|date:"M d, Y" }}
+                                            </time>
+                                            <span>-</span>
+                                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                                  title="End: {{ campaign.end_at|date:'DATETIME_FORMAT' }}">
+                                                {{ campaign.end_at|date:"M d, Y" }}
+                                            </time>
+                                        </div>
+                                        <div style="margin-top: 0.5rem;">
+                                            {% if campaign.start_at <= now and campaign.end_at >= now %}
+                                                <span style="color: #28a745; font-weight: 600;">Active</span>
+                                            {% elif campaign.start_at > now %}
+                                                <span style="color: #ffc107; font-weight: 600;">Upcoming</span>
+                                            {% else %}
+                                                <span style="color: #dc3545; font-weight: 600;">Expired</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </article>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
             {% endfor %}
-        </select>
-        <!-- Status Filter -->
-        <select id="status" name="status">
-            <option value="">All Statuses</option>
-            {% for status in status_options %}
-                <option value="{{ status }}"
-                        {% if selected_status == status %}selected{% endif %}>{{ status|title }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Apply Filters</button>
-    </form>
-    <h5>Campaign List</h5>
-    {% if campaigns %}
-        {% for campaign in campaigns %}
-            {% if campaign.image_url %}
-                <img src="{{ campaign.image_url }}"
-                     width="70"
-                     height="70"
-                     alt="{{ campaign.name }}">
-            {% else %}
-                <img src="{% static 'images/placeholder.png' %}"
-                     width="70"
-                     height="70"
-                     alt="No Image Available">
-            {% endif %}
-            <h6 title="{{ campaign.name }}">{{ campaign.clean_name }}</h6>
-            <p>
-                <a href="{% url 'twitch:game_detail' campaign.game.id %}"
-                   title="{{ campaign.game.display_name }}">{{ campaign.game.display_name }}</a>
-            </p>
-            <p>
-                {{ campaign.start_at|date:"M d, Y" }}
-                - {{ campaign.end_at|date:"M d, Y" }}
-            </p>
-            {% if campaign.start_at <= now and campaign.end_at >= now %}
-                {% if campaign.status == 'ACTIVE' %}Active{% endif %}
-            {% elif campaign.start_at > now %}
-                Upcoming
-            {% else %}
-                Expired
-            {% endif %}
-            <a href="{% url 'twitch:campaign_detail' campaign.id %}">Details</a>
-        {% endfor %}
-    {% else %}
-        No campaigns found with the current filters.
-    {% endif %}
-    <!-- Pagination -->
-    {% if is_paginated %}
-        <nav>
-            <ul>
-                {% if page_obj.has_previous %}
-                    <li>
-                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page=1">
-                            ««
-                        </a>
-                    </li>
-                    <li>
+        {% else %}
+            <section style="text-align: center; padding: 3rem 1rem; color: #666;">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📦</div>
+                <h2 style="margin: 0 0 1rem 0; color: #333;">No Campaigns Found</h2>
+                <p style="margin: 0; font-size: 1.1rem;">
+                    No campaigns match your current filters.
+                    <br>
+                    Try adjusting your search criteria.
+                </p>
+            </section>
+        {% endif %}
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <nav style="margin-top: 3rem; text-align: center;">
+                <div style="display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            gap: 0.5rem;
+                            flex-wrap: wrap">
+                    {% if page_obj.has_previous %}
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page=1"
+                           style="padding: 0.5rem 1rem;
+                                  border: 1px solid #555;
+                                  border-radius: 4px;
+                                  text-decoration: none;
+                                  color: #ddd">««</a>
                         <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.previous_page_number }}"
+                           style="padding: 0.5rem 1rem;
+                                  border: 1px solid #555;
+                                  border-radius: 4px;
+                                  text-decoration: none;
+                                  color: #ddd"
                            aria-label="Previous">«</a>
-                    </li>
-                {% else %}
-                    <li>««</li>
-                    <li>«</li>
-                {% endif %}
-                {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                        <li>{{ num }}</li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <li>
-                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
-                        </li>
-                    {% elif num == 1 or num == page_obj.paginator.num_pages %}
-                        <li>
-                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
-                        </li>
-                    {% elif num == page_obj.number|add:'-4' or num == page_obj.number|add:'4' %}
-                        <li>...</li>
+                    {% else %}
+                        <span style="padding: 0.5rem 1rem; color: #666;">««</span>
+                        <span style="padding: 0.5rem 1rem; color: #666;">«</span>
                     {% endif %}
-                {% endfor %}
-                {% if page_obj.has_next %}
-                    <li>
-                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.next_page_number }}">»</a>
-                    </li>
-                    <li>
-                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.paginator.num_pages }}">»»</a>
-                    </li>
-                {% else %}
-                    <li>»</li>
-                    <li>»»</li>
-                {% endif %}
-            </ul>
-        </nav>
-        <small>
-            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
-            campaigns
-            (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
-        </small>
-    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <span style="padding: 0.5rem 1rem;
+                                         background: #9146ff;
+                                         color: white;
+                                         border-radius: 4px;
+                                         font-weight: 600">{{ num }}</span>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}"
+                               style="padding: 0.5rem 1rem;
+                                      border: 1px solid #555;
+                                      border-radius: 4px;
+                                      text-decoration: none;
+                                      color: #ddd">{{ num }}</a>
+                        {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}"
+                               style="padding: 0.5rem 1rem;
+                                      background: #f8f9fa;
+                                      border: 1px solid #dee2e6;
+                                      border-radius: 4px;
+                                      text-decoration: none;
+                                      color: #495057">{{ num }}</a>
+                        {% elif num == page_obj.number|add:'-4' or num == page_obj.number|add:'4' %}
+                            <span style="padding: 0.5rem 1rem; color: #666;">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.next_page_number }}"
+                           style="padding: 0.5rem 1rem;
+                                  border: 1px solid #555;
+                                  border-radius: 4px;
+                                  text-decoration: none;
+                                  color: #ddd">»</a>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 24 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
+                           style="padding: 0.5rem 1rem;
+                                  border: 1px solid #555;
+                                  border-radius: 4px;
+                                  text-decoration: none;
+                                  color: #ddd">»»</a>
+                    {% else %}
+                        <span style="padding: 0.5rem 1rem; color: #666;">»</span>
+                        <span style="padding: 0.5rem 1rem; color: #666;">»»</span>
+                    {% endif %}
+                </div>
+                <small style="display: block; margin-top: 1rem; color: #6c757d;">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+                    campaigns (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+                </small>
+            </nav>
+        {% endif %}
+    </main>
 {% endblock content %}
