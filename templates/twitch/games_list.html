@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}
+    Games - List View
+{% endblock title %}
+{% block content %}
+    <main>
+        <h1>Games List</h1>
+        <p>
+            <a href="{% url 'twitch:game_list' %}">Grid View</a>
+        </p>
+        {% if games_by_org %}
+            {% for organization, games in games_by_org.items %}
+                <h2>{{ organization.name }}</h2>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    {% for item in games %}
+                        <li>
+                            <a href="{% url 'twitch:game_detail' item.game.id %}">{{ item.game.display_name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endfor %}
+        {% else %}
+            <p>No games found.</p>
+        {% endif %}
+    </main>
+{% endblock content %}

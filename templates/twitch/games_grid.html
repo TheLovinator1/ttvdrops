@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 {% block title %}
-    Games
+    Games - Grid View
 {% endblock title %}
 {% block content %}
     <main>
         <header>
             <h1>All Games</h1>
             <p>Browse all available games</p>
+            <p>
+                <a href="{% url 'twitch:game_list_simple' %}">List View</a>
+            </p>
         </header>
         {% if games_by_org %}
             <section>

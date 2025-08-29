@@ -154,11 +154,11 @@ class DropCampaignDetailView(DetailView):
         return context
 
 
-class GameListView(ListView):
+class GamesGridView(ListView):
     """List view for games grouped by organization."""
 
     model = Game
-    template_name = "twitch/game_list.html"
+    template_name = "twitch/games_grid.html"
     context_object_name = "games"
 
     def get_queryset(self) -> QuerySet[Game]:
@@ -500,3 +500,9 @@ def subscribe_org_notifications(request: HttpRequest, org_id: str) -> HttpRespon
 
     messages.warning(request, "Only POST is available for this view.")
     return redirect("twitch:organization_detail", pk=organization.id)
+
+
+class GamesListView(GamesGridView):
+    """List view for games in simple list format."""
+
+    template_name = "twitch/games_list.html"
