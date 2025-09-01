@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import models
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, F, Prefetch, Q
+from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
+from django.http import HttpRequest, HttpResponse
 from django.http.response import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -351,36 +352,56 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     """
     now = timezone.now()
 
-    # Games with no organizations (no campaigns linking to an org)
-    games_without_orgs: QuerySet[Game, Game] = Game.objects.filter(drop_campaigns__isnull=True).order_by("display_name")
+    # Games with no assigned owner organization
+    games_without_owner: QuerySet[Game] = Game.objects.filter(owner__isnull=True).order_by("display_name")
 
-    # Campaigns with missing or obviously broken images (empty or very short or not http)
-    broken_image_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
+    # Campaigns with missing or obviously broken images (empty or not starting with http)
+    broken_image_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
         Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http")
     ).select_related("game")
 
     # Benefits with missing images
-    broken_benefit_images: QuerySet[DropBenefit, DropBenefit] = DropBenefit.objects.filter(
-        Q(image_asset_url__isnull=True) | Q(image_asset_url__exact="") | ~Q(image_asset_url__startswith="http")
-    ).prefetch_related(Prefetch("drops", queryset=TimeBasedDrop.objects.select_related("campaign__game")))
+    broken_benefit_images: QuerySet[DropBenefit] = (
+        DropBenefit.objects.annotate(
+            trimmed_url=Trim("image_asset_url")  # Create a temporary field with no whitespace
+        )
+        .filter(
+            Q(image_asset_url__isnull=True)
+            | Q(trimmed_url__exact="")  # Check the trimmed URL
+            | ~Q(image_asset_url__startswith="http")
+        )
+        .prefetch_related(
+            # Prefetch the path to the game to avoid N+1 queries in the template
+            Prefetch("drops", queryset=TimeBasedDrop.objects.select_related("campaign__game"))
+        )
+    )
 
     # Time-based drops without any benefits
-    drops_without_benefits: QuerySet[TimeBasedDrop, TimeBasedDrop] = TimeBasedDrop.objects.filter(benefits__isnull=True).select_related("campaign")
+    drops_without_benefits: QuerySet[TimeBasedDrop] = TimeBasedDrop.objects.filter(benefits__isnull=True).select_related("campaign__game")
 
     # Campaigns with invalid dates (start after end or missing either)
-    invalid_date_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
-        Q(start_at__gt=models.F("end_at")) | Q(start_at__isnull=True) | Q(end_at__isnull=True)
+    invalid_date_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
+        Q(start_at__gt=F("end_at")) | Q(start_at__isnull=True) | Q(end_at__isnull=True)
     ).select_related("game")
 
-    # Duplicate campaign names per game
-    duplicate_name_campaigns = DropCampaign.objects.values("game_id", "name").annotate(name_count=Count("id")).filter(name_count__gt=1).order_by("-name_count")
+    # Duplicate campaign names per game. We retrieve the game's name for user-friendly display.
+    duplicate_name_campaigns = (
+        DropCampaign.objects.values("game_id", "game__display_name", "name")
+        .annotate(name_count=Count("id"))
+        .filter(name_count__gt=1)
+        .order_by("game__display_name", "name")
+    )
 
     # Campaigns currently active but image missing
-    active_missing_image = DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now).filter(Q(image_url__isnull=True) | Q(image_url__exact=""))
+    active_missing_image: QuerySet[DropCampaign] = (
+        DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now)
+        .filter(Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"))
+        .select_related("game")
+    )
 
     context: dict[str, Any] = {
         "now": now,
-        "games_without_orgs": games_without_orgs,
+        "games_without_owner": games_without_owner,
         "broken_image_campaigns": broken_image_campaigns,
         "broken_benefit_images": broken_benefit_images,
         "drops_without_benefits": drops_without_benefits,
