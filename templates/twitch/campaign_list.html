@@ -73,15 +73,19 @@
                             {% endif %}
                         </div>
                         <div style="flex: 1;">
+                            {% comment %} Find this header section in your template {% endcomment %}
                             <header style="margin-bottom: 1rem;">
                                 <h2 style="margin: 0 0 0.5rem 0;">
                                     <a href="{% url 'twitch:game_detail' game_group.grouper.id %}"
                                        style="text-decoration: none">{{ game_group.grouper.display_name|default:game_group.grouper.name|default:game_group.grouper.slug|default:game_group.grouper.id }}</a>
                                 </h2>
-                                <p style="margin: 0;">
-                                    <a href="{% url 'twitch:organization_detail' game_group.list.0.owner.id %}"
-                                       style="text-decoration: none">{{ game_group.list.0.owner.name }}</a>
-                                </p>
+                                {% comment %} MODIFICATION: Check if the owner exists before creating the link {% endcomment %}
+                                {% if game_group.grouper.owner %}
+                                    <p style="margin: 0;">
+                                        <a href="{% url 'twitch:organization_detail' game_group.grouper.owner.id %}"
+                                           style="text-decoration: none">{{ game_group.grouper.owner.name }}</a>
+                                    </p>
+                                {% endif %}
                             </header>
                             <div style="overflow-x: auto;">
                                 <div style="display: flex; gap: 1rem; min-width: max-content;">

@@ -5,12 +5,14 @@ description = "Get notified when a new drop is available on Twitch."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "dateparser>=1.2.2",
     "django-browser-reload>=1.18.0",
     "django-debug-toolbar>=5.2.0",
     "django-stubs[compatible-mypy]>=5.2.2",
     "django-watchfiles>=1.1.0",
     "django>=5.2.4",
     "djlint>=1.36.4",
+    "json-repair>=0.50.0",
     "orjson>=3.11.1",
     "platformdirs>=4.3.8",
     "python-dotenv>=1.1.1",

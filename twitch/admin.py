@@ -32,8 +32,8 @@ class TimeBasedDropInline(admin.TabularInline):
 class DropCampaignAdmin(admin.ModelAdmin):
     """Admin configuration for DropCampaign model."""
 
-    list_display = ("id", "name", "game", "owner", "start_at", "end_at", "is_active")
-    list_filter = ("game", "owner")
+    list_display = ("id", "name", "game", "start_at", "end_at", "is_active")
+    list_filter = ("game",)
     search_fields = ("id", "name", "description")
     inlines = [TimeBasedDropInline]
     readonly_fields = ("created_at", "updated_at")
@@ -71,11 +71,9 @@ class DropBenefitAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "name",
-        "game",
-        "owner_organization",
         "distribution_type",
         "entitlement_limit",
         "created_at",
     )
-    list_filter = ("game", "owner_organization", "distribution_type")
+    list_filter = ("distribution_type",)
     search_fields = ("id", "name")

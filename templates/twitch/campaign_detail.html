@@ -7,10 +7,13 @@
     <h1>
         <a href="{% url 'twitch:game_detail' campaign.game.id %}">{{ campaign.game.display_name }}</a> - {{ campaign.clean_name }}
     </h1>
-    <p>
-        {# TODO: Link to organization #}
-        <a href="{% url 'twitch:organization_detail' campaign.owner.id %}">{{ campaign.owner.name }}</a>
-    </p>
+    {% if campaign.owner %}
+        <p>
+            <a href="{% url 'twitch:organization_detail' campaign.owner.id %}">{{ campaign.owner.name }}</a>
+        </p>
+    {% else %}
+        <p>Organization Unknown</p>
+    {% endif %}
     {% if campaign.image_url %}
         <img height="70"
              width="70"
