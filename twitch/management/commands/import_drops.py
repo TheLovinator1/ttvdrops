@@ -482,10 +482,6 @@ class Command(BaseCommand):
             Returns the Organization object.
         """
         org_data: dict[str, Any] = campaign_data.get("owner", {})
-        if not org_data:
-            self.stdout.write(self.style.WARNING("No owner data found in campaign data. Attempting to find organization by game."))
-
-        organization: Organization | None = None
         if org_data:
             org_defaults: dict[str, Any] = {"name": org_data.get("name")}
             # Filter out None values to avoid overwriting with them
