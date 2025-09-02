@@ -86,11 +86,14 @@ def profile_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: Rendered profile template.
     """
     subscriptions = NotificationSubscription.objects.filter(user=request.user)  # type: ignore[misc]
+    game_subscriptions = subscriptions.filter(game_id__isnull=False)
+    org_subscriptions = subscriptions.filter(organization_id__isnull=False)
     return render(
         request,
         "accounts/profile.html",
         {
             "user": request.user,
-            "subscriptions": subscriptions,
+            "game_subscriptions": game_subscriptions,
+            "org_subscriptions": org_subscriptions,
         },
     )

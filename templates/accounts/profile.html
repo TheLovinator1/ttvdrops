@@ -26,19 +26,25 @@
         </tr>
     </table>
     <a href="{% url 'accounts:logout' %}">Logout</a>
-    <h2>Will get notifications to:</h2>
+    <h2>Will get notifications for these subscriptions:</h2>
+    <h3>Games</h3>
     <ul>
-        {% for subscription in subscriptions %}
+        {% for subscription in game_subscriptions %}
             <li>
-                {% if subscription.game_id %}
-                    <a href="{% url 'twitch:game_detail' subscription.game_id %}">{{ subscription.game.display_name }}</a>
-                {% endif %}
-                {% if subscription.organization_id %}
-                    <a href="{% url 'twitch:organization_detail' subscription.organization_id %}">{{ subscription.organization.name }}</a>
-                {% endif %}
+                <a href="{% url 'twitch:game_detail' subscription.game_id %}">{{ subscription.game.display_name }}</a>
             </li>
         {% empty %}
-            <li>You have no subscriptions yet.</li>
+            <li>You have no game subscriptions yet.</li>
+        {% endfor %}
+    </ul>
+    <h3>Organizations</h3>
+    <ul>
+        {% for subscription in org_subscriptions %}
+            <li>
+                <a href="{% url 'twitch:organization_detail' subscription.organization_id %}">{{ subscription.organization.name }}</a>
+            </li>
+        {% empty %}
+            <li>You have no organization subscriptions yet.</li>
         {% endfor %}
     </ul>
 {% endblock content %}
