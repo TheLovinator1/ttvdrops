@@ -29,9 +29,12 @@
     <h2>Will get notifications for these subscriptions:</h2>
     <h3>Games</h3>
     <ul>
-        {% for subscription in game_subscriptions %}
+        {% for item in games_with_inheritance %}
             <li>
-                <a href="{% url 'twitch:game_detail' subscription.game_id %}">{{ subscription.game.display_name }}</a>
+                <a href="{% url 'twitch:game_detail' item.game.id %}">{{ item.game.display_name }}</a>
+                {% if item.is_inherited %}
+                    <span style="font-size: 0.85em; color: #666; font-style: italic;">(inherited from {{ item.inherited_from }})</span>
+                {% endif %}
             </li>
         {% empty %}
             <li>You have no game subscriptions yet.</li>
