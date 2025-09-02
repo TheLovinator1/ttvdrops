@@ -153,7 +153,6 @@ class Command(BaseCommand):
             "ClaimCommunityPoints",
             "DirectoryPage_Game",
             "DropCurrentSessionContext",
-            "DropsHighlightService_AvailableDrops",
             "DropsPage_ClaimDropRewards",
             "OnsiteNotifications_DeleteNotification",
             "PlaybackAccessToken",
