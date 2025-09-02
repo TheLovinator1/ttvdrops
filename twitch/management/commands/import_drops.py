@@ -511,48 +511,19 @@ class Command(BaseCommand):
         """
         game_data: dict[str, Any] = campaign_data["game"]
 
-        box_art_url: str = str(game_data.get("boxArtURL", "")).strip()
-        display_name: str = str(game_data.get("displayName", "")).strip()
-        slug: str = str(game_data.get("slug", "")).strip()
+        game_defaults: dict[str, Any] = {
+            "name": game_data.get("name"),
+            "display_name": game_data.get("displayName"),
+            "box_art": game_data.get("boxArtURL"),
+            "slug": game_data.get("slug"),
+        }
+        # Filter out None values to avoid overwriting with them
+        game_defaults = {k: v for k, v in game_defaults.items() if v is not None}
 
-        defaults: dict[str, Any] = {}
-        if box_art_url:
-            defaults["box_art"] = box_art_url
-
-        if display_name:
-            defaults["display_name"] = display_name
-
-        if slug:
-            defaults["slug"] = slug
-
-        game: Game
-        game, created = self.get_or_update_if_changed(
-            model=Game,
-            lookup={"id": game_data["id"]},
-            defaults=defaults,
+        game, created = Game.objects.update_or_create(
+            id=game_data["id"],
+            defaults=game_defaults,
         )
         if created:
             self.stdout.write(self.style.SUCCESS(f"Created new game: {game.display_name} (ID: {game.id})"))
         return game
-
-    def get_or_update_if_changed(self, model: type[Any], lookup: dict[str, Any], defaults: dict[str, Any]) -> tuple[Any, bool]:
-        """Get or create and update model instance only when fields change.
-
-        Args:
-            model: The Django model class.
-            lookup: Field lookup dictionary for get_or_create.
-            defaults: Field defaults to update when changed.
-
-        Returns:
-            A tuple of (instance, created) where created is a bool.
-        """
-        obj, created = model.objects.get_or_create(**lookup, defaults=defaults)
-        if not created:
-            changed_fields = []
-            for field, new_value in defaults.items():
-                if getattr(obj, field) != new_value:
-                    setattr(obj, field, new_value)
-                    changed_fields.append(field)
-            if changed_fields:
-                obj.save(update_fields=changed_fields)
-        return obj, created
