@@ -237,6 +237,11 @@ class Command(BaseCommand):
             self.import_drop_campaign(data, file_path=file_path)
         else:
             msg: str = f"Invalid JSON structure in {file_path}: Expected dict or list at top level"
+
+            # Move file to "we_should_double_check" directory for manual review
+            we_should_double_check_dir: Path = processed_path / "we_should_double_check"
+            we_should_double_check_dir.mkdir(parents=True, exist_ok=True)
+            self.move_file(file_path, we_should_double_check_dir / file_path.name)
             raise CommandError(msg)
 
         self.move_file(file_path, processed_path)
@@ -270,10 +275,15 @@ class Command(BaseCommand):
         Args:
             data: The JSON data.
             file_path: The path to the file being processed.
-
-        Raises:
-            CommandError: If the JSON structure is invalid.
         """
+        # Add this check: If this is a known "empty" response, ignore it silently.
+        if (
+            "data" in data
+            and "channel" in data["data"]
+            and isinstance(data["data"]["channel"], dict)
+            and data["data"]["channel"].get("viewerDropCampaigns") is None
+        ):
+            return
 
         def try_import_from_data(d: dict[str, Any]) -> bool:
             """Try importing drop campaign data from the 'data' dict.
@@ -287,64 +297,53 @@ class Command(BaseCommand):
             if not isinstance(d, dict):
                 return False
 
-            if "user" in d and "dropCampaign" in d["user"]:
-                self.import_to_db(d["user"]["dropCampaign"], file_path=file_path)
-                return True
+            campaigns_found = []
 
-            if "currentUser" in d:
+            # Structure: {"data": {"user": {"dropCampaign": ...}}}
+            if "user" in d and d["user"] and "dropCampaign" in d["user"]:
+                campaigns_found.append(d["user"]["dropCampaign"])
+
+            # Structure: {"data": {"currentUser": {"dropCampaigns": [...]}}}
+            if d.get("currentUser"):
                 current_user = d["currentUser"]
+                if current_user.get("dropCampaigns"):
+                    campaigns_found.extend(current_user["dropCampaigns"])
 
-                if "dropCampaigns" in current_user:
-                    campaigns = current_user["dropCampaigns"]
-                    if isinstance(campaigns, list):
-                        for campaign in campaigns:
-                            self.import_to_db(campaign, file_path=file_path)
-                        return True
+                # Structure: {"data": {"currentUser": {"inventory": {"dropCampaignsInProgress": [...]}}}}
+                if "inventory" in current_user and "dropCampaignsInProgress" in current_user["inventory"]:
+                    campaigns_found.extend(current_user["inventory"]["dropCampaignsInProgress"])
 
-                if "inventory" in current_user:
-                    inventory = current_user["inventory"]
-                    if "dropCampaignsInProgress" in inventory:
-                        campaigns = inventory["dropCampaignsInProgress"]
-                        if isinstance(campaigns, list):
-                            for campaign in campaigns:
-                                self.import_to_db(campaign, file_path=file_path)
-                            return True
+            # Structure: {"data": {"channel": {"viewerDropCampaigns": [...]}}}
+            if "channel" in d and d["channel"] and "viewerDropCampaigns" in d["channel"]:
+                viewer_campaigns = d["channel"]["viewerDropCampaigns"]
+                if isinstance(viewer_campaigns, list):
+                    campaigns_found.extend(viewer_campaigns)
+                elif isinstance(viewer_campaigns, dict):
+                    campaigns_found.append(viewer_campaigns)
 
-            if "channel" in d and "viewerDropCampaigns" in d["channel"]:
-                campaigns = d["channel"]["viewerDropCampaigns"]
-                if isinstance(campaigns, list):
-                    for campaign in campaigns:
+            if campaigns_found:
+                for campaign in campaigns_found:
+                    if campaign:  # Ensure campaign data is not null
                         self.import_to_db(campaign, file_path=file_path)
-                    return True
-                if isinstance(campaigns, dict):
-                    self.import_to_db(campaigns, file_path=file_path)
-                    return True
+                return True
 
             return False
 
-        if "data" in data and isinstance(data["data"], dict):
-            if try_import_from_data(data["data"]):
-                return
-            msg = "Invalid JSON structure: Missing expected drop campaign data under 'data'"
-            raise CommandError(msg)
-
-        if "responses" in data and isinstance(data["responses"], list):
-            any_valid = False
-            for response in data["responses"]:
-                if not isinstance(response, dict):
-                    continue
-                try:
-                    self.import_drop_campaign(response, file_path)
-                    any_valid = True
-                except CommandError:
-                    continue
-            if not any_valid:
-                msg = "Invalid JSON structure: No valid dropCampaign found in 'responses' array"
-                raise CommandError(msg)
+        if "data" in data and isinstance(data["data"], dict) and try_import_from_data(data["data"]):
             return
 
-        msg = "Invalid JSON structure: Missing top-level 'data' or 'responses'"
-        raise CommandError(msg)
+        # Handle cases where the campaign data is nested inside a list of responses
+        if "responses" in data and isinstance(data["responses"], list):
+            for response in data["responses"]:
+                if isinstance(response, dict) and "data" in response and try_import_from_data(response["data"]):
+                    return
+
+        # Fallback for top-level campaign data if no 'data' key exists
+        if "timeBasedDrops" in data and "game" in data:
+            self.import_to_db(data, file_path=file_path)
+            return
+
+        self.stdout.write(self.style.WARNING(f"No valid drop campaign data found in {file_path.name}"))
 
     def import_to_db(self, campaign_data: dict[str, Any], file_path: Path) -> None:
         """Import drop campaign data into the database with retry logic for SQLite locks.
