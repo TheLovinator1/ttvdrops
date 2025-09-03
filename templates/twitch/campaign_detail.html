@@ -41,10 +41,7 @@
             <a href="{{ campaign.account_link_url }}" target="_blank">Connect Account</a>
         </p>
     {% endif %}
-    <details>
-        <summary>Campaign Data</summary>
-        <pre><code>{{ campaign_data }}</code></pre>
-    </details>
+    <pre><code>{{ campaign_data }}</code></pre>
     <h5>Campaign Info</h5>
     {% if user.is_staff %}
         <p>
