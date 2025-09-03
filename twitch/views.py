@@ -291,6 +291,20 @@ class GameDetailView(DetailView):
 
         expired_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now]
 
+        serialized_game = serialize(
+            "json",
+            [game],
+            fields=(
+                "slug",
+                "name",
+                "display_name",
+                "box_art",
+                "owner",
+            ),
+        )
+        game_data = json.loads(serialized_game)
+        pretty_game_data = json.dumps(game_data[0], indent=4)
+
         context.update({
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
@@ -298,6 +312,7 @@ class GameDetailView(DetailView):
             "subscription": subscription,
             "owner": game.owner,
             "now": now,
+            "game_data": pretty_game_data,
         })
 
         return context
