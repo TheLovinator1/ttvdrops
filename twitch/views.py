@@ -322,6 +322,25 @@ class GameDetailView(DetailView):
             ),
         )
         game_data = json.loads(serialized_game)
+
+        if all_campaigns.exists():
+            serialized_campaigns = serialize(
+                "json",
+                all_campaigns,
+                fields=(
+                    "name",
+                    "description",
+                    "details_url",
+                    "account_link_url",
+                    "image_url",
+                    "start_at",
+                    "end_at",
+                    "is_account_connected",
+                ),
+            )
+            campaigns_data = json.loads(serialized_campaigns)
+            game_data[0]["fields"]["campaigns"] = campaigns_data
+
         pretty_game_data = json.dumps(game_data[0], indent=4)
 
         context.update({
