@@ -69,6 +69,16 @@ class OrgDetailView(DetailView):
             fields=("name",),
         )
         org_data = json.loads(serialized_org)
+
+        if games.exists():
+            serialized_games = serialize(
+                "json",
+                games,
+                fields=("slug", "name", "display_name", "box_art"),
+            )
+            games_data = json.loads(serialized_games)
+            org_data[0]["fields"]["games"] = games_data
+
         pretty_org_data = json.dumps(org_data[0], indent=4)
 
         context.update({
