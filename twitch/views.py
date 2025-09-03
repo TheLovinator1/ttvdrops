@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 from collections import OrderedDict, defaultdict
 from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.serializers import serialize
 from django.db.models import Count, F, Prefetch, Q
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
@@ -148,10 +150,31 @@ class DropCampaignDetailView(DetailView):
         context: dict[str, Any] = super().get_context_data(**kwargs)
         campaign = context["campaign"]
 
+        serialized_campaign = serialize(
+            "json",
+            [campaign],
+            fields=(
+                "name",
+                "description",
+                "details_url",
+                "account_link_url",
+                "image_url",
+                "start_at",
+                "end_at",
+                "is_account_connected",
+                "game",
+                "created_at",
+                "updated_at",
+            ),
+        )
+        campaign_data = json.loads(serialized_campaign)
+        pretty_campaign_data = json.dumps(campaign_data[0], indent=4)
+
         context["now"] = timezone.now()
         context["drops"] = (
             TimeBasedDrop.objects.filter(campaign=campaign).select_related("campaign").prefetch_related("benefits").order_by("required_minutes_watched")
         )
+        context["campaign_data"] = pretty_campaign_data
 
         return context
 
