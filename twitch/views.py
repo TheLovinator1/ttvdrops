@@ -63,9 +63,18 @@ class OrgDetailView(DetailView):
 
         games: QuerySet[Game, Game] = organization.games.all()  # pyright: ignore[reportAttributeAccessIssue]
 
+        serialized_org = serialize(
+            "json",
+            [organization],
+            fields=("name",),
+        )
+        org_data = json.loads(serialized_org)
+        pretty_org_data = json.dumps(org_data[0], indent=4)
+
         context.update({
             "subscription": subscription,
             "games": games,
+            "org_data": pretty_org_data,
         })
 
         return context
