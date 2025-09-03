@@ -41,7 +41,6 @@
             <a href="{{ campaign.account_link_url }}" target="_blank">Connect Account</a>
         </p>
     {% endif %}
-    <pre><code>{{ campaign_data }}</code></pre>
     <h5>Campaign Info</h5>
     {% if user.is_staff %}
         <p>
@@ -96,4 +95,5 @@
     {% else %}
         <p>No drops available for this campaign.</p>
     {% endif %}
+    <pre><code>{{ campaign_data }}</code></pre>
 {% endblock content %}

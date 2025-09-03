@@ -168,6 +168,7 @@ class DropCampaignDetailView(DetailView):
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
         campaign = context["campaign"]
+        drops = TimeBasedDrop.objects.filter(campaign=campaign).select_related("campaign").prefetch_related("benefits").order_by("required_minutes_watched")
 
         serialized_campaign = serialize(
             "json",
@@ -187,12 +188,38 @@ class DropCampaignDetailView(DetailView):
             ),
         )
         campaign_data = json.loads(serialized_campaign)
+
+        if drops.exists():
+            serialized_drops = serialize(
+                "json",
+                drops,
+                fields=(
+                    "name",
+                    "required_minutes_watched",
+                    "required_subs",
+                    "start_at",
+                    "end_at",
+                ),
+            )
+            drops_data = json.loads(serialized_drops)
+
+            for i, drop in enumerate(drops):
+                benefits = drop.benefits.all()
+                if benefits.exists():
+                    serialized_benefits = serialize(
+                        "json",
+                        benefits,
+                        fields=("name", "image_asset_url"),
+                    )
+                    benefits_data = json.loads(serialized_benefits)
+                    drops_data[i]["fields"]["benefits"] = benefits_data
+
+            campaign_data[0]["fields"]["drops"] = drops_data
+
         pretty_campaign_data = json.dumps(campaign_data[0], indent=4)
 
         context["now"] = timezone.now()
-        context["drops"] = (
-            TimeBasedDrop.objects.filter(campaign=campaign).select_related("campaign").prefetch_related("benefits").order_by("required_minutes_watched")
-        )
+        context["drops"] = drops
         context["campaign_data"] = pretty_campaign_data
 
         return context
