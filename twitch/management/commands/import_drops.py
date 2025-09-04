@@ -58,7 +58,8 @@ class Command(BaseCommand):
             parser: The command argument parser.
         """
         parser.add_argument(
-            "path",
+            "paths",
+            nargs="+",
             type=str,
             help="Path to the JSON file or directory containing JSON files.",
         )
@@ -79,23 +80,25 @@ class Command(BaseCommand):
             CommandError: If the file/directory doesn't exist, isn't a JSON file,
                 or has an invalid JSON structure.
         """
-        path: Path = Path(options["path"])
+        paths: list[str] = options["paths"]
         processed_dir: str = options["processed_dir"]
 
-        processed_path: Path = path / processed_dir
-        processed_path.mkdir(exist_ok=True)
+        for p in paths:
+            path: Path = Path(p)
+            processed_path: Path = path / processed_dir
+            processed_path.mkdir(exist_ok=True)
 
-        if not path.exists():
-            msg: str = f"Path {path} does not exist"
-            raise CommandError(msg)
+            if not path.exists():
+                msg: str = f"Path {path} does not exist"
+                raise CommandError(msg)
 
-        if path.is_file():
-            self._process_file(file_path=path, processed_path=processed_path)
-        elif path.is_dir():
-            self._process_directory(directory=path, processed_path=processed_path)
-        else:
-            msg = f"Path {path} is neither a file nor a directory"
-            raise CommandError(msg)
+            if path.is_file():
+                self._process_file(file_path=path, processed_path=processed_path)
+            elif path.is_dir():
+                self._process_directory(directory=path, processed_path=processed_path)
+            else:
+                msg = f"Path {path} is neither a file nor a directory"
+                raise CommandError(msg)
 
     def _process_directory(self, directory: Path, processed_path: Path) -> None:
         """Process all JSON files in a directory using parallel processing.
