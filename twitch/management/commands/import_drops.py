@@ -69,6 +69,11 @@ class Command(BaseCommand):
             default="processed",
             help="Subdirectory to move processed files to",
         )
+        parser.add_argument(
+            "--continue-on-error",
+            action="store_true",
+            help="Continue processing if an error occurs.",
+        )
 
     def handle(self, **options) -> None:
         """Execute the command.
@@ -79,33 +84,88 @@ class Command(BaseCommand):
         Raises:
             CommandError: If the file/directory doesn't exist, isn't a JSON file,
                 or has an invalid JSON structure.
+            ValueError: If the JSON file has an invalid structure.
+            TypeError: If the JSON file has an invalid structure.
+            AttributeError: If the JSON file has an invalid structure.
+            KeyError: If the JSON file has an invalid structure.
+            IndexError: If the JSON file has an invalid structure.
         """
         paths: list[str] = options["paths"]
         processed_dir: str = options["processed_dir"]
+        continue_on_error: bool = options["continue_on_error"]
 
         for p in paths:
-            path: Path = Path(p)
-            processed_path: Path = path / processed_dir
-            processed_path.mkdir(exist_ok=True)
+            try:
+                path: Path = Path(p)
+                processed_path: Path = path / processed_dir
+                processed_path.mkdir(exist_ok=True)
 
-            if not path.exists():
-                msg: str = f"Path {path} does not exist"
-                raise CommandError(msg)
+                self.validate_path(path)
+                self.process_drops(continue_on_error=continue_on_error, path=path, processed_path=processed_path)
 
-            if path.is_file():
-                self._process_file(file_path=path, processed_path=processed_path)
-            elif path.is_dir():
-                self._process_directory(directory=path, processed_path=processed_path)
-            else:
-                msg = f"Path {path} is neither a file nor a directory"
-                raise CommandError(msg)
+            except CommandError as e:
+                if not continue_on_error:
+                    raise
+                self.stdout.write(self.style.ERROR(f"Error processing path {p}: {e}"))
+            except (ValueError, TypeError, AttributeError, KeyError, IndexError):
+                if not continue_on_error:
+                    raise
+                self.stdout.write(self.style.ERROR(f"Data error processing path {p}"))
+                self.stdout.write(self.style.ERROR(traceback.format_exc()))
 
-    def _process_directory(self, directory: Path, processed_path: Path) -> None:
+    def process_drops(self, *, continue_on_error: bool, path: Path, processed_path: Path) -> None:
+        """Process drops from a file or directory.
+
+        Args:
+            continue_on_error: Continue processing if an error occurs.
+            path: The path to process.
+            processed_path: Name of subdirectory to move processed files to.
+
+        Raises:
+            CommandError: If the file/directory doesn't exist, isn't a JSON file,
+                or has an invalid JSON structure.
+        """
+        if path.is_file():
+            self._process_file(file_path=path, processed_path=processed_path)
+        elif path.is_dir():
+            self._process_directory(
+                directory=path,
+                processed_path=processed_path,
+                continue_on_error=continue_on_error,
+            )
+        else:
+            msg: str = f"Path {path} is neither a file nor a directory"
+            raise CommandError(msg)
+
+    def validate_path(self, path: Path) -> None:
+        """Validate that the path exists.
+
+        Args:
+            path: The path to validate.
+
+        Raises:
+            CommandError: If the path does not exist.
+        """
+        if not path.exists():
+            msg: str = f"Path {path} does not exist"
+            raise CommandError(msg)
+
+    def _process_directory(self, *, directory: Path, processed_path: Path, continue_on_error: bool) -> None:
         """Process all JSON files in a directory using parallel processing.
 
         Args:
             directory: Path to the directory.
             processed_path: Name of subdirectory to move processed files to.
+            continue_on_error: Continue processing if an error occurs.
+
+        Raises:
+            CommandError: If the file/directory doesn't exist, isn't a JSON file,
+                or has an invalid JSON structure.
+            ValueError: If the JSON file has an invalid structure.
+            TypeError: If the JSON file has an invalid structure.
+            AttributeError: If the JSON file has an invalid structure.
+            KeyError: If the JSON file has an invalid structure.
+            IndexError: If the JSON file has an invalid structure.
         """
         json_files: list[Path] = list(directory.glob("*.json"))
         if not json_files:
@@ -120,8 +180,12 @@ class Command(BaseCommand):
             try:
                 self._process_file(json_file, processed_path)
             except CommandError as e:
+                if not continue_on_error:
+                    raise
                 self.stdout.write(self.style.ERROR(f"Error processing {json_file}: {e}"))
             except (ValueError, TypeError, AttributeError, KeyError, IndexError):
+                if not continue_on_error:
+                    raise
                 self.stdout.write(self.style.ERROR(f"Data error processing {json_file}"))
                 self.stdout.write(self.style.ERROR(traceback.format_exc()))
 
