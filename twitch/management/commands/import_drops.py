@@ -453,6 +453,12 @@ class Command(BaseCommand):
                 "is_ios_available": benefit_data.get("isIosAvailable"),
                 "distribution_type": benefit_data.get("distributionType"),
             }
+
+            # Run .strip() on all string fields to remove leading/trailing whitespace
+            for key, value in benefit_defaults.items():
+                if isinstance(value, str):
+                    benefit_defaults[key] = value.strip()
+
             # Filter out None values to avoid overwriting with them
             benefit_defaults = {k: v for k, v in benefit_defaults.items() if v is not None}
 
@@ -492,6 +498,12 @@ class Command(BaseCommand):
             "start_at": parse_date(drop_data.get("startAt")),
             "end_at": parse_date(drop_data.get("endAt")),
         }
+
+        # Run .strip() on all string fields to remove leading/trailing whitespace
+        for key, value in time_based_drop_defaults.items():
+            if isinstance(value, str):
+                time_based_drop_defaults[key] = value.strip()
+
         # Filter out None values to avoid overwriting with them
         time_based_drop_defaults = {k: v for k, v in time_based_drop_defaults.items() if v is not None}
 
@@ -527,6 +539,11 @@ class Command(BaseCommand):
             "end_at": parse_date(campaign_data.get("endAt") or campaign_data.get("endsAt")),
             "is_account_connected": campaign_data.get("self", {}).get("isAccountConnected"),
         }
+        # Run .strip() on all string fields to remove leading/trailing whitespace
+        for key, value in drop_campaign_defaults.items():
+            if isinstance(value, str):
+                drop_campaign_defaults[key] = value.strip()
+
         # Filter out None values to avoid overwriting with them
         drop_campaign_defaults = {k: v for k, v in drop_campaign_defaults.items() if v is not None}
 
@@ -550,6 +567,12 @@ class Command(BaseCommand):
         org_data: dict[str, Any] = campaign_data.get("owner", {})
         if org_data:
             org_defaults: dict[str, Any] = {"name": org_data.get("name")}
+
+            # Run .strip() on all string fields to remove leading/trailing whitespace
+            for key, value in org_defaults.items():
+                if isinstance(value, str):
+                    org_defaults[key] = value.strip()
+
             # Filter out None values to avoid overwriting with them
             org_defaults = {k: v for k, v in org_defaults.items() if v is not None}
 
