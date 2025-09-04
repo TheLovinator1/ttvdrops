@@ -424,9 +424,9 @@ class TimeBasedDrop(models.Model):
                 condition=models.Q(start_at__isnull=True) | models.Q(end_at__isnull=True) | models.Q(end_at__gt=models.F("start_at")),
                 name="drop_valid_date_range",
             ),
-            # Ensure required_minutes_watched is positive when set
+            # Ensure required_minutes_watched is non-negative when set
             models.CheckConstraint(
-                condition=models.Q(required_minutes_watched__isnull=True) | models.Q(required_minutes_watched__gt=0), name="drop_positive_minutes"
+                condition=models.Q(required_minutes_watched__isnull=True) | models.Q(required_minutes_watched__gte=0), name="drop_positive_minutes"
             ),
         ]
         indexes: ClassVar[list] = [
