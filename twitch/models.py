@@ -33,6 +33,16 @@ class Organization(models.Model):
         help_text="Display name of the organization.",
     )
 
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Timestamp when this organization record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this organization record was last updated.",
+    )
+
     class Meta:
         ordering = ["name"]
         indexes: ClassVar[list] = [
@@ -85,6 +95,16 @@ class Game(models.Model):
         blank=True,
         verbose_name="Organization",
         help_text="The organization that owns this game.",
+    )
+
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Timestamp when this game record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this game record was last updated.",
     )
 
     class Meta:
@@ -186,7 +206,7 @@ class DropCampaign(models.Model):
         help_text="Game associated with this campaign.",
     )
 
-    created_at = models.DateTimeField(
+    added_at = models.DateTimeField(
         auto_now_add=True,
         db_index=True,
         help_text="Timestamp when this campaign record was created.",
@@ -288,6 +308,16 @@ class DropBenefit(models.Model):
         help_text="Type of distribution for this benefit.",
     )
 
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Timestamp when this benefit record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this benefit record was last updated.",
+    )
+
     class Meta:
         ordering = ["-created_at"]
         indexes: ClassVar[list] = [
@@ -351,6 +381,16 @@ class TimeBasedDrop(models.Model):
         help_text="Benefits unlocked by this drop.",
     )
 
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Timestamp when this time-based drop record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this time-based drop record was last updated.",
+    )
+
     class Meta:
         ordering = ["start_at"]
         indexes: ClassVar[list] = [
@@ -382,6 +422,16 @@ class DropBenefitEdge(models.Model):
         help_text="Max times this benefit can be claimed for this drop.",
     )
 
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Timestamp when this drop-benefit edge was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this drop-benefit edge was last updated.",
+    )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=("drop", "benefit"), name="unique_drop_benefit"),
@@ -404,6 +454,9 @@ class NotificationSubscription(models.Model):
 
     notify_found = models.BooleanField(default=False)
     notify_live = models.BooleanField(default=False)
+
+    added_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together: ClassVar[list[tuple[str, str]]] = [

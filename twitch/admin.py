@@ -11,6 +11,7 @@ class GameAdmin(admin.ModelAdmin):
 
     list_display = ("id", "display_name", "slug")
     search_fields = ("id", "display_name", "slug")
+    readonly_fields = ("added_at", "updated_at")
 
 
 @admin.register(Organization)
@@ -19,6 +20,7 @@ class OrganizationAdmin(admin.ModelAdmin):
 
     list_display = ("id", "name")
     search_fields = ("id", "name")
+    readonly_fields = ("added_at", "updated_at")
 
 
 class TimeBasedDropInline(admin.TabularInline):
@@ -36,7 +38,7 @@ class DropCampaignAdmin(admin.ModelAdmin):
     list_filter = ("game",)
     search_fields = ("id", "name", "description")
     inlines = [TimeBasedDropInline]
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("added_at", "updated_at")
 
 
 class DropBenefitEdgeInline(admin.TabularInline):
@@ -60,6 +62,8 @@ class TimeBasedDropAdmin(admin.ModelAdmin):
         "end_at",
     )
     list_filter = ("campaign__game", "campaign")
+    readonly_fields = ("added_at", "updated_at")
+
     search_fields = ("id", "name")
     inlines = [DropBenefitEdgeInline]
 
@@ -77,3 +81,4 @@ class DropBenefitAdmin(admin.ModelAdmin):
     )
     list_filter = ("distribution_type",)
     search_fields = ("id", "name")
+    readonly_fields = ("added_at", "updated_at")
