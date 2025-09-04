@@ -150,22 +150,17 @@ TEMPLATES: list[dict[str, str | list[Path] | bool | dict[str, list[str] | list[t
 ]
 
 
-DATABASES: dict[str, dict[str, str | Path | dict[str, str | int]]] = {
+# PostgreSQL configuration (preferred when env vars provided)
+DATABASES: dict[str, dict[str, Any]] = {  # pyright: ignore[reportInvalidTypeForm]
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": DATA_DIR / "db.sqlite3",
-        "OPTIONS": {
-            "transaction_mode": "IMMEDIATE",
-            "timeout": 5,
-            "init_command": """
-            PRAGMA journal_mode=WAL;
-            PRAGMA synchronous=NORMAL;
-            PRAGMA mmap_size=134217728;
-            PRAGMA journal_size_limit=27103364;
-            PRAGMA cache_size=2000;
-            """,
-        },
-    },
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("POSTGRES_USER", "ttvdrops"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "ttvdrops"),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 60,
+    }
 }
 
 
