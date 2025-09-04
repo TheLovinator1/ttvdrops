@@ -5,6 +5,8 @@ import re
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlsplit, urlunsplit
 
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.utils import timezone
 
@@ -46,6 +48,7 @@ class Organization(models.Model):
     class Meta:
         ordering = ["name"]
         indexes: ClassVar[list] = [
+            # Regular B-tree index for name lookups
             models.Index(fields=["name"]),
         ]
 
@@ -111,8 +114,11 @@ class Game(models.Model):
         ordering = ["display_name"]
         indexes: ClassVar[list] = [
             models.Index(fields=["slug"]),
+            # Regular B-tree indexes for name lookups
             models.Index(fields=["display_name"]),
             models.Index(fields=["name"]),
+            # Partial index for games with owners only
+            models.Index(fields=["owner"], condition=models.Q(owner__isnull=False), name="game_owner_partial_idx"),
         ]
 
     def __str__(self) -> str:
@@ -198,6 +204,9 @@ class DropCampaign(models.Model):
         help_text="Indicates if the user account is linked.",
     )
 
+    # PostgreSQL full-text search field
+    search_vector = SearchVectorField(null=True, blank=True)
+
     game = models.ForeignKey(
         Game,
         on_delete=models.CASCADE,
@@ -218,9 +227,22 @@ class DropCampaign(models.Model):
 
     class Meta:
         ordering = ["-start_at"]
+        constraints = [
+            # Ensure end_at is after start_at when both are set
+            models.CheckConstraint(
+                condition=models.Q(start_at__isnull=True) | models.Q(end_at__isnull=True) | models.Q(end_at__gt=models.F("start_at")),
+                name="campaign_valid_date_range",
+            ),
+        ]
         indexes: ClassVar[list] = [
+            # Regular B-tree index for campaign name lookups
             models.Index(fields=["name"]),
+            # Full-text search index (GIN works with SearchVectorField)
+            GinIndex(fields=["search_vector"], name="campaign_search_vector_idx"),
+            # Composite index for time range queries
             models.Index(fields=["start_at", "end_at"]),
+            # Partial index for active campaigns
+            models.Index(fields=["start_at", "end_at"], condition=models.Q(start_at__isnull=False, end_at__isnull=False), name="campaign_active_partial_idx"),
         ]
 
     def __str__(self) -> str:
@@ -321,9 +343,12 @@ class DropBenefit(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes: ClassVar[list] = [
+            # Regular B-tree index for benefit name lookups
             models.Index(fields=["name"]),
             models.Index(fields=["created_at"]),
             models.Index(fields=["distribution_type"]),
+            # Partial index for iOS available benefits
+            models.Index(fields=["is_ios_available"], condition=models.Q(is_ios_available=True), name="benefit_ios_available_idx"),
         ]
 
     def __str__(self) -> str:
@@ -393,10 +418,24 @@ class TimeBasedDrop(models.Model):
 
     class Meta:
         ordering = ["start_at"]
+        constraints = [
+            # Ensure end_at is after start_at when both are set
+            models.CheckConstraint(
+                condition=models.Q(start_at__isnull=True) | models.Q(end_at__isnull=True) | models.Q(end_at__gt=models.F("start_at")),
+                name="drop_valid_date_range",
+            ),
+            # Ensure required_minutes_watched is positive when set
+            models.CheckConstraint(
+                condition=models.Q(required_minutes_watched__isnull=True) | models.Q(required_minutes_watched__gt=0), name="drop_positive_minutes"
+            ),
+        ]
         indexes: ClassVar[list] = [
+            # Regular B-tree index for drop name lookups
             models.Index(fields=["name"]),
             models.Index(fields=["start_at", "end_at"]),
             models.Index(fields=["required_minutes_watched"]),
+            # Covering index for common queries (includes campaign_id from FK)
+            models.Index(fields=["campaign", "start_at", "required_minutes_watched"]),
         ]
 
     def __str__(self) -> str:
