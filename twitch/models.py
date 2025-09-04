@@ -60,7 +60,7 @@ class Organization(models.Model):
 class Game(models.Model):
     """Represents a game on Twitch."""
 
-    id = models.CharField(max_length=64, primary_key=True, verbose_name="Game ID")
+    id = models.CharField(max_length=255, primary_key=True, verbose_name="Game ID")
     slug = models.CharField(
         max_length=200,
         blank=True,
@@ -290,7 +290,7 @@ class DropBenefit(models.Model):
     """Represents a benefit that can be earned from a drop."""
 
     id = models.CharField(
-        max_length=64,
+        max_length=255,
         primary_key=True,
         help_text="Unique Twitch identifier for the benefit.",
     )
@@ -360,7 +360,7 @@ class TimeBasedDrop(models.Model):
     """Represents a time-based drop in a drop campaign."""
 
     id = models.CharField(
-        max_length=64,
+        max_length=255,
         primary_key=True,
         help_text="Unique Twitch identifier for the time-based drop.",
     )
