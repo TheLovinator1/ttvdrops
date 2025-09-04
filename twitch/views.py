@@ -607,3 +607,32 @@ class GamesListView(GamesGridView):
     """List view for games in simple list format."""
 
     template_name = "twitch/games_list.html"
+
+
+def docs_rss_view(request: HttpRequest) -> HttpResponse:
+    """View for /docs/rss that lists all available RSS feeds.
+
+    Args:
+        request: The HTTP request object.
+
+    Returns:
+        Rendered HTML response with list of RSS feeds.
+    """
+    feeds: list[dict[str, str]] = [
+        {
+            "title": "Organizations",
+            "description": "Latest organizations",
+            "url": "/rss/organizations/",
+        },
+        {
+            "title": "Games",
+            "description": "Latest games",
+            "url": "/rss/games/",
+        },
+        {
+            "title": "Drop Campaigns",
+            "description": "Latest drop campaigns",
+            "url": "/rss/campaigns/",
+        },
+    ]
+    return render(request, "twitch/docs_rss.html", {"feeds": feeds})

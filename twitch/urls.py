@@ -3,6 +3,11 @@ from __future__ import annotations
 from django.urls import path
 
 from twitch import views
+from twitch.feeds import (
+    DropCampaignFeed,
+    GameFeed,
+    OrganizationFeed,
+)
 
 app_name = "twitch"
 
@@ -18,4 +23,8 @@ urlpatterns = [
     path("organizations/", views.OrgListView.as_view(), name="org_list"),
     path("organizations/<str:pk>/", views.OrgDetailView.as_view(), name="organization_detail"),
     path("organizations/<str:org_id>/subscribe/", views.subscribe_org_notifications, name="subscribe_org_notifications"),
+    path("rss/organizations/", OrganizationFeed(), name="organization_feed"),
+    path("rss/games/", GameFeed(), name="game_feed"),
+    path("rss/campaigns/", DropCampaignFeed(), name="campaign_feed"),
+    path("docs/rss/", views.docs_rss_view, name="docs_rss"),
 ]

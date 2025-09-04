@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}
+    RSS Feeds Documentation
+{% endblock title %}
+{% block content %}
+    <main>
+        <h1>RSS Feeds Documentation</h1>
+        <p>This page lists all available RSS feeds for TTVDrops.</p>
+        <section>
+            <h2>Available RSS Feeds</h2>
+            <ul>
+                {% for feed in feeds %}
+                    <li>
+                        <h3>{{ feed.title }}</h3>
+                        <p>{{ feed.description }}</p>
+                        <p>
+                            <a href="{{ feed.url }}">Subscribe to {{ feed.title }} RSS Feed</a>
+                        </p>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    </main>
+{% endblock content %}
