@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.core.serializers import serialize
 from django.db.models import Count, F, Prefetch, Q
 from django.db.models.functions import Trim
@@ -26,6 +27,69 @@ if TYPE_CHECKING:
     from django.http.response import HttpResponseRedirect
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+MIN_QUERY_LENGTH_FOR_FTS = 3
+MIN_SEARCH_RANK = 0.05
+
+
+def search_view(request: HttpRequest) -> HttpResponse:
+    """Search view for all models.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered search results.
+    """
+    query = request.GET.get("q", "")
+    results = {}
+
+    if query:
+        if len(query) < MIN_QUERY_LENGTH_FOR_FTS:
+            results["organizations"] = Organization.objects.filter(name__istartswith=query)
+            results["games"] = Game.objects.filter(Q(name__istartswith=query) | Q(display_name__istartswith=query))
+            results["campaigns"] = DropCampaign.objects.filter(Q(name__istartswith=query) | Q(description__icontains=query)).select_related("game")
+            results["drops"] = TimeBasedDrop.objects.filter(name__istartswith=query).select_related("campaign")
+            results["benefits"] = DropBenefit.objects.filter(name__istartswith=query)
+        else:
+            search_query = SearchQuery(query)
+
+            # Search Organizations
+            org_vector = SearchVector("name")
+            org_results = Organization.objects.annotate(rank=SearchRank(org_vector, search_query)).filter(rank__gte=MIN_SEARCH_RANK).order_by("-rank")
+            results["organizations"] = org_results
+
+            # Search Games
+            game_vector = SearchVector("name", "display_name")
+            game_results = Game.objects.annotate(rank=SearchRank(game_vector, search_query)).filter(rank__gte=MIN_SEARCH_RANK).order_by("-rank")
+            results["games"] = game_results
+
+            # Search DropCampaigns
+            campaign_vector = SearchVector("name", "description")
+            campaign_results = (
+                DropCampaign.objects.annotate(rank=SearchRank(campaign_vector, search_query))
+                .filter(rank__gte=MIN_SEARCH_RANK)
+                .select_related("game")
+                .order_by("-rank")
+            )
+            results["campaigns"] = campaign_results
+
+            # Search TimeBasedDrops
+            drop_vector = SearchVector("name")
+            drop_results = (
+                TimeBasedDrop.objects.annotate(rank=SearchRank(drop_vector, search_query))
+                .filter(rank__gte=MIN_SEARCH_RANK)
+                .select_related("campaign")
+                .order_by("-rank")
+            )
+            results["drops"] = drop_results
+
+            # Search DropBenefits
+            benefit_vector = SearchVector("name")
+            benefit_results = DropBenefit.objects.annotate(rank=SearchRank(benefit_vector, search_query)).filter(rank__gte=MIN_SEARCH_RANK).order_by("-rank")
+            results["benefits"] = benefit_results
+
+    return render(request, "twitch/search_results.html", {"query": query, "results": results})
 
 
 class OrgListView(ListView):

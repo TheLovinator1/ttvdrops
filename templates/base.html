@@ -48,6 +48,16 @@
         <a href="{% url 'twitch:game_list' %}">Games</a> |
         <a href="{% url 'twitch:org_list' %}">Organizations</a> |
         <a href="{% url 'twitch:docs_rss' %}">RSS Docs</a> |
+        <form action="{% url 'twitch:search' %}"
+              method="get"
+              style="display: inline">
+            <input type="search"
+                   name="q"
+                   placeholder="Search..."
+                   value="{{ request.GET.q }}">
+            <button type="submit">Search</button>
+        </form>
+        |
         {% if user.is_authenticated %}
             <a href="{% url 'twitch:debug' %}">Debug</a> |
             {% if user.is_staff %}

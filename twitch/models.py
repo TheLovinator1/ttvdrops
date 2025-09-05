@@ -45,11 +45,16 @@ class Organization(models.Model):
         help_text="Timestamp when this organization record was last updated.",
     )
 
+    # PostgreSQL full-text search field
+    search_vector = SearchVectorField(null=True, blank=True)
+
     class Meta:
         ordering = ["name"]
         indexes: ClassVar[list] = [
             # Regular B-tree index for name lookups
             models.Index(fields=["name"]),
+            # Full-text search index (GIN works with SearchVectorField)
+            GinIndex(fields=["search_vector"], name="org_search_vector_idx"),
         ]
 
     def __str__(self) -> str:
@@ -90,6 +95,9 @@ class Game(models.Model):
         verbose_name="Box art URL",
     )
 
+    # PostgreSQL full-text search field
+    search_vector = SearchVectorField(null=True, blank=True)
+
     owner = models.ForeignKey(
         Organization,
         on_delete=models.SET_NULL,
@@ -117,6 +125,8 @@ class Game(models.Model):
             # Regular B-tree indexes for name lookups
             models.Index(fields=["display_name"]),
             models.Index(fields=["name"]),
+            # Full-text search index (GIN works with SearchVectorField)
+            GinIndex(fields=["search_vector"], name="game_search_vector_idx"),
             # Partial index for games with owners only
             models.Index(fields=["owner"], condition=models.Q(owner__isnull=False), name="game_owner_partial_idx"),
         ]
@@ -330,6 +340,9 @@ class DropBenefit(models.Model):
         help_text="Type of distribution for this benefit.",
     )
 
+    # PostgreSQL full-text search field
+    search_vector = SearchVectorField(null=True, blank=True)
+
     added_at = models.DateTimeField(
         auto_now_add=True,
         db_index=True,
@@ -345,6 +358,8 @@ class DropBenefit(models.Model):
         indexes: ClassVar[list] = [
             # Regular B-tree index for benefit name lookups
             models.Index(fields=["name"]),
+            # Full-text search index (GIN works with SearchVectorField)
+            GinIndex(fields=["search_vector"], name="benefit_search_vector_idx"),
             models.Index(fields=["created_at"]),
             models.Index(fields=["distribution_type"]),
             # Partial index for iOS available benefits
@@ -392,6 +407,9 @@ class TimeBasedDrop(models.Model):
         help_text="Datetime when this drop expires.",
     )
 
+    # PostgreSQL full-text search field
+    search_vector = SearchVectorField(null=True, blank=True)
+
     # Foreign keys
     campaign = models.ForeignKey(
         DropCampaign,
@@ -432,6 +450,8 @@ class TimeBasedDrop(models.Model):
         indexes: ClassVar[list] = [
             # Regular B-tree index for drop name lookups
             models.Index(fields=["name"]),
+            # Full-text search index (GIN works with SearchVectorField)
+            GinIndex(fields=["search_vector"], name="drop_search_vector_idx"),
             models.Index(fields=["start_at", "end_at"]),
             models.Index(fields=["required_minutes_watched"]),
             # Covering index for common queries (includes campaign_id from FK)

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}
+    Search Results for "{{ query }}"
+{% endblock title %}
+{% block content %}
+    <div class="container">
+        <h1>Search Results for "{{ query }}"</h1>
+        {% if not results.organizations and not results.games and not results.campaigns and not results.drops and not results.benefits %}
+            <p>No results found.</p>
+        {% else %}
+            {% if results.organizations %}
+                <h2>Organizations</h2>
+                <ul>
+                    {% for org in results.organizations %}
+                        <li>
+                            <a href="{% url 'twitch:organization_detail' org.pk %}">{{ org.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if results.games %}
+                <h2>Games</h2>
+                <ul>
+                    {% for game in results.games %}
+                        <li>
+                            <a href="{% url 'twitch:game_detail' game.pk %}">{{ game.display_name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if results.campaigns %}
+                <h2>Campaigns</h2>
+                <ul>
+                    {% for campaign in results.campaigns %}
+                        <li>
+                            <a href="{% url 'twitch:campaign_detail' campaign.pk %}">{{ campaign.name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if results.drops %}
+                <h2>Drops</h2>
+                <ul>
+                    {% for drop in results.drops %}
+                        <li>
+                            <a href="{% url 'twitch:campaign_detail' drop.campaign.pk %}#drop-{{ drop.id }}">{{ drop.name }}</a> (in {{ drop.campaign.name }})
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if results.benefits %}
+                <h2>Benefits</h2>
+                <ul>
+                    {% for benefit in results.benefits %}<li>{{ benefit.name }}</li>{% endfor %}
+                </ul>
+            {% endif %}
+        {% endif %}
+    </div>
+{% endblock content %}
