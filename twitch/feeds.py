@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from django.contrib.syndication.views import Feed
 from django.urls import reverse
+from django.utils.html import format_html
 
 from twitch.models import DropCampaign, Game, Organization
+
+if TYPE_CHECKING:
+    import datetime
 
 
 class OrganizationFeed(Feed):
@@ -57,22 +63,86 @@ class GameFeed(Feed):
 class DropCampaignFeed(Feed):
     """RSS feed for latest drop campaigns."""
 
-    title = "TTVDrops Drop Campaigns"
+    title = "Twitch Drop Campaigns"
     link = "/campaigns/"
-    description = "Latest drop campaigns on TTVDrops"
+    description = "Latest Twitch drop campaigns"
+    feed_url = "/rss/campaigns/"
+    feed_copyright = "Information wants to be free."
 
     def items(self) -> list[DropCampaign]:
         """Return the latest 100 drop campaigns."""
-        return list(DropCampaign.objects.order_by("-added_at")[:100])
+        return list(DropCampaign.objects.select_related("game").order_by("-added_at")[:100])
 
     def item_title(self, item: DropCampaign) -> str:
         """Return the campaign name as the item title."""
-        return item.name
+        return f"{item.game.display_name}: {item.clean_name}"
 
     def item_description(self, item: DropCampaign) -> str:
         """Return a description of the campaign."""
-        return item.description or f"Campaign {item.name}"
+        description = ""
+
+        # Include the campaign image if available
+        if item.image_url:
+            description += format_html(
+                '<img src="{}" alt="{}"><br><br>',
+                item.image_url,
+                item.name,
+            )
+
+        # Add the campaign description text
+        description += format_html("<p>{}</p>", item.description) if item.description else ""
+
+        # Add start and end dates for clarity
+        if item.start_at:
+            description += f"<p><strong>Starts:</strong> {item.start_at.strftime('%Y-%m-%d %H:%M %Z')}</p>"
+        if item.end_at:
+            description += f"<p><strong>Ends:</strong> {item.end_at.strftime('%Y-%m-%d %H:%M %Z')}</p>"
+
+        # Add a clear link to the campaign details page
+        if item.details_url:
+            description += format_html('<p><a href="{}">About this drop</a></p>', item.details_url)
+
+        return f"{description}"
 
     def item_link(self, item: DropCampaign) -> str:
         """Return the link to the campaign detail."""
         return reverse("twitch:campaign_detail", args=[item.pk])
+
+    def item_pubdate(self, item: DropCampaign) -> datetime.datetime:
+        """Returns the publication date to the feed item."""
+        return item.start_at
+
+    def item_updateddate(self, item: DropCampaign) -> datetime.datetime:
+        """Returns the campaign's last update time."""
+        return item.updated_at
+
+    def item_categories(self, item: DropCampaign) -> tuple[str, ...]:
+        """Returns the associated game's name as a category."""
+        if item.game:
+            return (
+                "twitch",
+                item.game.get_game_name,
+            )
+        return ()
+
+    def item_guid(self, item: DropCampaign) -> str:
+        """Return a unique identifier for each campaign."""
+        return item.id
+
+    def item_author_name(self, item: DropCampaign) -> str:
+        """Return the author name for the campaign, typically the game name."""
+        if item.game and item.game.display_name:
+            return item.game.display_name
+        return "Twitch"
+
+    def item_enclosure_url(self, item: DropCampaign) -> str:
+        """Returns the URL of the campaign image for enclosure."""
+        return item.image_url
+
+    def item_enclosure_length(self, item: DropCampaign) -> int:  # noqa: ARG002
+        """Returns the length of the enclosure. Currently not tracked, so return 0."""
+        return 0
+
+    def item_enclosure_mime_type(self, item: DropCampaign) -> str:  # noqa: ARG002
+        """Returns the MIME type of the enclosure."""
+        return "image/jpeg"

@@ -161,6 +161,17 @@ class Game(models.Model):
         )
         return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
 
+    @property
+    def get_game_name(self) -> str:
+        """Return the best available name for the game."""
+        if self.display_name:
+            return self.display_name
+        if self.name:
+            return self.name
+        if self.slug:
+            return self.slug
+        return self.id
+
 
 class DropCampaign(models.Model):
     """Represents a Twitch drop campaign."""
