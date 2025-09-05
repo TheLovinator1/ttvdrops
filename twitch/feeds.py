@@ -98,6 +98,69 @@ class DropCampaignFeed(Feed):
         if item.end_at:
             description += f"<p><strong>Ends:</strong> {item.end_at.strftime('%Y-%m-%d %H:%M %Z')}</p>"
 
+        # Add information about the drops in this campaign
+        drops = item.time_based_drops.select_related().prefetch_related("benefits").all()  # type: ignore[attr-defined]
+        if drops:
+            description += "<h3>Drops in this campaign:</h3>"
+            table_header = (
+                '<table style="border-collapse: collapse; width: 100%;">'
+                "<thead><tr>"
+                '<th style="border: 1px solid #ddd; padding: 8px;">Benefits</th>'
+                '<th style="border: 1px solid #ddd; padding: 8px;">Drop Name</th>'
+                '<th style="border: 1px solid #ddd; padding: 8px;">Requirements</th>'
+                '<th style="border: 1px solid #ddd; padding: 8px;">Period</th>'
+                "</tr></thead><tbody>"
+            )
+            description += table_header
+
+            for drop in drops:
+                description += "<tr>"
+                # Benefits column with images
+                description += '<td style="border: 1px solid #ddd; padding: 8px;">'
+                for benefit in drop.benefits.all():
+                    if benefit.image_asset_url:
+                        description += format_html(
+                            '<img height="60" width="60" style="object-fit: cover; margin-right: 5px;" src="{}" alt="{}">',
+                            benefit.image_asset_url,
+                            benefit.name,
+                        )
+                    else:
+                        placeholder_img = (
+                            '<img height="60" width="60" style="object-fit: cover; margin-right: 5px;" '
+                            'src="/static/images/placeholder.png" alt="No Image Available">'
+                        )
+                        description += placeholder_img
+                description += "</td>"
+
+                # Drop name
+                description += f'<td style="border: 1px solid #ddd; padding: 8px;">{drop.name}</td>'
+
+                # Requirements
+                requirements = ""
+                if drop.required_minutes_watched:
+                    requirements = f"{drop.required_minutes_watched} minutes watched"
+                if drop.required_subs > 0:
+                    if requirements:
+                        requirements += f" and {drop.required_subs} subscriptions required"
+                    else:
+                        requirements = f"{drop.required_subs} subscriptions required"
+                description += f'<td style="border: 1px solid #ddd; padding: 8px;">{requirements}</td>'
+
+                # Period
+                period = ""
+                if drop.start_at:
+                    period += drop.start_at.strftime("%Y-%m-%d %H:%M %Z")
+                if drop.end_at:
+                    if period:
+                        period += " - " + drop.end_at.strftime("%Y-%m-%d %H:%M %Z")
+                    else:
+                        period = drop.end_at.strftime("%Y-%m-%d %H:%M %Z")
+                description += f'<td style="border: 1px solid #ddd; padding: 8px;">{period}</td>'
+
+                description += "</tr>"
+
+            description += "</tbody></table><br>"
+
         # Add a clear link to the campaign details page
         if item.details_url:
             description += format_html('<p><a href="{}">About this drop</a></p>', item.details_url)
@@ -127,7 +190,7 @@ class DropCampaignFeed(Feed):
 
     def item_guid(self, item: DropCampaign) -> str:
         """Return a unique identifier for each campaign."""
-        return item.id
+        return item.id + "@ttvdrops.com"
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""
