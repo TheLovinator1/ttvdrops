@@ -6,10 +6,11 @@
 {% block content %}
     <main>
         <header>
-            <h1>Drop Campaigns</h1>
+            <h1 id="page-title">Drop Campaigns</h1>
             <p>Browse all available drop campaigns</p>
         </header>
-        <form method="get"
+        <form id="filter-form"
+              method="get"
               action="{% url 'twitch:campaign_list' %}"
               style="margin-bottom: 2rem;
                      padding: 1rem;
@@ -42,13 +43,14 @@
                         {% endfor %}
                     </select>
                 </div>
-                <button type="submit">Apply Filters</button>
+                <button id="apply-filters-button" type="submit">Apply Filters</button>
             </div>
         </form>
         {% if campaigns %}
             {% regroup campaigns by game as campaigns_by_game %}
             {% for game_group in campaigns_by_game %}
-                <section style="margin-bottom: 3rem;">
+                <section id="game-group-{{ game_group.grouper.id }}"
+                         style="margin-bottom: 3rem">
                     <div style="display: flex; gap: 1rem;">
                         <div style="flex-shrink: 0;">
                             {% if game_group.grouper.box_art_base_url %}
@@ -76,13 +78,15 @@
                             {% comment %} Find this header section in your template {% endcomment %}
                             <header style="margin-bottom: 1rem;">
                                 <h2 style="margin: 0 0 0.5rem 0;">
-                                    <a href="{% url 'twitch:game_detail' game_group.grouper.id %}"
+                                    <a id="game-link-{{ game_group.grouper.id }}"
+                                       href="{% url 'twitch:game_detail' game_group.grouper.id %}"
                                        style="text-decoration: none">{{ game_group.grouper.display_name|default:game_group.grouper.name|default:game_group.grouper.slug|default:game_group.grouper.id }}</a>
                                 </h2>
                                 {% comment %} MODIFICATION: Check if the owner exists before creating the link {% endcomment %}
                                 {% if game_group.grouper.owner %}
                                     <p style="margin: 0;">
-                                        <a href="{% url 'twitch:organization_detail' game_group.grouper.owner.id %}"
+                                        <a id="org-link-{{ game_group.grouper.owner.id }}"
+                                           href="{% url 'twitch:organization_detail' game_group.grouper.owner.id %}"
                                            style="text-decoration: none">{{ game_group.grouper.owner.name }}</a>
                                     </p>
                                 {% endif %}
@@ -90,16 +94,19 @@
                             <div style="overflow-x: auto;">
                                 <div style="display: flex; gap: 1rem; min-width: max-content;">
                                     {% for campaign in game_group.list %}
-                                        <article style="display: flex;
+                                        <article id="campaign-{{ campaign.id }}"
+                                                 style="display: flex;
                                                         flex-direction: column;
                                                         align-items: flex-start;
                                                         padding: 0.5rem;
                                                         flex-shrink: 0">
                                             <div>
-                                                <a href="{% url 'twitch:campaign_detail' campaign.id %}"
+                                                <a id="campaign-link-{{ campaign.id }}"
+                                                   href="{% url 'twitch:campaign_detail' campaign.id %}"
                                                    style="text-decoration: none">
                                                     {% if campaign.image_url %}
-                                                        <img src="{{ campaign.image_url }}"
+                                                        <img id="campaign-image-{{ campaign.id }}"
+                                                             src="{{ campaign.image_url }}"
                                                              alt="Campaign artwork for {{ campaign.name }}"
                                                              width="120"
                                                              height="120"
@@ -118,7 +125,9 @@
                                                             No Image
                                                         </div>
                                                     {% endif %}
-                                                    <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign.clean_name }}</h4>
+                                                    <h4 id="campaign-name-{{ campaign.id }}"
+                                                        style="margin: 0.5rem 0;
+                                                               text-align: left">{{ campaign.clean_name }}</h4>
                                                 </a>
                                                 <div style="font-size: 0.9rem;">
                                                     <time datetime="{{ campaign.start_at|date:'c' }}"
@@ -133,11 +142,15 @@
                                                 </div>
                                                 <div style="margin-top: 0.5rem;">
                                                     {% if campaign.start_at <= now and campaign.end_at >= now %}
-                                                        <span style="font-weight: 600; color: #28a745;">Active</span>
+                                                        <span id="campaign-status-{{ campaign.id }}"
+                                                              style="font-weight: 600;
+                                                                     color: #28a745">Active</span>
                                                     {% elif campaign.start_at > now %}
-                                                        <span style="font-weight: 600;">Upcoming</span>
+                                                        <span id="campaign-status-{{ campaign.id }}" style="font-weight: 600;">Upcoming</span>
                                                     {% else %}
-                                                        <span style="font-weight: 600; color: #dc3545;">Expired</span>
+                                                        <span id="campaign-status-{{ campaign.id }}"
+                                                              style="font-weight: 600;
+                                                                     color: #dc3545">Expired</span>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -162,7 +175,7 @@
         {% endif %}
         <!-- Pagination -->
         {% if is_paginated %}
-            <nav style="margin-top: 3rem; text-align: center;">
+            <nav id="pagination" style="margin-top: 3rem; text-align: center;">
                 <div style="display: flex;
                             justify-content: center;
                             align-items: center;

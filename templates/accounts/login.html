@@ -3,15 +3,15 @@
     Login
 {% endblock title %}
 {% block content %}
-    <h4>Login</h4>
+    <h4 id="page-title">Login</h4>
     {% if form.errors %}
-        <ul>
+        <ul id="error-list">
             {% for field, errors in form.errors.items %}
                 {% for error in errors %}<li>{{ error }}</li>{% endfor %}
             {% endfor %}
         </ul>
     {% endif %}
-    <form method="post">
+    <form id="login-form" method="post">
         {% csrf_token %}
         <label for="{{ form.username.id_for_label }}">Username</label>
         <input type="text"
@@ -24,10 +24,10 @@
                name="password"
                id="{{ form.password.id_for_label }}"
                required>
-        <button type="submit">Login</button>
+        <button id="login-button" type="submit">Login</button>
     </form>
     <p>
-        Don't have an account? <a href="{% url 'accounts:signup' %}">Sign up here</a>
+        Don't have an account? <a id="signup-link" href="{% url 'accounts:signup' %}">Sign up here</a>
     </p>
     <style>
     .form-control {

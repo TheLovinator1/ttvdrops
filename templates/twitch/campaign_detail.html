@@ -4,96 +4,136 @@
     {{ campaign.clean_name }}
 {% endblock title %}
 {% block content %}
-    <h1>
-        <a href="{% url 'twitch:game_detail' campaign.game.id %}">{{ campaign.game.display_name }}</a> - {{ campaign.clean_name }}
-    </h1>
-    {% if campaign.owner %}
-        <p>
-            <a href="{% url 'twitch:organization_detail' campaign.owner.id %}">{{ campaign.owner.name }}</a>
-        </p>
+    <!-- Campaign Title -->
+    {% if campaign.game %}
+        <h1 id="campaign-title">
+            <a href="{% url 'twitch:game_detail' campaign.game.id %}">{{ campaign.game.name }}</a> - {{ campaign.clean_name }}
+        </h1>
     {% else %}
-        <p>Organization Unknown</p>
+        <h1 id="campaign-title">{{ campaign.clean_name }}</h1>
     {% endif %}
+    {% if owner %}
+        <p id="campaign-owner">
+            <a href="{% url 'twitch:organization_detail' owner.id %}">{{ owner.name }}</a>
+        </p>
+    {% endif %}
+    <!-- Campaign image -->
     {% if campaign.image_url %}
-        <img height="70"
-             width="70"
+        <img id="campaign-image"
+             height="160"
+             width="160"
              src="{{ campaign.image_url }}"
              alt="{{ campaign.name }}">
     {% endif %}
-    <p>{{ campaign.description|linebreaksbr }}</p>
-    <p>
-        Start:
-        {{ campaign.start_at }}
-    </p>
-    <p>
-        End:
-        {{ campaign.end_at }}
-    </p>
+    <!-- Campaign description -->
+    <p id="campaign-description">{{ campaign.description|linebreaksbr }}</p>
+    <!-- Campaign end times -->
+    <div>
+        <time id="campaign-end-time"
+              datetime="{{ campaign.end_at|date:'c' }}"
+              title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">
+            <strong>Ends in</strong> {{ campaign.end_at|timeuntil }}
+        </time>
+    </div>
+    <!-- Campaign start times -->
+    <div>
+        <time id="campaign-start-time"
+              datetime="{{ campaign.start_at|date:'c' }}"
+              title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">
+            <strong>Started</strong> {{ campaign.start_at|timesince }} ago
+        </time>
+    </div>
+    <!-- Campaign added times -->
+    <div>
+        <time id="campaign-added-time"
+              datetime="{{ campaign.added_at|date:'c' }}"
+              title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">
+            <strong>Scraped</strong> {{ campaign.added_at|timesince }} ago
+        </time>
+    </div>
+    <!-- Campaign duration -->
+    <div>
+        <time id="campaign-duration"
+              datetime="{{ campaign.start_at|date:'c' }} to {{ campaign.end_at|date:'c' }}"
+              title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}">
+            <strong>Duration</strong> {{ campaign.start_at|timesince:campaign.end_at }} ago
+        </time>
+    </div>
+    <!-- Campaign Detail URL -->
     {% if campaign.details_url %}
         {# TODO: Archive this URL automatically #}
         <p>
-            <a href="{{ campaign.details_url }}" target="_blank">Official Details</a>
+            <a id="campaign-details-url"
+               href="{{ campaign.details_url }}"
+               target="_blank">Official Details</a>
         </p>
     {% endif %}
+    <!-- Campaign Account Link URL -->
     {% if campaign.account_link_url %}
         {# TODO: Archive this URL automatically #}
         <p>
-            <a href="{{ campaign.account_link_url }}" target="_blank">Connect Account</a>
+            <a id="campaign-account-link-url"
+               href="{{ campaign.account_link_url }}"
+               target="_blank">Connect Account</a>
         </p>
     {% endif %}
     <h5>Campaign Info</h5>
-    {% if user.is_staff %}
-        <p>
-            {% if campaign.is_account_connected %}
-                Connected
-            {% else %}
-                Not Connected
-            {% endif %}
-        </p>
-    {% endif %}
     {% if drops %}
-        <table>
-            <tr>
-                <th>Image</th>
-                <th>Name</th>
-                <th>Requirements</th>
-                <th>Availability</th>
-            </tr>
-            {% for drop in drops %}
+        <table id="drops-table" style="border-collapse: collapse; width: 100%;">
+            <thead>
                 <tr>
-                    <td>
-                        {% for benefit in drop.benefits.all %}
-                            {% if benefit.image_asset_url %}
-                                <img height="120"
-                                     width="120"
-                                     style="object-fit: cover"
-                                     src="{{ benefit.image_asset_url }}"
-                                     alt="{{ benefit.name }}">
-                            {% else %}
-                                <img height="120"
-                                     width="120"
-                                     style="object-fit: cover"
-                                     src="{% static 'images/placeholder.png' %}"
-                                     alt="No Image Available">
+                    <th>Benefits</th>
+                    <th>Drop Name</th>
+                    <th>Requirements</th>
+                    <th>Period</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for drop in drops %}
+                    <tr id="drop-{{ drop.drop.id }}">
+                        <td>
+                            {% for benefit in drop.drop.benefits.all %}
+                                {% if benefit.image_asset_url %}
+                                    <img height="160"
+                                         width="160"
+                                         style="object-fit: cover;
+                                                margin-right: 3px"
+                                         src="{{ benefit.image_asset_url }}"
+                                         alt="{{ benefit.name }}">
+                                {% else %}
+                                    <img height="160"
+                                         width="160"
+                                         style="object-fit: cover;
+                                                margin-right: 3px"
+                                         src="{% static 'images/placeholder.png' %}"
+                                         alt="No Image Available">
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>{{ drop.drop.name }}</td>
+                        <td>
+                            {% if drop.drop.required_minutes_watched %}{{ drop.drop.required_minutes_watched }} minutes watched{% endif %}
+                            {% if drop.drop.required_subs > 0 %}
+                                {% if drop.drop.required_minutes_watched %}and{% endif %}
+                                {{ drop.drop.required_subs }} subscriptions required
                             {% endif %}
-                        {% endfor %}
-                    </td>
-                    <td>{{ drop.name }}</td>
-                    <td>
-                        {{ drop.required_minutes_watched }} minutes watched
-                        {% if drop.required_subs > 0 %}and {{ drop.required_subs }} subscriptions required{% endif %}
-                    </td>
-                    <td>{{ drop.start_at }} - {{ drop.end_at }}</td>
-                </tr>
-            {% endfor %}
-            {% if not drops %}
-                <tr>
-                    <td colspan="6">No drops found for this campaign.</td>
-                </tr>
-            {% endif %}
+                        </td>
+                        <td>
+                            <div>
+                                {% if drop.local_start %}{{ drop.local_start|date:"M j, Y H:i" }}{% endif %}
+                                {% if drop.local_start and drop.local_end %}-{% endif %}
+                                {% if drop.local_end %}{{ drop.local_end|date:"M j, Y H:i" }}{% endif %}
+                                <small style="color: #666;">{{ drop.timezone_name }}</small>
+                            </div>
+                            <div style="font-size: 0.8em; color: #666;">{{ drop.countdown_text }}</div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
         </table>
     {% else %}
         <p>No drops available for this campaign.</p>
     {% endif %}
-    <pre><code>{{ campaign_data }}</code></pre>
+    <!-- Campaign JSON -->
+    {{ campaign_data|safe }}
 {% endblock content %}

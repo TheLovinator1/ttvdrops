@@ -3,9 +3,10 @@
     {{ organization.name }}
 {% endblock title %}
 {% block content %}
-    <h1>{{ organization.name }}</h1>
+    <h1 id="org-name">{{ organization.name }}</h1>
     {% if user.is_authenticated %}
-        <form method="post"
+        <form id="notification-form"
+              method="post"
               action="{% url 'twitch:subscribe_org_notifications' org_id=organization.id %}">
             {% csrf_token %}
             <div>
@@ -22,17 +23,17 @@
                        {% if subscription and subscription.notify_live %}checked{% endif %} />
                 <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
             </div>
-            <button type="submit">Save preferences</button>
+            <button id="save-preferences-button" type="submit">Save preferences</button>
         </form>
     {% else %}
-        Login to subscribe!
+        <p id="login-prompt">Login to subscribe!</p>
     {% endif %}
-    <ul>
+    <ul id="games-list">
         {% for game in games %}
-            <li>
+            <li id="game-{{ game.id }}">
                 <a href="{% url 'twitch:game_detail' pk=game.id %}">{{ game }}</a>
             </li>
         {% endfor %}
     </ul>
-    <pre><code>{{ org_data }}</code></pre>
+    <pre><code id="org-data">{{ org_data }}</code></pre>
 {% endblock content %}

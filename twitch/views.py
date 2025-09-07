@@ -4,7 +4,7 @@ import datetime
 import json
 import logging
 from collections import OrderedDict, defaultdict
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -18,6 +18,9 @@ from django.http.response import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers.data import JsonLexer
 
 from twitch.models import DropBenefit, DropCampaign, Game, NotificationSubscription, Organization, TimeBasedDrop
 
@@ -185,7 +188,6 @@ class DropCampaignListView(ListView):
         Returns:
             dict: Context data.
         """
-        kwargs = cast("dict[str, Any]", kwargs)
         context: dict[str, Any] = super().get_context_data(**kwargs)
 
         context["games"] = Game.objects.all().order_by("display_name")
@@ -196,6 +198,19 @@ class DropCampaignListView(ListView):
         context["selected_status"] = self.request.GET.get(key="status", default="")
 
         return context
+
+
+def format_and_color_json(code: str) -> str:
+    """Format and color a JSON string for HTML display.
+
+    Args:
+        code: The code string to format.
+
+    Returns:
+        str: The formatted code with HTML styles.
+    """
+    formatted_code: str = json.dumps(code, indent=4)
+    return highlight(formatted_code, JsonLexer(), HtmlFormatter())
 
 
 class DropCampaignDetailView(DetailView):
@@ -221,7 +236,7 @@ class DropCampaignDetailView(DetailView):
 
         return super().get_object(queryset=queryset)
 
-    def get_context_data(self, **kwargs: object) -> dict[str, Any]:
+    def get_context_data(self, **kwargs: object) -> dict[str, Any]:  # noqa: PLR0914
         """Add additional context data.
 
         Args:
@@ -232,7 +247,9 @@ class DropCampaignDetailView(DetailView):
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
         campaign = context["campaign"]
-        drops = TimeBasedDrop.objects.filter(campaign=campaign).select_related("campaign").prefetch_related("benefits").order_by("required_minutes_watched")
+        drops: QuerySet[TimeBasedDrop, TimeBasedDrop] = (
+            TimeBasedDrop.objects.filter(campaign=campaign).select_related("campaign").prefetch_related("benefits").order_by("required_minutes_watched")
+        )
 
         serialized_campaign = serialize(
             "json",
@@ -280,11 +297,46 @@ class DropCampaignDetailView(DetailView):
 
             campaign_data[0]["fields"]["drops"] = drops_data
 
-        pretty_campaign_data = json.dumps(campaign_data[0], indent=4)
+        # Enhance drops with additional context data
+        enhanced_drops = []
+        now: datetime.datetime = timezone.now()
+        for drop in drops:
+            # Ensure benefits are loaded
+            benefits = list(drop.benefits.all())
 
-        context["now"] = timezone.now()
-        context["drops"] = drops
-        context["campaign_data"] = pretty_campaign_data
+            # Calculate countdown text
+            if drop.end_at and drop.end_at > now:
+                time_diff: datetime.timedelta = drop.end_at - now
+                days: int = time_diff.days
+                hours, remainder = divmod(time_diff.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+
+                if days > 0:
+                    countdown_text: str = f"{days}d {hours}h {minutes}m"
+                elif hours > 0:
+                    countdown_text = f"{hours}h {minutes}m"
+                elif minutes > 0:
+                    countdown_text = f"{minutes}m {seconds}s"
+                else:
+                    countdown_text = f"{seconds}s"
+            elif drop.start_at and drop.start_at > now:
+                countdown_text = "Not started"
+            else:
+                countdown_text = "Expired"
+
+            enhanced_drop: dict[str, str | datetime.datetime | TimeBasedDrop] = {
+                "drop": drop,
+                "local_start": drop.start_at,
+                "local_end": drop.end_at,
+                "timezone_name": "UTC",
+                "countdown_text": countdown_text,
+            }
+            enhanced_drops.append(enhanced_drop)
+
+        context["now"] = now
+        context["drops"] = enhanced_drops
+        context["campaign_data"] = format_and_color_json(campaign_data[0])
+        context["owner"] = campaign.game.owner
 
         return context
 
@@ -432,8 +484,6 @@ class GameDetailView(DetailView):
             campaigns_data = json.loads(serialized_campaigns)
             game_data[0]["fields"]["campaigns"] = campaigns_data
 
-        pretty_game_data = json.dumps(game_data[0], indent=4)
-
         context.update({
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
@@ -441,7 +491,7 @@ class GameDetailView(DetailView):
             "subscription": subscription,
             "owner": game.owner,
             "now": now,
-            "game_data": pretty_game_data,
+            "game_data": format_and_color_json(game_data[0]),
         })
 
         return context

@@ -5,7 +5,7 @@
 {% block content %}
     <main>
         <header>
-            <h1>All Games</h1>
+            <h1 id="page-title">All Games</h1>
             <p>Browse all available games</p>
             <p>
                 <a href="{% url 'twitch:game_list_simple' %}">List View</a>
@@ -16,7 +16,8 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
                     {% for organization, games in games_by_org.items %}
                         {% for item in games %}
-                            <article style="padding: 0.25rem;
+                            <article id="game-{{ item.game.id }}"
+                                     style="padding: 0.25rem;
                                             border-radius: 8px;
                                             flex: 1 1 160px;
                                             text-align: center">

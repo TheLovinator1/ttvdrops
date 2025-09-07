@@ -599,6 +599,7 @@ dependencies = [
     { name = "orjson" },
     { name = "platformdirs" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pygments" },
     { name = "python-dotenv" },
 ]
 
@@ -622,6 +623,7 @@ requires-dist = [
     { name = "orjson", specifier = ">=3.11.1" },
     { name = "platformdirs", specifier = ">=4.3.8" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.3" },
+    { name = "pygments", specifier = ">=2.19.2" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
 ]
 

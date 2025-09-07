@@ -4,16 +4,16 @@
 {% endblock title %}
 {% block content %}
     <main>
-        <h1>Games List</h1>
+        <h1 id="page-title">Games List</h1>
         <p>
             <a href="{% url 'twitch:game_list' %}">Grid View</a>
         </p>
         {% if games_by_org %}
             {% for organization, games in games_by_org.items %}
-                <h2>{{ organization.name }}</h2>
+                <h2 id="org-{{ organization.id }}">{{ organization.name }}</h2>
                 <ul style="list-style: none; padding: 0; margin: 0;">
                     {% for item in games %}
-                        <li>
+                        <li id="game-{{ item.game.id }}">
                             <a href="{% url 'twitch:game_detail' item.game.id %}">{{ item.game.display_name }}</a>
                         </li>
                     {% endfor %}

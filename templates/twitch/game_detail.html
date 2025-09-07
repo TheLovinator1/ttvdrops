@@ -3,12 +3,27 @@
     {{ game.display_name }}
 {% endblock title %}
 {% block content %}
-    <h1>{{ game.display_name }}</h1>
+    <!-- Game Title -->
+    <h1 id="game-name">
+        {{ game.display_name }}
+        {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
+    </h1>
+    <!-- Game image -->
+    {% if game.box_art_url %}
+        <img id="game-image"
+             height="160"
+             width="160"
+             src="{{ game.box_art_url }}"
+             alt="{{ game.name }}">
+    {% endif %}
+    <!-- Game owner -->
     {% if owner %}
-        <small><a href="{% url 'twitch:organization_detail' owner.id %}">{{ owner.name }}</a></small>
+        <small><a id="owner-link"
+   href="{% url 'twitch:organization_detail' owner.id %}">{{ owner.name }}</a></small>
     {% endif %}
     {% if user.is_authenticated %}
-        <form method="post"
+        <form id="notification-form"
+              method="post"
               action="{% url 'twitch:subscribe_notifications' game_id=game.id %}">
             {% csrf_token %}
             <div>
@@ -25,17 +40,17 @@
                        {% if subscription and subscription.notify_live %}checked{% endif %} />
                 <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
             </div>
-            <button type="submit">Save notification preferences</button>
+            <button id="save-notifications-button" type="submit">Save notification preferences</button>
         </form>
     {% else %}
-        Login to subscribe!
+        <p id="login-prompt">Login to subscribe!</p>
     {% endif %}
     {% if active_campaigns %}
-        <h5>Active Campaigns</h5>
-        <table>
+        <h5 id="active-campaigns-header">Active Campaigns</h5>
+        <table id="active-campaigns-table">
             <tbody>
                 {% for campaign in active_campaigns %}
-                    <tr>
+                    <tr id="campaign-row-{{ campaign.id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
                         </td>
@@ -48,11 +63,11 @@
         </table>
     {% endif %}
     {% if upcoming_campaigns %}
-        <h5>Upcoming Campaigns</h5>
-        <table>
+        <h5 id="upcoming-campaigns-header">Upcoming Campaigns</h5>
+        <table id="upcoming-campaigns-table">
             <tbody>
                 {% for campaign in upcoming_campaigns %}
-                    <tr>
+                    <tr id="campaign-row-{{ campaign.id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
                         </td>
@@ -65,11 +80,11 @@
         </table>
     {% endif %}
     {% if expired_campaigns %}
-        <h5>Past Campaigns</h5>
-        <table>
+        <h5 id="expired-campaigns-header">Past Campaigns</h5>
+        <table id="expired-campaigns-table">
             <tbody>
                 {% for campaign in expired_campaigns %}
-                    <tr>
+                    <tr id="campaign-row-{{ campaign.id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
                         </td>
@@ -82,7 +97,7 @@
         </table>
     {% endif %}
     {% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
-        No campaigns found for this game.
+        <p id="no-campaigns-message">No campaigns found for this game.</p>
     {% endif %}
-    <pre><code>{{ game_data }}</code></pre>
+    {{ game_data|safe }}
 {% endblock content %}

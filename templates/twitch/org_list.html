@@ -3,16 +3,16 @@
     Games
 {% endblock title %}
 {% block content %}
-    <h1>Organizations</h1>
+    <h1 id="page-title">Organizations</h1>
     {% if orgs %}
-        <ul>
+        <ul id="org-list">
             {% for organization in orgs %}
-                <li>
+                <li id="org-{{ organization.id }}">
                     <a href="{% url 'twitch:organization_detail' organization.id %}">{{ organization.name }}</a>
                 </li>
             {% endfor %}
         </ul>
     {% else %}
-        No games found.
+        <p>No games found.</p>
     {% endif %}
 {% endblock content %}
