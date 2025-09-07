@@ -53,6 +53,25 @@
                     <tr id="campaign-row-{{ campaign.id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
+                            {% if campaign.time_based_drops.all %}
+                                <div class="campaign-benefits">
+                                    {% comment %}Show unique benefits sorted alphabetically{% endcomment %}
+                                    {% for benefit in campaign.sorted_benefits %}
+                                        <span class="benefit-item" title="{{ benefit.name }}">
+                                            {% if benefit.image_asset_url %}
+                                                <img src="{{ benefit.image_asset_url }}"
+                                                     alt="{{ benefit.name }}"
+                                                     width="24"
+                                                     height="24"
+                                                     style="display: inline-block;
+                                                            margin-right: 4px;
+                                                            vertical-align: middle">
+                                            {% endif %}
+                                            {{ benefit.name }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </td>
                         <td>
                             <span title="{{ campaign.end_at|date:'M d, Y H:i' }}">Ends in {{ campaign.end_at|timeuntil }}</span>
@@ -70,6 +89,24 @@
                     <tr id="campaign-row-{{ campaign.id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
+                            {% if campaign.time_based_drops.all %}
+                                <div class="campaign-benefits">
+                                    {% for benefit in campaign.sorted_benefits %}
+                                        <span class="benefit-item" title="{{ benefit.name }}">
+                                            {% if benefit.image_asset_url %}
+                                                <img src="{{ benefit.image_asset_url }}"
+                                                     alt="{{ benefit.name }}"
+                                                     width="24"
+                                                     height="24"
+                                                     style="display: inline-block;
+                                                            margin-right: 4px;
+                                                            vertical-align: middle">
+                                            {% endif %}
+                                            {{ benefit.name }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </td>
                         <td>
                             <span title="Starts on {{ campaign.start_at|date:'M d, Y H:i' }}">Starts in {{ campaign.start_at|timeuntil }}</span>
@@ -87,6 +124,25 @@
                     <tr id="campaign-row-{{ campaign.id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
+                            {% if campaign.time_based_drops.all %}
+                                <div class="campaign-benefits">
+                                    {% comment %}Show unique benefits sorted alphabetically{% endcomment %}
+                                    {% for benefit in campaign.sorted_benefits %}
+                                        <span class="benefit-item" title="{{ benefit.name }}">
+                                            {% if benefit.image_asset_url %}
+                                                <img src="{{ benefit.image_asset_url }}"
+                                                     alt="{{ benefit.name }}"
+                                                     width="24"
+                                                     height="24"
+                                                     style="display: inline-block;
+                                                            margin-right: 4px;
+                                                            vertical-align: middle">
+                                            {% endif %}
+                                            {{ benefit.name }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                         </td>
                         <td>
                             <span title="Ended on {{ campaign.end_at|date:'M d, Y H:i' }}">{{ campaign.end_at|timesince }} ago</span>

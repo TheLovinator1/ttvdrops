@@ -438,7 +438,16 @@ class GameDetailView(DetailView):
             subscription = NotificationSubscription.objects.filter(user=user, game=game).first()
 
         now: datetime.datetime = timezone.now()
-        all_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(game=game).select_related("game__owner").order_by("-end_at")
+        all_campaigns: QuerySet[DropCampaign, DropCampaign] = (
+            DropCampaign.objects.filter(game=game)
+            .select_related("game__owner")
+            .prefetch_related(
+                Prefetch(
+                    "time_based_drops", queryset=TimeBasedDrop.objects.prefetch_related(Prefetch("benefits", queryset=DropBenefit.objects.order_by("name")))
+                )
+            )
+            .order_by("-end_at")
+        )
 
         active_campaigns: list[DropCampaign] = [
             campaign
@@ -452,6 +461,15 @@ class GameDetailView(DetailView):
         upcoming_campaigns.sort(key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
 
         expired_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now]
+
+        # Add unique sorted benefits to each campaign object
+        for campaign in all_campaigns:
+            benefits_dict = {}  # Use dict to track unique benefits by ID
+            for drop in campaign.time_based_drops.all():  # type: ignore[attr-defined]
+                for benefit in drop.benefits.all():
+                    benefits_dict[benefit.id] = benefit
+            # Sort benefits by name and attach to campaign
+            campaign.sorted_benefits = sorted(benefits_dict.values(), key=lambda b: b.name)  # type: ignore[attr-defined]
 
         serialized_game = serialize(
             "json",
