@@ -110,7 +110,14 @@
                                 {% endif %}
                             {% endfor %}
                         </td>
-                        <td>{{ drop.drop.name }}</td>
+                        <td>
+                            <div style="margin-bottom: 5px;">{{ drop.drop.name }}</div>
+                            {% for benefit in drop.drop.benefits.all %}
+                                {% if benefit.name != drop.drop.name %}
+                                    <div style="font-size: 0.9em; color: #a9a9a9; margin-bottom: 3px;">{{ benefit.name }}</div>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
                         <td>
                             {% if drop.drop.required_minutes_watched %}{{ drop.drop.required_minutes_watched }} minutes watched{% endif %}
                             {% if drop.drop.required_subs > 0 %}
@@ -123,9 +130,9 @@
                                 {% if drop.local_start %}{{ drop.local_start|date:"M j, Y H:i" }}{% endif %}
                                 {% if drop.local_start and drop.local_end %}-{% endif %}
                                 {% if drop.local_end %}{{ drop.local_end|date:"M j, Y H:i" }}{% endif %}
-                                <small style="color: #666;">{{ drop.timezone_name }}</small>
+                                <small style="color: #a9a9a9;">{{ drop.timezone_name }}</small>
                             </div>
-                            <div style="font-size: 0.8em; color: #666;">{{ drop.countdown_text }}</div>
+                            <div style="font-size: 0.8em; color: #a9a9a9;">{{ drop.countdown_text }}</div>
                         </td>
                     </tr>
                 {% endfor %}
