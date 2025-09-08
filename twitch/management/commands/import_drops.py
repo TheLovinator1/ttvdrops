@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 from django.utils import timezone
 
-from twitch.models import DropBenefit, DropBenefitEdge, DropCampaign, Game, Organization, TimeBasedDrop
+from twitch.models import Channel, DropBenefit, DropBenefitEdge, DropCampaign, Game, Organization, TimeBasedDrop
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -97,10 +97,15 @@ class Command(BaseCommand):
         for p in paths:
             try:
                 path: Path = Path(p)
-                processed_path: Path = path / processed_dir
-                processed_path.mkdir(exist_ok=True)
-
                 self.validate_path(path)
+
+                # For files, use the parent directory for processed files
+                if path.is_file():
+                    processed_path: Path = path.parent / processed_dir
+                else:
+                    processed_path: Path = path / processed_dir
+
+                processed_path.mkdir(exist_ok=True)
                 self.process_drops(continue_on_error=continue_on_error, path=path, processed_path=processed_path)
 
             except CommandError as e:
@@ -528,6 +533,10 @@ class Command(BaseCommand):
         Returns:
             Returns the DropCampaign object.
         """
+        # Extract allow data from campaign_data
+        allow_data = campaign_data.get("allow", {})
+        allow_is_enabled = allow_data.get("isEnabled")
+
         drop_campaign_defaults: dict[str, Any] = {
             "game": game,
             "name": campaign_data.get("name"),
@@ -538,6 +547,7 @@ class Command(BaseCommand):
             "start_at": parse_date(campaign_data.get("startAt") or campaign_data.get("startsAt")),
             "end_at": parse_date(campaign_data.get("endAt") or campaign_data.get("endsAt")),
             "is_account_connected": campaign_data.get("self", {}).get("isAccountConnected"),
+            "allow_is_enabled": allow_is_enabled,
         }
         # Run .strip() on all string fields to remove leading/trailing whitespace
         for key, value in drop_campaign_defaults.items():
@@ -551,6 +561,33 @@ class Command(BaseCommand):
             id=campaign_data["id"],
             defaults=drop_campaign_defaults,
         )
+
+        # Handle allow_channels (many-to-many relationship)
+        allow_channels: list[dict[str, str]] = allow_data.get("channels", [])
+        if allow_channels:
+            channel_objects: list[Channel] = []
+            for channel_data in allow_channels:
+                channel_defaults: dict[str, str | None] = {
+                    "name": channel_data.get("name"),
+                    "display_name": channel_data.get("displayName"),
+                }
+                # Run .strip() on all string fields to remove leading/trailing whitespace
+                for key, value in channel_defaults.items():
+                    if isinstance(value, str):
+                        channel_defaults[key] = value.strip()
+
+                # Filter out None values
+                channel_defaults = {k: v for k, v in channel_defaults.items() if v is not None}
+
+                channel, _ = Channel.objects.update_or_create(
+                    id=channel_data["id"],
+                    defaults=channel_defaults,
+                )
+                channel_objects.append(channel)
+
+            # Set the many-to-many relationship
+            drop_campaign.allow_channels.set(channel_objects)
+
         if created:
             self.stdout.write(self.style.SUCCESS(f"Created new drop campaign: {drop_campaign.name} (ID: {drop_campaign.id})"))
         return drop_campaign

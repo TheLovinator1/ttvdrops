@@ -532,7 +532,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             Prefetch(
                 "time_based_drops",
                 queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
-            )
+            ),
+            "allow_channels",
         )
     )
 

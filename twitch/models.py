@@ -173,6 +173,50 @@ class Game(models.Model):
         return self.id
 
 
+class Channel(models.Model):
+    """Represents a Twitch channel that can participate in drop campaigns."""
+
+    id = models.CharField(
+        max_length=255,
+        primary_key=True,
+        verbose_name="Channel ID",
+        help_text="The unique Twitch identifier for the channel.",
+    )
+    name = models.CharField(
+        max_length=255,
+        db_index=True,
+        verbose_name="Username",
+        help_text="The lowercase username of the channel.",
+    )
+    display_name = models.CharField(
+        max_length=255,
+        db_index=True,
+        verbose_name="Display Name",
+        help_text="The display name of the channel (with proper capitalization).",
+    )
+
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="Timestamp when this channel record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this channel record was last updated.",
+    )
+
+    class Meta:
+        ordering = ["display_name"]
+        indexes: ClassVar[list] = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["display_name"]),
+        ]
+
+    def __str__(self) -> str:
+        """Return a string representation of the channel."""
+        return self.display_name or self.name or self.id
+
+
 class DropCampaign(models.Model):
     """Represents a Twitch drop campaign."""
 
@@ -223,6 +267,16 @@ class DropCampaign(models.Model):
     is_account_connected = models.BooleanField(
         default=False,
         help_text="Indicates if the user account is linked.",
+    )
+    allow_is_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether the campaign allows participation.",
+    )
+    allow_channels = models.ManyToManyField(
+        Channel,
+        blank=True,
+        related_name="allowed_campaigns",
+        help_text="Channels that are allowed to participate in this campaign.",
     )
 
     # PostgreSQL full-text search field
