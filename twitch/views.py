@@ -22,7 +22,7 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers.data import JsonLexer
 
-from twitch.models import DropBenefit, DropCampaign, Game, NotificationSubscription, Organization, TimeBasedDrop
+from twitch.models import Channel, DropBenefit, DropCampaign, Game, NotificationSubscription, Organization, TimeBasedDrop
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -769,3 +769,130 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
         },
     ]
     return render(request, "twitch/docs_rss.html", {"feeds": feeds})
+
+
+class ChannelListView(ListView):
+    """List view for channels."""
+
+    model = Channel
+    template_name = "twitch/channel_list.html"
+    context_object_name = "channels"
+    paginate_by = 200
+
+    def get_queryset(self) -> QuerySet[Channel]:
+        """Get queryset of channels.
+
+        Returns:
+            QuerySet: Filtered channels.
+        """
+        queryset: QuerySet[Channel] = super().get_queryset()
+        search_query: str | None = self.request.GET.get("search")
+
+        if search_query:
+            queryset = queryset.filter(Q(name__icontains=search_query) | Q(display_name__icontains=search_query))
+
+        return queryset.annotate(campaign_count=Count("allowed_campaigns", distinct=True)).order_by("-campaign_count", "name")
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        """Add additional context data.
+
+        Args:
+            **kwargs: Additional arguments.
+
+        Returns:
+            dict: Context data.
+        """
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        context["search_query"] = self.request.GET.get("search", "")
+        return context
+
+
+class ChannelDetailView(DetailView):
+    """Detail view for a channel."""
+
+    model = Channel
+    template_name = "twitch/channel_detail.html"
+    context_object_name = "channel"
+
+    def get_context_data(self, **kwargs: object) -> dict[str, Any]:
+        """Add additional context data.
+
+        Args:
+            **kwargs: Additional arguments.
+
+        Returns:
+            dict: Context data with active, upcoming, and expired campaigns for this channel.
+        """
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        channel: Channel = self.get_object()
+
+        now: datetime.datetime = timezone.now()
+        all_campaigns: QuerySet[DropCampaign, DropCampaign] = (
+            DropCampaign.objects.filter(allow_channels=channel)
+            .select_related("game__owner")
+            .prefetch_related(
+                Prefetch(
+                    "time_based_drops", queryset=TimeBasedDrop.objects.prefetch_related(Prefetch("benefits", queryset=DropBenefit.objects.order_by("name")))
+                )
+            )
+            .order_by("-start_at")
+        )
+
+        active_campaigns: list[DropCampaign] = [
+            campaign
+            for campaign in all_campaigns
+            if campaign.start_at is not None and campaign.start_at <= now and campaign.end_at is not None and campaign.end_at >= now
+        ]
+        active_campaigns.sort(key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
+
+        upcoming_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now]
+        upcoming_campaigns.sort(key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
+
+        expired_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now]
+
+        # Add unique sorted benefits to each campaign object
+        for campaign in all_campaigns:
+            benefits_dict = {}  # Use dict to track unique benefits by ID
+            for drop in campaign.time_based_drops.all():  # type: ignore[attr-defined]
+                for benefit in drop.benefits.all():
+                    benefits_dict[benefit.id] = benefit
+            # Sort benefits by name and attach to campaign
+            campaign.sorted_benefits = sorted(benefits_dict.values(), key=lambda b: b.name)  # type: ignore[attr-defined]
+
+        serialized_channel = serialize(
+            "json",
+            [channel],
+            fields=(
+                "name",
+                "display_name",
+            ),
+        )
+        channel_data = json.loads(serialized_channel)
+
+        if all_campaigns.exists():
+            serialized_campaigns = serialize(
+                "json",
+                all_campaigns,
+                fields=(
+                    "name",
+                    "description",
+                    "details_url",
+                    "account_link_url",
+                    "image_url",
+                    "start_at",
+                    "end_at",
+                    "is_account_connected",
+                ),
+            )
+            campaigns_data = json.loads(serialized_campaigns)
+            channel_data[0]["fields"]["campaigns"] = campaigns_data
+
+        context.update({
+            "active_campaigns": active_campaigns,
+            "upcoming_campaigns": upcoming_campaigns,
+            "expired_campaigns": expired_campaigns,
+            "now": now,
+            "channel_data": format_and_color_json(channel_data[0]),
+        })
+
+        return context
