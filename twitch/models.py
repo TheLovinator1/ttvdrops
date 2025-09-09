@@ -172,6 +172,13 @@ class Game(models.Model):
             return self.slug
         return self.id
 
+    @property
+    def twitch_directory_url(self) -> str:
+        """Return the Twitch directory URL for this game with drops filter if slug is available."""
+        if self.slug:
+            return f"https://www.twitch.tv/directory/category/{self.slug}?filter=drops"
+        return ""
+
 
 class Channel(models.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""

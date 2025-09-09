@@ -85,34 +85,47 @@ Hover over the end time to see the exact date and time.
                                                                  text-align: left">
                                                         Duration: {{ campaign.start_at|timesince:campaign.end_at }}
                                                     </time>
-                                                    {% if campaign.allow_channels.all %}
-                                                        <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #444;">
-                                                            <strong>Channels:</strong>
-                                                            <ul style="margin: 0.25rem 0 0 0;
-                                                                       padding-left: 1rem;
-                                                                       list-style-type: none">
-                                                                {% for channel in campaign.allow_channels.all %}
-                                                                    {% if forloop.counter <= 5 %}
-                                                                        <li style="margin-bottom: 0.1rem;">
-                                                                            <a href="https://twitch.tv/{{ channel.name }}"
-                                                                               target="_blank"
-                                                                               rel="noopener noreferrer"
-                                                                               style="color: #9146ff;
-                                                                                      text-decoration: none"
-                                                                               title="Watch {{ channel.display_name }} on Twitch">
-                                                                                {{ channel.display_name }}
-                                                                            </a>
+                                                    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #444;">
+                                                        <strong>Channels:</strong>
+                                                        <ul style="margin: 0.25rem 0 0 0;
+                                                                   padding-left: 1rem;
+                                                                   list-style-type: none">
+                                                            {% if campaign.allow_is_enabled %}
+                                                                {% if campaign.allow_channels.all %}
+                                                                    {% for channel in campaign.allow_channels.all %}
+                                                                        {% if forloop.counter <= 5 %}
+                                                                            <li style="margin-bottom: 0.1rem;">
+                                                                                <a href="https://twitch.tv/{{ channel.name }}"
+                                                                                   target="_blank"
+                                                                                   rel="noopener noreferrer"
+                                                                                   title="Watch {{ channel.display_name }} on Twitch">
+                                                                                    {{ channel.display_name }}
+                                                                                </a>
+                                                                            </li>
+                                                                        {% endif %}
+                                                                    {% endfor %}
+                                                                    {% if campaign.allow_channels.all|length > 5 %}
+                                                                        <li style="margin-bottom: 0.1rem; color: #666; font-style: italic;">
+                                                                            ... and {{ campaign.allow_channels.all|length|add:"-5" }} more
                                                                         </li>
                                                                     {% endif %}
-                                                                {% endfor %}
-                                                                {% if campaign.allow_channels.all|length > 5 %}
-                                                                    <li style="margin-bottom: 0.1rem; color: #666; font-style: italic;">
-                                                                        ... and {{ campaign.allow_channels.all|length|add:"-5" }} more
-                                                                    </li>
                                                                 {% endif %}
-                                                            </ul>
-                                                        </div>
-                                                    {% endif %}
+                                                            {% else %}
+                                                                {% if campaign.game.twitch_directory_url %}
+                                                                    <li>
+                                                                        <a href="{{ campaign.game.twitch_directory_url }}"
+                                                                           target="_blank"
+                                                                           rel="noopener noreferrer"
+                                                                           title="Find streamers playing {{ campaign.game.display_name }} with drops enabled">
+                                                                            Go to a participating live channel
+                                                                        </a>
+                                                                    </li>
+                                                                {% else %}
+                                                                    <li>Failed to get Twitch directory URL :(</li>
+                                                                {% endif %}
+                                                            {% endif %}
+                                                        </ul>
+                                                    </div>
                                                 </div>
                                             </article>
                                         {% endfor %}
