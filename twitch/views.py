@@ -232,7 +232,7 @@ class DropCampaignDetailView(DetailView):
         if queryset is None:
             queryset = self.get_queryset()
 
-        queryset = queryset.select_related("game__owner")
+        queryset = queryset.select_related("game__owner").prefetch_related("allow_channels")
 
         return super().get_object(queryset=queryset)
 
@@ -337,6 +337,7 @@ class DropCampaignDetailView(DetailView):
         context["drops"] = enhanced_drops
         context["campaign_data"] = format_and_color_json(campaign_data[0])
         context["owner"] = campaign.game.owner
+        context["allowed_channels"] = campaign.allow_channels.all().order_by("display_name")
 
         return context
 
