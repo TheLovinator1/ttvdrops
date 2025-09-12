@@ -232,7 +232,7 @@ class DropCampaignDetailView(DetailView):
         if queryset is None:
             queryset = self.get_queryset()
 
-        queryset = queryset.select_related("game__owner").prefetch_related("allow_channels")
+        queryset = queryset.select_related("game__owner")
 
         return super().get_object(queryset=queryset)
 
@@ -530,10 +530,6 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now)
         .select_related("game__owner")
         .prefetch_related(
-            Prefetch(
-                "time_based_drops",
-                queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
-            ),
             "allow_channels",
         )
     )
@@ -598,19 +594,8 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     ).select_related("game")
 
     # Benefits with missing images
-    broken_benefit_images: QuerySet[DropBenefit] = (
-        DropBenefit.objects.annotate(
-            trimmed_url=Trim("image_asset_url")  # Create a temporary field with no whitespace
-        )
-        .filter(
-            Q(image_asset_url__isnull=True)
-            | Q(trimmed_url__exact="")  # Check the trimmed URL
-            | ~Q(image_asset_url__startswith="http")
-        )
-        .prefetch_related(
-            # Prefetch the path to the game to avoid N+1 queries in the template
-            Prefetch("drops", queryset=TimeBasedDrop.objects.select_related("campaign__game"))
-        )
+    broken_benefit_images: QuerySet[DropBenefit] = DropBenefit.objects.annotate(trimmed_url=Trim("image_asset_url")).filter(
+        Q(image_asset_url__isnull=True) | Q(trimmed_url__exact="") | ~Q(image_asset_url__startswith="http")
     )
 
     # Time-based drops without any benefits
@@ -833,7 +818,10 @@ class ChannelDetailView(DetailView):
             .select_related("game__owner")
             .prefetch_related(
                 Prefetch(
-                    "time_based_drops", queryset=TimeBasedDrop.objects.prefetch_related(Prefetch("benefits", queryset=DropBenefit.objects.order_by("name")))
+                    "time_based_drops",
+                    queryset=TimeBasedDrop.objects.prefetch_related(
+                        Prefetch("benefits", queryset=DropBenefit.objects.order_by("name")),
+                    ),
                 )
             )
             .order_by("-start_at")

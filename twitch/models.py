@@ -5,6 +5,7 @@ import re
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlsplit, urlunsplit
 
+import auto_prefetch
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.db import models
@@ -18,7 +19,7 @@ if TYPE_CHECKING:
 logger: logging.Logger = logging.getLogger("ttvdrops")
 
 
-class Organization(models.Model):
+class Organization(auto_prefetch.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
     id = models.CharField(
@@ -48,7 +49,7 @@ class Organization(models.Model):
     # PostgreSQL full-text search field
     search_vector = SearchVectorField(null=True, blank=True)
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["name"]
         indexes: ClassVar[list] = [
             # Regular B-tree index for name lookups
@@ -62,7 +63,7 @@ class Organization(models.Model):
         return self.name or self.id
 
 
-class Game(models.Model):
+class Game(auto_prefetch.Model):
     """Represents a game on Twitch."""
 
     id = models.CharField(max_length=255, primary_key=True, verbose_name="Game ID")
@@ -98,7 +99,7 @@ class Game(models.Model):
     # PostgreSQL full-text search field
     search_vector = SearchVectorField(null=True, blank=True)
 
-    owner = models.ForeignKey(
+    owner = auto_prefetch.ForeignKey(
         Organization,
         on_delete=models.SET_NULL,
         related_name="games",
@@ -118,7 +119,7 @@ class Game(models.Model):
         help_text="Timestamp when this game record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["display_name"]
         indexes: ClassVar[list] = [
             models.Index(fields=["slug"]),
@@ -180,7 +181,7 @@ class Game(models.Model):
         return ""
 
 
-class Channel(models.Model):
+class Channel(auto_prefetch.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
 
     id = models.CharField(
@@ -212,7 +213,7 @@ class Channel(models.Model):
         help_text="Timestamp when this channel record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["display_name"]
         indexes: ClassVar[list] = [
             models.Index(fields=["name"]),
@@ -224,7 +225,7 @@ class Channel(models.Model):
         return self.display_name or self.name or self.id
 
 
-class DropCampaign(models.Model):
+class DropCampaign(auto_prefetch.Model):
     """Represents a Twitch drop campaign."""
 
     id = models.CharField(
@@ -289,7 +290,7 @@ class DropCampaign(models.Model):
     # PostgreSQL full-text search field
     search_vector = SearchVectorField(null=True, blank=True)
 
-    game = models.ForeignKey(
+    game = auto_prefetch.ForeignKey(
         Game,
         on_delete=models.CASCADE,
         related_name="drop_campaigns",
@@ -307,7 +308,7 @@ class DropCampaign(models.Model):
         help_text="Timestamp when this campaign record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["-start_at"]
         constraints = [
             # Ensure end_at is after start_at when both are set
@@ -368,7 +369,7 @@ class DropCampaign(models.Model):
         return self.name
 
 
-class DropBenefit(models.Model):
+class DropBenefit(auto_prefetch.Model):
     """Represents a benefit that can be earned from a drop."""
 
     id = models.CharField(
@@ -425,7 +426,7 @@ class DropBenefit(models.Model):
         help_text="Timestamp when this benefit record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["-created_at"]
         indexes: ClassVar[list] = [
             # Regular B-tree index for benefit name lookups
@@ -443,7 +444,7 @@ class DropBenefit(models.Model):
         return self.name
 
 
-class TimeBasedDrop(models.Model):
+class TimeBasedDrop(auto_prefetch.Model):
     """Represents a time-based drop in a drop campaign."""
 
     id = models.CharField(
@@ -483,7 +484,7 @@ class TimeBasedDrop(models.Model):
     search_vector = SearchVectorField(null=True, blank=True)
 
     # Foreign keys
-    campaign = models.ForeignKey(
+    campaign = auto_prefetch.ForeignKey(
         DropCampaign,
         on_delete=models.CASCADE,
         related_name="time_based_drops",
@@ -506,7 +507,7 @@ class TimeBasedDrop(models.Model):
         help_text="Timestamp when this time-based drop record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["start_at"]
         constraints = [
             # Ensure end_at is after start_at when both are set
@@ -535,15 +536,15 @@ class TimeBasedDrop(models.Model):
         return self.name
 
 
-class DropBenefitEdge(models.Model):
+class DropBenefitEdge(auto_prefetch.Model):
     """Represents the relationship between a TimeBasedDrop and a DropBenefit."""
 
-    drop = models.ForeignKey(
+    drop = auto_prefetch.ForeignKey(
         TimeBasedDrop,
         on_delete=models.CASCADE,
         help_text="The time-based drop in this relationship.",
     )
-    benefit = models.ForeignKey(
+    benefit = auto_prefetch.ForeignKey(
         DropBenefit,
         on_delete=models.CASCADE,
         help_text="The benefit in this relationship.",
@@ -563,7 +564,7 @@ class DropBenefitEdge(models.Model):
         help_text="Timestamp when this drop-benefit edge was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         constraints = [
             models.UniqueConstraint(fields=("drop", "benefit"), name="unique_drop_benefit"),
         ]
@@ -576,12 +577,12 @@ class DropBenefitEdge(models.Model):
         return f"{self.drop.name} - {self.benefit.name}"
 
 
-class NotificationSubscription(models.Model):
+class NotificationSubscription(auto_prefetch.Model):
     """Users can subscribe to games to get notified."""
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    game = models.ForeignKey(Game, null=True, blank=True, on_delete=models.CASCADE)
-    organization = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.CASCADE)
+    user = auto_prefetch.ForeignKey(User, on_delete=models.CASCADE)
+    game = auto_prefetch.ForeignKey(Game, null=True, blank=True, on_delete=models.CASCADE)
+    organization = auto_prefetch.ForeignKey(Organization, null=True, blank=True, on_delete=models.CASCADE)
 
     notify_found = models.BooleanField(default=False)
     notify_live = models.BooleanField(default=False)
@@ -589,7 +590,7 @@ class NotificationSubscription(models.Model):
     added_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         unique_together: ClassVar[list[tuple[str, str]]] = [
             ("user", "game"),
             ("user", "organization"),

@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "psycopg[binary]>=3.2.3",
     "pygments>=2.19.2",
+    "django-auto-prefetch>=1.13.0",
 ]
 
 [dependency-groups]
