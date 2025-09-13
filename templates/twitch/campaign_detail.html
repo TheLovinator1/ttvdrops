@@ -18,11 +18,11 @@
         </p>
     {% endif %}
     <!-- Campaign image -->
-    {% if campaign.image_url %}
+    {% if campaign.image_best_url or campaign.image_url %}
         <img id="campaign-image"
              height="160"
              width="160"
-             src="{{ campaign.image_url }}"
+             src="{{ campaign.image_best_url|default:campaign.image_url }}"
              alt="{{ campaign.name }}">
     {% endif %}
     <!-- Campaign description -->
@@ -117,12 +117,12 @@
                     <tr id="drop-{{ drop.drop.id }}">
                         <td>
                             {% for benefit in drop.drop.benefits.all %}
-                                {% if benefit.image_asset_url %}
+                                {% if benefit.image_best_url or benefit.image_asset_url %}
                                     <img height="160"
                                          width="160"
                                          style="object-fit: cover;
                                                 margin-right: 3px"
-                                         src="{{ benefit.image_asset_url }}"
+                                         src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
                                          alt="{{ benefit.name }}">
                                 {% else %}
                                     <img height="160"

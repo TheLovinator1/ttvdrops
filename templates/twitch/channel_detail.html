@@ -33,8 +33,8 @@
                                 <div class="campaign-benefits">
                                     {% for benefit in campaign.sorted_benefits %}
                                         <span class="benefit-item" title="{{ benefit.name }}">
-                                            {% if benefit.image_asset_url %}
-                                                <img src="{{ benefit.image_asset_url }}"
+                                            {% if benefit.image_best_url or benefit.image_asset_url %}
+                                                <img src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
                                                      alt="{{ benefit.name }}"
                                                      width="24"
                                                      height="24"
@@ -77,8 +77,8 @@
                                 <div class="campaign-benefits">
                                     {% for benefit in campaign.sorted_benefits %}
                                         <span class="benefit-item" title="{{ benefit.name }}">
-                                            {% if benefit.image_asset_url %}
-                                                <img src="{{ benefit.image_asset_url }}"
+                                            {% if benefit.image_best_url or benefit.image_asset_url %}
+                                                <img src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
                                                      alt="{{ benefit.name }}"
                                                      width="24"
                                                      height="24"
@@ -121,8 +121,8 @@
                                 <div class="campaign-benefits">
                                     {% for benefit in campaign.sorted_benefits %}
                                         <span class="benefit-item" title="{{ benefit.name }}">
-                                            {% if benefit.image_asset_url %}
-                                                <img src="{{ benefit.image_asset_url }}"
+                                            {% if benefit.image_best_url or benefit.image_asset_url %}
+                                                <img src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
                                                      alt="{{ benefit.name }}"
                                                      width="24"
                                                      height="24"

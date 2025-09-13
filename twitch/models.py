@@ -95,6 +95,13 @@ class Game(auto_prefetch.Model):
         default="",
         verbose_name="Box art URL",
     )
+    # Locally cached image file for the game's box art
+    box_art_file = models.FileField(
+        upload_to="games/box_art/",
+        blank=True,
+        null=True,
+        help_text="Locally cached box art image served from this site.",
+    )
 
     # PostgreSQL full-text search field
     search_vector = SearchVectorField(null=True, blank=True)
@@ -161,6 +168,22 @@ class Game(auto_prefetch.Model):
             flags=re.IGNORECASE,
         )
         return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
+
+    @property
+    def box_art_best_url(self) -> str:
+        """Return the best available URL for the game's box art.
+
+        Preference order:
+        1) Local cached file (MEDIA)
+        2) Remote Twitch base URL
+        3) Empty string
+        """
+        try:
+            if self.box_art_file and getattr(self.box_art_file, "url", None):
+                return self.box_art_file.url
+        except (AttributeError, OSError, ValueError) as exc:  # storage might not be configured in some contexts
+            logger.debug("Failed to resolve Game.box_art_file url: %s", exc)
+        return self.box_art_base_url
 
     @property
     def get_game_name(self) -> str:
@@ -259,6 +282,13 @@ class DropCampaign(auto_prefetch.Model):
         blank=True,
         default="",
         help_text="URL to an image representing the campaign.",
+    )
+    # Locally cached campaign image
+    image_file = models.FileField(
+        upload_to="campaigns/images/",
+        blank=True,
+        null=True,
+        help_text="Locally cached campaign image served from this site.",
     )
     start_at = models.DateTimeField(
         db_index=True,
@@ -368,6 +398,16 @@ class DropCampaign(auto_prefetch.Model):
 
         return self.name
 
+    @property
+    def image_best_url(self) -> str:
+        """Return the best available URL for the campaign image (local first)."""
+        try:
+            if self.image_file and getattr(self.image_file, "url", None):
+                return self.image_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
+        return self.image_url or ""
+
 
 class DropBenefit(auto_prefetch.Model):
     """Represents a benefit that can be earned from a drop."""
@@ -389,6 +429,13 @@ class DropBenefit(auto_prefetch.Model):
         blank=True,
         default="",
         help_text="URL to the benefit's image asset.",
+    )
+    # Locally cached benefit image
+    image_file = models.FileField(
+        upload_to="benefits/images/",
+        blank=True,
+        null=True,
+        help_text="Locally cached benefit image served from this site.",
     )
     created_at = models.DateTimeField(
         null=True,
@@ -442,6 +489,16 @@ class DropBenefit(auto_prefetch.Model):
     def __str__(self) -> str:
         """Return a string representation of the drop benefit."""
         return self.name
+
+    @property
+    def image_best_url(self) -> str:
+        """Return the best available URL for the benefit image (local first)."""
+        try:
+            if self.image_file and getattr(self.image_file, "url", None):
+                return self.image_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug("Failed to resolve DropBenefit.image_file url: %s", exc)
+        return self.image_asset_url or ""
 
 
 class TimeBasedDrop(auto_prefetch.Model):

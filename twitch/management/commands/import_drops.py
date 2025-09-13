@@ -13,6 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from twitch.models import Channel, DropBenefit, DropBenefitEdge, DropCampaign, Game, Organization, TimeBasedDrop
+from twitch.utils.images import cache_remote_image
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -472,6 +473,13 @@ class Command(BaseCommand):
                 defaults=benefit_defaults,
             )
 
+            # Cache benefit image if available and not already cached
+            if (not benefit.image_file) and benefit.image_asset_url:
+                rel_path: str | None = cache_remote_image(benefit.image_asset_url, "benefits/images")
+                if rel_path:
+                    benefit.image_file.name = rel_path
+                    benefit.save(update_fields=["image_file"])
+
             DropBenefitEdge.objects.update_or_create(
                 drop=time_based_drop,
                 benefit=benefit,
@@ -590,6 +598,13 @@ class Command(BaseCommand):
 
         if created:
             self.stdout.write(self.style.SUCCESS(f"Created new drop campaign: {drop_campaign.name} (ID: {drop_campaign.id})"))
+
+        # Cache campaign image if available and not already cached
+        if (not drop_campaign.image_file) and drop_campaign.image_url:
+            rel_path: str | None = cache_remote_image(drop_campaign.image_url, "campaigns/images")
+            if rel_path:
+                drop_campaign.image_file.name = rel_path
+                drop_campaign.save(update_fields=["image_file"])  # type: ignore[list-item]
         return drop_campaign
 
     def owner_update_or_create(self, campaign_data: dict[str, Any]) -> Organization | None:
@@ -648,4 +663,11 @@ class Command(BaseCommand):
         )
         if created:
             self.stdout.write(self.style.SUCCESS(f"Created new game: {game.display_name} (ID: {game.id})"))
+
+        # Cache game box art if available and not already cached
+        if (not game.box_art_file) and game.box_art:
+            rel_path: str | None = cache_remote_image(game.box_art, "games/box_art")
+            if rel_path:
+                game.box_art_file.name = rel_path
+                game.save(update_fields=["box_art_file"])
         return game

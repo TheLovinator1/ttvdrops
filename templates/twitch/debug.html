@@ -29,7 +29,7 @@
                     <li id="campaign-{{ c.id }}">
                         <a href="{% url 'twitch:campaign_detail' c.id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'twitch:game_detail' c.game.id %}">{{ c.game.display_name }}</a>)
-                        - URL: {{ c.image_url|default:'(empty)' }}
+                        - URL: {{ c.image_best_url|default:c.image_url|default:'(empty)' }}
                     </li>
                 {% endfor %}
             </ul>
@@ -53,7 +53,7 @@
                             {% else %}
                                 (Game: Not linked)
                             {% endif %}
-                            - URL: {{ b.image_asset_url|default:'(empty)' }}
+                            - URL: {{ b.image_best_url|default:b.image_asset_url|default:'(empty)' }}
                         </li>
                     {% endwith %}
                 {% endfor %}

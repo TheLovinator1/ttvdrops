@@ -53,8 +53,8 @@
                          style="margin-bottom: 3rem">
                     <div style="display: flex; gap: 1rem;">
                         <div style="flex-shrink: 0;">
-                            {% if game_group.grouper.box_art_base_url %}
-                                <img src="{{ game_group.grouper.box_art_base_url }}"
+                            {% if game_group.grouper.box_art_best_url %}
+                                <img src="{{ game_group.grouper.box_art_best_url }}"
                                      alt="Box art for {{ game_group.grouper.display_name }}"
                                      width="120"
                                      height="160"
@@ -104,9 +104,9 @@
                                                 <a id="campaign-link-{{ campaign.id }}"
                                                    href="{% url 'twitch:campaign_detail' campaign.id %}"
                                                    style="text-decoration: none">
-                                                    {% if campaign.image_url %}
+                                                    {% if campaign.image_best_url or campaign.image_url %}
                                                         <img id="campaign-image-{{ campaign.id }}"
-                                                             src="{{ campaign.image_url }}"
+                                                             src="{{ campaign.image_best_url|default:campaign.image_url }}"
                                                              alt="Campaign artwork for {{ campaign.name }}"
                                                              width="120"
                                                              height="120"
