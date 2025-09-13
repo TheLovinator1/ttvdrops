@@ -30,13 +30,13 @@ class CustomLoginView(LoginView):
         Returns:
             str: URL to redirect to after successful login.
         """
-        return reverse_lazy("twitch:dashboard")
+        return reverse_lazy("twitch:dashboard")  # pyright: ignore[reportReturnType]
 
 
 class CustomLogoutView(LogoutView):
     """Custom logout view."""
 
-    next_page = reverse_lazy("twitch:dashboard")
+    next_page = reverse_lazy("twitch:dashboard")  # pyright: ignore[reportAssignmentType]
     http_method_names = ["get", "post", "options"]
 
     def get(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:

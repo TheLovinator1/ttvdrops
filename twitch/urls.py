@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from django.urls import path
 
 from twitch import views
@@ -9,9 +11,12 @@ from twitch.feeds import (
     OrganizationFeed,
 )
 
+if TYPE_CHECKING:
+    from django.urls.resolvers import URLPattern
+
 app_name = "twitch"
 
-urlpatterns = [
+urlpatterns: list[URLPattern] = [
     path("", views.dashboard, name="dashboard"),
     path("search/", views.search_view, name="search"),
     path("debug/", views.debug_view, name="debug"),

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     import datetime
 
 
+# MARK: /rss/organizations/
 class OrganizationFeed(Feed):
     """RSS feed for latest organizations."""
 
@@ -36,6 +37,7 @@ class OrganizationFeed(Feed):
         return reverse("twitch:organization_detail", args=[item.pk])
 
 
+# MARK: /rss/games/
 class GameFeed(Feed):
     """RSS feed for latest games."""
 
@@ -60,6 +62,7 @@ class GameFeed(Feed):
         return reverse("twitch:game_detail", args=[item.pk])
 
 
+# MARK: /rss/campaigns/
 class DropCampaignFeed(Feed):
     """RSS feed for latest drop campaigns."""
 

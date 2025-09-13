@@ -5,6 +5,7 @@ from django.contrib import admin
 from twitch.models import DropBenefit, DropBenefitEdge, DropCampaign, Game, Organization, TimeBasedDrop
 
 
+# MARK: Game
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
     """Admin configuration for Game model."""
@@ -14,6 +15,7 @@ class GameAdmin(admin.ModelAdmin):
     readonly_fields = ("added_at", "updated_at")
 
 
+# MARK: Organization
 @admin.register(Organization)
 class OrganizationAdmin(admin.ModelAdmin):
     """Admin configuration for Organization model."""
@@ -30,6 +32,7 @@ class TimeBasedDropInline(admin.TabularInline):
     extra = 0
 
 
+# MARK: DropCampaign
 @admin.register(DropCampaign)
 class DropCampaignAdmin(admin.ModelAdmin):
     """Admin configuration for DropCampaign model."""
@@ -48,6 +51,7 @@ class DropBenefitEdgeInline(admin.TabularInline):
     extra = 0
 
 
+# MARK: TimeBasedDrop
 @admin.register(TimeBasedDrop)
 class TimeBasedDropAdmin(admin.ModelAdmin):
     """Admin configuration for TimeBasedDrop model."""
@@ -68,6 +72,7 @@ class TimeBasedDropAdmin(admin.ModelAdmin):
     inlines = [DropBenefitEdgeInline]
 
 
+# MARK: DropBenefit
 @admin.register(DropBenefit)
 class DropBenefitAdmin(admin.ModelAdmin):
     """Admin configuration for DropBenefit model."""

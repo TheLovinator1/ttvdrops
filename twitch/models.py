@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 logger: logging.Logger = logging.getLogger("ttvdrops")
 
 
+# MARK: Organization
 class Organization(auto_prefetch.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
@@ -63,6 +64,7 @@ class Organization(auto_prefetch.Model):
         return self.name or self.id
 
 
+# MARK: Game
 class Game(auto_prefetch.Model):
     """Represents a game on Twitch."""
 
@@ -204,6 +206,7 @@ class Game(auto_prefetch.Model):
         return ""
 
 
+# MARK: Channel
 class Channel(auto_prefetch.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
 
@@ -248,6 +251,7 @@ class Channel(auto_prefetch.Model):
         return self.display_name or self.name or self.id
 
 
+# MARK: DropCampaign
 class DropCampaign(auto_prefetch.Model):
     """Represents a Twitch drop campaign."""
 
@@ -409,6 +413,7 @@ class DropCampaign(auto_prefetch.Model):
         return self.image_url or ""
 
 
+# MARK: DropBenefit
 class DropBenefit(auto_prefetch.Model):
     """Represents a benefit that can be earned from a drop."""
 
@@ -501,6 +506,7 @@ class DropBenefit(auto_prefetch.Model):
         return self.image_asset_url or ""
 
 
+# MARK: TimeBasedDrop
 class TimeBasedDrop(auto_prefetch.Model):
     """Represents a time-based drop in a drop campaign."""
 
@@ -593,6 +599,7 @@ class TimeBasedDrop(auto_prefetch.Model):
         return self.name
 
 
+# MARK: DropBenefitEdge
 class DropBenefitEdge(auto_prefetch.Model):
     """Represents the relationship between a TimeBasedDrop and a DropBenefit."""
 
@@ -634,6 +641,7 @@ class DropBenefitEdge(auto_prefetch.Model):
         return f"{self.drop.name} - {self.benefit.name}"
 
 
+# MARK: NotificationSubscription
 class NotificationSubscription(auto_prefetch.Model):
     """Users can subscribe to games to get notified."""
 

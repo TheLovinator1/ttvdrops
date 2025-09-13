@@ -35,6 +35,7 @@ MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
 
 
+# MARK: /search/
 def search_view(request: HttpRequest) -> HttpResponse:
     """Search view for all models.
 
@@ -95,6 +96,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
     return render(request, "twitch/search_results.html", {"query": query, "results": results})
 
 
+# MARK: /organizations/
 class OrgListView(ListView):
     """List view for organization."""
 
@@ -103,6 +105,7 @@ class OrgListView(ListView):
     context_object_name = "orgs"
 
 
+# MARK: /organizations/<pk>/
 class OrgDetailView(DetailView):
     """Detail view for organization."""
 
@@ -157,6 +160,7 @@ class OrgDetailView(DetailView):
         return context
 
 
+# MARK: /campaigns/
 class DropCampaignListView(ListView):
     """List view for drop campaigns."""
 
@@ -213,6 +217,7 @@ def format_and_color_json(code: str) -> str:
     return highlight(formatted_code, JsonLexer(), HtmlFormatter())
 
 
+# MARK: /campaigns/<pk>/
 class DropCampaignDetailView(DetailView):
     """Detail view for a drop campaign."""
 
@@ -342,6 +347,7 @@ class DropCampaignDetailView(DetailView):
         return context
 
 
+# MARK: /games/
 class GamesGridView(ListView):
     """List view for games grouped by organization."""
 
@@ -412,6 +418,7 @@ class GamesGridView(ListView):
         return context
 
 
+# MARK: /games/<pk>/
 class GameDetailView(DetailView):
     """Detail view for a game."""
 
@@ -574,6 +581,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     )
 
 
+# MARK: /debug/
 @login_required
 def debug_view(request: HttpRequest) -> HttpResponse:
     """Debug view showing potentially broken or inconsistent data.
@@ -635,6 +643,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     return render(request, "twitch/debug.html", context)
 
 
+# MARK: /games/<pk>/subscribe/
 @login_required
 def subscribe_game_notifications(request: HttpRequest, game_id: str) -> HttpResponseRedirect:
     """Update Game notification for a user.
@@ -678,6 +687,7 @@ def subscribe_game_notifications(request: HttpRequest, game_id: str) -> HttpResp
     return redirect("twitch:game_detail", pk=game.id)
 
 
+# MARK: /organizations/<pk>/subscribe/
 @login_required
 def subscribe_org_notifications(request: HttpRequest, org_id: str) -> HttpResponseRedirect:
     """Update Organization notification for a user.
@@ -722,12 +732,14 @@ def subscribe_org_notifications(request: HttpRequest, org_id: str) -> HttpRespon
     return redirect("twitch:organization_detail", pk=organization.id)
 
 
+# MARK: /games/list/
 class GamesListView(GamesGridView):
     """List view for games in simple list format."""
 
     template_name = "twitch/games_list.html"
 
 
+# MARK: /docs/rss/
 def docs_rss_view(request: HttpRequest) -> HttpResponse:
     """View for /docs/rss that lists all available RSS feeds.
 
@@ -757,6 +769,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     return render(request, "twitch/docs_rss.html", {"feeds": feeds})
 
 
+# MARK: /channels/
 class ChannelListView(ListView):
     """List view for channels."""
 
@@ -793,6 +806,7 @@ class ChannelListView(ListView):
         return context
 
 
+# MARK: /channels/<pk>/
 class ChannelDetailView(DetailView):
     """Detail view for a channel."""
 
