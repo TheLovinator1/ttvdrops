@@ -56,7 +56,6 @@ Hover over the end time to see the exact date and time.
                                                     <time datetime="{{ campaign.end_at|date:'c' }}"
                                                           title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}"
                                                           style="font-size: 0.9rem;
-                                                                 color: #666;
                                                                  display: block;
                                                                  text-align: left">
                                                         Ends in {{ campaign.end_at|timeuntil }}
@@ -64,7 +63,6 @@ Hover over the end time to see the exact date and time.
                                                     <time datetime="{{ campaign.start_at|date:'c' }}"
                                                           title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}"
                                                           style="font-size: 0.9rem;
-                                                                 color: #666;
                                                                  display: block;
                                                                  text-align: left">
                                                         Started {{ campaign.start_at|timesince }} ago
@@ -72,7 +70,6 @@ Hover over the end time to see the exact date and time.
                                                     <time datetime="{{ campaign.added_at|date:'c' }}"
                                                           title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}"
                                                           style="font-size: 0.9rem;
-                                                                 color: #666;
                                                                  display: block;
                                                                  text-align: left">
                                                         Scraped {{ campaign.added_at|timesince }} ago
@@ -80,12 +77,11 @@ Hover over the end time to see the exact date and time.
                                                     <time datetime="{{ campaign.start_at|date:'c' }} to {{ campaign.end_at|date:'c' }}"
                                                           title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}"
                                                           style="font-size: 0.9rem;
-                                                                 color: #666;
                                                                  display: block;
                                                                  text-align: left">
                                                         Duration: {{ campaign.start_at|timesince:campaign.end_at }}
                                                     </time>
-                                                    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #444;">
+                                                    <div style="margin-top: 0.5rem; font-size: 0.8rem; ">
                                                         <strong>Channels:</strong>
                                                         <ul style="margin: 0.25rem 0 0 0;
                                                                    padding-left: 1rem;
