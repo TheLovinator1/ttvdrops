@@ -11,6 +11,7 @@
         "docstrings",
         "dotenv",
         "Hellsén",
+        "IGDB",
         "isort",
         "Joakim",
         "kwargs",

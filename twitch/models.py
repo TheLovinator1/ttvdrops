@@ -206,6 +206,54 @@ class Game(auto_prefetch.Model):
         return ""
 
 
+# MARK: TwitchGame
+class TwitchGameData(auto_prefetch.Model):
+    """Represents game metadata returned from the Twitch API.
+
+    This mirrors the public Twitch API fields for a game and is tied to the local `Game` model where possible.
+
+    Fields:
+        id: Twitch game id (primary key)
+        game: Optional FK to the local Game object
+        name: Display name of the game
+        box_art_url: URL template for box art with {width}x{height} placeholder
+        igdb_id: Optional IGDB id for the game
+    """
+
+    id = models.CharField(max_length=255, primary_key=True, verbose_name="Twitch Game ID")
+    game = auto_prefetch.ForeignKey(
+        Game,
+        on_delete=models.SET_NULL,
+        related_name="twitch_game_data",
+        null=True,
+        blank=True,
+        verbose_name="Game",
+        help_text="Optional link to the local Game record for this Twitch game.",
+    )
+
+    name = models.CharField(max_length=255, blank=True, default="", db_index=True, verbose_name="Name")
+    box_art_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name="Box art URL",
+        help_text="URL template with {width}x{height} placeholders for the box art image.",
+    )
+    igdb_id = models.CharField(max_length=255, blank=True, default="", verbose_name="IGDB ID")
+
+    added_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Record creation time.")
+    updated_at = models.DateTimeField(auto_now=True, help_text="Record last update time.")
+
+    class Meta(auto_prefetch.Model.Meta):
+        ordering = ["name"]
+        indexes: ClassVar[list] = [
+            models.Index(fields=["name"]),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return self.name or self.id
+
+
 # MARK: Channel
 class Channel(auto_prefetch.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
