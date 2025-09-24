@@ -523,6 +523,7 @@ class GameDetailView(DetailView):
         return context
 
 
+# MARK: /
 def dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard view showing active campaigns and progress.
 
