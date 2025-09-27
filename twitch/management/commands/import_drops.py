@@ -5,6 +5,7 @@ import shutil
 import time
 import traceback
 from datetime import timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
 
+@lru_cache(maxsize=4096)
 def parse_date(value: str | None) -> datetime | None:
     """Parse a datetime string into a timezone-aware datetime using dateparser.
 
@@ -33,10 +35,14 @@ def parse_date(value: str | None) -> datetime | None:
     """
     value = (value or "").strip()
 
-    if not value or value == "None":
+    if not value:
         return None
 
-    dt: datetime | None = dateparser.parse(value, settings={"RETURN_AS_TIMEZONE_AWARE": True})
+    dateparser_settings: dict[str, bool | int] = {
+        "RETURN_AS_TIMEZONE_AWARE": True,
+        "CACHE_SIZE_LIMIT": 0,
+    }
+    dt: datetime | None = dateparser.parse(date_string=value, settings=dateparser_settings)  # pyright: ignore[reportArgumentType]
     if not dt:
         return None
 
