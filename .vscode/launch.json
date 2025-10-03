@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Django",
+            "name": "Django",
             "type": "debugpy",
             "request": "launch",
             "args": [
@@ -10,19 +10,19 @@
             ],
             "django": true,
             "autoStartBrowser": false,
-            "program": "${workspaceFolder}\\manage.py"
+            "program": "${workspaceFolder}/manage.py"
         },
         {
-            "name": "Python Debugger: Import Drops",
+            "name": "Import Drops",
             "type": "debugpy",
             "request": "launch",
             "args": [
                 "import_drops",
-                "C:\\Responses"
+                "${workspaceFolder}/Responses"
             ],
             "django": false,
             "autoStartBrowser": false,
-            "program": "${workspaceFolder}\\manage.py"
+            "program": "${workspaceFolder}/manage.py"
         }
     ]
 }
