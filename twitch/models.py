@@ -329,13 +329,7 @@ class DropCampaign(models.Model):
 
     class Meta:
         ordering = ["-start_at"]
-        constraints = [
-            # Ensure end_at is after start_at when both are set
-            models.CheckConstraint(
-                condition=models.Q(start_at__isnull=True) | models.Q(end_at__isnull=True) | models.Q(end_at__gt=models.F("start_at")),
-                name="campaign_valid_date_range",
-            ),
-        ]
+
         indexes: ClassVar[list] = [
             models.Index(fields=["name"]),
             models.Index(fields=["start_at", "end_at"]),
@@ -527,17 +521,6 @@ class TimeBasedDrop(models.Model):
 
     class Meta:
         ordering = ["start_at"]
-        constraints = [
-            # Ensure end_at is after start_at when both are set
-            models.CheckConstraint(
-                condition=models.Q(start_at__isnull=True) | models.Q(end_at__isnull=True) | models.Q(end_at__gt=models.F("start_at")),
-                name="drop_valid_date_range",
-            ),
-            # Ensure required_minutes_watched is non-negative when set
-            models.CheckConstraint(
-                condition=models.Q(required_minutes_watched__isnull=True) | models.Q(required_minutes_watched__gte=0), name="drop_positive_minutes"
-            ),
-        ]
         indexes: ClassVar[list] = [
             models.Index(fields=["name"]),
             models.Index(fields=["start_at", "end_at"]),
