@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 from django.db import models
 from django.utils import timezone
@@ -22,7 +22,6 @@ class Organization(models.Model):
         help_text="The unique Twitch identifier for the organization.",
     )
     name = models.TextField(
-        db_index=True,
         unique=True,
         verbose_name="Name",
         help_text="Display name of the organization.",
@@ -30,7 +29,6 @@ class Organization(models.Model):
 
     added_at = models.DateTimeField(
         auto_now_add=True,
-        db_index=True,
         help_text="Timestamp when this organization record was created.",
     )
     updated_at = models.DateTimeField(
@@ -40,9 +38,6 @@ class Organization(models.Model):
 
     class Meta:
         ordering = ["name"]
-        indexes: ClassVar[list] = [
-            models.Index(fields=["name"]),
-        ]
 
     def __str__(self) -> str:
         """Return a string representation of the organization."""
@@ -58,20 +53,17 @@ class Game(models.Model):
         max_length=200,
         blank=True,
         default="",
-        db_index=True,
         verbose_name="Slug",
         help_text="Short unique identifier for the game.",
     )
     name = models.TextField(
         blank=True,
         default="",
-        db_index=True,
         verbose_name="Name",
     )
     display_name = models.TextField(
         blank=True,
         default="",
-        db_index=True,
         verbose_name="Display name",
     )
     box_art = models.URLField(
@@ -100,7 +92,6 @@ class Game(models.Model):
 
     added_at = models.DateTimeField(
         auto_now_add=True,
-        db_index=True,
         help_text="Timestamp when this game record was created.",
     )
     updated_at = models.DateTimeField(
@@ -110,12 +101,6 @@ class Game(models.Model):
 
     class Meta:
         ordering = ["display_name"]
-        indexes: ClassVar[list] = [
-            models.Index(fields=["display_name"]),
-            models.Index(fields=["name"]),
-            models.Index(fields=["slug"]),
-            models.Index(fields=["owner"], condition=models.Q(owner__isnull=False), name="game_owner_partial_idx"),
-        ]
 
     def __str__(self) -> str:
         """Return a string representation of the game."""
@@ -177,7 +162,7 @@ class TwitchGameData(models.Model):
         help_text="Optional link to the local Game record for this Twitch game.",
     )
 
-    name = models.TextField(blank=True, default="", db_index=True, verbose_name="Name")
+    name = models.TextField(blank=True, default="", verbose_name="Name")
     box_art_url = models.URLField(
         max_length=500,
         blank=True,
@@ -187,14 +172,11 @@ class TwitchGameData(models.Model):
     )
     igdb_id = models.TextField(blank=True, default="", verbose_name="IGDB ID")
 
-    added_at = models.DateTimeField(auto_now_add=True, db_index=True, help_text="Record creation time.")
+    added_at = models.DateTimeField(auto_now_add=True, help_text="Record creation time.")
     updated_at = models.DateTimeField(auto_now=True, help_text="Record last update time.")
 
     class Meta:
         ordering = ["name"]
-        indexes: ClassVar[list] = [
-            models.Index(fields=["name"]),
-        ]
 
     def __str__(self) -> str:
         return self.name or self.id
@@ -210,19 +192,16 @@ class Channel(models.Model):
         help_text="The unique Twitch identifier for the channel.",
     )
     name = models.TextField(
-        db_index=True,
         verbose_name="Username",
         help_text="The lowercase username of the channel.",
     )
     display_name = models.TextField(
-        db_index=True,
         verbose_name="Display Name",
         help_text="The display name of the channel (with proper capitalization).",
     )
 
     added_at = models.DateTimeField(
         auto_now_add=True,
-        db_index=True,
         help_text="Timestamp when this channel record was created.",
     )
     updated_at = models.DateTimeField(
@@ -232,10 +211,6 @@ class Channel(models.Model):
 
     class Meta:
         ordering = ["display_name"]
-        indexes: ClassVar[list] = [
-            models.Index(fields=["name"]),
-            models.Index(fields=["display_name"]),
-        ]
 
     def __str__(self) -> str:
         """Return a string representation of the channel."""
@@ -251,7 +226,6 @@ class DropCampaign(models.Model):
         help_text="Unique Twitch identifier for the campaign.",
     )
     name = models.TextField(
-        db_index=True,
         help_text="Name of the drop campaign.",
     )
     description = models.TextField(
@@ -283,13 +257,11 @@ class DropCampaign(models.Model):
         help_text="Locally cached campaign image served from this site.",
     )
     start_at = models.DateTimeField(
-        db_index=True,
         null=True,
         blank=True,
         help_text="Datetime when the campaign starts.",
     )
     end_at = models.DateTimeField(
-        db_index=True,
         null=True,
         blank=True,
         help_text="Datetime when the campaign ends.",
@@ -319,7 +291,6 @@ class DropCampaign(models.Model):
 
     added_at = models.DateTimeField(
         auto_now_add=True,
-        db_index=True,
         help_text="Timestamp when this campaign record was created.",
     )
     updated_at = models.DateTimeField(
@@ -329,12 +300,6 @@ class DropCampaign(models.Model):
 
     class Meta:
         ordering = ["-start_at"]
-
-        indexes: ClassVar[list] = [
-            models.Index(fields=["name"]),
-            models.Index(fields=["start_at", "end_at"]),
-            models.Index(fields=["start_at", "end_at"], condition=models.Q(start_at__isnull=False, end_at__isnull=False), name="campaign_active_partial_idx"),
-        ]
 
     def __str__(self) -> str:
         return self.name
@@ -396,7 +361,6 @@ class DropBenefit(models.Model):
         help_text="Unique Twitch identifier for the benefit.",
     )
     name = models.TextField(
-        db_index=True,
         blank=True,
         default="N/A",
         help_text="Name of the drop benefit.",
@@ -415,7 +379,6 @@ class DropBenefit(models.Model):
     )
     created_at = models.DateTimeField(
         null=True,
-        db_index=True,
         help_text="Timestamp when the benefit was created. This is from Twitch API and not auto-generated.",
     )
     entitlement_limit = models.PositiveIntegerField(
@@ -430,7 +393,6 @@ class DropBenefit(models.Model):
     )
     distribution_type = models.TextField(
         max_length=50,
-        db_index=True,
         blank=True,
         default="",
         help_text="Type of distribution for this benefit.",
@@ -438,7 +400,6 @@ class DropBenefit(models.Model):
 
     added_at = models.DateTimeField(
         auto_now_add=True,
-        db_index=True,
         help_text="Timestamp when this benefit record was created.",
     )
     updated_at = models.DateTimeField(
@@ -448,12 +409,6 @@ class DropBenefit(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        indexes: ClassVar[list] = [
-            models.Index(fields=["name"]),
-            models.Index(fields=["created_at"]),
-            models.Index(fields=["distribution_type"]),
-            models.Index(fields=["is_ios_available"], condition=models.Q(is_ios_available=True), name="benefit_ios_available_idx"),
-        ]
 
     def __str__(self) -> str:
         """Return a string representation of the drop benefit."""
@@ -469,11 +424,9 @@ class TimeBasedDrop(models.Model):
         help_text="Unique Twitch identifier for the time-based drop.",
     )
     name = models.TextField(
-        db_index=True,
         help_text="Name of the time-based drop.",
     )
     required_minutes_watched = models.PositiveIntegerField(
-        db_index=True,
         null=True,
         blank=True,
         help_text="Minutes required to watch before earning this drop.",
@@ -483,13 +436,11 @@ class TimeBasedDrop(models.Model):
         help_text="Number of subscriptions required to unlock this drop.",
     )
     start_at = models.DateTimeField(
-        db_index=True,
         null=True,
         blank=True,
         help_text="Datetime when this drop becomes available.",
     )
     end_at = models.DateTimeField(
-        db_index=True,
         null=True,
         blank=True,
         help_text="Datetime when this drop expires.",
@@ -511,7 +462,6 @@ class TimeBasedDrop(models.Model):
 
     added_at = models.DateTimeField(
         auto_now_add=True,
-        db_index=True,
         help_text="Timestamp when this time-based drop record was created.",
     )
     updated_at = models.DateTimeField(
@@ -521,12 +471,6 @@ class TimeBasedDrop(models.Model):
 
     class Meta:
         ordering = ["start_at"]
-        indexes: ClassVar[list] = [
-            models.Index(fields=["name"]),
-            models.Index(fields=["start_at", "end_at"]),
-            models.Index(fields=["required_minutes_watched"]),
-            models.Index(fields=["campaign", "start_at", "required_minutes_watched"]),
-        ]
 
     def __str__(self) -> str:
         """Return a string representation of the time-based drop."""
@@ -554,7 +498,6 @@ class DropBenefitEdge(models.Model):
 
     added_at = models.DateTimeField(
         auto_now_add=True,
-        db_index=True,
         help_text="Timestamp when this drop-benefit edge was created.",
     )
     updated_at = models.DateTimeField(
@@ -565,9 +508,6 @@ class DropBenefitEdge(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=("drop", "benefit"), name="unique_drop_benefit"),
-        ]
-        indexes: ClassVar[list] = [
-            models.Index(fields=["drop", "benefit"]),
         ]
 
     def __str__(self) -> str:
