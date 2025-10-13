@@ -6,28 +6,24 @@ import logging
 from collections import OrderedDict, defaultdict
 from typing import TYPE_CHECKING, Any
 
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.core.serializers import serialize
 from django.db.models import Count, F, Prefetch, Q
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
 from django.http import HttpRequest, HttpResponse
-from django.http.response import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import render
 from django.utils import timezone
 from django.views.generic import DetailView, ListView
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers.data import JsonLexer
 
-from twitch.models import Channel, DropBenefit, DropCampaign, Game, NotificationSubscription, Organization, TimeBasedDrop
+from twitch.models import Channel, DropBenefit, DropCampaign, Game, Organization, TimeBasedDrop
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
     from django.http import HttpRequest, HttpResponse
-    from django.http.response import HttpResponseRedirect
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -125,12 +121,6 @@ class OrgDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         organization: Organization = self.object
 
-        user = self.request.user
-        if not user.is_authenticated:
-            subscription: NotificationSubscription | None = None
-        else:
-            subscription = NotificationSubscription.objects.filter(user=user, organization=organization).first()
-
         games: QuerySet[Game, Game] = organization.games.all()  # pyright: ignore[reportAttributeAccessIssue]
 
         serialized_org = serialize(
@@ -152,7 +142,6 @@ class OrgDetailView(DetailView):
         pretty_org_data = json.dumps(org_data[0], indent=4)
 
         context.update({
-            "subscription": subscription,
             "games": games,
             "org_data": pretty_org_data,
         })
@@ -439,12 +428,6 @@ class GameDetailView(DetailView):
         context: dict[str, Any] = super().get_context_data(**kwargs)
         game: Game = self.get_object()
 
-        user = self.request.user
-        if not user.is_authenticated:
-            subscription: NotificationSubscription | None = None
-        else:
-            subscription = NotificationSubscription.objects.filter(user=user, game=game).first()
-
         now: datetime.datetime = timezone.now()
         all_campaigns: QuerySet[DropCampaign, DropCampaign] = (
             DropCampaign.objects.filter(game=game)
@@ -514,7 +497,6 @@ class GameDetailView(DetailView):
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
-            "subscription": subscription,
             "owner": game.owner,
             "now": now,
             "game_data": format_and_color_json(game_data[0]),
@@ -558,7 +540,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         if game_id not in campaigns_by_org_game[org_id]["games"]:
             campaigns_by_org_game[org_id]["games"][game_id] = {
                 "name": game_name,
-                "box_art": campaign.game.box_art_best_url,
+                "box_art": campaign.game.box_art,
                 "campaigns": [],
             }
 
@@ -583,7 +565,6 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /debug/
-@login_required
 def debug_view(request: HttpRequest) -> HttpResponse:
     """Debug view showing potentially broken or inconsistent data.
 
@@ -642,95 +623,6 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     }
 
     return render(request, "twitch/debug.html", context)
-
-
-# MARK: /games/<pk>/subscribe/
-@login_required
-def subscribe_game_notifications(request: HttpRequest, game_id: str) -> HttpResponseRedirect:
-    """Update Game notification for a user.
-
-    Args:
-        request: The HTTP request.
-        game_id: The game we are updating.
-
-    Returns:
-        Redirect back to the twitch:game_detail.
-    """
-    game: Game = get_object_or_404(Game, pk=game_id)
-    if request.method == "POST":
-        notify_found = bool(request.POST.get("notify_found"))
-        notify_live = bool(request.POST.get("notify_live"))
-
-        subscription, created = NotificationSubscription.objects.get_or_create(user=request.user, game=game)
-
-        changes = []
-        if not created:
-            if subscription.notify_found != notify_found:
-                changes.append(f"{'Enabled' if notify_found else 'Disabled'} notification when drop is found")
-            if subscription.notify_live != notify_live:
-                changes.append(f"{'Enabled' if notify_live else 'Disabled'} notification when drop is farmable")
-
-        subscription.notify_found = notify_found
-        subscription.notify_live = notify_live
-        subscription.save()
-
-        if created:
-            message = f"You have subscribed to notifications for {game.display_name}"
-        elif changes:
-            message = "\n".join(changes)
-        else:
-            message = ""
-
-        messages.success(request, message)
-        return redirect("twitch:game_detail", pk=game.id)
-
-    messages.warning(request, "Only POST is available for this view.")
-    return redirect("twitch:game_detail", pk=game.id)
-
-
-# MARK: /organizations/<pk>/subscribe/
-@login_required
-def subscribe_org_notifications(request: HttpRequest, org_id: str) -> HttpResponseRedirect:
-    """Update Organization notification for a user.
-
-    Args:
-        request: The HTTP request.
-        org_id: The org we are updating.
-
-    Returns:
-        Redirect back to the twitch:organization_detail.
-    """
-    organization: Organization = get_object_or_404(Organization, pk=org_id)
-
-    if request.method == "POST":
-        notify_found = bool(request.POST.get("notify_found"))
-        notify_live = bool(request.POST.get("notify_live"))
-
-        subscription, created = NotificationSubscription.objects.get_or_create(user=request.user, organization=organization)
-
-        changes = []
-        if not created:
-            if subscription.notify_found != notify_found:
-                changes.append(f"{'Enabled' if notify_found else 'Disabled'} notification when drop is found")
-            if subscription.notify_live != notify_live:
-                changes.append(f"{'Enabled' if notify_live else 'Disabled'} notification when drop is farmable")
-
-        subscription.notify_found = notify_found
-        subscription.notify_live = notify_live
-        subscription.save()
-
-        if created:
-            message = f"You have subscribed to notifications for this {organization.name}"
-        elif changes:
-            message = "\n".join(changes)
-        else:
-            message = ""
-
-        messages.success(request, message)
-        return redirect("twitch:organization_detail", pk=organization.id)
-
-    messages.warning(request, "Only POST is available for this view.")
-    return redirect("twitch:organization_detail", pk=organization.id)
 
 
 # MARK: /games/list/

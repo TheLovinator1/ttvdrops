@@ -9,11 +9,11 @@
         {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
     </h1>
     <!-- Game image -->
-    {% if game.box_art_best_url %}
+    {% if game.box_art %}
         <img id="game-image"
              height="160"
              width="160"
-             src="{{ game.box_art_best_url }}"
+             src="{{ game.box_art }}"
              alt="{{ game.name }}">
     {% endif %}
     <!-- Game owner -->

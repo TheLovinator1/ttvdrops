@@ -79,17 +79,7 @@
         <a href="{% url 'twitch:org_list' %}">Organizations</a> |
         <a href="{% url 'twitch:channel_list' %}">Channels</a> |
         <a href="{% url 'twitch:docs_rss' %}">RSS</a> |
-        {% if user.is_authenticated %}
-            <a href="{% url 'twitch:debug' %}">Debug</a> |
-            {% if user.is_staff %}
-                <a href="{% url 'admin:index' %}">Admin</a> |
-            {% endif %}
-            <a href="{% url 'accounts:profile' %}">{{ user.username }}</a>
-        {% else %}
-            <a href="{% url 'accounts:login' %}">Login</a> |
-            <a href="{% url 'accounts:signup' %}">Sign Up</a>
-        {% endif %}
-        |
+        <a href="{% url 'twitch:debug' %}">Debug</a> |
         <form action="{% url 'twitch:search' %}"
               method="get"
               style="display: inline">

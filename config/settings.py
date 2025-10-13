@@ -41,7 +41,6 @@ def get_data_dir() -> Path:
 DATA_DIR: Path = get_data_dir()
 
 ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
-AUTH_USER_MODEL = "accounts.User"
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ROOT_URLCONF = "config.urls"
@@ -112,13 +111,8 @@ LOGGING: dict[str, Any] = {
 }
 
 INSTALLED_APPS: list[str] = [
-    "django.contrib.admin",
-    "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
     "django.contrib.staticfiles",
-    "accounts.apps.AccountsConfig",
     "twitch.apps.TwitchConfig",
 ]
 
@@ -127,8 +121,6 @@ MIDDLEWARE: list[str] = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
 ]
 
 
@@ -139,58 +131,35 @@ TEMPLATES: list[dict[str, str | list[Path] | bool | dict[str, list[str] | list[t
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
-                "django.contrib.auth.context_processors.auth",
-                "django.template.context_processors.i18n",
                 "django.template.context_processors.debug",
                 "django.template.context_processors.request",
-                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
 
-# PostgreSQL configuration (preferred when env vars provided)
-DATABASES: dict[str, dict[str, Any]] = {  # pyright: ignore[reportInvalidTypeForm]
+# https://blog.pecar.me/django-sqlite-benchmark
+DATABASES: dict[str, dict[str, str | Path | dict[str, str]]] = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB"),
-        "USER": os.getenv("POSTGRES_USER", "ttvdrops"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "ttvdrops"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-        "CONN_MAX_AGE": 60,
-    }
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": DATA_DIR / "ttvdrops.sqlite3",
+        "OPTIONS": {
+            "init_command": "PRAGMA foreign_keys = ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA mmap_size = 134217728; PRAGMA journal_size_limit = 27103364; PRAGMA cache_size=2000;",  # noqa: E501
+            "transaction_mode": "IMMEDIATE",
+        },
+    },
 }
-
-
-AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
-]
 
 TESTING: bool = "test" in sys.argv or "PYTEST_VERSION" in os.environ
 
 if not TESTING:
     DEBUG_TOOLBAR_CONFIG: dict[str, str] = {"ROOT_TAG_EXTRA_ATTRS": "hx-preserve"}
     INSTALLED_APPS = [  # pyright: ignore[reportConstantRedefinition]
-        "django_watchfiles",
         *INSTALLED_APPS,
         "debug_toolbar",
-        "django_browser_reload",
     ]
     MIDDLEWARE = [  # pyright: ignore[reportConstantRedefinition]
         "debug_toolbar.middleware.DebugToolbarMiddleware",
         *MIDDLEWARE,
-        "django_browser_reload.middleware.BrowserReloadMiddleware",
     ]
