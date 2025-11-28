@@ -132,7 +132,7 @@ class Command(BaseCommand):
                     f"{len(self._organization_cache)} orgs, "
                     f"{len(self._drop_campaign_cache)} campaigns, "
                     f"{len(self._channel_cache)} channels, "
-                    f"{len(self._benefit_cache)} benefits."
+                    f"{len(self._benefit_cache)} benefits.",
                 )
             except (FileNotFoundError, OSError, RuntimeError):
                 # If preload fails for any reason, continue without it

@@ -82,7 +82,10 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.TextField(
-                        help_text="The unique Twitch identifier for the organization.", primary_key=True, serialize=False, verbose_name="Organization ID"
+                        help_text="The unique Twitch identifier for the organization.",
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="Organization ID",
                     ),
                 ),
                 ("name", models.TextField(help_text="Display name of the organization.", unique=True, verbose_name="Name")),
@@ -179,7 +182,10 @@ class Migration(migrations.Migration):
                 (
                     "benefits",
                     models.ManyToManyField(
-                        help_text="Benefits unlocked by this drop.", related_name="drops", through="twitch.DropBenefitEdge", to="twitch.dropbenefit"
+                        help_text="Benefits unlocked by this drop.",
+                        related_name="drops",
+                        through="twitch.DropBenefitEdge",
+                        to="twitch.dropbenefit",
                     ),
                 ),
                 (
@@ -200,7 +206,9 @@ class Migration(migrations.Migration):
             model_name="dropbenefitedge",
             name="drop",
             field=models.ForeignKey(
-                help_text="The time-based drop in this relationship.", on_delete=django.db.models.deletion.CASCADE, to="twitch.timebaseddrop"
+                help_text="The time-based drop in this relationship.",
+                on_delete=django.db.models.deletion.CASCADE,
+                to="twitch.timebaseddrop",
             ),
         ),
         migrations.CreateModel(

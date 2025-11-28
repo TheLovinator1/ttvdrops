@@ -434,8 +434,9 @@ class GameDetailView(DetailView):
             .select_related("game__owner")
             .prefetch_related(
                 Prefetch(
-                    "time_based_drops", queryset=TimeBasedDrop.objects.prefetch_related(Prefetch("benefits", queryset=DropBenefit.objects.order_by("name")))
-                )
+                    "time_based_drops",
+                    queryset=TimeBasedDrop.objects.prefetch_related(Prefetch("benefits", queryset=DropBenefit.objects.order_by("name"))),
+                ),
             )
             .order_by("-end_at")
         )
@@ -580,12 +581,12 @@ def debug_view(request: HttpRequest) -> HttpResponse:
 
     # Campaigns with missing or obviously broken images (empty or not starting with http)
     broken_image_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
-        Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http")
+        Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
     ).select_related("game")
 
     # Benefits with missing images
     broken_benefit_images: QuerySet[DropBenefit] = DropBenefit.objects.annotate(trimmed_url=Trim("image_asset_url")).filter(
-        Q(image_asset_url__isnull=True) | Q(trimmed_url__exact="") | ~Q(image_asset_url__startswith="http")
+        Q(image_asset_url__isnull=True) | Q(trimmed_url__exact="") | ~Q(image_asset_url__startswith="http"),
     )
 
     # Time-based drops without any benefits
@@ -593,7 +594,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
 
     # Campaigns with invalid dates (start after end or missing either)
     invalid_date_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
-        Q(start_at__gt=F("end_at")) | Q(start_at__isnull=True) | Q(end_at__isnull=True)
+        Q(start_at__gt=F("end_at")) | Q(start_at__isnull=True) | Q(end_at__isnull=True),
     ).select_related("game")
 
     # Duplicate campaign names per game. We retrieve the game's name for user-friendly display.
@@ -729,7 +730,7 @@ class ChannelDetailView(DetailView):
                     queryset=TimeBasedDrop.objects.prefetch_related(
                         Prefetch("benefits", queryset=DropBenefit.objects.order_by("name")),
                     ),
-                )
+                ),
             )
             .order_by("-start_at")
         )
