@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import django.db.models.deletion
-from django.db import migrations, models
+from django.db import migrations
+from django.db import models
 
 
 class Migration(migrations.Migration):

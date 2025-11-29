@@ -9,12 +9,16 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import SafeText
 
-from twitch.models import DropCampaign, Game, Organization, TimeBasedDrop
+from twitch.models import DropCampaign
+from twitch.models import Game
+from twitch.models import Organization
+from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
     import datetime
 
-    from django.db.models import Model, QuerySet
+    from django.db.models import Model
+    from django.db.models import QuerySet
 
 
 # MARK: /rss/organizations/

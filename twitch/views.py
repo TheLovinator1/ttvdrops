@@ -3,27 +3,44 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-from collections import OrderedDict, defaultdict
-from typing import TYPE_CHECKING, Any
+from collections import OrderedDict
+from collections import defaultdict
+from typing import TYPE_CHECKING
+from typing import Any
 
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.contrib.postgres.search import SearchQuery
+from django.contrib.postgres.search import SearchRank
+from django.contrib.postgres.search import SearchVector
 from django.core.serializers import serialize
-from django.db.models import BaseManager, Count, F, Model, Prefetch, Q
+from django.db.models import BaseManager
+from django.db.models import Count
+from django.db.models import F
+from django.db.models import Model
+from django.db.models import Prefetch
+from django.db.models import Q
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
-from django.views.generic import DetailView, ListView
+from django.views.generic import DetailView
+from django.views.generic import ListView
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers.data import JsonLexer
 
-from twitch.models import Channel, DropBenefit, DropCampaign, Game, Organization, TimeBasedDrop
+from twitch.models import Channel
+from twitch.models import DropBenefit
+from twitch.models import DropCampaign
+from twitch.models import Game
+from twitch.models import Organization
+from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
-    from django.http import HttpRequest, HttpResponse
+    from django.http import HttpRequest
+    from django.http import HttpResponse
 
 logger: logging.Logger = logging.getLogger(__name__)
 

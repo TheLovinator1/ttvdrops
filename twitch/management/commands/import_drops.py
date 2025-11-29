@@ -6,17 +6,28 @@ import threading
 import traceback
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 import dateparser
 import json_repair
 from django.core.exceptions import MultipleObjectsReturned
-from django.core.management.base import BaseCommand, CommandError, CommandParser
-from django.db import DatabaseError, IntegrityError, transaction
+from django.core.management.base import BaseCommand
+from django.core.management.base import CommandError
+from django.core.management.base import CommandParser
+from django.db import DatabaseError
+from django.db import IntegrityError
+from django.db import transaction
 from django.utils import timezone
 from tqdm import tqdm
 
-from twitch.models import Channel, DropBenefit, DropBenefitEdge, DropCampaign, Game, Organization, TimeBasedDrop
+from twitch.models import Channel
+from twitch.models import DropBenefit
+from twitch.models import DropBenefitEdge
+from twitch.models import DropCampaign
+from twitch.models import Game
+from twitch.models import Organization
+from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
     from datetime import datetime

@@ -5,11 +5,9 @@ from typing import TYPE_CHECKING
 from django.urls import path
 
 from twitch import views
-from twitch.feeds import (
-    DropCampaignFeed,
-    GameFeed,
-    OrganizationFeed,
-)
+from twitch.feeds import DropCampaignFeed
+from twitch.feeds import GameFeed
+from twitch.feeds import OrganizationFeed
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern

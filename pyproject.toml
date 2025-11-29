@@ -35,6 +35,7 @@ lint.unfixable = ["F841"]
 
 lint.pydocstyle.convention = "google"
 lint.isort.required-imports = ["from __future__ import annotations"]
+lint.isort.force-single-line = true
 
 lint.ignore = [
     "ANN002",  # Checks that function *args arguments have type annotations.
