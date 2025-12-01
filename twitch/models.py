@@ -16,7 +16,7 @@ logger: logging.Logger = logging.getLogger("ttvdrops")
 class Organization(models.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
-    id = models.TextField(
+    twitch_id = models.TextField(
         primary_key=True,
         verbose_name="Organization ID",
         help_text="The unique Twitch identifier for the organization.",
@@ -41,14 +41,14 @@ class Organization(models.Model):
 
     def __str__(self) -> str:
         """Return a string representation of the organization."""
-        return self.name or self.id
+        return self.name or self.twitch_id
 
 
 # MARK: Game
 class Game(models.Model):
     """Represents a game on Twitch."""
 
-    id = models.TextField(primary_key=True, verbose_name="Game ID")
+    twitch_id = models.TextField(verbose_name="Twitch game ID", unique=True)
     slug = models.TextField(
         max_length=200,
         blank=True,
@@ -111,7 +111,7 @@ class Game(models.Model):
                 self.name,
             )
             return f"{self.display_name} ({self.name})"
-        return self.display_name or self.name or self.slug or self.id
+        return self.display_name or self.name or self.slug or self.twitch_id
 
     @property
     def organizations(self) -> models.QuerySet[Organization]:
@@ -127,7 +127,7 @@ class Game(models.Model):
             return self.name
         if self.slug:
             return self.slug
-        return self.id
+        return self.twitch_id
 
     @property
     def twitch_directory_url(self) -> str:
@@ -151,7 +151,7 @@ class TwitchGameData(models.Model):
         igdb_id: Optional IGDB id for the game
     """
 
-    id = models.TextField(primary_key=True, verbose_name="Twitch Game ID")
+    twitch_id = models.TextField(primary_key=True, verbose_name="Twitch Game ID")
     game = models.ForeignKey(
         Game,
         on_delete=models.SET_NULL,
@@ -179,14 +179,14 @@ class TwitchGameData(models.Model):
         ordering = ["name"]
 
     def __str__(self) -> str:
-        return self.name or self.id
+        return self.name or self.twitch_id
 
 
 # MARK: Channel
 class Channel(models.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
 
-    id = models.TextField(
+    twitch_id = models.TextField(
         primary_key=True,
         verbose_name="Channel ID",
         help_text="The unique Twitch identifier for the channel.",
@@ -214,14 +214,14 @@ class Channel(models.Model):
 
     def __str__(self) -> str:
         """Return a string representation of the channel."""
-        return self.display_name or self.name or self.id
+        return self.display_name or self.name or self.twitch_id
 
 
 # MARK: DropCampaign
 class DropCampaign(models.Model):
     """Represents a Twitch drop campaign."""
 
-    id = models.TextField(
+    twitch_id = models.TextField(
         primary_key=True,
         help_text="Unique Twitch identifier for the campaign.",
     )
@@ -356,7 +356,7 @@ class DropCampaign(models.Model):
 class DropBenefit(models.Model):
     """Represents a benefit that can be earned from a drop."""
 
-    id = models.TextField(
+    twitch_id = models.TextField(
         primary_key=True,
         help_text="Unique Twitch identifier for the benefit.",
     )
@@ -419,7 +419,7 @@ class DropBenefit(models.Model):
 class TimeBasedDrop(models.Model):
     """Represents a time-based drop in a drop campaign."""
 
-    id = models.TextField(
+    twitch_id = models.TextField(
         primary_key=True,
         help_text="Unique Twitch identifier for the time-based drop.",
     )

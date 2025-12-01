@@ -8,11 +8,13 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 
+if TYPE_CHECKING:
+    from django.db.models.manager import BaseManager
+
 from django.contrib.postgres.search import SearchQuery
 from django.contrib.postgres.search import SearchRank
 from django.contrib.postgres.search import SearchVector
 from django.core.serializers import serialize
-from django.db.models import BaseManager
 from django.db.models import Count
 from django.db.models import F
 from django.db.models import Model
@@ -546,9 +548,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     for campaign in active_campaigns:
         owner: Organization | None = campaign.game.owner
 
-        org_id: str = owner.id if owner else "unknown"
+        org_id: str = owner.twitch_id if owner else "unknown"
         org_name: str = owner.name if owner else "Unknown"
-        game_id: str = campaign.game.id
+        game_id: str = campaign.game.twitch_id
         game_name: str = campaign.game.display_name
 
         if org_id not in campaigns_by_org_game:

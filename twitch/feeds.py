@@ -201,7 +201,7 @@ class DropCampaignFeed(Feed):
 
     def item_guid(self, item: DropCampaign) -> str:
         """Return a unique identifier for each campaign."""
-        return item.id + "@ttvdrops.com"
+        return item.twitch_id + "@ttvdrops.com"
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""

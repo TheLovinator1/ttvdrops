@@ -187,15 +187,15 @@ class Command(BaseCommand):
         """Load existing DB objects into in-memory caches to avoid repeated queries."""
         # These queries may be heavy if DB is huge — safe because optional via --no-preload
         with self._cache_locks["game"]:
-            self._game_cache = {str(g.id): g for g in Game.objects.all()}
+            self._game_cache = {str(g.twitch_id): g for g in Game.objects.all()}
         with self._cache_locks["org"]:
-            self._organization_cache = {str(o.id): o for o in Organization.objects.all()}
+            self._organization_cache = {str(o.twitch_id): o for o in Organization.objects.all()}
         with self._cache_locks["campaign"]:
-            self._drop_campaign_cache = {str(c.id): c for c in DropCampaign.objects.all()}
+            self._drop_campaign_cache = {str(c.twitch_id): c for c in DropCampaign.objects.all()}
         with self._cache_locks["channel"]:
-            self._channel_cache = {str(ch.id): ch for ch in Channel.objects.all()}
+            self._channel_cache = {str(ch.twitch_id): ch for ch in Channel.objects.all()}
         with self._cache_locks["benefit"]:
-            self._benefit_cache = {str(b.id): b for b in DropBenefit.objects.all()}
+            self._benefit_cache = {str(b.twitch_id): b for b in DropBenefit.objects.all()}
 
     def process_drops(self, *, continue_on_error: bool, path: Path, processed_path: Path) -> None:
         """Process drops from a file or directory.
@@ -397,8 +397,8 @@ class Command(BaseCommand):
             return
 
         if isinstance(data, list):
-            for _item in data:
-                self.import_drop_campaign(_item, file_path=file_path)
+            for item in data:
+                self.import_drop_campaign(item, file_path=file_path)
         elif isinstance(data, dict):
             self.import_drop_campaign(data, file_path=file_path)
         else:
@@ -534,7 +534,7 @@ class Command(BaseCommand):
 
         benefit_edges: list[dict[str, Any]] = drop_data.get("benefitEdges", [])
         if not benefit_edges:
-            tqdm.write(self.style.WARNING(f"No benefit edges found for drop {time_based_drop.name} (ID: {time_based_drop.id})"))
+            tqdm.write(self.style.WARNING(f"No benefit edges found for drop {time_based_drop.name} (ID: {time_based_drop.twitch_id})"))
             self.move_file(file_path, Path("no_benefit_edges") / file_path.name)
             return
 
@@ -570,10 +570,10 @@ class Command(BaseCommand):
                     if created:
                         tqdm.write(f"Added {drop_benefit_edge}")
             except MultipleObjectsReturned as e:
-                msg = f"Error: Multiple DropBenefitEdge objects found for drop {time_based_drop.id} and benefit {benefit.id}. Cannot update or create."
+                msg = f"Error: Multiple DropBenefitEdge objects found for drop {time_based_drop.twitch_id} and benefit {benefit.twitch_id}. Cannot update or create."  # noqa: E501
                 raise CommandError(msg) from e
             except (IntegrityError, DatabaseError, TypeError, ValueError) as e:
-                msg = f"Database or validation error creating DropBenefitEdge for drop {time_based_drop.id} and benefit {benefit.id}: {e}"
+                msg = f"Database or validation error creating DropBenefitEdge for drop {time_based_drop.twitch_id} and benefit {benefit.twitch_id}: {e}"
                 raise CommandError(msg) from e
 
     def create_time_based_drop(self, drop_campaign: DropCampaign, drop_data: dict[str, Any]) -> TimeBasedDrop:
@@ -847,7 +847,7 @@ class Command(BaseCommand):
 
             # Set the many-to-many relationship (save only if different)
             current_ids = set(drop_campaign.allow_channels.values_list("id", flat=True))
-            new_ids = {ch.id for ch in channel_objects}
+            new_ids = {ch.twitch_id for ch in channel_objects}
             if current_ids != new_ids:
                 drop_campaign.allow_channels.set(channel_objects)
 
