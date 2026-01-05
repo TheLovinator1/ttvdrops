@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-@lru_cache(maxsize=40 * 1024)
+@lru_cache(maxsize=40 * 40 * 1024)
 def parse_date(value: str) -> datetime | None:
     """Parse a datetime string into a timezone-aware datetime using dateparser.
 
@@ -24,7 +24,10 @@ def parse_date(value: str) -> datetime | None:
         "RETURN_AS_TIMEZONE_AWARE": True,
         "CACHE_SIZE_LIMIT": 0,
     }
-    dt: datetime | None = dateparser.parse(date_string=value, settings=dateparser_settings)  # pyright: ignore[reportArgumentType]
+    dt: datetime | None = dateparser.parse(
+        date_string=value,
+        settings=dateparser_settings,  # pyright: ignore[reportArgumentType]
+    )
     if not dt:
         return None
 

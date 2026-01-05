@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
-from concurrent.futures import ProcessPoolExecutor
-from itertools import repeat
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from typing import Literal
 
 from colorama import Fore
 from colorama import Style
@@ -13,28 +15,101 @@ from colorama import init as colorama_init
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from django.core.management.base import CommandParser
+from django.db import DatabaseError
 from pydantic import ValidationError
 from tqdm import tqdm
 
 from twitch.models import Channel
 from twitch.models import DropBenefit
+from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
-from twitch.schemas import ViewerDropsDashboardPayload
+from twitch.models import TimeBasedDrop
+from twitch.schemas import DropBenefitEdgeSchema
+from twitch.schemas import DropBenefitSchema
+from twitch.schemas import GameSchema
+from twitch.schemas import GraphQLResponse
+from twitch.schemas import OrganizationSchema
+from twitch.schemas import TimeBasedDropSchema
+from twitch.utils import parse_date
 
 
-def move_failed_validation_file(file_path: Path) -> Path:
+def get_broken_directory_root() -> Path:
+    """Get the root broken directory path from environment or default.
+
+    Reads from TTVDROPS_BROKEN_DIR environment variable if set,
+    otherwise defaults to a directory in the current user's home.
+
+    Returns:
+        Path to the root broken directory.
+    """
+    env_path: str | None = os.environ.get("TTVDROPS_BROKEN_DIR")
+    if env_path:
+        return Path(env_path)
+
+    # Default to ~/ttvdrops/broken/
+    home: Path = Path.home()
+    return home / "ttvdrops" / "broken"
+
+
+def get_imported_directory_root() -> Path:
+    """Get the root imported directory path from environment or default.
+
+    Reads from TTVDROPS_IMPORTED_DIR environment variable if set,
+    otherwise defaults to a directory in the current user's home.
+
+    Returns:
+        Path to the root imported directory.
+    """
+    env_path: str | None = os.environ.get("TTVDROPS_IMPORTED_DIR")
+    if env_path:
+        return Path(env_path)
+
+    # Default to ~/ttvdrops/imported/
+    home: Path = Path.home()
+    return home / "ttvdrops" / "imported"
+
+
+def _build_broken_directory(
+    reason: str,
+    operation_name: str | None = None,
+) -> Path:
+    """Compute a deeply nested broken directory for triage.
+
+    Directory pattern: <broken_root>/<reason>/<operation>/<YYYY>/<MM>/<DD>
+    This keeps unrelated failures isolated and easy to browse later.
+
+    Args:
+        reason: High-level reason bucket (e.g., validation_failed).
+        operation_name: Optional operationName extracted from the payload.
+
+    Returns:
+        Path to the directory where the file should live.
+    """
+    safe_reason: str = reason.replace(" ", "_")
+    op_segment: str = (operation_name or "unknown_op").replace(" ", "_")
+    now: datetime = datetime.now(tz=UTC)
+
+    broken_dir: Path = get_broken_directory_root() / safe_reason / op_segment / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
+    broken_dir.mkdir(parents=True, exist_ok=True)
+    return broken_dir
+
+
+def move_failed_validation_file(file_path: Path, operation_name: str | None = None) -> Path:
     """Moves a file that failed validation to a 'broken' subdirectory.
 
     Args:
         file_path: Path to the file that failed validation
+        operation_name: Optional GraphQL operation name for finer grouping
 
     Returns:
         Path to the 'broken' directory where the file was moved
     """
-    broken_dir: Path = file_path.parent / "broken"
-    broken_dir.mkdir(parents=True, exist_ok=True)
+    broken_dir: Path = _build_broken_directory(
+        reason="validation_failed",
+        operation_name=operation_name,
+    )
 
     target_file: Path = broken_dir / file_path.name
     file_path.rename(target_file)
@@ -42,23 +117,69 @@ def move_failed_validation_file(file_path: Path) -> Path:
     return broken_dir
 
 
-def move_file_to_broken_subdir(file_path: Path, subdir: str) -> Path:
-    """Move file to a nested broken/<subdir> directory and return that directory.
+def move_file_to_broken_subdir(
+    file_path: Path,
+    subdir: str,
+    operation_name: str | None = None,
+) -> Path:
+    """Move file to broken/<subdir> and return that directory path.
 
     Args:
         file_path: The file to move.
         subdir: Subdirectory name under "broken" (e.g., the matched keyword).
+        operation_name: Optional GraphQL operation name for finer grouping
 
     Returns:
         Path to the directory where the file was moved.
     """
-    broken_dir: Path = Path.home() / "broken" / subdir
-    broken_dir.mkdir(parents=True, exist_ok=True)
+    broken_dir: Path = _build_broken_directory(
+        reason=subdir,
+        operation_name=operation_name,
+    )
 
     target_file: Path = broken_dir / file_path.name
     file_path.rename(target_file)
 
     return broken_dir
+
+
+def move_completed_file(file_path: Path, operation_name: str | None = None) -> Path:
+    """Move a successfully processed file into an operation-named directory.
+
+    Moves to <imported_root>/<operation_name>/
+
+    Args:
+        file_path: Path to the processed JSON file.
+        operation_name: GraphQL operationName extracted from the payload.
+
+    Returns:
+        Path to the directory where the file was moved.
+    """
+    safe_op: str = (operation_name or "unknown_op").replace(" ", "_").replace("/", "_").replace("\\", "_")
+    target_dir: Path = get_imported_directory_root() / safe_op
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    target_file: Path = target_dir / file_path.name
+    file_path.rename(target_file)
+
+    return target_dir
+
+
+# Pre-compute keyword search patterns for faster detection
+_KNOWN_NON_CAMPAIGN_PATTERNS: dict[str, str] = {
+    keyword: f'"operationName": "{keyword}"'
+    for keyword in [
+        "ChannelPointsContext",
+        "ClaimCommunityPoints",
+        "DirectoryPage_Game",
+        "DropCurrentSessionContext",
+        "DropsPage_ClaimDropRewards",
+        "OnsiteNotifications_DeleteNotification",
+        "PlaybackAccessToken",
+        "streamPlaybackAccessToken",
+        "VideoPlayerStreamInfoOverlayChannel",
+    ]
+}
 
 
 def detect_non_campaign_keyword(raw_text: str) -> str | None:
@@ -73,30 +194,46 @@ def detect_non_campaign_keyword(raw_text: str) -> str | None:
     Returns:
         The matched keyword, or None if no match found.
     """
-    probably_shit: list[str] = [
-        "ChannelPointsContext",
-        "ClaimCommunityPoints",
-        "DirectoryPage_Game",
-        "DropCurrentSessionContext",
-        "DropsPage_ClaimDropRewards",
-        "OnsiteNotifications_DeleteNotification",
-        "PlaybackAccessToken",
-        "streamPlaybackAccessToken",
-        "VideoPlayerStreamInfoOverlayChannel",
-    ]
-
-    for keyword in probably_shit:
-        if f'"operationName": "{keyword}"' in raw_text:
+    for keyword, pattern in _KNOWN_NON_CAMPAIGN_PATTERNS.items():
+        if pattern in raw_text:
             return keyword
     return None
 
 
+def extract_operation_name_from_parsed(
+    payload: dict[str, Any] | list[Any],
+) -> str | None:
+    """Extract GraphQL operationName from an already parsed JSON payload.
+
+    This is safer than substring scanning. The expected location is
+    `payload["extensions"]["operationName"]`, but we guard against missing
+    keys.
+
+    Args:
+        payload: Parsed JSON object or list.
+
+    Returns:
+        The operation name if found, otherwise None.
+    """
+    # Be defensive; never let provenance extraction break the import.
+    if not isinstance(payload, dict):
+        return None
+    extensions: dict[str, Any] | None = payload.get("extensions")
+    if isinstance(extensions, dict):
+        op_name: str | None = extensions.get("operationName")
+        if isinstance(op_name, str):
+            return op_name
+    return None
+
+
 class Command(BaseCommand):
-    """Import Twitch drop campaign data from a JSON file or directory of JSON files."""
+    """Import Twitch drop campaign data from a JSON file or directory."""
 
     help = "Import Twitch drop campaign data from a JSON file or directory"
     requires_migrations_checks = True
 
+    # In-memory caches prevent repeated DB lookups during batch imports,
+    # cutting query volume and keeping runtime predictable.
     game_cache: dict[str, Game] = {}
     organization_cache: dict[str, Organization] = {}
     drop_campaign_cache: dict[str, DropCampaign] = {}
@@ -105,13 +242,45 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser) -> None:
         """Populate the command with arguments."""
-        parser.add_argument("path", type=str, help="Path to JSON file or directory")
-        parser.add_argument("--recursive", action="store_true", help="Recursively search directories for JSON files")
-        parser.add_argument("--crash-on-error", action="store_true", help="Crash the command on first error instead of continuing")
-        parser.add_argument("--verbose", action="store_true", help="Print per-file success messages")
+        parser.add_argument(
+            "path",
+            type=str,
+            help="Path to JSON file or directory",
+        )
+        parser.add_argument(
+            "--recursive",
+            action="store_true",
+            help="Recursively search directories for JSON files",
+        )
+        parser.add_argument(
+            "--crash-on-error",
+            dest="crash_on_error",
+            action="store_true",
+            help="Crash the command on first error instead of continuing",
+        )
+        parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Print per-file success messages",
+        )
+        parser.add_argument(
+            "--skip-broken-moves",
+            dest="skip_broken_moves",
+            action="store_true",
+            help=(
+                "Do not move files to the broken directory on failures; useful"
+                " during testing to avoid unnecessary file moves"
+            ),
+        )
 
     def pre_fill_cache(self) -> None:
-        """Load all existing IDs from DB into memory to avoid N+1 queries."""
+        """Load all existing IDs from DB into memory."""
+        self.game_cache = {}
+        self.organization_cache = {}
+        self.drop_campaign_cache = {}
+        self.channel_cache = {}
+        self.benefit_cache = {}
+
         cache_operations: list[tuple[str, type, str]] = [
             ("Games", Game, "game_cache"),
             ("Organizations", Organization, "organization_cache"),
@@ -120,14 +289,386 @@ class Command(BaseCommand):
             ("Benefits", DropBenefit, "benefit_cache"),
         ]
 
-        with tqdm(cache_operations, desc="Loading caches", unit="cache", colour="cyan") as progress_bar:
-            for name, model, cache_attr in progress_bar:
-                progress_bar.set_description(f"Loading {name}")
-                cache: dict[str, Any] = {str(obj.twitch_id): obj for obj in model.objects.all()}
-                setattr(self, cache_attr, cache)
-                progress_bar.write(f"  {Fore.GREEN}✓{Style.RESET_ALL} {name}: {len(cache):,}")
+        try:
+            with tqdm(cache_operations, desc="Loading caches", unit="cache", colour="cyan") as progress_bar:
+                for name, model, cache_attr in progress_bar:
+                    self.load_cache_for_model(progress_bar, name, model, cache_attr)
+            tqdm.write("")
+        except (DatabaseError, OSError, RuntimeError, ValueError, TypeError):
+            # If cache loading fails completely, just use empty caches
+            tqdm.write(f"{Fore.YELLOW}⚠{Style.RESET_ALL} Cache preload skipped (database error)\n")
 
-        tqdm.write("")
+    def load_cache_for_model(self, progress_bar: tqdm, name: str, model: type, cache_attr: str) -> None:
+        """Load cache for a specific model and attach to the command instance.
+
+        Args:
+            progress_bar: TQDM progress bar instance.
+            name: Human-readable name of the model being cached.
+            model: Django model class to query.
+            cache_attr: Attribute name on the command instance to store the cache.
+        """
+        progress_bar.set_description(f"Loading {name}")
+        try:
+            cache: dict[str, Any] = {str(obj.twitch_id): obj for obj in model.objects.all()}
+            setattr(self, cache_attr, cache)
+            progress_bar.write(f"  {Fore.GREEN}✓{Style.RESET_ALL} {name}: {len(cache):,}")
+        except (DatabaseError, OSError, RuntimeError, ValueError, TypeError) as e:
+            # Database error - skip this cache
+            msg: str = f"  {Fore.YELLOW}⚠{Style.RESET_ALL} {name}: Could not load ({type(e).__name__})"
+            progress_bar.write(msg)
+
+            setattr(self, cache_attr, {})
+
+    def _validate_campaigns(
+        self,
+        campaigns_found: list[dict[str, Any]],
+        file_path: Path,
+        options: dict[str, Any],
+    ) -> list[GraphQLResponse]:
+        """Validate campaign data using Pydantic schema.
+
+        Args:
+            campaigns_found: List of raw campaign dictionaries.
+            file_path: Path to the file being processed.
+            options: Command options.
+
+        Returns:
+            List of validated Pydantic GraphQLResponse models.
+
+        Raises:
+            ValidationError: If campaign data fails Pydantic validation
+                and crash-on-error is enabled.
+        """
+        valid_campaigns: list[GraphQLResponse] = []
+
+        if isinstance(campaigns_found, list):
+            for campaign in campaigns_found:
+                if isinstance(campaign, dict):
+                    try:
+                        response: GraphQLResponse = GraphQLResponse.model_validate(campaign)
+                        if response.data.current_user and response.data.current_user.drop_campaigns:
+                            valid_campaigns.append(response)
+
+                    except ValidationError as e:
+                        tqdm.write(
+                            f"{Fore.RED}✗{Style.RESET_ALL} Validation failed for an entry in {file_path.name}: {e}",
+                        )
+
+                        # Move invalid inputs out of the hot path so future runs can progress.
+                        if not options.get("skip_broken_moves"):
+                            op_name: str | None = extract_operation_name_from_parsed(campaign)
+                            move_failed_validation_file(file_path, operation_name=op_name)
+
+                        # optionally crash early to surface schema issues.
+                        if options.get("crash_on_error"):
+                            raise
+
+                        continue
+
+        return valid_campaigns
+
+    def _get_or_create_organization(
+        self,
+        org_data: OrganizationSchema,
+    ) -> Organization:
+        """Get or create an organization from cache or database.
+
+        Args:
+            org_data: Organization data from Pydantic model.
+
+        Returns:
+            Organization instance.
+        """
+        # Prefer cache hits to avoid hitting the DB on every campaign item.
+        if org_data.twitch_id in self.organization_cache:
+            return self.organization_cache[org_data.twitch_id]
+
+        org_obj, created = Organization.objects.update_or_create(
+            twitch_id=org_data.twitch_id,
+            defaults={
+                "name": org_data.name,
+            },
+        )
+        if created:
+            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new organization: {org_data.name}")
+
+        # Cache the organization for future lookups.
+        self.organization_cache[org_data.twitch_id] = org_obj
+
+        return org_obj
+
+    def _get_or_create_game(
+        self,
+        game_data: GameSchema,
+        org_obj: Organization,
+    ) -> Game:
+        """Get or create a game from cache or database.
+
+        Args:
+            game_data: Game data from Pydantic model.
+            org_obj: Organization that owns this game.
+
+        Returns:
+            Game instance.
+        """
+        if game_data.twitch_id in self.game_cache:
+            game_obj: Game = self.game_cache[game_data.twitch_id]
+
+            # Maintenance: Ensure the existing game is linked to the
+            # correct owner (Sometimes games are imported without owner
+            # data first). Use owner_id to avoid triggering a query.
+            # Correct stale owner linkage that may exist from earlier
+            # partial imports.
+            if game_obj.owner_id != org_obj.pk:  # type: ignore[attr-defined] # Django adds _id suffix for FK fields
+                game_obj.owner = org_obj
+                game_obj.save(update_fields=["owner"])
+
+            return game_obj
+
+        game_obj, created = Game.objects.update_or_create(
+            twitch_id=game_data.twitch_id,
+            defaults={
+                "display_name": game_data.display_name,
+                "box_art": game_data.box_art_url,
+                "owner": org_obj,
+            },
+        )
+        if created:
+            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}")
+
+        self.game_cache[game_data.twitch_id] = game_obj
+        return game_obj
+
+    def _should_skip_campaign_update(
+        self,
+        cached_obj: DropCampaign,
+        defaults: dict[str, Any],
+        game_obj: Game,
+    ) -> bool:
+        """Check if campaign update can be skipped based on cache comparison.
+
+        Args:
+            cached_obj: Cached campaign object.
+            defaults: New campaign data.
+            game_obj: Associated game object.
+
+        Returns:
+            True if no update needed, False otherwise.
+        """
+        # Use game_id (Django's auto-generated FK field) to avoid
+        # triggering a query. Compare FK IDs to avoid ORM reads; keeps
+        # this a pure in-memory check.
+        cached_game_id: int | None = getattr(cached_obj, "game_id", None)
+
+        # Ensure game object has a primary key (should always be true
+        # at this point)
+        game_id: int | None = game_obj.pk
+
+        # Short-circuit updates when nothing changed; reduces write
+        # load and log noise while keeping caches accurate.
+        return bool(
+            cached_obj.name == defaults["name"]
+            and cached_obj.start_at == defaults["start_at"]
+            and cached_obj.end_at == defaults["end_at"]
+            and cached_obj.details_url == defaults["details_url"]
+            and cached_obj.account_link_url == defaults["account_link_url"]
+            and cached_game_id == game_id
+            and cached_obj.is_account_connected == defaults["is_account_connected"],
+        )
+
+    def process_campaigns(
+        self,
+        campaigns_found: list[dict[str, Any]],
+        file_path: Path,
+        options: dict[str, Any],
+    ) -> None:
+        """Process, validate, and import campaign data.
+
+        With dependency resolution and caching.
+
+        Args:
+            campaigns_found: List of raw campaign dictionaries to process.
+            file_path: Path to the file being processed.
+            options: Command options dictionary.
+
+        Raises:
+            ValueError: If datetime parsing fails for campaign dates and
+                crash-on-error is enabled.
+        """
+        valid_campaigns: list[GraphQLResponse] = self._validate_campaigns(
+            campaigns_found=campaigns_found,
+            file_path=file_path,
+            options=options,
+        )
+
+        for response in valid_campaigns:
+            if not response.data.current_user:
+                continue
+
+            for drop_campaign in response.data.current_user.drop_campaigns:
+                org_obj: Organization = self._get_or_create_organization(
+                    org_data=drop_campaign.owner,
+                )
+                game_obj: Game = self._get_or_create_game(
+                    game_data=drop_campaign.game,
+                    org_obj=org_obj,
+                )
+
+                start_at_dt: datetime | None = parse_date(drop_campaign.start_at)
+                end_at_dt: datetime | None = parse_date(drop_campaign.end_at)
+
+                if start_at_dt is None or end_at_dt is None:
+                    tqdm.write(f"{Fore.RED}✗{Style.RESET_ALL} Invalid datetime in campaign: {drop_campaign.name}")
+                    if options.get("crash_on_error"):
+                        msg: str = f"Failed to parse datetime for campaign {drop_campaign.name}"
+                        raise ValueError(msg)
+                    continue
+
+                defaults: dict[str, str | datetime | Game | bool] = {
+                    "name": drop_campaign.name,
+                    "game": game_obj,
+                    "start_at": start_at_dt,
+                    "end_at": end_at_dt,
+                    "details_url": drop_campaign.details_url,
+                    "account_link_url": drop_campaign.account_link_url,
+                    "is_account_connected": (drop_campaign.self.is_account_connected),
+                }
+
+                if drop_campaign.twitch_id in self.drop_campaign_cache:
+                    cached_obj: DropCampaign = self.drop_campaign_cache[drop_campaign.twitch_id]
+                    if self._should_skip_campaign_update(cached_obj=cached_obj, defaults=defaults, game_obj=game_obj):
+                        if options.get("verbose"):
+                            tqdm.write(f"{Fore.YELLOW}→{Style.RESET_ALL} Skipped (No changes): {drop_campaign.name}")
+                        continue
+
+                campaign_obj, created = DropCampaign.objects.update_or_create(
+                    twitch_id=drop_campaign.twitch_id,
+                    defaults=defaults,
+                )
+                if created:
+                    tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}")
+
+                self.drop_campaign_cache[drop_campaign.twitch_id] = campaign_obj
+
+                action: Literal["Imported new", "Updated"] = "Imported new" if created else "Updated"
+                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {action} campaign: {drop_campaign.name}")
+
+                if (
+                    response.extensions
+                    and response.extensions.operation_name
+                    and campaign_obj.operation_name != response.extensions.operation_name
+                ):
+                    campaign_obj.operation_name = response.extensions.operation_name
+                    campaign_obj.save(update_fields=["operation_name"])
+
+                if drop_campaign.time_based_drops:
+                    self._process_time_based_drops(
+                        time_based_drops_schema=drop_campaign.time_based_drops,
+                        campaign_obj=campaign_obj,
+                    )
+
+    def _process_time_based_drops(
+        self,
+        time_based_drops_schema: list[TimeBasedDropSchema],
+        campaign_obj: DropCampaign,
+    ) -> None:
+        """Process time-based drops for a campaign.
+
+        Args:
+            time_based_drops_schema: List of TimeBasedDrop Pydantic schemas.
+            campaign_obj: The DropCampaign database object.
+        """
+        for drop_schema in time_based_drops_schema:
+            start_at_dt: datetime | None = parse_date(drop_schema.start_at)
+            end_at_dt: datetime | None = parse_date(drop_schema.end_at)
+
+            drop_defaults: dict[str, str | int | datetime | DropCampaign] = {
+                "campaign": campaign_obj,
+                "name": drop_schema.name,
+                "required_subs": drop_schema.required_subs,
+            }
+
+            if drop_schema.required_minutes_watched is not None:
+                drop_defaults["required_minutes_watched"] = drop_schema.required_minutes_watched
+            if start_at_dt is not None:
+                drop_defaults["start_at"] = start_at_dt
+            if end_at_dt is not None:
+                drop_defaults["end_at"] = end_at_dt
+
+            drop_obj, created = TimeBasedDrop.objects.update_or_create(
+                twitch_id=drop_schema.twitch_id,
+                defaults=drop_defaults,
+            )
+            if created:
+                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created TimeBasedDrop: {drop_schema.name}")
+
+            self._process_benefit_edges(
+                benefit_edges_schema=drop_schema.benefit_edges,
+                drop_obj=drop_obj,
+            )
+
+    def _get_or_update_benefit(self, benefit_schema: DropBenefitSchema) -> DropBenefit:
+        """Return a DropBenefit, updating stale cached values when needed."""
+        benefit_defaults: dict[str, str | int | datetime | bool | None] = {
+            "name": benefit_schema.name,
+            "image_asset_url": benefit_schema.image_asset_url,
+            "entitlement_limit": benefit_schema.entitlement_limit,
+            "is_ios_available": benefit_schema.is_ios_available,
+            "distribution_type": benefit_schema.distribution_type,
+        }
+
+        if benefit_schema.created_at:
+            created_at_dt: datetime | None = parse_date(benefit_schema.created_at)
+            if created_at_dt:
+                benefit_defaults["created_at"] = created_at_dt
+
+        cached_benefit: DropBenefit | None = self.benefit_cache.get(benefit_schema.twitch_id)
+
+        if cached_benefit:
+            update_fields: list[str] = []
+            for field_name, value in benefit_defaults.items():
+                if getattr(cached_benefit, field_name) != value:
+                    setattr(cached_benefit, field_name, value)
+                    update_fields.append(field_name)
+
+            if update_fields:
+                cached_benefit.save(update_fields=update_fields)
+
+            benefit_obj: DropBenefit = cached_benefit
+        else:
+            benefit_obj, created = DropBenefit.objects.update_or_create(
+                twitch_id=benefit_schema.twitch_id,
+                defaults=benefit_defaults,
+            )
+            if created:
+                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}")
+
+        self.benefit_cache[benefit_schema.twitch_id] = benefit_obj
+        return benefit_obj
+
+    def _process_benefit_edges(
+        self,
+        benefit_edges_schema: list[DropBenefitEdgeSchema],
+        drop_obj: TimeBasedDrop,
+    ) -> None:
+        """Process benefit edges for a time-based drop.
+
+        Args:
+            benefit_edges_schema: List of DropBenefitEdge Pydantic schemas.
+            drop_obj: The TimeBasedDrop database object.
+        """
+        for edge_schema in benefit_edges_schema:
+            benefit_schema: DropBenefitSchema = edge_schema.benefit
+
+            benefit_obj: DropBenefit = self._get_or_update_benefit(benefit_schema=benefit_schema)
+
+            _edge_obj, created = DropBenefitEdge.objects.update_or_create(
+                drop=drop_obj,
+                benefit=benefit_obj,
+                defaults={"entitlement_limit": edge_schema.entitlement_limit},
+            )
+            if created:
+                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Linked benefit: {benefit_schema.name} → {drop_obj.name}")
 
     def handle(self, *args, **options) -> None:  # noqa: ARG002
         """Main entry point for the command.
@@ -152,7 +693,7 @@ class Command(BaseCommand):
         except KeyboardInterrupt:
             tqdm.write(self.style.WARNING("\n\nInterrupted by user!"))
             tqdm.write(self.style.WARNING("Shutting down gracefully..."))
-            sys.exit(130)
+            sys.exit(130)  # 128 + 2 (Keyboard Interrupt)
 
     def process_json_files(self, input_path: Path, options: dict) -> None:
         """Process multiple JSON files in a directory.
@@ -168,37 +709,39 @@ class Command(BaseCommand):
         failed_count = 0
         error_count = 0
 
-        with (
-            ProcessPoolExecutor() as executor,
-            tqdm(
-                total=len(json_files),
-                desc="Processing",
-                unit="file",
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]",
-                colour="green",
-                dynamic_ncols=True,
-            ) as progress_bar,
-        ):
-            # Choose a reasonable chunk_size to reduce overhead for huge file counts
-            cpu_count = os.cpu_count() or 1
-            chunk_size = max(1, min(1000, len(json_files) // (cpu_count * 8 or 1)))
-
-            results_iter = executor.map(self.process_file_worker, json_files, repeat(options), chunksize=chunk_size)
-
+        with tqdm(
+            total=len(json_files),
+            desc="Processing",
+            unit="file",
+            bar_format=("{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"),
+            colour="green",
+            dynamic_ncols=True,
+        ) as progress_bar:
             for file_path in json_files:
                 try:
-                    result: dict[str, bool | str] = next(results_iter)
+                    result: dict[str, bool | str] = self.process_file_worker(
+                        file_path=file_path,
+                        options=options,
+                    )
                     if result["success"]:
                         success_count += 1
                         if options.get("verbose"):
                             progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")
                     else:
                         failed_count += 1
-                        reason = result.get("reason") if isinstance(result, dict) else None
+                        reason: bool | str | None = result.get("reason") if isinstance(result, dict) else None
                         if reason:
-                            progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {result['broken_dir']}/{file_path.name} ({reason})")
+                            progress_bar.write(
+                                f"{Fore.RED}✗{Style.RESET_ALL} "
+                                f"{file_path.name} → {result['broken_dir']}/"
+                                f"{file_path.name} ({reason})",
+                            )
                         else:
-                            progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {result['broken_dir']}/{file_path.name}")
+                            progress_bar.write(
+                                f"{Fore.RED}✗{Style.RESET_ALL} "
+                                f"{file_path.name} → {result['broken_dir']}/"
+                                f"{file_path.name}",
+                            )
                 except (OSError, ValueError, KeyError) as e:
                     error_count += 1
                     progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (error: {e})")
@@ -207,15 +750,27 @@ class Command(BaseCommand):
                 progress_bar.set_postfix_str(f"✓ {success_count} | ✗ {failed_count + error_count}", refresh=True)
                 progress_bar.update(1)
 
-        self.print_processing_summary(json_files, success_count, failed_count, error_count)
+        self.print_processing_summary(
+            json_files,
+            success_count,
+            failed_count,
+            error_count,
+        )
 
-    def print_processing_summary(self, json_files: list[Path], success_count: int, failed_count: int, error_count: int) -> None:
+    def print_processing_summary(
+        self,
+        json_files: list[Path],
+        success_count: int,
+        failed_count: int,
+        error_count: int,
+    ) -> None:
         """Print a summary of the batch processing results.
 
         Args:
             json_files: List of JSON file paths that were processed.
             success_count: Number of files processed successfully.
-            failed_count: Number of files that failed validation and were moved.
+            failed_count: Number of files that failed validation and were
+                moved.
             error_count: Number of files that encountered unexpected errors.
         """
         tqdm.write("\n" + "=" * 50)
@@ -227,7 +782,11 @@ class Command(BaseCommand):
         tqdm.write(f"Total: {len(json_files)}")
         tqdm.write("=" * 50)
 
-    def collect_json_files(self, options: dict, input_path: Path) -> list[Path]:
+    def collect_json_files(
+        self,
+        options: dict,
+        input_path: Path,
+    ) -> list[Path]:
         """Collect JSON files from the specified directory.
 
         Args:
@@ -246,9 +805,12 @@ class Command(BaseCommand):
             json_files = [f for f in input_path.iterdir() if f.is_file() and f.suffix == ".json"]
         return json_files
 
-    @staticmethod
-    def process_file_worker(file_path: Path, options: dict) -> dict[str, bool | str]:
-        """Worker function for parallel processing of files.
+    def process_file_worker(
+        self,
+        file_path: Path,
+        options: dict,
+    ) -> dict[str, bool | str]:
+        """Worker function for processing files.
 
         Args:
             file_path: Path to the JSON file to process
@@ -256,26 +818,49 @@ class Command(BaseCommand):
 
         Raises:
             ValidationError: If the JSON file fails validation
+            json.JSONDecodeError: If the JSON file cannot be parsed
 
         Returns:
             Dict with success status and optional broken_dir path
         """
         try:
             raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
-
-            # Fast pre-filter: check for known non-campaign keywords and move early
             matched: str | None = detect_non_campaign_keyword(raw_text)
             if matched:
-                broken_dir: Path = move_file_to_broken_subdir(file_path, matched)
-                return {"success": False, "broken_dir": str(broken_dir), "reason": f"matched '{matched}'"}
+                if not options.get("skip_broken_moves"):
+                    broken_dir: Path = move_file_to_broken_subdir(file_path, matched)
+                    return {"success": False, "broken_dir": str(broken_dir), "reason": f"matched '{matched}'"}
+                return {"success": False, "broken_dir": "(skipped)", "reason": f"matched '{matched}'"}
+            if "dropCampaign" not in raw_text:
+                if not options.get("skip_broken_moves"):
+                    broken_dir = move_file_to_broken_subdir(file_path, "no_dropCampaign")
+                    return {"success": False, "broken_dir": str(broken_dir), "reason": "no dropCampaign present"}
+                return {"success": False, "broken_dir": "(skipped)", "reason": "no dropCampaign present"}
+            parsed_json: dict[str, Any] = json.loads(raw_text)
+            operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
+            campaigns_found: list[dict[str, Any]] = [parsed_json]
+            self.process_campaigns(
+                campaigns_found=campaigns_found,
+                file_path=file_path,
+                options=options,
+            )
 
-            ViewerDropsDashboardPayload.model_validate_json(raw_text)
-        except ValidationError:
+            move_completed_file(file_path=file_path, operation_name=operation_name)
+
+        except (ValidationError, json.JSONDecodeError):
             if options["crash_on_error"]:
                 raise
 
-            broken_dir: Path = move_failed_validation_file(file_path)
-            return {"success": False, "broken_dir": str(broken_dir)}
+            if not options.get("skip_broken_moves"):
+                parsed_json_local: Any | None = locals().get("parsed_json")
+                op_name: str | None = (
+                    extract_operation_name_from_parsed(parsed_json_local)
+                    if isinstance(parsed_json_local, (dict, list))
+                    else None
+                )
+                broken_dir: Path = move_failed_validation_file(file_path, operation_name=op_name)
+                return {"success": False, "broken_dir": str(broken_dir)}
+            return {"success": False, "broken_dir": "(skipped)"}
         else:
             return {"success": True}
 
@@ -288,6 +873,7 @@ class Command(BaseCommand):
 
         Raises:
             ValidationError: If the JSON file fails validation
+            json.JSONDecodeError: If the JSON file cannot be parsed
         """
         with tqdm(
             total=1,
@@ -299,19 +885,58 @@ class Command(BaseCommand):
             try:
                 raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
 
-                # Fast pre-filter for non-campaign responses
                 matched: str | None = detect_non_campaign_keyword(raw_text)
                 if matched:
-                    broken_dir: Path = move_file_to_broken_subdir(file_path, matched)
-                    progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {broken_dir}/{file_path.name} (matched '{matched}')")
+                    if not options.get("skip_broken_moves"):
+                        broken_dir: Path = move_file_to_broken_subdir(file_path, matched)
+                        progress_bar.write(
+                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                            f"{broken_dir}/{file_path.name} "
+                            f"(matched '{matched}')",
+                        )
+                    else:
+                        progress_bar.write(
+                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (matched '{matched}', move skipped)",
+                        )
                     return
 
-                _: ViewerDropsDashboardPayload = ViewerDropsDashboardPayload.model_validate_json(raw_text)
+                if "dropCampaign" not in raw_text:
+                    if not options.get("skip_broken_moves"):
+                        broken_dir = move_file_to_broken_subdir(file_path, "no_dropCampaign")
+                        progress_bar.write(
+                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                            f"{broken_dir}/{file_path.name} "
+                            f"(no dropCampaign present)",
+                        )
+                    else:
+                        progress_bar.write(
+                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (no dropCampaign present, move skipped)",
+                        )
+                    return
+
+                parsed_json: dict[str, Any] = json.loads(raw_text)
+                operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
+
+                campaigns_found: list[dict[str, Any]] = [parsed_json]
+
+                self.process_campaigns(campaigns_found=campaigns_found, file_path=file_path, options=options)
+
+                move_completed_file(file_path=file_path, operation_name=operation_name)
+
                 progress_bar.update(1)
                 progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")
-            except ValidationError:
+            except (ValidationError, json.JSONDecodeError):
                 if options["crash_on_error"]:
                     raise
 
-                broken_dir: Path = move_failed_validation_file(file_path)
-                progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {broken_dir}/{file_path.name}")
+                if not options.get("skip_broken_moves"):
+                    parsed_json_local: Any | None = locals().get("parsed_json")
+                    op_name: str | None = (
+                        extract_operation_name_from_parsed(parsed_json_local)
+                        if isinstance(parsed_json_local, (dict, list))
+                        else None
+                    )
+                    broken_dir: Path = move_failed_validation_file(file_path, operation_name=op_name)
+                    progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {broken_dir}/{file_path.name}")
+                else:
+                    progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (move skipped)")

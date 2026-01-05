@@ -17,6 +17,9 @@ dependencies = [
     "pydantic>=2.12.5",
     "tqdm>=4.67.1",
     "colorama>=0.4.6",
+    "django-stubs-ext>=5.2.8",
+    "django-stubs[compatible-mypy]>=5.2.8",
+    "types-pygments>=2.19.0.20251121",
 ]
 
 [dependency-groups]
@@ -26,9 +29,6 @@ dev = ["pytest>=8.4.1", "pytest-django>=4.11.1"]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]
 addopts = ["--reuse-db", "--no-migrations"]
-
-[tool.pyright]
-exclude = ["**/migrations/**"]
 
 [tool.ruff]
 lint.select = ["ALL"]
@@ -76,7 +76,7 @@ lint.ignore = [
 preview = true
 unsafe-fixes = true
 fix = true
-line-length = 160
+line-length = 120
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = [
@@ -94,3 +94,9 @@ line-length = 160
 [tool.djlint]
 profile = "django"
 ignore = "H021"
+
+[tool.mypy]
+plugins = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "config.settings"

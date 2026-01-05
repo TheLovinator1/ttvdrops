@@ -14,7 +14,7 @@
                id="search"
                name="search"
                value="{{ search_query }}"
-               placeholder="Search channels...">
+               placeholder="Search channels..." />
         <button id="search-button" type="submit">Search</button>
         {% if search_query %}
             <a href="{% url 'twitch:channel_list' %}">Clear</a>
@@ -35,7 +35,7 @@
                     <tr id="channel-row-{{ channel.id }}">
                         <td>
                             <a id="channel-link-{{ channel.id }}"
-                               href="{% url 'twitch:channel_detail' channel.id %}">{{ channel.display_name }}</a>
+                               href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name }}</a>
                         </td>
                         <td>{{ channel.name }}</td>
                         <td>{{ channel.campaign_count }}</td>

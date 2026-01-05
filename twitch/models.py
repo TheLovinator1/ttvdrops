@@ -17,8 +17,9 @@ class Organization(models.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
     twitch_id = models.TextField(
-        primary_key=True,
+        unique=True,
         verbose_name="Organization ID",
+        editable=False,
         help_text="The unique Twitch identifier for the organization.",
     )
     name = models.TextField(
@@ -29,15 +30,25 @@ class Organization(models.Model):
 
     added_at = models.DateTimeField(
         auto_now_add=True,
+        verbose_name="Added At",
+        editable=False,
         help_text="Timestamp when this organization record was created.",
     )
     updated_at = models.DateTimeField(
         auto_now=True,
+        verbose_name="Updated At",
+        editable=False,
         help_text="Timestamp when this organization record was last updated.",
     )
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the organization."""
@@ -101,6 +112,17 @@ class Game(models.Model):
 
     class Meta:
         ordering = ["display_name"]
+        indexes = [
+            models.Index(fields=["display_name"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["slug"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["owner"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+            # For games_grid_view grouping by owner + display_name
+            models.Index(fields=["owner", "display_name"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the game."""
@@ -115,8 +137,10 @@ class Game(models.Model):
 
     @property
     def organizations(self) -> models.QuerySet[Organization]:
-        """Return all organizations that own games with campaigns for this game."""
-        return Organization.objects.filter(games__drop_campaigns__game=self).distinct()
+        """Return orgs that own games with campaigns for this game."""
+        return Organization.objects.filter(
+            games__drop_campaigns__game=self,
+        ).distinct()
 
     @property
     def get_game_name(self) -> str:
@@ -131,17 +155,28 @@ class Game(models.Model):
 
     @property
     def twitch_directory_url(self) -> str:
-        """Return the Twitch directory URL for this game with drops filter if slug is available."""
+        """Return Twitch directory URL with drops filter when slug exists."""
         if self.slug:
             return f"https://www.twitch.tv/directory/category/{self.slug}?filter=drops"
         return ""
+
+    @property
+    def box_art_best_url(self) -> str:
+        """Return the best available URL for the game's box art (local first)."""
+        try:
+            if self.box_art_file and getattr(self.box_art_file, "url", None):
+                return self.box_art_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug("Failed to resolve Game.box_art_file url: %s", exc)
+        return self.box_art or ""
 
 
 # MARK: TwitchGame
 class TwitchGameData(models.Model):
     """Represents game metadata returned from the Twitch API.
 
-    This mirrors the public Twitch API fields for a game and is tied to the local `Game` model where possible.
+    This mirrors the public Twitch API fields for a game and is tied to the
+    local `Game` model where possible.
 
     Fields:
         id: Twitch game id (primary key)
@@ -151,7 +186,11 @@ class TwitchGameData(models.Model):
         igdb_id: Optional IGDB id for the game
     """
 
-    twitch_id = models.TextField(primary_key=True, verbose_name="Twitch Game ID")
+    twitch_id = models.TextField(
+        verbose_name="Twitch Game ID",
+        unique=True,
+        help_text="The Twitch ID for this game.",
+    )
     game = models.ForeignKey(
         Game,
         on_delete=models.SET_NULL,
@@ -159,7 +198,7 @@ class TwitchGameData(models.Model):
         null=True,
         blank=True,
         verbose_name="Game",
-        help_text="Optional link to the local Game record for this Twitch game.",
+        help_text=("Optional link to the local Game record for this Twitch game."),
     )
 
     name = models.TextField(blank=True, default="", verbose_name="Name")
@@ -168,15 +207,29 @@ class TwitchGameData(models.Model):
         blank=True,
         default="",
         verbose_name="Box art URL",
-        help_text="URL template with {width}x{height} placeholders for the box art image.",
+        help_text=("URL template with {width}x{height} placeholders for the box art image."),
     )
     igdb_id = models.TextField(blank=True, default="", verbose_name="IGDB ID")
 
-    added_at = models.DateTimeField(auto_now_add=True, help_text="Record creation time.")
-    updated_at = models.DateTimeField(auto_now=True, help_text="Record last update time.")
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Record creation time.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Record last update time.",
+    )
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["name"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["game"]),
+            models.Index(fields=["igdb_id"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
 
     def __str__(self) -> str:
         return self.name or self.twitch_id
@@ -187,9 +240,9 @@ class Channel(models.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
 
     twitch_id = models.TextField(
-        primary_key=True,
         verbose_name="Channel ID",
         help_text="The unique Twitch identifier for the channel.",
+        unique=True,
     )
     name = models.TextField(
         verbose_name="Username",
@@ -197,7 +250,7 @@ class Channel(models.Model):
     )
     display_name = models.TextField(
         verbose_name="Display Name",
-        help_text="The display name of the channel (with proper capitalization).",
+        help_text=("The display name of the channel (with proper capitalization)."),
     )
 
     added_at = models.DateTimeField(
@@ -211,6 +264,13 @@ class Channel(models.Model):
 
     class Meta:
         ordering = ["display_name"]
+        indexes = [
+            models.Index(fields=["display_name"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the channel."""
@@ -222,8 +282,9 @@ class DropCampaign(models.Model):
     """Represents a Twitch drop campaign."""
 
     twitch_id = models.TextField(
-        primary_key=True,
-        help_text="Unique Twitch identifier for the campaign.",
+        unique=True,
+        editable=False,
+        help_text="The Twitch ID for this campaign.",
     )
     name = models.TextField(
         help_text="Name of the drop campaign.",
@@ -289,6 +350,12 @@ class DropCampaign(models.Model):
         help_text="Game associated with this campaign.",
     )
 
+    operation_name = models.TextField(
+        blank=True,
+        default="",
+        help_text="The GraphQL operation name used to fetch this campaign data (e.g., 'ViewerDropsDashboard').",
+    )
+
     added_at = models.DateTimeField(
         auto_now_add=True,
         help_text="Timestamp when this campaign record was created.",
@@ -300,6 +367,25 @@ class DropCampaign(models.Model):
 
     class Meta:
         ordering = ["-start_at"]
+        indexes = [
+            models.Index(fields=["-start_at"]),
+            models.Index(fields=["end_at"]),
+            models.Index(fields=["game"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["description"]),
+            models.Index(fields=["is_account_connected"]),
+            models.Index(fields=["allow_is_enabled"]),
+            models.Index(fields=["operation_name"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+            # Composite indexes for common queries
+            models.Index(fields=["game", "-start_at"]),
+            models.Index(fields=["start_at", "end_at"]),
+            # For dashboard and game_detail active campaign filtering
+            models.Index(fields=["start_at", "end_at", "game"]),
+            models.Index(fields=["end_at", "-start_at"]),
+        ]
 
     def __str__(self) -> str:
         return self.name
@@ -319,7 +405,8 @@ class DropCampaign(models.Model):
         Examples:
             "Ravendawn - July 2" -> "July 2"
             "Party Animals Twitch Drop" -> "Twitch Drop"
-            "Skull & Bones - Closed Beta" -> "Closed Beta" (& is replaced with "and")
+            "Skull & Bones - Closed Beta" -> "Closed Beta" (& is replaced
+            with "and")
         """
         if not self.game or not self.game.display_name:
             return self.name
@@ -343,12 +430,15 @@ class DropCampaign(models.Model):
 
     @property
     def image_best_url(self) -> str:
-        """Return the best available URL for the campaign image (local first)."""
+        """Return the best URL for the campaign image (local first)."""
         try:
             if self.image_file and getattr(self.image_file, "url", None):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
-            logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
+            logger.debug(
+                "Failed to resolve DropCampaign.image_file url: %s",
+                exc,
+            )
         return self.image_url or ""
 
 
@@ -357,8 +447,9 @@ class DropBenefit(models.Model):
     """Represents a benefit that can be earned from a drop."""
 
     twitch_id = models.TextField(
-        primary_key=True,
-        help_text="Unique Twitch identifier for the benefit.",
+        unique=True,
+        help_text="The Twitch ID for this benefit.",
+        editable=False,
     )
     name = models.TextField(
         blank=True,
@@ -379,14 +470,14 @@ class DropBenefit(models.Model):
     )
     created_at = models.DateTimeField(
         null=True,
-        help_text="Timestamp when the benefit was created. This is from Twitch API and not auto-generated.",
+        help_text=("Timestamp when the benefit was created. This is from Twitch API and not auto-generated."),
     )
     entitlement_limit = models.PositiveIntegerField(
         default=1,
         help_text="Maximum number of times this benefit can be earned.",
     )
 
-    # TODO(TheLovinator): Check if this should be default True or False  # noqa: TD003
+    # NOTE: Default may need revisiting once requirements are confirmed.
     is_ios_available = models.BooleanField(
         default=False,
         help_text="Whether the benefit is available on iOS.",
@@ -409,10 +500,80 @@ class DropBenefit(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["distribution_type"]),
+            models.Index(fields=["is_ios_available"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the drop benefit."""
         return self.name
+
+    @property
+    def image_best_url(self) -> str:
+        """Return the best URL for the benefit image (local first)."""
+        try:
+            if self.image_file and getattr(self.image_file, "url", None):
+                return self.image_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug(
+                "Failed to resolve DropBenefit.image_file url: %s",
+                exc,
+            )
+        return self.image_asset_url or ""
+
+
+# MARK: DropBenefitEdge
+class DropBenefitEdge(models.Model):
+    """Link a TimeBasedDrop to a DropBenefit."""
+
+    drop = models.ForeignKey(
+        to="twitch.TimeBasedDrop",
+        on_delete=models.CASCADE,
+        help_text="The time-based drop in this relationship.",
+    )
+    benefit = models.ForeignKey(
+        DropBenefit,
+        on_delete=models.CASCADE,
+        help_text="The benefit in this relationship.",
+    )
+    entitlement_limit = models.PositiveIntegerField(
+        default=1,
+        help_text="Max times this benefit can be claimed for this drop.",
+    )
+
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when this drop-benefit edge was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this drop-benefit edge was last updated.",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("drop", "benefit"),
+                name="unique_drop_benefit",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["drop"]),
+            models.Index(fields=["benefit"]),
+            models.Index(fields=["entitlement_limit"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
+
+    def __str__(self) -> str:
+        """Return a string representation of the drop benefit edge."""
+        return f"{self.drop.name} - {self.benefit.name}"
 
 
 # MARK: TimeBasedDrop
@@ -420,8 +581,9 @@ class TimeBasedDrop(models.Model):
     """Represents a time-based drop in a drop campaign."""
 
     twitch_id = models.TextField(
-        primary_key=True,
-        help_text="Unique Twitch identifier for the time-based drop.",
+        unique=True,
+        editable=False,
+        help_text="The Twitch ID for this time-based drop.",
     )
     name = models.TextField(
         help_text="Name of the time-based drop.",
@@ -455,7 +617,7 @@ class TimeBasedDrop(models.Model):
     )
     benefits = models.ManyToManyField(
         DropBenefit,
-        through="DropBenefitEdge",
+        through=DropBenefitEdge,
         related_name="drops",
         help_text="Benefits unlocked by this drop.",
     )
@@ -466,50 +628,27 @@ class TimeBasedDrop(models.Model):
     )
     updated_at = models.DateTimeField(
         auto_now=True,
-        help_text="Timestamp when this time-based drop record was last updated.",
+        help_text=("Timestamp when this time-based drop record was last updated."),
     )
 
     class Meta:
         ordering = ["start_at"]
+        indexes = [
+            models.Index(fields=["start_at"]),
+            models.Index(fields=["end_at"]),
+            models.Index(fields=["campaign"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["required_minutes_watched"]),
+            models.Index(fields=["required_subs"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+            # Composite indexes for common queries
+            models.Index(fields=["campaign", "start_at"]),
+            models.Index(fields=["campaign", "required_minutes_watched"]),
+            models.Index(fields=["start_at", "end_at"]),
+        ]
 
     def __str__(self) -> str:
         """Return a string representation of the time-based drop."""
         return self.name
-
-
-# MARK: DropBenefitEdge
-class DropBenefitEdge(models.Model):
-    """Represents the relationship between a TimeBasedDrop and a DropBenefit."""
-
-    drop = models.ForeignKey(
-        TimeBasedDrop,
-        on_delete=models.CASCADE,
-        help_text="The time-based drop in this relationship.",
-    )
-    benefit = models.ForeignKey(
-        DropBenefit,
-        on_delete=models.CASCADE,
-        help_text="The benefit in this relationship.",
-    )
-    entitlement_limit = models.PositiveIntegerField(
-        default=1,
-        help_text="Max times this benefit can be claimed for this drop.",
-    )
-
-    added_at = models.DateTimeField(
-        auto_now_add=True,
-        help_text="Timestamp when this drop-benefit edge was created.",
-    )
-    updated_at = models.DateTimeField(
-        auto_now=True,
-        help_text="Timestamp when this drop-benefit edge was last updated.",
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=("drop", "benefit"), name="unique_drop_benefit"),
-        ]
-
-    def __str__(self) -> str:
-        """Return a string representation of the drop benefit edge."""
-        return f"{self.drop.name} - {self.benefit.name}"

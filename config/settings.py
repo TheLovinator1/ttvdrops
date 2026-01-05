@@ -6,14 +6,41 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import django_stubs_ext
 from dotenv import load_dotenv
 from platformdirs import user_data_dir
 
 logger: logging.Logger = logging.getLogger("ttvdrops.settings")
+django_stubs_ext.monkeypatch()
 
 load_dotenv(verbose=True)
 
-DEBUG: bool = os.getenv(key="DEBUG", default="True").lower() == "true"
+TRUE_VALUES: set[str] = {"1", "true", "yes", "y", "on"}
+
+
+def env_bool(key: str, *, default: bool = False) -> bool:
+    """Read a boolean from the environment, accepting common truthy values.
+
+    Returns:
+        bool: Parsed boolean value or the provided default when unset.
+    """
+    value: str | None = os.getenv(key)
+    if value is None:
+        return default
+    return value.strip().lower() in TRUE_VALUES
+
+
+def env_int(key: str, default: int) -> int:
+    """Read an integer from the environment with a fallback default.
+
+    Returns:
+        int: Parsed integer value or the provided default when unset.
+    """
+    value: str | None = os.getenv(key)
+    return int(value) if value is not None else default
+
+
+DEBUG: bool = env_bool(key="DEBUG", default=True)
 
 
 def get_data_dir() -> Path:
@@ -53,12 +80,12 @@ DEFAULT_FROM_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
 EMAIL_HOST: str = os.getenv(key="EMAIL_HOST", default="smtp.gmail.com")
 EMAIL_HOST_PASSWORD: str | None = os.getenv(key="EMAIL_HOST_PASSWORD", default=None)
 EMAIL_HOST_USER: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
-EMAIL_PORT: int = int(os.getenv(key="EMAIL_PORT", default="587"))
+EMAIL_PORT: int = env_int(key="EMAIL_PORT", default=587)
 EMAIL_SUBJECT_PREFIX = "[TTVDrops] "
-EMAIL_TIMEOUT: int = int(os.getenv(key="EMAIL_TIMEOUT", default="10"))
+EMAIL_TIMEOUT: int = env_int(key="EMAIL_TIMEOUT", default=10)
 EMAIL_USE_LOCALTIME = True
-EMAIL_USE_TLS: bool = os.getenv(key="EMAIL_USE_TLS", default="True").lower() == "true"
-EMAIL_USE_SSL: bool = os.getenv(key="EMAIL_USE_SSL", default="False").lower() == "true"
+EMAIL_USE_TLS: bool = env_bool(key="EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL: bool = env_bool(key="EMAIL_USE_SSL", default=False)
 SERVER_EMAIL: str | None = os.getenv(key="EMAIL_HOST_USER", default=None)
 
 LOGIN_REDIRECT_URL = "/"
@@ -81,11 +108,13 @@ STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 TIME_ZONE = "UTC"
 WSGI_APPLICATION = "config.wsgi.application"
 
+INTERNAL_IPS: list[str] = []
 if DEBUG:
-    INTERNAL_IPS: list[str] = ["127.0.0.1", "localhost"]
+    INTERNAL_IPS = ["127.0.0.1", "localhost"]  # pyright: ignore[reportConstantRedefinition]
 
+ALLOWED_HOSTS: list[str] = [".localhost", "127.0.0.1", "[::1]"]
 if not DEBUG:
-    ALLOWED_HOSTS: list[str] = ["ttvdrops.lovinator.space"]
+    ALLOWED_HOSTS = ["ttvdrops.lovinator.space"]  # pyright: ignore[reportConstantRedefinition]
 
 LOGGING: dict[str, Any] = {
     "version": 1,
@@ -124,7 +153,7 @@ MIDDLEWARE: list[str] = [
 ]
 
 
-TEMPLATES: list[dict[str, str | list[Path] | bool | dict[str, list[str] | list[tuple[str, list[str]]]]]] = [
+TEMPLATES: list[dict[str, Any]] = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
@@ -145,7 +174,9 @@ DATABASES: dict[str, dict[str, str | Path | dict[str, str]]] = {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": DATA_DIR / "ttvdrops.sqlite3",
         "OPTIONS": {
-            "init_command": "PRAGMA foreign_keys = ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA mmap_size = 134217728; PRAGMA journal_size_limit = 27103364; PRAGMA cache_size=2000;",  # noqa: E501
+            "init_command": (
+                "PRAGMA foreign_keys = ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA mmap_size = 134217728; PRAGMA journal_size_limit = 27103364; PRAGMA cache_size=2000;"  # noqa: E501
+            ),
             "transaction_mode": "IMMEDIATE",
         },
     },
@@ -154,7 +185,9 @@ DATABASES: dict[str, dict[str, str | Path | dict[str, str]]] = {
 TESTING: bool = "test" in sys.argv or "PYTEST_VERSION" in os.environ
 
 if not TESTING:
-    DEBUG_TOOLBAR_CONFIG: dict[str, str] = {"ROOT_TAG_EXTRA_ATTRS": "hx-preserve"}
+    DEBUG_TOOLBAR_CONFIG: dict[str, str] = {
+        "ROOT_TAG_EXTRA_ATTRS": "hx-preserve",
+    }
     INSTALLED_APPS = [  # pyright: ignore[reportConstantRedefinition]
         *INSTALLED_APPS,
         "debug_toolbar",

@@ -7,14 +7,14 @@
     <!-- Campaign Title -->
     {% if campaign.game %}
         <h1 id="campaign-title">
-            <a href="{% url 'twitch:game_detail' campaign.game.id %}">{{ campaign.game.get_game_name }}</a> - {{ campaign.clean_name }}
+            <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.get_game_name }}</a> - {{ campaign.clean_name }}
         </h1>
     {% else %}
         <h1 id="campaign-title">{{ campaign.clean_name }}</h1>
     {% endif %}
     {% if owner %}
         <p id="campaign-owner">
-            <a href="{% url 'twitch:organization_detail' owner.id %}">{{ owner.name }}</a>
+            <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
         </p>
     {% endif %}
     <!-- Campaign image -->
@@ -23,7 +23,7 @@
              height="160"
              width="160"
              src="{{ campaign.image_best_url|default:campaign.image_url }}"
-             alt="{{ campaign.name }}">
+             alt="{{ campaign.name }}" />
     {% endif %}
     <!-- Campaign description -->
     <p id="campaign-description">{{ campaign.description|linebreaksbr }}</p>
@@ -98,7 +98,7 @@
         <h5>Allowed Channels</h5>
         <div id="allowed-channels" style="margin-bottom: 20px;">
             {% for channel in allowed_channels %}
-                <a href="{% url 'twitch:channel_detail' channel.id %}"
+                <a href="{% url 'twitch:channel_detail' channel.twitch_id %}"
                    style="display: inline-block;
                           margin: 2px 5px 2px 0;
                           padding: 3px 8px;
@@ -139,7 +139,7 @@
                                          style="object-fit: cover;
                                                 margin-right: 3px"
                                          src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
-                                         alt="{{ benefit.name }}">
+                                         alt="{{ benefit.name }}" />
                                 {% endif %}
                             {% endfor %}
                         </td>

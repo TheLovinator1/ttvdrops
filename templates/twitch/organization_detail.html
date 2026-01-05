@@ -31,7 +31,7 @@
     <ul id="games-list">
         {% for game in games %}
             <li id="game-{{ game.id }}">
-                <a href="{% url 'twitch:game_detail' pk=game.id %}">{{ game }}</a>
+                <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game }}</a>
             </li>
         {% endfor %}
     </ul>

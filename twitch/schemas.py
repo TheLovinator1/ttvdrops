@@ -4,9 +4,10 @@ from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic import field_validator
 
 
-class Organization(BaseModel):
+class OrganizationSchema(BaseModel):
     """Schema for Twitch Organization objects."""
 
     twitch_id: str = Field(alias="id")
@@ -21,7 +22,7 @@ class Organization(BaseModel):
     }
 
 
-class Game(BaseModel):
+class GameSchema(BaseModel):
     """Schema for Twitch Game objects."""
 
     twitch_id: str = Field(alias="id")
@@ -51,19 +52,74 @@ class DropCampaignSelfEdge(BaseModel):
     }
 
 
+class DropBenefitSchema(BaseModel):
+    """Schema for a benefit in a DropBenefitEdge."""
+
+    twitch_id: str = Field(alias="id")
+    name: str
+    image_asset_url: str = Field(alias="imageAssetURL")
+    created_at: str | None = Field(alias="createdAt")
+    entitlement_limit: int = Field(alias="entitlementLimit")
+    is_ios_available: bool = Field(alias="isIosAvailable")
+    distribution_type: str = Field(alias="distributionType")
+    type_name: Literal["Benefit"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class DropBenefitEdgeSchema(BaseModel):
+    """Schema for a benefit edge in a TimeBasedDrop."""
+
+    benefit: DropBenefitSchema
+    entitlement_limit: int = Field(alias="entitlementLimit")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class TimeBasedDropSchema(BaseModel):
+    """Schema for a TimeBasedDrop in a DropCampaign."""
+
+    twitch_id: str = Field(alias="id")
+    name: str
+    required_minutes_watched: int | None = Field(alias="requiredMinutesWatched")
+    required_subs: int = Field(alias="requiredSubs")
+    start_at: str | None = Field(alias="startAt")
+    end_at: str | None = Field(alias="endAt")
+    benefit_edges: list[DropBenefitEdgeSchema] = Field(alias="benefitEdges")
+    type_name: Literal["TimeBasedDrop"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
 class DropCampaign(BaseModel):
     """Schema for Twitch DropCampaign objects."""
 
     twitch_id: str = Field(alias="id")
     name: str
-    owner: Organization
-    game: Game
-    status: Literal["ACTIVE", "EXPIRED"]
+    owner: OrganizationSchema
+    game: GameSchema
+    status: Literal["ACTIVE", "EXPIRED", "UPCOMING"]
     start_at: str = Field(alias="startAt")
     end_at: str = Field(alias="endAt")
     details_url: str = Field(alias="detailsURL")
     account_link_url: str = Field(alias="accountLinkURL")
     self: DropCampaignSelfEdge
+    time_based_drops: list[TimeBasedDropSchema] = Field(default=[], alias="timeBasedDrops")
     type_name: Literal["DropCampaign"] = Field(alias="__typename")
 
     model_config = {
@@ -93,7 +149,7 @@ class CurrentUser(BaseModel):
 class Data(BaseModel):
     """Schema for the data field in Twitch API responses."""
 
-    current_user: CurrentUser = Field(alias="currentUser")
+    current_user: CurrentUser | None = Field(alias="currentUser")
 
     model_config = {
         "extra": "forbid",
@@ -101,31 +157,45 @@ class Data(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+    @field_validator("current_user", mode="before")
+    @classmethod
+    def empty_dict_to_none(cls, v: dict) -> dict | None:
+        """Convert empty dicts to None for current_user field.
+
+        Args:
+            v (dict): The value to validate.
+
+        Returns:
+            dict | None: None when input is an empty dict; otherwise the value.
+        """
+        if v == {}:
+            return None
+        return v
 
 
 class Extensions(BaseModel):
-    """Schema for the extensions field in Twitch API responses."""
+    """Schema for the extensions field in GraphQL responses."""
 
-    duration_milliseconds: int = Field(alias="durationMilliseconds")
-    operation_name: Literal["ViewerDropsDashboard"] = Field(alias="operationName")
-    request_id: str = Field(alias="requestID")
+    operation_name: str | None = Field(default=None, alias="operationName")
 
     model_config = {
-        "extra": "forbid",
+        "extra": "ignore",
         "validate_assignment": True,
         "strict": True,
         "populate_by_name": True,
     }
 
 
-class ViewerDropsDashboardPayload(BaseModel):
-    """Schema for the ViewerDropsDashboard response."""
+class GraphQLResponse(BaseModel):
+    """Schema for the complete GraphQL response from Twitch API."""
 
     data: Data
-    extensions: Extensions
+    extensions: Extensions | None = None
 
     model_config = {
         "extra": "forbid",
         "validate_assignment": True,
         "strict": True,
+        "populate_by_name": True,
     }

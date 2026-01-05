@@ -14,45 +14,21 @@
              height="160"
              width="160"
              src="{{ game.box_art }}"
-             alt="{{ game.name }}">
+             alt="{{ game.name }}" />
     {% endif %}
     <!-- Game owner -->
     {% if owner %}
         <small><a id="owner-link"
-   href="{% url 'twitch:organization_detail' owner.id %}">{{ owner.name }}</a></small>
-    {% endif %}
-    {% if user.is_authenticated %}
-        <form id="notification-form"
-              method="post"
-              action="{% url 'twitch:subscribe_notifications' game_id=game.id %}">
-            {% csrf_token %}
-            <div>
-                <input type="checkbox"
-                       id="found"
-                       name="notify_found"
-                       {% if subscription and subscription.notify_found %}checked{% endif %} />
-                <label for="found">🔔 Get notified as soon as a drop for {{ game.display_name }} appears on Twitch.</label>
-            </div>
-            <div>
-                <input type="checkbox"
-                       id="live"
-                       name="notify_live"
-                       {% if subscription and subscription.notify_live %}checked{% endif %} />
-                <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
-            </div>
-            <button id="save-notifications-button" type="submit">Save notification preferences</button>
-        </form>
-    {% else %}
-        <p id="login-prompt">Login to subscribe!</p>
+   href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a></small>
     {% endif %}
     {% if active_campaigns %}
         <h5 id="active-campaigns-header">Active Campaigns</h5>
         <table id="active-campaigns-table">
             <tbody>
                 {% for campaign in active_campaigns %}
-                    <tr id="campaign-row-{{ campaign.id }}">
+                    <tr id="campaign-row-{{ campaign.twitch_id }}">
                         <td>
-                            <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
+                            <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                             {% if campaign.time_based_drops.all %}
                                 <div class="campaign-benefits">
                                     {% comment %}Show unique benefits sorted alphabetically{% endcomment %}
@@ -65,7 +41,7 @@
                                                      height="24"
                                                      style="display: inline-block;
                                                             margin-right: 4px;
-                                                            vertical-align: middle">
+                                                            vertical-align: middle" />
                                             {% endif %}
                                             {{ benefit.name }}
                                         </span>
@@ -86,9 +62,9 @@
         <table id="upcoming-campaigns-table">
             <tbody>
                 {% for campaign in upcoming_campaigns %}
-                    <tr id="campaign-row-{{ campaign.id }}">
+                    <tr id="campaign-row-{{ campaign.twitch_id }}">
                         <td>
-                            <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
+                            <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                             {% if campaign.time_based_drops.all %}
                                 <div class="campaign-benefits">
                                     {% for benefit in campaign.sorted_benefits %}
@@ -100,7 +76,7 @@
                                                      height="24"
                                                      style="display: inline-block;
                                                             margin-right: 4px;
-                                                            vertical-align: middle">
+                                                            vertical-align: middle" />
                                             {% endif %}
                                             {{ benefit.name }}
                                         </span>
@@ -121,9 +97,9 @@
         <table id="expired-campaigns-table">
             <tbody>
                 {% for campaign in expired_campaigns %}
-                    <tr id="campaign-row-{{ campaign.id }}">
+                    <tr id="campaign-row-{{ campaign.twitch_id }}">
                         <td>
-                            <a href="{% url 'twitch:campaign_detail' campaign.id %}">{{ campaign.clean_name }}</a>
+                            <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                             {% if campaign.time_based_drops.all %}
                                 <div class="campaign-benefits">
                                     {% comment %}Show unique benefits sorted alphabetically{% endcomment %}
@@ -136,7 +112,7 @@
                                                      height="24"
                                                      style="display: inline-block;
                                                             margin-right: 4px;
-                                                            vertical-align: middle">
+                                                            vertical-align: middle" />
                                             {% endif %}
                                             {{ benefit.name }}
                                         </span>

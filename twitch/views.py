@@ -8,12 +8,6 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 
-if TYPE_CHECKING:
-    from django.db.models.manager import BaseManager
-
-from django.contrib.postgres.search import SearchQuery
-from django.contrib.postgres.search import SearchRank
-from django.contrib.postgres.search import SearchVector
 from django.core.serializers import serialize
 from django.db.models import Count
 from django.db.models import F
@@ -22,6 +16,7 @@ from django.db.models import Prefetch
 from django.db.models import Q
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
+from django.http import Http404
 from django.http import HttpRequest
 from django.http import HttpResponse
 from django.shortcuts import render
@@ -44,7 +39,7 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
     from django.http import HttpResponse
 
-logger: logging.Logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
 MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
@@ -60,55 +55,41 @@ def search_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered search results.
     """
-    query = request.GET.get("q", "")
-    results = {}
+    query: str = request.GET.get("q", "")
+    results: dict[str, QuerySet] = {}
 
     if query:
         if len(query) < MIN_QUERY_LENGTH_FOR_FTS:
             results["organizations"] = Organization.objects.filter(name__istartswith=query)
             results["games"] = Game.objects.filter(Q(name__istartswith=query) | Q(display_name__istartswith=query))
-            results["campaigns"] = DropCampaign.objects.filter(Q(name__istartswith=query) | Q(description__icontains=query)).select_related("game")
+            results["campaigns"] = DropCampaign.objects.filter(
+                Q(name__istartswith=query) | Q(description__icontains=query),
+            ).select_related("game")
             results["drops"] = TimeBasedDrop.objects.filter(name__istartswith=query).select_related("campaign")
             results["benefits"] = DropBenefit.objects.filter(name__istartswith=query)
         else:
-            search_query = SearchQuery(query)
-
-            # Search Organizations
-            org_vector = SearchVector("name")
-            org_results = Organization.objects.annotate(rank=SearchRank(org_vector, search_query)).filter(rank__gte=MIN_SEARCH_RANK).order_by("-rank")
-            results["organizations"] = org_results
-
-            # Search Games
-            game_vector = SearchVector("name", "display_name")
-            game_results = Game.objects.annotate(rank=SearchRank(game_vector, search_query)).filter(rank__gte=MIN_SEARCH_RANK).order_by("-rank")
-            results["games"] = game_results
-
-            # Search DropCampaigns
-            campaign_vector = SearchVector("name", "description")
-            campaign_results = (
-                DropCampaign.objects.annotate(rank=SearchRank(campaign_vector, search_query))
-                .filter(rank__gte=MIN_SEARCH_RANK)
-                .select_related("game")
-                .order_by("-rank")
+            # SQLite-compatible text search using icontains
+            results["organizations"] = Organization.objects.filter(
+                name__icontains=query,
             )
-            results["campaigns"] = campaign_results
-
-            # Search TimeBasedDrops
-            drop_vector = SearchVector("name")
-            drop_results = (
-                TimeBasedDrop.objects.annotate(rank=SearchRank(drop_vector, search_query))
-                .filter(rank__gte=MIN_SEARCH_RANK)
-                .select_related("campaign")
-                .order_by("-rank")
+            results["games"] = Game.objects.filter(
+                Q(name__icontains=query) | Q(display_name__icontains=query),
             )
-            results["drops"] = drop_results
+            results["campaigns"] = DropCampaign.objects.filter(
+                Q(name__icontains=query) | Q(description__icontains=query),
+            ).select_related("game")
+            results["drops"] = TimeBasedDrop.objects.filter(
+                name__icontains=query,
+            ).select_related("campaign")
+            results["benefits"] = DropBenefit.objects.filter(
+                name__icontains=query,
+            )
 
-            # Search DropBenefits
-            benefit_vector = SearchVector("name")
-            benefit_results = DropBenefit.objects.annotate(rank=SearchRank(benefit_vector, search_query)).filter(rank__gte=MIN_SEARCH_RANK).order_by("-rank")
-            results["benefits"] = benefit_results
-
-    return render(request, "twitch/search_results.html", {"query": query, "results": results})
+    return render(
+        request,
+        "twitch/search_results.html",
+        {"query": query, "results": results},
+    )
 
 
 # MARK: /organizations/
@@ -127,6 +108,34 @@ class OrgDetailView(DetailView):
     model = Organization
     template_name = "twitch/organization_detail.html"
     context_object_name = "organization"
+
+    def get_object(
+        self,
+        queryset: QuerySet[Organization] | None = None,
+    ) -> Organization:
+        """Get the organization object using twitch_id.
+
+        Args:
+            queryset: Optional queryset to use.
+
+        Returns:
+            Organization: The organization object.
+
+        Raises:
+            Http404: If the organization is not found.
+        """
+        if queryset is None:
+            queryset = self.get_queryset()
+
+        # Use twitch_id as the lookup field since it's the primary key
+        pk: str | None = self.kwargs.get(self.pk_url_kwarg)
+        try:
+            org: Organization = queryset.get(twitch_id=pk)
+        except Organization.DoesNotExist as exc:
+            msg = "No organization found matching the query"
+            raise Http404(msg) from exc
+
+        return org
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
@@ -159,10 +168,12 @@ class OrgDetailView(DetailView):
 
         pretty_org_data: str = json.dumps(org_data[0], indent=4)
 
-        context.update({
-            "games": games,
-            "org_data": pretty_org_data,
-        })
+        context.update(
+            {
+                "games": games,
+                "org_data": pretty_org_data,
+            },
+        )
 
         return context
 
@@ -211,16 +222,19 @@ class DropCampaignListView(ListView):
         return context
 
 
-def format_and_color_json(code: str) -> str:
+def format_and_color_json(data: dict[str, Any] | str) -> str:
     """Format and color a JSON string for HTML display.
 
     Args:
-        code: The code string to format.
+        data: Either a dictionary or a JSON string to format.
 
     Returns:
         str: The formatted code with HTML styles.
     """
-    formatted_code: str = json.dumps(code, indent=4)
+    if isinstance(data, dict):
+        formatted_code: str = json.dumps(data, indent=4)
+    else:
+        formatted_code = data
     return highlight(formatted_code, JsonLexer(), HtmlFormatter())
 
 
@@ -232,7 +246,10 @@ class DropCampaignDetailView(DetailView):
     template_name = "twitch/campaign_detail.html"
     context_object_name = "campaign"
 
-    def get_object(self, queryset: QuerySet[DropCampaign] | None = None) -> Model:
+    def get_object(
+        self,
+        queryset: QuerySet[DropCampaign] | None = None,
+    ) -> Model:
         """Get the campaign object with related data prefetched.
 
         Args:
@@ -259,8 +276,12 @@ class DropCampaignDetailView(DetailView):
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
         campaign: DropCampaign = context["campaign"]
-        drops: BaseManager[TimeBasedDrop] = (
-            TimeBasedDrop.objects.filter(campaign=campaign).select_related("campaign").prefetch_related("benefits").order_by("required_minutes_watched")
+        drops: QuerySet[TimeBasedDrop] = (
+            TimeBasedDrop.objects
+            .filter(campaign=campaign)
+            .select_related("campaign")
+            .prefetch_related("benefits")
+            .order_by("required_minutes_watched")
         )
 
         serialized_campaign = serialize(
@@ -297,11 +318,11 @@ class DropCampaignDetailView(DetailView):
             drops_data: list[dict[str, Any]] = json.loads(serialized_drops)
 
             for i, drop in enumerate(drops):
-                benefits: list[DropBenefit] = list(drop.benefits.all())
-                if benefits:
+                drop_benefits: list[DropBenefit] = list(drop.benefits.all())
+                if drop_benefits:
                     serialized_benefits = serialize(
                         "json",
-                        benefits,
+                        drop_benefits,
                         fields=("name", "image_asset_url"),
                     )
                     benefits_data = json.loads(serialized_benefits)
@@ -313,9 +334,6 @@ class DropCampaignDetailView(DetailView):
         enhanced_drops: list[dict[str, TimeBasedDrop | datetime.datetime | str | None]] = []
         now: datetime.datetime = timezone.now()
         for drop in drops:
-            # Ensure benefits are loaded
-            benefits: list[DropBenefit] = list(drop.benefits.all())
-
             # Calculate countdown text
             if drop.end_at and drop.end_at > now:
                 time_diff: datetime.timedelta = drop.end_at - now
@@ -387,7 +405,9 @@ class GamesGridView(ListView):
         )
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
-        """Add additional context data with games grouped by their owning organization in a highly optimized manner.
+        """Add additional context data.
+
+        Games are grouped by their owning organization.
 
         Args:
             **kwargs: Additional arguments.
@@ -398,8 +418,9 @@ class GamesGridView(ListView):
         context: dict[str, Any] = super().get_context_data(**kwargs)
         now: datetime.datetime = timezone.now()
 
-        games_with_campaigns: BaseManager[Game] = (
-            Game.objects.filter(drop_campaigns__isnull=False)
+        games_with_campaigns: QuerySet[Game] = (
+            Game.objects
+            .filter(drop_campaigns__isnull=False)
             .select_related("owner")
             .annotate(
                 campaign_count=Count("drop_campaigns", distinct=True),
@@ -420,7 +441,9 @@ class GamesGridView(ListView):
             if game.owner:
                 games_by_org[game.owner].append({"game": game})
 
-        context["games_by_org"] = OrderedDict(sorted(games_by_org.items(), key=lambda item: item[0].name))
+        context["games_by_org"] = OrderedDict(
+            sorted(games_by_org.items(), key=lambda item: item[0].name),
+        )
 
         return context
 
@@ -433,6 +456,31 @@ class GameDetailView(DetailView):
     template_name = "twitch/game_detail.html"
     context_object_name = "game"
 
+    def get_object(self, queryset: QuerySet[Game] | None = None) -> Game:
+        """Get the game object using twitch_id as the primary key lookup.
+
+        Args:
+            queryset: Optional queryset to use.
+
+        Returns:
+            Game: The game object.
+
+        Raises:
+            Http404: If the game is not found.
+        """
+        if queryset is None:
+            queryset = self.get_queryset()
+
+        # Use twitch_id as the lookup field since it's the primary key
+        pk = self.kwargs.get(self.pk_url_kwarg)
+        try:
+            game = queryset.get(twitch_id=pk)
+        except Game.DoesNotExist as exc:
+            msg = "No game found matching the query"
+            raise Http404(msg) from exc
+
+        return game
+
     def get_context_data(self, **kwargs: object) -> dict[str, Any]:
         """Add additional context data.
 
@@ -440,20 +488,27 @@ class GameDetailView(DetailView):
             **kwargs: Additional arguments.
 
         Returns:
-            dict: Context data with active, upcoming, and expired campaigns.
-                 Expired campaigns are filtered based on either end date or status.
+            dict: Context data with active, upcoming, and expired
+                campaigns. Expired campaigns are filtered based on
+                either end date or status.
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
         game: Game = self.get_object()  # pyright: ignore[reportAssignmentType]
 
         now: datetime.datetime = timezone.now()
-        all_campaigns: BaseManager[DropCampaign] = (
-            DropCampaign.objects.filter(game=game)
+        all_campaigns: QuerySet[DropCampaign] = (
+            DropCampaign.objects
+            .filter(game=game)
             .select_related("game__owner")
             .prefetch_related(
                 Prefetch(
                     "time_based_drops",
-                    queryset=TimeBasedDrop.objects.prefetch_related(Prefetch("benefits", queryset=DropBenefit.objects.order_by("name"))),
+                    queryset=TimeBasedDrop.objects.prefetch_related(
+                        Prefetch(
+                            "benefits",
+                            queryset=DropBenefit.objects.order_by("name"),
+                        ),
+                    ),
                 ),
             )
             .order_by("-end_at")
@@ -462,24 +517,44 @@ class GameDetailView(DetailView):
         active_campaigns: list[DropCampaign] = [
             campaign
             for campaign in all_campaigns
-            if campaign.start_at is not None and campaign.start_at <= now and campaign.end_at is not None and campaign.end_at >= now
+            if campaign.start_at is not None
+            and campaign.start_at <= now
+            and campaign.end_at is not None
+            and campaign.end_at >= now
         ]
-        active_campaigns.sort(key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
+        active_campaigns.sort(
+            key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+        )
 
-        upcoming_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now]
+        upcoming_campaigns: list[DropCampaign] = [
+            campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now
+        ]
 
-        upcoming_campaigns.sort(key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
+        upcoming_campaigns.sort(
+            key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+        )
 
-        expired_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now]
+        expired_campaigns: list[DropCampaign] = [
+            campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now
+        ]
 
-        # Add unique sorted benefits to each campaign object
+        # Build campaign data with sorted benefits
+        campaigns_with_benefits: list[dict[str, Any]] = []
         for campaign in all_campaigns:
-            benefits_dict: dict[int, DropBenefit] = {}  # Use dict to track unique benefits by ID
+            benefits_dict: dict[int, DropBenefit] = {}
             for drop in campaign.time_based_drops.all():  # type: ignore[attr-defined]
                 for benefit in drop.benefits.all():
                     benefits_dict[benefit.id] = benefit
-            # Sort benefits by name and attach to campaign
-            campaign.sorted_benefits = sorted(benefits_dict.values(), key=lambda b: b.name)  # type: ignore[attr-defined]
+            sorted_benefits = sorted(
+                benefits_dict.values(),
+                key=lambda b: b.name,
+            )
+            campaigns_with_benefits.append(
+                {
+                    "campaign": campaign,
+                    "sorted_benefits": sorted_benefits,
+                },
+            )
 
         serialized_game: str = serialize(
             "json",
@@ -509,17 +584,22 @@ class GameDetailView(DetailView):
                     "is_account_connected",
                 ),
             )
-            campaigns_data: list[dict[str, Any]] = json.loads(serialized_campaigns)
+            campaigns_data: list[dict[str, Any]] = json.loads(
+                serialized_campaigns,
+            )
             game_data[0]["fields"]["campaigns"] = campaigns_data
 
-        context.update({
-            "active_campaigns": active_campaigns,
-            "upcoming_campaigns": upcoming_campaigns,
-            "expired_campaigns": expired_campaigns,
-            "owner": game.owner,
-            "now": now,
-            "game_data": format_and_color_json(json.dumps(game_data[0], indent=4)),
-        })
+        context.update(
+            {
+                "active_campaigns": active_campaigns,
+                "upcoming_campaigns": upcoming_campaigns,
+                "expired_campaigns": expired_campaigns,
+                "campaigns_with_benefits": campaigns_with_benefits,
+                "owner": game.owner,
+                "now": now,
+                "game_data": format_and_color_json(game_data[0]),
+            },
+        )
 
         return context
 
@@ -536,7 +616,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     """
     now: datetime.datetime = timezone.now()
     active_campaigns: QuerySet[DropCampaign] = (
-        DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now)
+        DropCampaign.objects
+        .filter(start_at__lte=now, end_at__gte=now)
         .select_related("game__owner")
         .prefetch_related(
             "allow_channels",
@@ -563,14 +644,26 @@ def dashboard(request: HttpRequest) -> HttpResponse:
                 "campaigns": [],
             }
 
-        campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(campaign)
+        campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(
+            campaign,
+        )
 
     sorted_campaigns_by_org_game: dict[str, Any] = {
-        org_id: campaigns_by_org_game[org_id] for org_id in sorted(campaigns_by_org_game.keys(), key=lambda k: campaigns_by_org_game[k]["name"])
+        org_id: campaigns_by_org_game[org_id]
+        for org_id in sorted(
+            campaigns_by_org_game.keys(),
+            key=lambda k: campaigns_by_org_game[k]["name"],
+        )
     }
 
     for org_data in sorted_campaigns_by_org_game.values():
-        org_data["games"] = {game_id: org_data["games"][game_id] for game_id in sorted(org_data["games"].keys(), key=lambda k: org_data["games"][k]["name"])}
+        org_data["games"] = {
+            game_id: org_data["games"][game_id]
+            for game_id in sorted(
+                org_data["games"].keys(),
+                key=lambda k: org_data["games"][k]["name"],
+            )
+        }
 
     return render(
         request,
@@ -592,41 +685,54 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: Rendered debug template or redirect if unauthorized.
     """
-    now = timezone.now()
+    now: datetime.datetime = timezone.now()
 
     # Games with no assigned owner organization
-    games_without_owner: QuerySet[Game] = Game.objects.filter(owner__isnull=True).order_by("display_name")
+    games_without_owner: QuerySet[Game] = Game.objects.filter(
+        owner__isnull=True,
+    ).order_by("display_name")
 
-    # Campaigns with missing or obviously broken images (empty or not starting with http)
+    # Campaigns with missing or obviously broken images
     broken_image_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
         Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
     ).select_related("game")
 
     # Benefits with missing images
-    broken_benefit_images: QuerySet[DropBenefit] = DropBenefit.objects.annotate(trimmed_url=Trim("image_asset_url")).filter(
+    broken_benefit_images: QuerySet[DropBenefit] = DropBenefit.objects.annotate(
+        trimmed_url=Trim("image_asset_url"),
+    ).filter(
         Q(image_asset_url__isnull=True) | Q(trimmed_url__exact="") | ~Q(image_asset_url__startswith="http"),
     )
 
     # Time-based drops without any benefits
-    drops_without_benefits: QuerySet[TimeBasedDrop] = TimeBasedDrop.objects.filter(benefits__isnull=True).select_related("campaign__game")
+    drops_without_benefits: QuerySet[TimeBasedDrop] = TimeBasedDrop.objects.filter(
+        benefits__isnull=True,
+    ).select_related(
+        "campaign__game",
+    )
 
     # Campaigns with invalid dates (start after end or missing either)
     invalid_date_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
         Q(start_at__gt=F("end_at")) | Q(start_at__isnull=True) | Q(end_at__isnull=True),
     ).select_related("game")
 
-    # Duplicate campaign names per game. We retrieve the game's name for user-friendly display.
+    # Duplicate campaign names per game.
+    # We retrieve the game's name for user-friendly display.
     duplicate_name_campaigns = (
-        DropCampaign.objects.values("game_id", "game__display_name", "name")
-        .annotate(name_count=Count("id"))
+        DropCampaign.objects
+        .values("game_id", "game__display_name", "name")
+        .annotate(name_count=Count("twitch_id"))
         .filter(name_count__gt=1)
         .order_by("game__display_name", "name")
     )
 
     # Campaigns currently active but image missing
     active_missing_image: QuerySet[DropCampaign] = (
-        DropCampaign.objects.filter(start_at__lte=now, end_at__gte=now)
-        .filter(Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"))
+        DropCampaign.objects
+        .filter(start_at__lte=now, end_at__gte=now)
+        .filter(
+            Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
+        )
         .select_related("game")
     )
 
@@ -641,7 +747,11 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         "active_missing_image": active_missing_image,
     }
 
-    return render(request, "twitch/debug.html", context)
+    return render(
+        request,
+        "twitch/debug.html",
+        context,
+    )
 
 
 # MARK: /games/list/
@@ -700,9 +810,13 @@ class ChannelListView(ListView):
         search_query: str | None = self.request.GET.get("search")
 
         if search_query:
-            queryset = queryset.filter(Q(name__icontains=search_query) | Q(display_name__icontains=search_query))
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) | Q(display_name__icontains=search_query),
+            )
 
-        return queryset.annotate(campaign_count=Count("allowed_campaigns", distinct=True)).order_by("-campaign_count", "name")
+        return queryset.annotate(
+            campaign_count=Count("allowed_campaigns", distinct=True),
+        ).order_by("-campaign_count", "name")
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
@@ -726,6 +840,31 @@ class ChannelDetailView(DetailView):
     template_name = "twitch/channel_detail.html"
     context_object_name = "channel"
 
+    def get_object(self, queryset: QuerySet[Channel] | None = None) -> Channel:
+        """Get the channel object using twitch_id as the primary key lookup.
+
+        Args:
+            queryset: Optional queryset to use.
+
+        Returns:
+            Channel: The channel object.
+
+        Raises:
+            Http404: If the channel is not found.
+        """
+        if queryset is None:
+            queryset = self.get_queryset()
+
+        # Use twitch_id as the lookup field since it's the primary key
+        pk = self.kwargs.get(self.pk_url_kwarg)
+        try:
+            channel = queryset.get(twitch_id=pk)
+        except Channel.DoesNotExist as exc:
+            msg = "No channel found matching the query"
+            raise Http404(msg) from exc
+
+        return channel
+
     def get_context_data(self, **kwargs: object) -> dict[str, Any]:
         """Add additional context data.
 
@@ -733,20 +872,24 @@ class ChannelDetailView(DetailView):
             **kwargs: Additional arguments.
 
         Returns:
-            dict: Context data with active, upcoming, and expired campaigns for this channel.
+            dict: Context data with active, upcoming, and expired campaigns.
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
         channel: Channel = self.get_object()  # pyright: ignore[reportAssignmentType]
 
         now: datetime.datetime = timezone.now()
         all_campaigns: QuerySet[DropCampaign] = (
-            DropCampaign.objects.filter(allow_channels=channel)
+            DropCampaign.objects
+            .filter(allow_channels=channel)
             .select_related("game__owner")
             .prefetch_related(
                 Prefetch(
                     "time_based_drops",
                     queryset=TimeBasedDrop.objects.prefetch_related(
-                        Prefetch("benefits", queryset=DropBenefit.objects.order_by("name")),
+                        Prefetch(
+                            "benefits",
+                            queryset=DropBenefit.objects.order_by("name"),
+                        ),
                     ),
                 ),
             )
@@ -756,23 +899,43 @@ class ChannelDetailView(DetailView):
         active_campaigns: list[DropCampaign] = [
             campaign
             for campaign in all_campaigns
-            if campaign.start_at is not None and campaign.start_at <= now and campaign.end_at is not None and campaign.end_at >= now
+            if campaign.start_at is not None
+            and campaign.start_at <= now
+            and campaign.end_at is not None
+            and campaign.end_at >= now
         ]
-        active_campaigns.sort(key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
+        active_campaigns.sort(
+            key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+        )
 
-        upcoming_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now]
-        upcoming_campaigns.sort(key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC))
+        upcoming_campaigns: list[DropCampaign] = [
+            campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now
+        ]
+        upcoming_campaigns.sort(
+            key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+        )
 
-        expired_campaigns: list[DropCampaign] = [campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now]
+        expired_campaigns: list[DropCampaign] = [
+            campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now
+        ]
 
-        # Add unique sorted benefits to each campaign object
+        # Build campaign data with sorted benefits
+        campaigns_with_benefits = []
         for campaign in all_campaigns:
-            benefits_dict: dict[int, DropBenefit] = {}  # Use dict to track unique benefits by ID
+            benefits_dict: dict[int, DropBenefit] = {}
             for drop in campaign.time_based_drops.all():  # type: ignore[attr-defined]
                 for benefit in drop.benefits.all():
                     benefits_dict[benefit.id] = benefit
-            # Sort benefits by name and attach to campaign
-            campaign.sorted_benefits = sorted(benefits_dict.values(), key=lambda b: b.name)  # type: ignore[attr-defined]
+            sorted_benefits = sorted(
+                benefits_dict.values(),
+                key=lambda b: b.name,
+            )
+            campaigns_with_benefits.append(
+                {
+                    "campaign": campaign,
+                    "sorted_benefits": sorted_benefits,
+                },
+            )
 
         serialized_channel = serialize(
             "json",
@@ -802,12 +965,15 @@ class ChannelDetailView(DetailView):
             campaigns_data = json.loads(serialized_campaigns)
             channel_data[0]["fields"]["campaigns"] = campaigns_data
 
-        context.update({
-            "active_campaigns": active_campaigns,
-            "upcoming_campaigns": upcoming_campaigns,
-            "expired_campaigns": expired_campaigns,
-            "now": now,
-            "channel_data": format_and_color_json(channel_data[0]),
-        })
+        context.update(
+            {
+                "active_campaigns": active_campaigns,
+                "upcoming_campaigns": upcoming_campaigns,
+                "expired_campaigns": expired_campaigns,
+                "campaigns_with_benefits": campaigns_with_benefits,
+                "now": now,
+                "channel_data": format_and_color_json(channel_data[0]),
+            },
+        )
 
         return context

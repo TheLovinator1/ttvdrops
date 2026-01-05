@@ -17,7 +17,7 @@ urlpatterns: list[URLResolver] | list[URLPattern | URLResolver] = [  # type: ign
 
 if not settings.TESTING:
     # Import debug_toolbar lazily to avoid ImportError when not installed in testing environments
-    from debug_toolbar.toolbar import debug_toolbar_urls  # type: ignore[import-untyped] # pyright: ignore[reportMissingTypeStubs]
+    from debug_toolbar.toolbar import debug_toolbar_urls  # pyright: ignore[reportMissingTypeStubs]
 
     urlpatterns = [
         *urlpatterns,
@@ -26,4 +26,7 @@ if not settings.TESTING:
 
 # Serve media in development
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(
+        settings.MEDIA_URL,
+        document_root=settings.MEDIA_ROOT,
+    )

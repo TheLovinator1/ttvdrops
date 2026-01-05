@@ -13,7 +13,7 @@
             <ul id="games-without-owner-list">
                 {% for game in games_without_owner %}
                     <li id="game-{{ game.id }}">
-                        <a href="{% url 'twitch:game_detail' game.id %}">{{ game.display_name }}</a> (ID: {{ game.id }})
+                        <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.display_name }}</a> (ID: {{ game.twitch_id }})
                     </li>
                 {% endfor %}
             </ul>
@@ -26,9 +26,9 @@
         {% if broken_image_campaigns %}
             <ul id="broken-image-campaigns-list">
                 {% for c in broken_image_campaigns %}
-                    <li id="campaign-{{ c.id }}">
-                        <a href="{% url 'twitch:campaign_detail' c.id %}">{{ c.name }}</a>
-                        (Game: <a href="{% url 'twitch:game_detail' c.game.id %}">{{ c.game.display_name }}</a>)
+                    <li id="campaign-{{ c.twitch_id }}">
+                        <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
+                        (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
                         - URL: {{ c.image_best_url|default:c.image_url|default:'(empty)' }}
                     </li>
                 {% endfor %}
@@ -49,7 +49,7 @@
                             {{ b.name }}
                             {# Check if the relationship path to the game exists #}
                             {% if first_drop and first_drop.campaign and first_drop.campaign.game %}
-                                (Game: <a href="{% url 'twitch:game_detail' first_drop.campaign.game.id %}">{{ first_drop.campaign.game.display_name }}</a>)
+                                (Game: <a href="{% url 'twitch:game_detail' first_drop.campaign.game.twitch_id %}">{{ first_drop.campaign.game.display_name }}</a>)
                             {% else %}
                                 (Game: Not linked)
                             {% endif %}
@@ -67,9 +67,9 @@
         {% if active_missing_image %}
             <ul id="active-missing-image-list">
                 {% for c in active_missing_image %}
-                    <li id="campaign-{{ c.id }}">
-                        <a href="{% url 'twitch:campaign_detail' c.id %}">{{ c.name }}</a>
-                        (Game: <a href="{% url 'twitch:game_detail' c.game.id %}">{{ c.game.display_name }}</a>)
+                    <li id="campaign-{{ c.twitch_id }}">
+                        <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
+                        (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
                     </li>
                 {% endfor %}
             </ul>
@@ -82,10 +82,10 @@
         {% if drops_without_benefits %}
             <ul id="drops-without-benefits-list">
                 {% for d in drops_without_benefits %}
-                    <li id="drop-{{ d.id }}">
+                    <li id="drop-{{ d.twitch_id }}">
                         {{ d.name }}
-                        (Campaign: <a href="{% url 'twitch:campaign_detail' d.campaign.id %}">{{ d.campaign.name }}</a>
-                        in Game: <a href="{% url 'twitch:game_detail' d.campaign.game.id %}">{{ d.campaign.game.display_name }}</a>)
+                        (Campaign: <a href="{% url 'twitch:campaign_detail' d.campaign.twitch_id %}">{{ d.campaign.name }}</a>
+                        in Game: <a href="{% url 'twitch:game_detail' d.campaign.game.twitch_id %}">{{ d.campaign.game.display_name }}</a>)
                     </li>
                 {% endfor %}
             </ul>
@@ -98,9 +98,9 @@
         {% if invalid_date_campaigns %}
             <ul id="invalid-date-campaigns-list">
                 {% for c in invalid_date_campaigns %}
-                    <li id="campaign-{{ c.id }}">
-                        <a href="{% url 'twitch:campaign_detail' c.id %}">{{ c.name }}</a>
-                        (Game: <a href="{% url 'twitch:game_detail' c.game.id %}">{{ c.game.display_name }}</a>)
+                    <li id="campaign-{{ c.twitch_id }}">
+                        <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
+                        (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
                         - Start: {{ c.start_at|default:'(none)' }} / End: {{ c.end_at|default:'(none)' }}
                     </li>
                 {% endfor %}

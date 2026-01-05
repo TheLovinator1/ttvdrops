@@ -31,7 +31,7 @@ class OrganizationFeed(Feed):
 
     def items(self) -> list[Organization]:
         """Return the latest 100 organizations."""
-        return list(Organization.objects.order_by("-id")[:100])
+        return list(Organization.objects.order_by("-updated_at")[:100])
 
     def item_title(self, item: Model) -> SafeText:
         """Return the organization name as the item title."""
@@ -83,7 +83,9 @@ class DropCampaignFeed(Feed):
 
     def items(self) -> list[DropCampaign]:
         """Return the latest 100 drop campaigns."""
-        return list(DropCampaign.objects.select_related("game").order_by("-added_at")[:100])
+        return list(
+            DropCampaign.objects.select_related("game").order_by("-added_at")[:100],
+        )
 
     def item_title(self, item: Model) -> SafeText:
         """Return the campaign name as the item title (SafeText for RSS)."""
@@ -112,7 +114,11 @@ class DropCampaignFeed(Feed):
             description += f"<p><strong>Starts:</strong> {start_at.strftime('%Y-%m-%d %H:%M %Z')}</p>"
         if end_at:
             description += f"<p><strong>Ends:</strong> {end_at.strftime('%Y-%m-%d %H:%M %Z')}</p>"
-        drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
+        drops: QuerySet[TimeBasedDrop] | None = getattr(
+            item,
+            "time_based_drops",
+            None,
+        )
         if drops:
             drops_qs: QuerySet[TimeBasedDrop] = drops.select_related().prefetch_related("benefits").all()
             if drops_qs:
@@ -133,7 +139,7 @@ class DropCampaignFeed(Feed):
                     for benefit in drop.benefits.all():
                         if getattr(benefit, "image_asset_url", None):
                             description += format_html(
-                                '<img height="60" width="60" style="object-fit: cover; margin-right: 5px;" src="{}" alt="{}">',
+                                '<img height="60" width="60" style="object-fit: cover; margin-right: 5px;" src="{}" alt="{}">',  # noqa: E501
                                 benefit.image_asset_url,
                                 benefit.name,
                             )
@@ -144,7 +150,9 @@ class DropCampaignFeed(Feed):
                             )
                             description += placeholder_img
                     description += "</td>"
-                    description += f'<td style="border: 1px solid #ddd; padding: 8px;">{getattr(drop, "name", str(drop))}</td>'
+                    description += (
+                        f'<td style="border: 1px solid #ddd; padding: 8px;">{getattr(drop, "name", str(drop))}</td>'
+                    )
                     requirements: str = ""
                     if getattr(drop, "required_minutes_watched", None):
                         requirements = f"{drop.required_minutes_watched} minutes watched"
@@ -161,7 +169,9 @@ class DropCampaignFeed(Feed):
                         period += start_at.strftime("%Y-%m-%d %H:%M %Z")
                     if end_at is not None:
                         if period:
-                            period += " - " + end_at.strftime("%Y-%m-%d %H:%M %Z")
+                            period += " - " + end_at.strftime(
+                                "%Y-%m-%d %H:%M %Z",
+                            )
                         else:
                             period = end_at.strftime("%Y-%m-%d %H:%M %Z")
                     description += f'<td style="border: 1px solid #ddd; padding: 8px;">{period}</td>'
@@ -169,7 +179,10 @@ class DropCampaignFeed(Feed):
                 description += "</tbody></table><br>"
         details_url: str | None = getattr(item, "details_url", None)
         if details_url:
-            description += format_html('<p><a href="{}">About this drop</a></p>', details_url)
+            description += format_html(
+                '<p><a href="{}">About this drop</a></p>',
+                details_url,
+            )
         return SafeText(description)
 
     def item_link(self, item: Model) -> str:
@@ -177,7 +190,10 @@ class DropCampaignFeed(Feed):
         return reverse("twitch:campaign_detail", args=[item.pk])
 
     def item_pubdate(self, item: Model) -> datetime.datetime:
-        """Returns the publication date to the feed item. Fallback to updated_at or now if missing."""
+        """Returns the publication date to the feed item.
+
+        Fallback to updated_at or now if missing.
+        """
         start_at: datetime.datetime | None = getattr(item, "start_at", None)
         if start_at:
             return start_at
@@ -214,7 +230,10 @@ class DropCampaignFeed(Feed):
         return item.image_url
 
     def item_enclosure_length(self, item: DropCampaign) -> int:  # noqa: ARG002
-        """Returns the length of the enclosure. Currently not tracked, so return 0."""
+        """Returns the length of the enclosure.
+
+        Currently not tracked, so return 0.
+        """
         return 0
 
     def item_enclosure_mime_type(self, item: DropCampaign) -> str:  # noqa: ARG002
