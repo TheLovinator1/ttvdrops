@@ -31,7 +31,7 @@ class GameSchema(BaseModel):
 
     twitch_id: str = Field(alias="id")  # Present in both ViewerDropsDashboard and Inventory formats
     display_name: str | None = Field(default=None, alias="displayName")  # Present in both formats
-    box_art_url: str = Field(alias="boxArtURL")  # Present in both formats
+    box_art_url: str | None = Field(default=None, alias="boxArtURL")  # Present in both formats, made optional
     slug: str | None = None  # Present in Inventory format
     name: str | None = None  # Present in Inventory format (alternative to displayName)
     type_name: Literal["Game"] = Field(alias="__typename")  # Present in both formats
@@ -90,6 +90,9 @@ class DropBenefitSchema(BaseModel):
     is_ios_available: bool = Field(default=False, alias="isIosAvailable")
     distribution_type: str = Field(alias="distributionType")
     type_name: Literal["Benefit", "DropBenefit"] = Field(alias="__typename")
+    # API response fields that should be ignored
+    game: dict | None = None
+    owner_organization: dict | None = Field(default=None, alias="ownerOrganization")
 
     model_config = {
         "extra": "forbid",
@@ -168,6 +171,8 @@ class DropCampaign(BaseModel):
     image_url: str | None = Field(default=None, alias="imageURL")
     allow: dict | None = None
     event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
+    # Legacy/API response fields that should be ignored
+    description: str | None = None
 
     model_config = {
         "extra": "forbid",
@@ -197,11 +202,13 @@ class CurrentUser(BaseModel):
     """Schema for Twitch User objects.
 
     Handles both ViewerDropsDashboard and Inventory operation formats.
+    Also handles legacy format with dropCampaign (singular) field.
     """
 
     twitch_id: str = Field(alias="id")
     login: str | None = None
     drop_campaigns: list[DropCampaign] | None = Field(default=None, alias="dropCampaigns")
+    drop_campaign: DropCampaign | None = Field(default=None, alias="dropCampaign")
     inventory: InventorySchema | None = None
     type_name: Literal["User"] = Field(alias="__typename")
 
@@ -214,24 +221,33 @@ class CurrentUser(BaseModel):
 
     @model_validator(mode="after")
     def normalize_from_inventory(self) -> CurrentUser:
-        """Normalize drop_campaigns from inventory if present.
+        """Normalize drop_campaigns from inventory or singular dropCampaign.
 
-        If drop_campaigns is None but inventory exists, extract
-        dropCampaignsInProgress and assign it to drop_campaigns.
+        Handles three sources in order of priority:
+        1. dropCampaigns (plural) - standard format
+        2. inventory.dropCampaignsInProgress - Inventory operation format
+        3. dropCampaign (singular) - legacy format
 
         Returns:
             The CurrentUser instance with normalized drop_campaigns.
         """
-        if self.drop_campaigns is None and self.inventory is not None:
-            self.drop_campaigns = self.inventory.drop_campaigns_in_progress
+        if self.drop_campaigns is None:
+            if self.inventory is not None:
+                self.drop_campaigns = self.inventory.drop_campaigns_in_progress
+            elif self.drop_campaign is not None:
+                self.drop_campaigns = [self.drop_campaign]
 
         return self
 
 
 class Data(BaseModel):
-    """Schema for the data field in Twitch API responses."""
+    """Schema for the data field in Twitch API responses.
 
-    current_user: CurrentUser | None = Field(alias="currentUser")
+    Handles both currentUser (standard) and user (legacy) field names.
+    """
+
+    current_user: CurrentUser | None = Field(default=None, alias="currentUser")
+    user: CurrentUser | None = Field(default=None, alias="user")
 
     model_config = {
         "extra": "forbid",
@@ -254,6 +270,20 @@ class Data(BaseModel):
         if v == {}:
             return None
         return v
+
+    @model_validator(mode="after")
+    def normalize_user_field(self) -> Data:
+        """Normalize user field to current_user if needed.
+
+        If current_user is None but user exists, use user as current_user.
+
+        Returns:
+            The Data instance with normalized current_user.
+        """
+        if self.current_user is None and self.user is not None:
+            self.current_user = self.user
+
+        return self
 
 
 class Extensions(BaseModel):
