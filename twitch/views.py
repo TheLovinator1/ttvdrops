@@ -8,10 +8,12 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 
+from django.core.paginator import EmptyPage
+from django.core.paginator import PageNotAnInteger
+from django.core.paginator import Paginator
 from django.core.serializers import serialize
 from django.db.models import Count
 from django.db.models import F
-from django.db.models import Model
 from django.db.models import Prefetch
 from django.db.models import Q
 from django.db.models.functions import Trim
@@ -101,125 +103,105 @@ class OrgListView(ListView):
     context_object_name = "orgs"
 
 
-# MARK: /organizations/<pk>/
-class OrgDetailView(DetailView):
-    """Detail view for organization."""
+# MARK: /organizations/<twitch_id>/
 
-    model = Organization
-    template_name = "twitch/organization_detail.html"
-    context_object_name = "organization"
 
-    def get_object(
-        self,
-        queryset: QuerySet[Organization] | None = None,
-    ) -> Organization:
-        """Get the organization object using twitch_id.
+def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+    """Function-based view for organization detail.
 
-        Args:
-            queryset: Optional queryset to use.
+    Args:
+        request: The HTTP request.
+        twitch_id: The Twitch ID of the organization.
 
-        Returns:
-            Organization: The organization object.
+    Returns:
+        HttpResponse: The rendered organization detail page.
 
-        Raises:
-            Http404: If the organization is not found.
-        """
-        if queryset is None:
-            queryset = self.get_queryset()
+    Raises:
+        Http404: If the organization is not found.
+    """
+    try:
+        organization: Organization = Organization.objects.get(twitch_id=twitch_id)
+    except Organization.DoesNotExist as exc:
+        msg = "No organization found matching the query"
+        raise Http404(msg) from exc
 
-        # Use twitch_id as the lookup field since it's the primary key
-        pk: str | None = self.kwargs.get(self.pk_url_kwarg)
-        try:
-            org: Organization = queryset.get(twitch_id=pk)
-        except Organization.DoesNotExist as exc:
-            msg = "No organization found matching the query"
-            raise Http404(msg) from exc
+    games: QuerySet[Game] = organization.games.all()  # pyright: ignore[reportAttributeAccessIssue]
 
-        return org
+    serialized_org: str = serialize(
+        "json",
+        [organization],
+        fields=("name",),
+    )
+    org_data: list[dict] = json.loads(serialized_org)
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
-        """Add additional context data.
-
-        Args:
-            **kwargs: Additional arguments.
-
-        Returns:
-            dict: Context data.
-        """
-        context: dict[str, Any] = super().get_context_data(**kwargs)
-        organization: Organization = self.get_object()  # pyright: ignore[reportAssignmentType]
-        games: QuerySet[Game] = organization.games.all()  # pyright: ignore[reportAttributeAccessIssue]
-
-        serialized_org: str = serialize(
+    if games.exists():
+        serialized_games: str = serialize(
             "json",
-            [organization],
-            fields=("name",),
+            games,
+            fields=("slug", "name", "display_name", "box_art"),
         )
-        org_data: list[dict] = json.loads(serialized_org)
+        games_data: list[dict] = json.loads(serialized_games)
+        org_data[0]["fields"]["games"] = games_data
 
-        if games.exists():
-            serialized_games: str = serialize(
-                "json",
-                games,
-                fields=("slug", "name", "display_name", "box_art"),
-            )
-            games_data: list[dict] = json.loads(serialized_games)
-            org_data[0]["fields"]["games"] = games_data
+    pretty_org_data: str = json.dumps(org_data[0], indent=4)
 
-        pretty_org_data: str = json.dumps(org_data[0], indent=4)
+    context: dict[str, Any] = {
+        "organization": organization,
+        "games": games,
+        "org_data": pretty_org_data,
+    }
 
-        context.update(
-            {
-                "games": games,
-                "org_data": pretty_org_data,
-            },
-        )
-
-        return context
+    return render(request, "twitch/organization_detail.html", context)
 
 
 # MARK: /campaigns/
-class DropCampaignListView(ListView):
-    """List view for drop campaigns."""
+def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
+    """Function-based view for drop campaigns list.
 
-    model = DropCampaign
-    template_name = "twitch/campaign_list.html"
-    context_object_name = "campaigns"
-    paginate_by = 100
+    Args:
+        request: The HTTP request.
 
-    def get_queryset(self) -> QuerySet[DropCampaign]:
-        """Get queryset of drop campaigns.
+    Returns:
+        HttpResponse: The rendered campaign list page.
+    """
+    game_filter: str | None = request.GET.get("game")
+    status_filter: str | None = request.GET.get("status")
+    per_page: int = 100
+    queryset: QuerySet[DropCampaign] = DropCampaign.objects.all()
 
-        Returns:
-            QuerySet: Filtered drop campaigns.
-        """
-        queryset: QuerySet[DropCampaign] = super().get_queryset()
-        game_filter: str | None = self.request.GET.get("game")
+    if game_filter:
+        queryset = queryset.filter(game__id=game_filter)
 
-        if game_filter:
-            queryset = queryset.filter(game__id=game_filter)
+    queryset = queryset.select_related("game__owner").order_by("-start_at")
 
-        return queryset.select_related("game__owner").order_by("-start_at")
+    # Optionally filter by status (active, upcoming, expired)
+    now = timezone.now()
+    if status_filter == "active":
+        queryset = queryset.filter(start_at__lte=now, end_at__gte=now)
+    elif status_filter == "upcoming":
+        queryset = queryset.filter(start_at__gt=now)
+    elif status_filter == "expired":
+        queryset = queryset.filter(end_at__lt=now)
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:
-        """Add additional context data.
+    paginator = Paginator(queryset, per_page)
+    page = request.GET.get("page") or 1
+    try:
+        campaigns = paginator.page(page)
+    except PageNotAnInteger:
+        campaigns = paginator.page(1)
+    except EmptyPage:
+        campaigns = paginator.page(paginator.num_pages)
 
-        Args:
-            **kwargs: Additional arguments.
-
-        Returns:
-            dict: Context data.
-        """
-        context: dict[str, Any] = super().get_context_data(**kwargs)
-
-        context["games"] = Game.objects.all().order_by("display_name")
-        context["status_options"] = ["active", "upcoming", "expired"]
-        context["now"] = timezone.now()
-        context["selected_game"] = self.request.GET.get("game", "")
-        context["selected_per_page"] = self.paginate_by
-        context["selected_status"] = self.request.GET.get("status", "")
-
-        return context
+    context: dict[str, Any] = {
+        "campaigns": campaigns,
+        "games": Game.objects.all().order_by("display_name"),
+        "status_options": ["active", "upcoming", "expired"],
+        "now": now,
+        "selected_game": game_filter or "",
+        "selected_per_page": per_page,
+        "selected_status": status_filter or "",
+    }
+    return render(request, "twitch/campaign_list.html", context)
 
 
 def format_and_color_json(data: dict[str, Any] | str) -> str:
@@ -238,138 +220,136 @@ def format_and_color_json(data: dict[str, Any] | str) -> str:
     return highlight(formatted_code, JsonLexer(), HtmlFormatter())
 
 
-# MARK: /campaigns/<pk>/
-class DropCampaignDetailView(DetailView):
-    """Detail view for a drop campaign."""
+# MARK: /campaigns/<twitch_id>/
 
-    model = DropCampaign
-    template_name = "twitch/campaign_detail.html"
-    context_object_name = "campaign"
+# MARK: /campaigns/<twitch_id>/
 
-    def get_object(
-        self,
-        queryset: QuerySet[DropCampaign] | None = None,
-    ) -> Model:
-        """Get the campaign object with related data prefetched.
 
-        Args:
-            queryset: Optional queryset to use.
+def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.datetime) -> list[dict[str, Any]]:
+    """Helper to enhance drops with countdown and context.
 
-        Returns:
-            DropCampaign: The campaign object with prefetched relations.
-        """
-        if queryset is None:
-            queryset = self.get_queryset()
+    Args:
+        drops: QuerySet of TimeBasedDrop objects.
+        now: Current datetime.
 
-        queryset = queryset.select_related("game__owner")
+    Returns:
+        List of dicts with drop, local_start, local_end, timezone_name, and countdown_text.
+    """
+    enhanced = []
+    for drop in drops:
+        if drop.end_at and drop.end_at > now:
+            time_diff: datetime.timedelta = drop.end_at - now
+            days: int = time_diff.days
+            hours, remainder = divmod(time_diff.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            if days > 0:
+                countdown_text: str = f"{days}d {hours}h {minutes}m"
+            elif hours > 0:
+                countdown_text = f"{hours}h {minutes}m"
+            elif minutes > 0:
+                countdown_text = f"{minutes}m {seconds}s"
+            else:
+                countdown_text = f"{seconds}s"
+        elif drop.start_at and drop.start_at > now:
+            countdown_text = "Not started"
+        else:
+            countdown_text = "Expired"
+        enhanced.append({
+            "drop": drop,
+            "local_start": drop.start_at,
+            "local_end": drop.end_at,
+            "timezone_name": "UTC",
+            "countdown_text": countdown_text,
+        })
+    return enhanced
 
-        return super().get_object(queryset=queryset)
 
-    def get_context_data(self, **kwargs: object) -> dict[str, Any]:  # noqa: PLR0914
-        """Add additional context data.
+def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+    """Function-based view for a drop campaign detail.
 
-        Args:
-            **kwargs: Additional arguments.
+    Args:
+        request: The HTTP request.
+        twitch_id: The Twitch ID of the campaign.
 
-        Returns:
-            dict: Context data.
-        """
-        context: dict[str, Any] = super().get_context_data(**kwargs)
-        campaign: DropCampaign = context["campaign"]
-        drops: QuerySet[TimeBasedDrop] = (
-            TimeBasedDrop.objects
-            .filter(campaign=campaign)
-            .select_related("campaign")
-            .prefetch_related("benefits")
-            .order_by("required_minutes_watched")
-        )
+    Returns:
+        HttpResponse: The rendered campaign detail page.
 
-        serialized_campaign = serialize(
+    Raises:
+        Http404: If the campaign is not found.
+    """
+    try:
+        campaign: DropCampaign = DropCampaign.objects.select_related("game__owner").get(twitch_id=twitch_id)
+    except DropCampaign.DoesNotExist as exc:
+        msg = "No campaign found matching the query"
+        raise Http404(msg) from exc
+
+    drops: QuerySet[TimeBasedDrop] = (
+        TimeBasedDrop.objects
+        .filter(campaign=campaign)
+        .select_related("campaign")
+        .prefetch_related("benefits")
+        .order_by("required_minutes_watched")
+    )
+
+    serialized_campaign = serialize(
+        "json",
+        [campaign],
+        fields=(
+            "name",
+            "description",
+            "details_url",
+            "account_link_url",
+            "image_url",
+            "start_at",
+            "end_at",
+            "is_account_connected",
+            "game",
+            "created_at",
+            "updated_at",
+        ),
+    )
+    campaign_data = json.loads(serialized_campaign)
+
+    if drops.exists():
+        serialized_drops = serialize(
             "json",
-            [campaign],
+            drops,
             fields=(
                 "name",
-                "description",
-                "details_url",
-                "account_link_url",
-                "image_url",
+                "required_minutes_watched",
+                "required_subs",
                 "start_at",
                 "end_at",
-                "is_account_connected",
-                "game",
-                "created_at",
-                "updated_at",
             ),
         )
-        campaign_data = json.loads(serialized_campaign)
+        drops_data: list[dict[str, Any]] = json.loads(serialized_drops)
 
-        if drops.exists():
-            serialized_drops = serialize(
-                "json",
-                drops,
-                fields=(
-                    "name",
-                    "required_minutes_watched",
-                    "required_subs",
-                    "start_at",
-                    "end_at",
-                ),
-            )
-            drops_data: list[dict[str, Any]] = json.loads(serialized_drops)
+        for i, drop in enumerate(drops):
+            drop_benefits: list[DropBenefit] = list(drop.benefits.all())
+            if drop_benefits:
+                serialized_benefits = serialize(
+                    "json",
+                    drop_benefits,
+                    fields=("name", "image_asset_url"),
+                )
+                benefits_data = json.loads(serialized_benefits)
+                drops_data[i]["fields"]["benefits"] = benefits_data
 
-            for i, drop in enumerate(drops):
-                drop_benefits: list[DropBenefit] = list(drop.benefits.all())
-                if drop_benefits:
-                    serialized_benefits = serialize(
-                        "json",
-                        drop_benefits,
-                        fields=("name", "image_asset_url"),
-                    )
-                    benefits_data = json.loads(serialized_benefits)
-                    drops_data[i]["fields"]["benefits"] = benefits_data
+        campaign_data[0]["fields"]["drops"] = drops_data
 
-            campaign_data[0]["fields"]["drops"] = drops_data
+    now: datetime.datetime = timezone.now()
+    enhanced_drops = _enhance_drops_with_context(drops, now)
 
-        # Enhance drops with additional context data
-        enhanced_drops: list[dict[str, TimeBasedDrop | datetime.datetime | str | None]] = []
-        now: datetime.datetime = timezone.now()
-        for drop in drops:
-            # Calculate countdown text
-            if drop.end_at and drop.end_at > now:
-                time_diff: datetime.timedelta = drop.end_at - now
-                days: int = time_diff.days
-                hours, remainder = divmod(time_diff.seconds, 3600)
-                minutes, seconds = divmod(remainder, 60)
+    context: dict[str, Any] = {
+        "campaign": campaign,
+        "now": now,
+        "drops": enhanced_drops,
+        "campaign_data": format_and_color_json(campaign_data[0]),
+        "owner": campaign.game.owner,
+        "allowed_channels": campaign.allow_channels.all().order_by("display_name"),
+    }
 
-                if days > 0:
-                    countdown_text: str = f"{days}d {hours}h {minutes}m"
-                elif hours > 0:
-                    countdown_text = f"{hours}h {minutes}m"
-                elif minutes > 0:
-                    countdown_text = f"{minutes}m {seconds}s"
-                else:
-                    countdown_text = f"{seconds}s"
-            elif drop.start_at and drop.start_at > now:
-                countdown_text = "Not started"
-            else:
-                countdown_text = "Expired"
-
-            enhanced_drop: dict[str, TimeBasedDrop | datetime.datetime | str | None] = {
-                "drop": drop,
-                "local_start": drop.start_at,
-                "local_end": drop.end_at,
-                "timezone_name": "UTC",
-                "countdown_text": countdown_text,
-            }
-            enhanced_drops.append(enhanced_drop)
-
-        context["now"] = now
-        context["drops"] = enhanced_drops
-        context["campaign_data"] = format_and_color_json(campaign_data[0])
-        context["owner"] = campaign.game.owner
-        context["allowed_channels"] = campaign.allow_channels.all().order_by("display_name")
-
-        return context
+    return render(request, "twitch/campaign_detail.html", context)
 
 
 # MARK: /games/
@@ -448,13 +428,14 @@ class GamesGridView(ListView):
         return context
 
 
-# MARK: /games/<pk>/
+# MARK: /games/<twitch_id>/
 class GameDetailView(DetailView):
     """Detail view for a game."""
 
     model = Game
     template_name = "twitch/game_detail.html"
     context_object_name = "game"
+    lookup_field = "twitch_id"
 
     def get_object(self, queryset: QuerySet[Game] | None = None) -> Game:
         """Get the game object using twitch_id as the primary key lookup.
@@ -472,9 +453,9 @@ class GameDetailView(DetailView):
             queryset = self.get_queryset()
 
         # Use twitch_id as the lookup field since it's the primary key
-        pk = self.kwargs.get(self.pk_url_kwarg)
+        twitch_id = self.kwargs.get("twitch_id")
         try:
-            game = queryset.get(twitch_id=pk)
+            game = queryset.get(twitch_id=twitch_id)
         except Game.DoesNotExist as exc:
             msg = "No game found matching the query"
             raise Http404(msg) from exc
@@ -832,13 +813,14 @@ class ChannelListView(ListView):
         return context
 
 
-# MARK: /channels/<pk>/
+# MARK: /channels/<twitch_id>/
 class ChannelDetailView(DetailView):
     """Detail view for a channel."""
 
     model = Channel
     template_name = "twitch/channel_detail.html"
     context_object_name = "channel"
+    lookup_field = "twitch_id"
 
     def get_object(self, queryset: QuerySet[Channel] | None = None) -> Channel:
         """Get the channel object using twitch_id as the primary key lookup.
@@ -855,10 +837,9 @@ class ChannelDetailView(DetailView):
         if queryset is None:
             queryset = self.get_queryset()
 
-        # Use twitch_id as the lookup field since it's the primary key
-        pk = self.kwargs.get(self.pk_url_kwarg)
+        twitch_id = self.kwargs.get("twitch_id")
         try:
-            channel = queryset.get(twitch_id=pk)
+            channel = queryset.get(twitch_id=twitch_id)
         except Channel.DoesNotExist as exc:
             msg = "No channel found matching the query"
             raise Http404(msg) from exc

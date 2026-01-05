@@ -12,8 +12,8 @@
                 <h2 id="organizations-header">Organizations</h2>
                 <ul id="organizations-list">
                     {% for org in results.organizations %}
-                        <li id="org-{{ org.pk }}">
-                            <a href="{% url 'twitch:organization_detail' org.pk %}">{{ org.name }}</a>
+                        <li id="org-{{ org.twitch_id }}">
+                            <a href="{% url 'twitch:organization_detail' org.twitch_id %}">{{ org.name }}</a>
                         </li>
                     {% endfor %}
                 </ul>
@@ -22,8 +22,8 @@
                 <h2 id="games-header">Games</h2>
                 <ul id="games-list">
                     {% for game in results.games %}
-                        <li id="game-{{ game.pk }}">
-                            <a href="{% url 'twitch:game_detail' game.pk %}">{{ game.display_name }}</a>
+                        <li id="game-{{ game.twitch_id }}">
+                            <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.display_name }}</a>
                         </li>
                     {% endfor %}
                 </ul>
@@ -32,8 +32,8 @@
                 <h2 id="campaigns-header">Campaigns</h2>
                 <ul id="campaigns-list">
                     {% for campaign in results.campaigns %}
-                        <li id="campaign-{{ campaign.pk }}">
-                            <a href="{% url 'twitch:campaign_detail' campaign.pk %}">{{ campaign.name }}</a>
+                        <li id="campaign-{{ campaign.twitch_id }}">
+                            <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.name }}</a>
                         </li>
                     {% endfor %}
                 </ul>
@@ -42,8 +42,8 @@
                 <h2 id="drops-header">Drops</h2>
                 <ul id="drops-list">
                     {% for drop in results.drops %}
-                        <li id="drop-{{ drop.id }}">
-                            <a href="{% url 'twitch:campaign_detail' drop.campaign.pk %}#drop-{{ drop.id }}">{{ drop.name }}</a> (in {{ drop.campaign.name }})
+                        <li id="drop-{{ drop.twitch_id }}">
+                            <a href="{% url 'twitch:campaign_detail' drop.campaign.pk %}#drop-{{ drop.twitch_id }}">{{ drop.name }}</a> (in {{ drop.campaign.name }})
                         </li>
                     {% endfor %}
                 </ul>
@@ -51,7 +51,7 @@
             {% if results.benefits %}
                 <h2 id="benefits-header">Benefits</h2>
                 <ul id="benefits-list">
-                    {% for benefit in results.benefits %}<li id="benefit-{{ benefit.id }}">{{ benefit.name }}</li>{% endfor %}
+                    {% for benefit in results.benefits %}<li id="benefit-{{ benefit.twitch_id }}">{{ benefit.name }}</li>{% endfor %}
                 </ul>
             {% endif %}
         {% endif %}
