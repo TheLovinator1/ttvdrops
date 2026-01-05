@@ -66,3 +66,4 @@
 - HTML templates with Django templating; static assets served from `static/` and collected to `staticfiles/`
 - Management commands in `twitch/management/commands/` for data import and maintenance tasks
 - Use `pyproject.toml` + uv for dependency and environment management
+- Use `uv run python manage.py <command>` to run Django management commands
