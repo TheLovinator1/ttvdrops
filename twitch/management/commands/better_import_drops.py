@@ -336,7 +336,7 @@ class Command(BaseCommand):
         campaigns_found: list[dict[str, Any]],
         file_path: Path,
         options: dict[str, Any],
-    ) -> list[GraphQLResponse]:
+    ) -> tuple[list[GraphQLResponse], Path | None]:
         """Validate campaign data using Pydantic schema.
 
         Args:
@@ -345,13 +345,15 @@ class Command(BaseCommand):
             options: Command options.
 
         Returns:
-            List of validated Pydantic GraphQLResponse models.
+            Tuple of validated Pydantic GraphQLResponse models and an optional
+            broken directory path when the file was moved during validation.
 
         Raises:
             ValidationError: If campaign data fails Pydantic validation
                 and crash-on-error is enabled.
         """
         valid_campaigns: list[GraphQLResponse] = []
+        broken_dir: Path | None = None
 
         if isinstance(campaigns_found, list):
             for campaign in campaigns_found:
@@ -369,7 +371,10 @@ class Command(BaseCommand):
                         # Move invalid inputs out of the hot path so future runs can progress.
                         if not options.get("skip_broken_moves"):
                             op_name: str | None = extract_operation_name_from_parsed(campaign)
-                            move_failed_validation_file(file_path, operation_name=op_name)
+                            broken_dir = move_failed_validation_file(file_path, operation_name=op_name)
+
+                            # Once the file has been moved, bail out so we don't try to move it again later.
+                            return [], broken_dir
 
                         # optionally crash early to surface schema issues.
                         if options.get("crash_on_error"):
@@ -377,7 +382,7 @@ class Command(BaseCommand):
 
                         continue
 
-        return valid_campaigns
+        return valid_campaigns, broken_dir
 
     def _get_or_create_organization(
         self,
@@ -493,7 +498,7 @@ class Command(BaseCommand):
         campaigns_found: list[dict[str, Any]],
         file_path: Path,
         options: dict[str, Any],
-    ) -> None:
+    ) -> tuple[bool, Path | None]:
         """Process, validate, and import campaign data.
 
         With dependency resolution and caching.
@@ -506,12 +511,19 @@ class Command(BaseCommand):
         Raises:
             ValueError: If datetime parsing fails for campaign dates and
                 crash-on-error is enabled.
+
+        Returns:
+            Tuple of (success flag, broken directory path if moved).
         """
-        valid_campaigns: list[GraphQLResponse] = self._validate_campaigns(
+        valid_campaigns, broken_dir = self._validate_campaigns(
             campaigns_found=campaigns_found,
             file_path=file_path,
             options=options,
         )
+
+        if broken_dir:
+            # File already moved due to validation failure; signal caller to skip further handling.
+            return False, broken_dir
 
         for response in valid_campaigns:
             if not response.data.current_user:
@@ -591,6 +603,8 @@ class Command(BaseCommand):
                         time_based_drops_schema=drop_campaign.time_based_drops,
                         campaign_obj=campaign_obj,
                     )
+
+        return True, None
 
     def _process_time_based_drops(
         self,
@@ -875,11 +889,19 @@ class Command(BaseCommand):
                     return {"success": False, "broken_dir": str(broken_dir), "reason": "no dropCampaign present"}
                 return {"success": False, "broken_dir": "(skipped)", "reason": "no dropCampaign present"}
             campaigns_found: list[dict[str, Any]] = [parsed_json]
-            self.process_campaigns(
+            processed, broken_dir = self.process_campaigns(
                 campaigns_found=campaigns_found,
                 file_path=file_path,
                 options=options,
             )
+
+            if not processed:
+                # File was already moved to broken during validation
+                return {
+                    "success": False,
+                    "broken_dir": str(broken_dir) if broken_dir else "(unknown)",
+                    "reason": "validation failed",
+                }
 
             move_completed_file(file_path=file_path, operation_name=operation_name)
 
@@ -964,7 +986,19 @@ class Command(BaseCommand):
 
                 campaigns_found: list[dict[str, Any]] = [parsed_json]
 
-                self.process_campaigns(campaigns_found=campaigns_found, file_path=file_path, options=options)
+                processed, broken_dir = self.process_campaigns(
+                    campaigns_found=campaigns_found,
+                    file_path=file_path,
+                    options=options,
+                )
+
+                if not processed:
+                    # File already moved during validation; nothing more to do here.
+                    progress_bar.write(
+                        f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                        f"{broken_dir}/{file_path.name} (validation failed)",
+                    )
+                    return
 
                 move_completed_file(file_path=file_path, operation_name=operation_name)
 
