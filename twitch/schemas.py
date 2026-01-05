@@ -269,11 +269,26 @@ class Extensions(BaseModel):
     }
 
 
+class GraphQLError(BaseModel):
+    """Schema for GraphQL error objects."""
+
+    message: str
+    path: list[str | int] | None = None
+
+    model_config = {
+        "extra": "ignore",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
 class GraphQLResponse(BaseModel):
     """Schema for the complete GraphQL response from Twitch API."""
 
     data: Data
     extensions: Extensions | None = None
+    errors: list[GraphQLError] | None = None
 
     model_config = {
         "extra": "forbid",
