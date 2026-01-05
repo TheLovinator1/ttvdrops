@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic import field_validator
+from pydantic import model_validator
 
 
 class OrganizationSchema(BaseModel):
@@ -23,12 +24,17 @@ class OrganizationSchema(BaseModel):
 
 
 class GameSchema(BaseModel):
-    """Schema for Twitch Game objects."""
+    """Schema for Twitch Game objects.
 
-    twitch_id: str = Field(alias="id")
-    display_name: str = Field(alias="displayName")
-    box_art_url: str = Field(alias="boxArtURL")
-    type_name: Literal["Game"] = Field(alias="__typename")
+    Handles both ViewerDropsDashboard and Inventory operation formats.
+    """
+
+    twitch_id: str = Field(alias="id")  # Present in both ViewerDropsDashboard and Inventory formats
+    display_name: str | None = Field(default=None, alias="displayName")  # Present in both formats
+    box_art_url: str = Field(alias="boxArtURL")  # Present in both formats
+    slug: str | None = None  # Present in Inventory format
+    name: str | None = None  # Present in Inventory format (alternative to displayName)
+    type_name: Literal["Game"] = Field(alias="__typename")  # Present in both formats
 
     model_config = {
         "extra": "forbid",
@@ -36,6 +42,24 @@ class GameSchema(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_display_name(cls, data: dict | object) -> dict | object:
+        """Normalize display_name from 'name' field if needed.
+
+        Inventory format uses 'name' instead of 'displayName'.
+
+        Args:
+            data: The raw input data dictionary.
+
+        Returns:
+            Normalized data dictionary.
+        """
+        if isinstance(data, dict) and "displayName" not in data and "name" in data:
+            data["displayName"] = data["name"]
+
+        return data
 
 
 class DropCampaignSelfEdge(BaseModel):
@@ -53,16 +77,19 @@ class DropCampaignSelfEdge(BaseModel):
 
 
 class DropBenefitSchema(BaseModel):
-    """Schema for a benefit in a DropBenefitEdge."""
+    """Schema for a benefit in a DropBenefitEdge.
+
+    Handles both ViewerDropsDashboard and Inventory operation formats.
+    """
 
     twitch_id: str = Field(alias="id")
     name: str
     image_asset_url: str = Field(alias="imageAssetURL")
-    created_at: str | None = Field(alias="createdAt")
-    entitlement_limit: int = Field(alias="entitlementLimit")
-    is_ios_available: bool = Field(alias="isIosAvailable")
+    created_at: str | None = Field(default=None, alias="createdAt")
+    entitlement_limit: int = Field(default=1, alias="entitlementLimit")
+    is_ios_available: bool = Field(default=False, alias="isIosAvailable")
     distribution_type: str = Field(alias="distributionType")
-    type_name: Literal["Benefit"] = Field(alias="__typename")
+    type_name: Literal["Benefit", "DropBenefit"] = Field(alias="__typename")
 
     model_config = {
         "extra": "forbid",
@@ -73,10 +100,15 @@ class DropBenefitSchema(BaseModel):
 
 
 class DropBenefitEdgeSchema(BaseModel):
-    """Schema for a benefit edge in a TimeBasedDrop."""
+    """Schema for a benefit edge in a TimeBasedDrop.
+
+    Handles both ViewerDropsDashboard and Inventory operation formats.
+    """
 
     benefit: DropBenefitSchema
     entitlement_limit: int = Field(alias="entitlementLimit")
+    claim_count: int | None = Field(default=None, alias="claimCount")
+    type_name: Literal["DropBenefitEdge"] | None = Field(default=None, alias="__typename")
 
     model_config = {
         "extra": "forbid",
@@ -87,7 +119,10 @@ class DropBenefitEdgeSchema(BaseModel):
 
 
 class TimeBasedDropSchema(BaseModel):
-    """Schema for a TimeBasedDrop in a DropCampaign."""
+    """Schema for a TimeBasedDrop in a DropCampaign.
+
+    Handles both ViewerDropsDashboard and Inventory operation formats.
+    """
 
     twitch_id: str = Field(alias="id")
     name: str
@@ -97,6 +132,11 @@ class TimeBasedDropSchema(BaseModel):
     end_at: str | None = Field(alias="endAt")
     benefit_edges: list[DropBenefitEdgeSchema] = Field(alias="benefitEdges")
     type_name: Literal["TimeBasedDrop"] = Field(alias="__typename")
+    # Inventory-specific fields
+    precondition_drops: None = Field(default=None, alias="preconditionDrops")
+    self_edge: dict | None = Field(default=None, alias="self")
+    campaign: dict | None = None
+    localized_content: dict | None = Field(default=None, alias="localizedContent")
 
     model_config = {
         "extra": "forbid",
@@ -107,11 +147,14 @@ class TimeBasedDropSchema(BaseModel):
 
 
 class DropCampaign(BaseModel):
-    """Schema for Twitch DropCampaign objects."""
+    """Schema for Twitch DropCampaign objects.
+
+    Handles both ViewerDropsDashboard and Inventory operation formats.
+    """
 
     twitch_id: str = Field(alias="id")
     name: str
-    owner: OrganizationSchema
+    owner: OrganizationSchema | None = None
     game: GameSchema
     status: Literal["ACTIVE", "EXPIRED", "UPCOMING"]
     start_at: str = Field(alias="startAt")
@@ -121,6 +164,26 @@ class DropCampaign(BaseModel):
     self: DropCampaignSelfEdge
     time_based_drops: list[TimeBasedDropSchema] = Field(default=[], alias="timeBasedDrops")
     type_name: Literal["DropCampaign"] = Field(alias="__typename")
+    # Inventory-specific fields
+    image_url: str | None = Field(default=None, alias="imageURL")
+    allow: dict | None = None
+    event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class InventorySchema(BaseModel):
+    """Schema for the inventory field in Inventory operation responses."""
+
+    drop_campaigns_in_progress: list[DropCampaign] = Field(alias="dropCampaignsInProgress")
+    type_name: Literal["Inventory"] = Field(alias="__typename")
+    # gameEventDrops field is present in Inventory but we don't process it yet
+    game_event_drops: list | None = Field(default=None, alias="gameEventDrops")
 
     model_config = {
         "extra": "forbid",
@@ -131,11 +194,15 @@ class DropCampaign(BaseModel):
 
 
 class CurrentUser(BaseModel):
-    """Schema for Twitch User objects."""
+    """Schema for Twitch User objects.
+
+    Handles both ViewerDropsDashboard and Inventory operation formats.
+    """
 
     twitch_id: str = Field(alias="id")
-    login: str
-    drop_campaigns: list[DropCampaign] = Field(alias="dropCampaigns")
+    login: str | None = None
+    drop_campaigns: list[DropCampaign] | None = Field(default=None, alias="dropCampaigns")
+    inventory: InventorySchema | None = None
     type_name: Literal["User"] = Field(alias="__typename")
 
     model_config = {
@@ -144,6 +211,21 @@ class CurrentUser(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+    @model_validator(mode="after")
+    def normalize_from_inventory(self) -> CurrentUser:
+        """Normalize drop_campaigns from inventory if present.
+
+        If drop_campaigns is None but inventory exists, extract
+        dropCampaignsInProgress and assign it to drop_campaigns.
+
+        Returns:
+            The CurrentUser instance with normalized drop_campaigns.
+        """
+        if self.drop_campaigns is None and self.inventory is not None:
+            self.drop_campaigns = self.inventory.drop_campaigns_in_progress
+
+        return self
 
 
 class Data(BaseModel):

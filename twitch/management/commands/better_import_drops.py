@@ -505,10 +505,23 @@ class Command(BaseCommand):
             if not response.data.current_user:
                 continue
 
+            if not response.data.current_user.drop_campaigns:
+                continue
+
             for drop_campaign in response.data.current_user.drop_campaigns:
-                org_obj: Organization = self._get_or_create_organization(
-                    org_data=drop_campaign.owner,
-                )
+                # Handle campaigns without owner (e.g., from Inventory operation)
+                if drop_campaign.owner:
+                    org_obj: Organization = self._get_or_create_organization(
+                        org_data=drop_campaign.owner,
+                    )
+                else:
+                    # Create a default organization for campaigns without owner
+                    org_obj, _ = Organization.objects.get_or_create(
+                        twitch_id="unknown",
+                        defaults={"name": "Unknown Organization"},
+                    )
+                    self.organization_cache["unknown"] = org_obj
+
                 game_obj: Game = self._get_or_create_game(
                     game_data=drop_campaign.game,
                     org_obj=org_obj,

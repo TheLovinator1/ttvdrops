@@ -5,8 +5,6 @@ from typing import Any
 from typing import Literal
 
 import pytest
-from django.test.client import _MonkeyPatchedWSGIResponse
-from django.test.utils import ContextList
 
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
