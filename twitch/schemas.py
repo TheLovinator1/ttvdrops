@@ -88,7 +88,7 @@ class DropBenefitSchema(BaseModel):
     created_at: str | None = Field(default=None, alias="createdAt")
     entitlement_limit: int = Field(default=1, alias="entitlementLimit")
     is_ios_available: bool = Field(default=False, alias="isIosAvailable")
-    distribution_type: str = Field(alias="distributionType")
+    distribution_type: str | None = Field(default=None, alias="distributionType")  # Optional in some API responses
     type_name: Literal["Benefit", "DropBenefit"] = Field(alias="__typename")
     # API response fields that should be ignored
     game: dict | None = None
