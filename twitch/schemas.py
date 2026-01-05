@@ -164,6 +164,7 @@ class DropCampaign(BaseModel):
     end_at: str = Field(alias="endAt")
     details_url: str = Field(alias="detailsURL")
     account_link_url: str = Field(alias="accountLinkURL")
+    description: str = Field(default="", alias="description")
     self: DropCampaignSelfEdge
     time_based_drops: list[TimeBasedDropSchema] = Field(default=[], alias="timeBasedDrops")
     type_name: Literal["DropCampaign"] = Field(alias="__typename")
@@ -171,8 +172,6 @@ class DropCampaign(BaseModel):
     image_url: str | None = Field(default=None, alias="imageURL")
     allow: dict | None = None
     event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
-    # Legacy/API response fields that should be ignored
-    description: str | None = None
 
     model_config = {
         "extra": "forbid",

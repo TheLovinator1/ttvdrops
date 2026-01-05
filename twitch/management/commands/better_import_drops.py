@@ -485,6 +485,8 @@ class Command(BaseCommand):
         # load and log noise while keeping caches accurate.
         return bool(
             cached_obj.name == defaults["name"]
+            and cached_obj.description == defaults["description"]
+            and getattr(cached_obj, "image_url", "") == defaults.get("image_url", "")
             and cached_obj.start_at == defaults["start_at"]
             and cached_obj.end_at == defaults["end_at"]
             and cached_obj.details_url == defaults["details_url"]
@@ -563,6 +565,8 @@ class Command(BaseCommand):
 
                 defaults: dict[str, str | datetime | Game | bool] = {
                     "name": drop_campaign.name,
+                    "description": drop_campaign.description,
+                    "image_url": getattr(drop_campaign, "image_url", ""),
                     "game": game_obj,
                     "start_at": start_at_dt,
                     "end_at": end_at_dt,
