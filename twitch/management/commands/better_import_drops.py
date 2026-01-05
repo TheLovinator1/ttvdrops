@@ -521,7 +521,7 @@ class Command(BaseCommand):
             options=options,
         )
 
-        if broken_dir:
+        if broken_dir is not None:
             # File already moved due to validation failure; signal caller to skip further handling.
             return False, broken_dir
 
@@ -648,12 +648,13 @@ class Command(BaseCommand):
 
     def _get_or_update_benefit(self, benefit_schema: DropBenefitSchema) -> DropBenefit:
         """Return a DropBenefit, updating stale cached values when needed."""
+        distribution_type: str = (benefit_schema.distribution_type or "").strip()
         benefit_defaults: dict[str, str | int | datetime | bool | None] = {
             "name": benefit_schema.name,
             "image_asset_url": benefit_schema.image_asset_url,
             "entitlement_limit": benefit_schema.entitlement_limit,
             "is_ios_available": benefit_schema.is_ios_available,
-            "distribution_type": benefit_schema.distribution_type,
+            "distribution_type": distribution_type,
         }
 
         if benefit_schema.created_at:
@@ -872,7 +873,7 @@ class Command(BaseCommand):
             matched: str | None = detect_non_campaign_keyword(raw_text)
             if matched:
                 if not options.get("skip_broken_moves"):
-                    broken_dir: Path = move_file_to_broken_subdir(
+                    broken_dir: Path | None = move_file_to_broken_subdir(
                         file_path,
                         matched,
                         operation_name=operation_name,
@@ -916,7 +917,7 @@ class Command(BaseCommand):
                     if isinstance(parsed_json_local, (dict, list))
                     else None
                 )
-                broken_dir: Path = move_failed_validation_file(file_path, operation_name=op_name)
+                broken_dir = move_failed_validation_file(file_path, operation_name=op_name)
                 return {"success": False, "broken_dir": str(broken_dir)}
             return {"success": False, "broken_dir": "(skipped)"}
         else:
@@ -950,7 +951,7 @@ class Command(BaseCommand):
                 matched: str | None = detect_non_campaign_keyword(raw_text)
                 if matched:
                     if not options.get("skip_broken_moves"):
-                        broken_dir: Path = move_file_to_broken_subdir(
+                        broken_dir: Path | None = move_file_to_broken_subdir(
                             file_path,
                             matched,
                             operation_name=operation_name,
@@ -1015,7 +1016,7 @@ class Command(BaseCommand):
                         if isinstance(parsed_json_local, (dict, list))
                         else None
                     )
-                    broken_dir: Path = move_failed_validation_file(file_path, operation_name=op_name)
+                    broken_dir = move_failed_validation_file(file_path, operation_name=op_name)
                     progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {broken_dir}/{file_path.name}")
                 else:
                     progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (move skipped)")
