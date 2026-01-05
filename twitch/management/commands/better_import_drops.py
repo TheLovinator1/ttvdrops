@@ -88,10 +88,15 @@ def _build_broken_directory(
         Path to the directory where the file should live.
     """
     safe_reason: str = reason.replace(" ", "_")
-    op_segment: str = (operation_name or "unknown_op").replace(" ", "_")
     now: datetime = datetime.now(tz=UTC)
 
-    broken_dir: Path = get_broken_directory_root() / safe_reason / op_segment / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
+    # If operation_name matches reason, skip it to avoid duplicate directories
+    if operation_name and operation_name.replace(" ", "_") == safe_reason:
+        broken_dir: Path = get_broken_directory_root() / safe_reason / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
+    else:
+        op_segment: str = (operation_name or "unknown_op").replace(" ", "_")
+        broken_dir = get_broken_directory_root() / safe_reason / op_segment / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
+
     broken_dir.mkdir(parents=True, exist_ok=True)
     return broken_dir
 
@@ -216,8 +221,15 @@ def extract_operation_name_from_parsed(
         The operation name if found, otherwise None.
     """
     # Be defensive; never let provenance extraction break the import.
+    # If payload is a list, try to extract from the first item
+    if isinstance(payload, list):
+        if len(payload) > 0 and isinstance(payload[0], dict):
+            return extract_operation_name_from_parsed(payload[0])
+        return None
+
     if not isinstance(payload, dict):
         return None
+
     extensions: dict[str, Any] | None = payload.get("extensions")
     if isinstance(extensions, dict):
         op_name: str | None = extensions.get("operationName")
@@ -838,19 +850,30 @@ class Command(BaseCommand):
         """
         try:
             raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
+
+            # Parse JSON early to extract operation name for better directory organization
+            parsed_json: dict[str, Any] = json.loads(raw_text)
+            operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
+
             matched: str | None = detect_non_campaign_keyword(raw_text)
             if matched:
                 if not options.get("skip_broken_moves"):
-                    broken_dir: Path = move_file_to_broken_subdir(file_path, matched)
+                    broken_dir: Path = move_file_to_broken_subdir(
+                        file_path,
+                        matched,
+                        operation_name=operation_name,
+                    )
                     return {"success": False, "broken_dir": str(broken_dir), "reason": f"matched '{matched}'"}
                 return {"success": False, "broken_dir": "(skipped)", "reason": f"matched '{matched}'"}
             if "dropCampaign" not in raw_text:
                 if not options.get("skip_broken_moves"):
-                    broken_dir = move_file_to_broken_subdir(file_path, "no_dropCampaign")
+                    broken_dir = move_file_to_broken_subdir(
+                        file_path,
+                        "no_dropCampaign",
+                        operation_name=operation_name,
+                    )
                     return {"success": False, "broken_dir": str(broken_dir), "reason": "no dropCampaign present"}
                 return {"success": False, "broken_dir": "(skipped)", "reason": "no dropCampaign present"}
-            parsed_json: dict[str, Any] = json.loads(raw_text)
-            operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
             campaigns_found: list[dict[str, Any]] = [parsed_json]
             self.process_campaigns(
                 campaigns_found=campaigns_found,
@@ -898,10 +921,18 @@ class Command(BaseCommand):
             try:
                 raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
 
+                # Parse JSON early to extract operation name for better directory organization
+                parsed_json: dict[str, Any] = json.loads(raw_text)
+                operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
+
                 matched: str | None = detect_non_campaign_keyword(raw_text)
                 if matched:
                     if not options.get("skip_broken_moves"):
-                        broken_dir: Path = move_file_to_broken_subdir(file_path, matched)
+                        broken_dir: Path = move_file_to_broken_subdir(
+                            file_path,
+                            matched,
+                            operation_name=operation_name,
+                        )
                         progress_bar.write(
                             f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
                             f"{broken_dir}/{file_path.name} "
@@ -915,7 +946,11 @@ class Command(BaseCommand):
 
                 if "dropCampaign" not in raw_text:
                     if not options.get("skip_broken_moves"):
-                        broken_dir = move_file_to_broken_subdir(file_path, "no_dropCampaign")
+                        broken_dir = move_file_to_broken_subdir(
+                            file_path,
+                            "no_dropCampaign",
+                            operation_name=operation_name,
+                        )
                         progress_bar.write(
                             f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
                             f"{broken_dir}/{file_path.name} "
@@ -926,9 +961,6 @@ class Command(BaseCommand):
                             f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (no dropCampaign present, move skipped)",
                         )
                     return
-
-                parsed_json: dict[str, Any] = json.loads(raw_text)
-                operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
 
                 campaigns_found: list[dict[str, Any]] = [parsed_json]
 
