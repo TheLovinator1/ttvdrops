@@ -77,9 +77,10 @@ class Game(models.Model):
         default="",
         verbose_name="Display name",
     )
-    box_art = models.URLField(
+    box_art = models.URLField(  # noqa: DJ001
         max_length=500,
         blank=True,
+        null=True,  # We allow null here to distinguish between no box art and empty string
         default="",
         verbose_name="Box art URL",
     )
