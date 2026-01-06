@@ -446,22 +446,45 @@ class Command(BaseCommand):
         if game_data.twitch_id in self.game_cache:
             game_obj: Game = self.game_cache[game_data.twitch_id]
 
-            # Maintenance: Ensure the existing game is linked to the
-            # correct owner (Sometimes games are imported without owner
-            # data first). Use owner_id to avoid triggering a query.
-            # Correct stale owner linkage that may exist from earlier
-            # partial imports.
-            if game_obj.owner_id != org_obj.pk:  # type: ignore[attr-defined] # Django adds _id suffix for FK fields
+            update_fields: list[str] = []
+
+            # Ensure owner is correct without triggering a read
+            if game_obj.owner_id != org_obj.pk:  # type: ignore[attr-defined]
                 game_obj.owner = org_obj
-                game_obj.save(update_fields=["owner"])
+                update_fields.append("owner")
+
+            # Persist normalized display name when provided
+            if game_data.display_name and game_obj.display_name != game_data.display_name:
+                game_obj.display_name = game_data.display_name
+                update_fields.append("display_name")
+
+            # Persist canonical name when provided (Inventory format)
+            if game_data.name and game_obj.name != game_data.name:
+                game_obj.name = game_data.name
+                update_fields.append("name")
+
+            # Persist slug when provided by API (Inventory and DropCampaignDetails)
+            if game_data.slug is not None and game_obj.slug != (game_data.slug or ""):
+                game_obj.slug = game_data.slug or ""
+                update_fields.append("slug")
+
+            # Persist box art URL when provided
+            if game_data.box_art_url is not None and game_obj.box_art != (game_data.box_art_url or ""):
+                game_obj.box_art = game_data.box_art_url or ""
+                update_fields.append("box_art")
+
+            if update_fields:
+                game_obj.save(update_fields=update_fields)
 
             return game_obj
 
         game_obj, created = Game.objects.update_or_create(
             twitch_id=game_data.twitch_id,
             defaults={
-                "display_name": game_data.display_name,
-                "box_art": game_data.box_art_url,
+                "display_name": game_data.display_name or (game_data.name or ""),
+                "name": game_data.name or "",
+                "slug": game_data.slug or "",
+                "box_art": game_data.box_art_url or "",
                 "owner": org_obj,
             },
         )

@@ -8,6 +8,7 @@ from django.test import TestCase
 from twitch.management.commands.better_import_drops import Command
 from twitch.models import Channel
 from twitch.models import DropCampaign
+from twitch.models import Game
 from twitch.schemas import DropBenefitSchema
 
 if TYPE_CHECKING:
@@ -481,3 +482,61 @@ class OperationNameFilteringTests(TestCase):
         # Cross-check: Inventory campaign should not be in viewer campaigns
         assert not viewer_campaigns.filter(twitch_id="inventory-campaign-1").exists()
         assert not inventory_campaigns.filter(twitch_id="viewer-campaign-1").exists()
+
+
+class GameImportTests(TestCase):
+    """Tests for importing and persisting Game fields from campaign data."""
+
+    def test_imports_game_slug_from_campaign(self) -> None:
+        """Ensure Game.slug is imported from DropCampaign game data when provided."""
+        command = Command()
+        command.pre_fill_cache()
+
+        payload: dict[str, object] = {
+            "data": {
+                "user": {
+                    "id": "17658559",
+                    "dropCampaign": {
+                        "id": "campaign-with-slug",
+                        "name": "Slug Campaign",
+                        "description": "",
+                        "startAt": "2025-01-01T00:00:00Z",
+                        "endAt": "2025-12-31T23:59:59Z",
+                        "accountLinkURL": "https://example.com/link",
+                        "detailsURL": "https://example.com/details",
+                        "imageURL": "",
+                        "status": "ACTIVE",
+                        "self": {"isAccountConnected": True, "__typename": "DropCampaignSelfEdge"},
+                        "game": {
+                            "id": "497057",
+                            "slug": "destiny-2",
+                            "displayName": "Destiny 2",
+                            "boxArtURL": "https://example.com/boxart.png",
+                            "__typename": "Game",
+                        },
+                        "owner": {
+                            "id": "bungie-org",
+                            "name": "Bungie",
+                            "__typename": "Organization",
+                        },
+                        "timeBasedDrops": [],
+                        "__typename": "DropCampaign",
+                    },
+                    "__typename": "User",
+                },
+            },
+            "extensions": {"operationName": "DropCampaignDetails"},
+        }
+
+        success, broken_dir = command.process_responses(
+            responses=[payload],
+            file_path=Path("slug.json"),
+            options={},
+        )
+
+        assert success is True
+        assert broken_dir is None
+
+        game = Game.objects.get(twitch_id="497057")
+        assert game.slug == "destiny-2"
+        assert game.display_name == "Destiny 2"
