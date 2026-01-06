@@ -328,10 +328,6 @@ class DropCampaign(models.Model):
         blank=True,
         help_text="Datetime when the campaign ends.",
     )
-    is_account_connected = models.BooleanField(
-        default=False,
-        help_text="Indicates if the user account is linked.",
-    )
     allow_is_enabled = models.BooleanField(
         default=True,
         help_text="Whether the campaign allows participation.",
@@ -375,7 +371,6 @@ class DropCampaign(models.Model):
             models.Index(fields=["twitch_id"]),
             models.Index(fields=["name"]),
             models.Index(fields=["description"]),
-            models.Index(fields=["is_account_connected"]),
             models.Index(fields=["allow_is_enabled"]),
             models.Index(fields=["operation_name"]),
             models.Index(fields=["added_at"]),

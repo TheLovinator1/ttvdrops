@@ -295,6 +295,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         "json",
         [campaign],
         fields=(
+            "twitch_id",
             "name",
             "description",
             "details_url",
@@ -302,7 +303,6 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             "image_url",
             "start_at",
             "end_at",
-            "is_account_connected",
             "game",
             "created_at",
             "updated_at",
@@ -555,6 +555,7 @@ class GameDetailView(DetailView):
                 "json",
                 all_campaigns,
                 fields=(
+                    "twitch_id",
                     "name",
                     "description",
                     "details_url",
@@ -562,7 +563,6 @@ class GameDetailView(DetailView):
                     "image_url",
                     "start_at",
                     "end_at",
-                    "is_account_connected",
                 ),
             )
             campaigns_data: list[dict[str, Any]] = json.loads(
@@ -933,6 +933,7 @@ class ChannelDetailView(DetailView):
                 "json",
                 all_campaigns,
                 fields=(
+                    "twitch_id",
                     "name",
                     "description",
                     "details_url",
@@ -940,7 +941,6 @@ class ChannelDetailView(DetailView):
                     "image_url",
                     "start_at",
                     "end_at",
-                    "is_account_connected",
                 ),
             )
             campaigns_data = json.loads(serialized_campaigns)

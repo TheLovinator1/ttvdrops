@@ -62,11 +62,48 @@ class GameSchema(BaseModel):
         return data
 
 
-class DropCampaignSelfEdge(BaseModel):
+class DropCampaignSelfEdgeSchema(BaseModel):
     """Schema for the 'self' edge on DropCampaign objects."""
 
     is_account_connected: bool = Field(alias="isAccountConnected")
     type_name: Literal["DropCampaignSelfEdge"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class ChannelInfoSchema(BaseModel):
+    """Schema for allowed channel info in DropCampaignACL.
+
+    Represents individual channels that are allowed to participate in a campaign.
+    """
+
+    twitch_id: str = Field(alias="id")
+    display_name: str | None = Field(default=None, alias="displayName")
+    name: str  # Channel login name
+    type_name: Literal["Channel"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class DropCampaignACLSchema(BaseModel):
+    """Schema for DropCampaign ACL (Access Control List).
+
+    Defines which channels are allowed to participate in a campaign.
+    """
+
+    channels: list[ChannelInfoSchema] | None = None
+    is_enabled: bool = Field(alias="isEnabled")
+    type_name: Literal["DropCampaignACL"] = Field(alias="__typename")
 
     model_config = {
         "extra": "forbid",
@@ -149,28 +186,29 @@ class TimeBasedDropSchema(BaseModel):
     }
 
 
-class DropCampaign(BaseModel):
+class DropCampaignSchema(BaseModel):
     """Schema for Twitch DropCampaign objects.
 
     Handles both ViewerDropsDashboard and Inventory operation formats.
     """
 
-    twitch_id: str = Field(alias="id")
-    name: str
-    owner: OrganizationSchema | None = None
-    game: GameSchema
-    status: Literal["ACTIVE", "EXPIRED", "UPCOMING"]
-    start_at: str = Field(alias="startAt")
-    end_at: str = Field(alias="endAt")
-    details_url: str = Field(alias="detailsURL")
     account_link_url: str = Field(alias="accountLinkURL")
     description: str = Field(default="", alias="description")
-    self: DropCampaignSelfEdge
+    details_url: str = Field(alias="detailsURL")
+    end_at: str = Field(alias="endAt")
+    game: GameSchema
+    image_url: str = Field(default="", alias="imageURL")
+    name: str
+    owner: OrganizationSchema | None = None
+    self: DropCampaignSelfEdgeSchema
+    start_at: str = Field(alias="startAt")
+    status: Literal["ACTIVE", "EXPIRED", "UPCOMING"]
     time_based_drops: list[TimeBasedDropSchema] = Field(default=[], alias="timeBasedDrops")
+    twitch_id: str = Field(alias="id")
     type_name: Literal["DropCampaign"] = Field(alias="__typename")
+    # Campaign access control list - defines which channels can participate
+    allow: DropCampaignACLSchema | None = None
     # Inventory-specific fields
-    image_url: str | None = Field(default=None, alias="imageURL")
-    allow: dict | None = None
     event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
 
     model_config = {
@@ -184,7 +222,7 @@ class DropCampaign(BaseModel):
 class InventorySchema(BaseModel):
     """Schema for the inventory field in Inventory operation responses."""
 
-    drop_campaigns_in_progress: list[DropCampaign] = Field(alias="dropCampaignsInProgress")
+    drop_campaigns_in_progress: list[DropCampaignSchema] = Field(alias="dropCampaignsInProgress")
     type_name: Literal["Inventory"] = Field(alias="__typename")
     # gameEventDrops field is present in Inventory but we don't process it yet
     game_event_drops: list | None = Field(default=None, alias="gameEventDrops")
@@ -197,7 +235,7 @@ class InventorySchema(BaseModel):
     }
 
 
-class CurrentUser(BaseModel):
+class CurrentUserSchema(BaseModel):
     """Schema for Twitch User objects.
 
     Handles both ViewerDropsDashboard and Inventory operation formats.
@@ -206,8 +244,8 @@ class CurrentUser(BaseModel):
 
     twitch_id: str = Field(alias="id")
     login: str | None = None
-    drop_campaigns: list[DropCampaign] | None = Field(default=None, alias="dropCampaigns")
-    drop_campaign: DropCampaign | None = Field(default=None, alias="dropCampaign")
+    drop_campaigns: list[DropCampaignSchema] | None = Field(default=None, alias="dropCampaigns")
+    drop_campaign: DropCampaignSchema | None = Field(default=None, alias="dropCampaign")
     inventory: InventorySchema | None = None
     type_name: Literal["User"] = Field(alias="__typename")
 
@@ -219,7 +257,7 @@ class CurrentUser(BaseModel):
     }
 
     @model_validator(mode="after")
-    def normalize_from_inventory(self) -> CurrentUser:
+    def normalize_from_inventory(self) -> CurrentUserSchema:
         """Normalize drop_campaigns from inventory or singular dropCampaign.
 
         Handles three sources in order of priority:
@@ -239,14 +277,57 @@ class CurrentUser(BaseModel):
         return self
 
 
-class Data(BaseModel):
-    """Schema for the data field in Twitch API responses.
+class ChannelSchema(BaseModel):
+    """Schema for Twitch Channel objects with viewer drop campaigns.
 
-    Handles both currentUser (standard) and user (legacy) field names.
+    Handles the channel.viewerDropCampaigns structure from viewer-focused API responses.
     """
 
-    current_user: CurrentUser | None = Field(default=None, alias="currentUser")
-    user: CurrentUser | None = Field(default=None, alias="user")
+    twitch_id: str = Field(alias="id")
+    login: str | None = None
+    viewer_drop_campaigns: list[DropCampaignSchema] | DropCampaignSchema | None = Field(
+        default=None,
+        alias="viewerDropCampaigns",
+    )
+    type_name: Literal["Channel"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+    @field_validator("viewer_drop_campaigns", mode="before")
+    @classmethod
+    def normalize_viewer_campaigns(cls, v: list | dict | None) -> list[dict] | None:
+        """Normalize viewer_drop_campaigns to a list.
+
+        Handles both list and dict formats from API responses.
+
+        Args:
+            v: The raw viewer_drop_campaigns value (list, dict, or None).
+
+        Returns:
+            Normalized list of campaign dicts, or None if empty.
+        """
+        if isinstance(v, dict):
+            return [v]
+        if isinstance(v, list):
+            return v or None
+        return None
+
+
+class DataSchema(BaseModel):
+    """Schema for the data field in Twitch API responses.
+
+    Handles both currentUser (standard) and user (legacy) field names,
+    as well as channel-based campaign structures.
+    """
+
+    current_user: CurrentUserSchema | None = Field(default=None, alias="currentUser")
+    user: CurrentUserSchema | None = Field(default=None, alias="user")
+    channel: ChannelSchema | None = Field(default=None, alias="channel")
 
     model_config = {
         "extra": "forbid",
@@ -271,7 +352,7 @@ class Data(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def normalize_user_field(self) -> Data:
+    def normalize_user_field(self) -> DataSchema:
         """Normalize user field to current_user if needed.
 
         If current_user is None but user exists, use user as current_user.
@@ -315,7 +396,7 @@ class GraphQLError(BaseModel):
 class GraphQLResponse(BaseModel):
     """Schema for the complete GraphQL response from Twitch API."""
 
-    data: Data
+    data: DataSchema
     extensions: Extensions | None = None
     errors: list[GraphQLError] | None = None
 

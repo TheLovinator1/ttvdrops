@@ -33,24 +33,24 @@ Hover over the end time to see the exact date and time.
                                          alt="Box art for {{ game_data.name }}"
                                          width="200"
                                          height="267"
-                                         style="border-radius: 8px">
+                                         style="border-radius: 8px" />
                                 </div>
                                 <div style="flex: 1; overflow-x: auto;">
                                     <div style="display: flex; gap: 1rem; min-width: max-content;">
                                         {% for campaign in game_data.campaigns %}
-                                            <article id="campaign-article-{{ campaign.id }}"
+                                            <article id="campaign-article-{{ campaign.twitch_id }}"
                                                      style="display: flex;
                                                             flex-direction: column;
                                                             align-items: center;
                                                             padding: 0.5rem;
                                                             flex-shrink: 0">
                                                 <div>
-                                                    <a href="{% url 'twitch:campaign_detail' campaign.id %}">
+                                                    <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">
                                                         <img src="{{ campaign.image_url }}"
                                                              alt="Image for {{ campaign.name }}"
                                                              width="120"
                                                              height="120"
-                                                             style="border-radius: 4px">
+                                                             style="border-radius: 4px" />
                                                         <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign.clean_name }}</h4>
                                                     </a>
                                                     <time datetime="{{ campaign.end_at|date:'c' }}"

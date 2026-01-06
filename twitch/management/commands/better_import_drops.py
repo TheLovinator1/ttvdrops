@@ -26,8 +26,12 @@ from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import TimeBasedDrop
+from twitch.schemas import ChannelInfoSchema
+from twitch.schemas import CurrentUserSchema
 from twitch.schemas import DropBenefitEdgeSchema
 from twitch.schemas import DropBenefitSchema
+from twitch.schemas import DropCampaignACLSchema
+from twitch.schemas import DropCampaignSchema
 from twitch.schemas import GameSchema
 from twitch.schemas import GraphQLResponse
 from twitch.schemas import OrganizationSchema
@@ -148,20 +152,30 @@ def move_file_to_broken_subdir(
     return broken_dir
 
 
-def move_completed_file(file_path: Path, operation_name: str | None = None) -> Path:
+def move_completed_file(
+    file_path: Path,
+    operation_name: str | None = None,
+    campaign_structure: str | None = None,
+) -> Path:
     """Move a successfully processed file into an operation-named directory.
 
-    Moves to <imported_root>/<operation_name>/
+    Moves to <imported_root>/<operation_name>/ or
+    <imported_root>/<operation_name>/<campaign_structure>/ if campaign_structure is provided.
 
     Args:
         file_path: Path to the processed JSON file.
         operation_name: GraphQL operationName extracted from the payload.
+        campaign_structure: Optional campaign structure type (e.g., "user_drop_campaign").
 
     Returns:
         Path to the directory where the file was moved.
     """
     safe_op: str = (operation_name or "unknown_op").replace(" ", "_").replace("/", "_").replace("\\", "_")
     target_dir: Path = get_imported_directory_root() / safe_op
+
+    if campaign_structure:
+        target_dir /= campaign_structure
+
     target_dir.mkdir(parents=True, exist_ok=True)
 
     target_file: Path = target_dir / file_path.name
@@ -331,16 +345,16 @@ class Command(BaseCommand):
 
             setattr(self, cache_attr, {})
 
-    def _validate_campaigns(
+    def _validate_responses(
         self,
-        campaigns_found: list[dict[str, Any]],
+        responses: list[dict[str, Any]],
         file_path: Path,
         options: dict[str, Any],
     ) -> tuple[list[GraphQLResponse], Path | None]:
-        """Validate campaign data using Pydantic schema.
+        """Validate GraphQL response data using Pydantic schema.
 
         Args:
-            campaigns_found: List of raw campaign dictionaries.
+            responses: List of raw GraphQL response dictionaries.
             file_path: Path to the file being processed.
             options: Command options.
 
@@ -349,19 +363,18 @@ class Command(BaseCommand):
             broken directory path when the file was moved during validation.
 
         Raises:
-            ValidationError: If campaign data fails Pydantic validation
+            ValidationError: If response data fails Pydantic validation
                 and crash-on-error is enabled.
         """
-        valid_campaigns: list[GraphQLResponse] = []
+        valid_responses: list[GraphQLResponse] = []
         broken_dir: Path | None = None
 
-        if isinstance(campaigns_found, list):
-            for campaign in campaigns_found:
-                if isinstance(campaign, dict):
+        if isinstance(responses, list):
+            for response_data in responses:
+                if isinstance(response_data, dict):
                     try:
-                        response: GraphQLResponse = GraphQLResponse.model_validate(campaign)
-                        if response.data.current_user and response.data.current_user.drop_campaigns:
-                            valid_campaigns.append(response)
+                        response: GraphQLResponse = GraphQLResponse.model_validate(response_data)
+                        valid_responses.append(response)
 
                     except ValidationError as e:
                         tqdm.write(
@@ -370,7 +383,7 @@ class Command(BaseCommand):
 
                         # Move invalid inputs out of the hot path so future runs can progress.
                         if not options.get("skip_broken_moves"):
-                            op_name: str | None = extract_operation_name_from_parsed(campaign)
+                            op_name: str | None = extract_operation_name_from_parsed(response_data)
                             broken_dir = move_failed_validation_file(file_path, operation_name=op_name)
 
                             # Once the file has been moved, bail out so we don't try to move it again later.
@@ -382,7 +395,7 @@ class Command(BaseCommand):
 
                         continue
 
-        return valid_campaigns, broken_dir
+        return valid_responses, broken_dir
 
     def _get_or_create_organization(
         self,
@@ -456,6 +469,37 @@ class Command(BaseCommand):
         self.game_cache[game_data.twitch_id] = game_obj
         return game_obj
 
+    def _get_or_create_channel(self, channel_info: ChannelInfoSchema) -> Channel:
+        """Get or create a channel from cache or database.
+
+        Args:
+            channel_info: Channel info from Pydantic model.
+
+        Returns:
+            Channel instance.
+        """
+        # Prefer cache hits to avoid hitting the DB on every campaign item.
+        if channel_info.twitch_id in self.channel_cache:
+            return self.channel_cache[channel_info.twitch_id]
+
+        # Use name as display_name fallback if displayName is None
+        display_name: str = channel_info.display_name or channel_info.name
+
+        channel_obj, created = Channel.objects.update_or_create(
+            twitch_id=channel_info.twitch_id,
+            defaults={
+                "name": channel_info.name,
+                "display_name": display_name,
+            },
+        )
+        if created:
+            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {display_name}")
+
+        # Cache the channel for future lookups.
+        self.channel_cache[channel_info.twitch_id] = channel_obj
+
+        return channel_obj
+
     def _should_skip_campaign_update(
         self,
         cached_obj: DropCampaign,
@@ -491,22 +535,21 @@ class Command(BaseCommand):
             and cached_obj.end_at == defaults["end_at"]
             and cached_obj.details_url == defaults["details_url"]
             and cached_obj.account_link_url == defaults["account_link_url"]
-            and cached_game_id == game_id
-            and cached_obj.is_account_connected == defaults["is_account_connected"],
+            and cached_game_id == game_id,
         )
 
-    def process_campaigns(
+    def process_responses(  # noqa: PLR0914
         self,
-        campaigns_found: list[dict[str, Any]],
+        responses: list[dict[str, Any]],
         file_path: Path,
         options: dict[str, Any],
     ) -> tuple[bool, Path | None]:
-        """Process, validate, and import campaign data.
+        """Process, validate, and import campaign data from GraphQL responses.
 
         With dependency resolution and caching.
 
         Args:
-            campaigns_found: List of raw campaign dictionaries to process.
+            responses: List of raw GraphQL response dictionaries to process.
             file_path: Path to the file being processed.
             options: Command options dictionary.
 
@@ -517,8 +560,8 @@ class Command(BaseCommand):
         Returns:
             Tuple of (success flag, broken directory path if moved).
         """
-        valid_campaigns, broken_dir = self._validate_campaigns(
-            campaigns_found=campaigns_found,
+        valid_responses, broken_dir = self._validate_responses(
+            responses=responses,
             file_path=file_path,
             options=options,
         )
@@ -527,18 +570,31 @@ class Command(BaseCommand):
             # File already moved due to validation failure; signal caller to skip further handling.
             return False, broken_dir
 
-        for response in valid_campaigns:
-            if not response.data.current_user:
+        for response in valid_responses:
+            campaigns_to_process: list[DropCampaignSchema] = []
+
+            # Source 1: User or CurrentUser field (handles plural, singular, inventory)
+            user_obj: CurrentUserSchema | None = response.data.current_user or response.data.user
+            if user_obj and user_obj.drop_campaigns:
+                campaigns_to_process.extend(user_obj.drop_campaigns)
+
+            # Source 2: Channel field (viewer drop campaigns)
+            channel_obj = response.data.channel
+            if channel_obj and channel_obj.viewer_drop_campaigns:
+                if isinstance(channel_obj.viewer_drop_campaigns, list):
+                    campaigns_to_process.extend(channel_obj.viewer_drop_campaigns)
+                else:
+                    campaigns_to_process.append(channel_obj.viewer_drop_campaigns)
+
+            if not campaigns_to_process:
                 continue
 
-            if not response.data.current_user.drop_campaigns:
-                continue
-
-            for drop_campaign in response.data.current_user.drop_campaigns:
+            for drop_campaign in campaigns_to_process:
                 # Handle campaigns without owner (e.g., from Inventory operation)
-                if drop_campaign.owner:
+                owner_data: OrganizationSchema | None = getattr(drop_campaign, "owner", None)
+                if owner_data:
                     org_obj: Organization = self._get_or_create_organization(
-                        org_data=drop_campaign.owner,
+                        org_data=owner_data,
                     )
                 else:
                     # Create a default organization for campaigns without owner
@@ -566,13 +622,12 @@ class Command(BaseCommand):
                 defaults: dict[str, str | datetime | Game | bool] = {
                     "name": drop_campaign.name,
                     "description": drop_campaign.description,
-                    "image_url": getattr(drop_campaign, "image_url", ""),
+                    "image_url": drop_campaign.image_url,
                     "game": game_obj,
                     "start_at": start_at_dt,
                     "end_at": end_at_dt,
                     "details_url": drop_campaign.details_url,
                     "account_link_url": drop_campaign.account_link_url,
-                    "is_account_connected": (drop_campaign.self.is_account_connected),
                 }
 
                 if drop_campaign.twitch_id in self.drop_campaign_cache:
@@ -606,6 +661,13 @@ class Command(BaseCommand):
                     self._process_time_based_drops(
                         time_based_drops_schema=drop_campaign.time_based_drops,
                         campaign_obj=campaign_obj,
+                    )
+
+                # Process allowed channels from the campaign's ACL
+                if drop_campaign.allow and drop_campaign.allow.channels:
+                    self._process_allowed_channels(
+                        campaign_obj=campaign_obj,
+                        allow_schema=drop_campaign.allow,
                     )
 
         return True, None
@@ -713,6 +775,35 @@ class Command(BaseCommand):
             )
             if created:
                 tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Linked benefit: {benefit_schema.name} → {drop_obj.name}")
+
+    def _process_allowed_channels(
+        self,
+        campaign_obj: DropCampaign,
+        allow_schema: DropCampaignACLSchema,
+    ) -> None:
+        """Process allowed channels for a drop campaign.
+
+        Updates the campaign's allow_is_enabled flag and M2M relationship
+        with allowed channels from the ACL schema.
+
+        Args:
+            campaign_obj: The DropCampaign database object.
+            allow_schema: The DropCampaignACL Pydantic schema.
+        """
+        # Update the allow_is_enabled flag if changed
+        if campaign_obj.allow_is_enabled != allow_schema.is_enabled:
+            campaign_obj.allow_is_enabled = allow_schema.is_enabled
+            campaign_obj.save(update_fields=["allow_is_enabled"])
+
+        # Get or create all channels and collect them
+        channel_objects: list[Channel] = []
+        if allow_schema.channels:
+            for channel_schema in allow_schema.channels:
+                channel_obj: Channel = self._get_or_create_channel(channel_info=channel_schema)
+                channel_objects.append(channel_obj)
+
+        # Update the M2M relationship with the allowed channels
+        campaign_obj.allow_channels.set(channel_objects)
 
     def handle(self, *args, **options) -> None:  # noqa: ARG002
         """Main entry point for the command.
@@ -826,6 +917,63 @@ class Command(BaseCommand):
         tqdm.write(f"Total: {len(json_files)}")
         tqdm.write("=" * 50)
 
+    def _detect_campaign_structure(self, response: dict[str, Any]) -> str | None:
+        """Detect which campaign structure is present in the response.
+
+        Used for organizing/categorizing files by their response type.
+
+        Supported structures:
+        - "user_drop_campaign": {"data": {"user": {"dropCampaign": {...}}}}
+        - "current_user_drop_campaigns": {"data": {"currentUser": {"dropCampaigns": [...]}}}
+        - "inventory_campaigns": {"data": {"currentUser": {"inventory": {"dropCampaignsInProgress": [...]}}}}
+        - "channel_viewer_campaigns": {"data": {"channel": {"viewerDropCampaigns": [...] or {...}}}}
+
+        Args:
+            response: The parsed JSON response from Twitch API.
+
+        Returns:
+            String identifier of the structure type, or None if no campaign structure found.
+        """
+        if not isinstance(response, dict) or "data" not in response:
+            return None
+
+        data: dict[str, Any] = response["data"]
+
+        # Check structures in order of specificity
+        # Structure: {"data": {"user": {"dropCampaign": {...}}}}
+        if (
+            "user" in data
+            and isinstance(data["user"], dict)
+            and "dropCampaign" in data["user"]
+            and data["user"]["dropCampaign"]
+        ):
+            return "user_drop_campaign"
+
+        # Structure: {"data": {"currentUser": {...}}}
+        if "currentUser" in data and isinstance(data["currentUser"], dict):
+            current_user: dict[str, Any] = data["currentUser"]
+
+            # Structure: {"data": {"currentUser": {"inventory": {"dropCampaignsInProgress": [...]}}}}
+            if (
+                "inventory" in current_user
+                and isinstance(current_user["inventory"], dict)
+                and "dropCampaignsInProgress" in current_user["inventory"]
+                and current_user["inventory"]["dropCampaignsInProgress"]
+            ):
+                return "inventory_campaigns"
+
+            # Structure: {"data": {"currentUser": {"dropCampaigns": [...]}}}
+            if "dropCampaigns" in current_user and isinstance(current_user["dropCampaigns"], list):
+                return "current_user_drop_campaigns"
+
+        # Structure: {"data": {"channel": {"viewerDropCampaigns": [...] or {...}}}}
+        if "channel" in data and isinstance(data["channel"], dict):
+            channel: dict[str, Any] = data["channel"]
+            if channel.get("viewerDropCampaigns"):
+                return "channel_viewer_campaigns"
+
+        return None
+
     def collect_json_files(
         self,
         options: dict,
@@ -886,16 +1034,18 @@ class Command(BaseCommand):
                 return {"success": False, "broken_dir": "(skipped)", "reason": f"matched '{matched}'"}
             if "dropCampaign" not in raw_text:
                 if not options.get("skip_broken_moves"):
-                    broken_dir = move_file_to_broken_subdir(
+                    broken_dir: Path | None = move_file_to_broken_subdir(
                         file_path,
                         "no_dropCampaign",
                         operation_name=operation_name,
                     )
                     return {"success": False, "broken_dir": str(broken_dir), "reason": "no dropCampaign present"}
                 return {"success": False, "broken_dir": "(skipped)", "reason": "no dropCampaign present"}
-            campaigns_found: list[dict[str, Any]] = [parsed_json]
-            processed, broken_dir = self.process_campaigns(
-                campaigns_found=campaigns_found,
+
+            # Wrap single response in list for consistent processing
+            responses: list[dict[str, Any]] = parsed_json if isinstance(parsed_json, list) else [parsed_json]
+            processed, broken_dir = self.process_responses(
+                responses=responses,
                 file_path=file_path,
                 options=options,
             )
@@ -908,7 +1058,14 @@ class Command(BaseCommand):
                     "reason": "validation failed",
                 }
 
-            move_completed_file(file_path=file_path, operation_name=operation_name)
+            campaign_structure: str | None = self._detect_campaign_structure(
+                parsed_json if isinstance(parsed_json, dict) else (parsed_json[0] if parsed_json else {}),
+            )
+            move_completed_file(
+                file_path=file_path,
+                operation_name=operation_name,
+                campaign_structure=campaign_structure,
+            )
 
         except (ValidationError, json.JSONDecodeError):
             if options["crash_on_error"]:
@@ -989,10 +1146,11 @@ class Command(BaseCommand):
                         )
                     return
 
-                campaigns_found: list[dict[str, Any]] = [parsed_json]
+                # Wrap single response in list for consistent processing
+                responses: list[dict[str, Any]] = parsed_json if isinstance(parsed_json, list) else [parsed_json]
 
-                processed, broken_dir = self.process_campaigns(
-                    campaigns_found=campaigns_found,
+                processed, broken_dir = self.process_responses(
+                    responses=responses,
                     file_path=file_path,
                     options=options,
                 )
@@ -1005,7 +1163,14 @@ class Command(BaseCommand):
                     )
                     return
 
-                move_completed_file(file_path=file_path, operation_name=operation_name)
+                campaign_structure: str | None = self._detect_campaign_structure(
+                    parsed_json if isinstance(parsed_json, dict) else (parsed_json[0] if parsed_json else {}),
+                )
+                move_completed_file(
+                    file_path=file_path,
+                    operation_name=operation_name,
+                    campaign_structure=campaign_structure,
+                )
 
                 progress_bar.update(1)
                 progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")
