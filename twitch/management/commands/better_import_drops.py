@@ -793,8 +793,10 @@ class Command(BaseCommand):
             allow_schema: The DropCampaignACL Pydantic schema.
         """
         # Update the allow_is_enabled flag if changed
-        if campaign_obj.allow_is_enabled != allow_schema.is_enabled:
-            campaign_obj.allow_is_enabled = allow_schema.is_enabled
+        # Default to True if is_enabled is None (API doesn't always provide this field)
+        is_enabled: bool = allow_schema.is_enabled if allow_schema.is_enabled is not None else True
+        if campaign_obj.allow_is_enabled != is_enabled:
+            campaign_obj.allow_is_enabled = is_enabled
             campaign_obj.save(update_fields=["allow_is_enabled"])
 
         # Get or create all channels and collect them

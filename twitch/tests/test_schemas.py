@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from twitch.schemas import DropBenefitSchema
+from twitch.schemas import DropCampaignSchema
 from twitch.schemas import GraphQLResponse
+from twitch.schemas import TimeBasedDropSchema
 
 
 def test_inventory_operation_validation() -> None:
@@ -17,7 +20,7 @@ def test_inventory_operation_validation() -> None:
     - Benefits have 'DropBenefit' as __typename instead of 'Benefit'
     """
     # Minimal valid Inventory operation structure
-    payload = {
+    payload: dict[str, object] = {
         "data": {
             "currentUser": {
                 "id": "17658559",
@@ -90,7 +93,7 @@ def test_inventory_operation_validation() -> None:
     }
 
     # This should not raise ValidationError
-    response = GraphQLResponse.model_validate(payload)
+    response: GraphQLResponse = GraphQLResponse.model_validate(payload)
 
     # Verify the structure was parsed correctly
     assert response.data.current_user is not None
@@ -100,13 +103,13 @@ def test_inventory_operation_validation() -> None:
     assert response.data.current_user.drop_campaigns is not None
     assert len(response.data.current_user.drop_campaigns) == 1
 
-    campaign = response.data.current_user.drop_campaigns[0]
+    campaign: DropCampaignSchema = response.data.current_user.drop_campaigns[0]
     assert campaign.name == "Test Campaign"
     assert campaign.game.display_name == "Test Game"
     assert len(campaign.time_based_drops) == 1
 
     # Verify time-based drops
-    first_drop = campaign.time_based_drops[0]
+    first_drop: TimeBasedDropSchema = campaign.time_based_drops[0]
     assert first_drop.name == "Test Drop"
     assert first_drop.required_minutes_watched == 60
 
@@ -121,7 +124,7 @@ def test_viewer_drops_dashboard_operation_still_works() -> None:
     This ensures backward compatibility with the existing import data.
     """
     # Minimal valid ViewerDropsDashboard structure
-    payload = {
+    payload: dict[str, object] = {
         "data": {
             "currentUser": {
                 "id": "12345",
@@ -163,7 +166,7 @@ def test_viewer_drops_dashboard_operation_still_works() -> None:
     }
 
     # This should not raise ValidationError
-    response = GraphQLResponse.model_validate(payload)
+    response: GraphQLResponse = GraphQLResponse.model_validate(payload)
 
     assert response.data.current_user is not None
     assert response.data.current_user.login == "testuser"
@@ -179,7 +182,7 @@ def test_graphql_response_with_errors() -> None:
     The schema should accept these responses so they can be processed.
     """
     # Real-world example: Inventory operation with service timeout errors
-    payload = {
+    payload: dict[str, object] = {
         "errors": [
             {
                 "message": "service timeout",
@@ -232,7 +235,7 @@ def test_graphql_response_with_errors() -> None:
     }
 
     # This should not raise ValidationError even with errors field present
-    response = GraphQLResponse.model_validate(payload)
+    response: GraphQLResponse = GraphQLResponse.model_validate(payload)
 
     # Verify the errors were captured
     assert response.errors is not None
@@ -256,7 +259,7 @@ def test_drop_campaign_details_missing_distribution_type() -> None:
 
     This is based on a real-world validation error from file 7720168310842708008.json.
     """
-    payload = {
+    payload: dict[str, object] = {
         "data": {
             "user": {
                 "id": "58162970",
@@ -348,7 +351,7 @@ def test_drop_campaign_details_missing_distribution_type() -> None:
     }
 
     # This should not raise ValidationError despite missing distributionType
-    response = GraphQLResponse.model_validate(payload)
+    response: GraphQLResponse = GraphQLResponse.model_validate(payload)
 
     # Verify the structure was parsed correctly
     assert response.data.current_user is not None
@@ -358,18 +361,18 @@ def test_drop_campaign_details_missing_distribution_type() -> None:
     assert response.data.current_user.drop_campaigns is not None
     assert len(response.data.current_user.drop_campaigns) == 1
 
-    campaign = response.data.current_user.drop_campaigns[0]
+    campaign: DropCampaignSchema = response.data.current_user.drop_campaigns[0]
     assert campaign.name == "Official Channel Weekly Drop"
     assert campaign.game.display_name == "World of Warships"
     assert len(campaign.time_based_drops) == 1
 
     # Verify time-based drops
-    first_drop = campaign.time_based_drops[0]
+    first_drop: TimeBasedDropSchema = campaign.time_based_drops[0]
     assert first_drop.name == "Week 2: 250 Community Tokens"
     assert first_drop.required_minutes_watched == 60
 
     # Verify benefits - distributionType should be None since it was missing
     assert len(first_drop.benefit_edges) == 1
-    benefit = first_drop.benefit_edges[0].benefit
+    benefit: DropBenefitSchema = first_drop.benefit_edges[0].benefit
     assert benefit.name == "13.7 Update: 250 CT"
     assert benefit.distribution_type is None  # This field was missing in the API response

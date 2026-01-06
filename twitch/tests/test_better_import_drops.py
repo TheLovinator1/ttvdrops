@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING
 from django.test import TestCase
 
 from twitch.management.commands.better_import_drops import Command
+from twitch.models import Channel
 from twitch.models import DropCampaign
 from twitch.schemas import DropBenefitSchema
 
 if TYPE_CHECKING:
+    from debug_toolbar.panels.templates.panel import QuerySet
+
     from twitch.models import DropBenefit
 
 
@@ -46,7 +49,7 @@ class ExtractCampaignsTests(TestCase):
         command = Command()
         command.pre_fill_cache()
 
-        payload = {
+        payload: dict[str, object] = {
             "data": {
                 "user": {
                     "id": "123",
@@ -100,7 +103,7 @@ class ExtractCampaignsTests(TestCase):
         command.pre_fill_cache()
 
         # Inventory response with dropCampaignsInProgress
-        payload = {
+        payload: dict[str, object] = {
             "data": {
                 "currentUser": {
                     "id": "17658559",
@@ -160,7 +163,7 @@ class ExtractCampaignsTests(TestCase):
         assert broken_dir is None
 
         # Check that campaign was created with operation_name
-        campaign = DropCampaign.objects.get(twitch_id="inventory-campaign-1")
+        campaign: DropCampaign = DropCampaign.objects.get(twitch_id="inventory-campaign-1")
         assert campaign.name == "Test Inventory Campaign"
         assert campaign.operation_name == "Inventory"
 
@@ -170,7 +173,7 @@ class ExtractCampaignsTests(TestCase):
         command.pre_fill_cache()
 
         # Inventory response with null dropCampaignsInProgress
-        payload = {
+        payload: dict[str, object] = {
             "data": {
                 "currentUser": {
                     "id": "17658559",
@@ -199,6 +202,95 @@ class ExtractCampaignsTests(TestCase):
         assert valid_responses[0].data.current_user is not None
         assert valid_responses[0].data.current_user.inventory is not None
 
+    def test_handles_inventory_with_allow_acl_url_and_missing_is_enabled(self) -> None:
+        """Ensure ACL with url field and missing isEnabled is handled correctly."""
+        command = Command()
+        command.pre_fill_cache()
+
+        # Inventory response with allow ACL containing url field and no isEnabled
+        payload: dict[str, object] = {
+            "data": {
+                "currentUser": {
+                    "id": "17658559",
+                    "inventory": {
+                        "dropCampaignsInProgress": [
+                            {
+                                "id": "inventory-campaign-2",
+                                "name": "Test ACL Campaign",
+                                "description": "",
+                                "startAt": "2025-01-01T00:00:00Z",
+                                "endAt": "2025-12-31T23:59:59Z",
+                                "accountLinkURL": "https://example.com/link",
+                                "detailsURL": "https://example.com/details",
+                                "imageURL": "https://example.com/campaign.png",
+                                "status": "ACTIVE",
+                                "self": {
+                                    "isAccountConnected": True,
+                                    "__typename": "DropCampaignSelfEdge",
+                                },
+                                "game": {
+                                    "id": "inventory-game-2",
+                                    "displayName": "Test Game",
+                                    "boxArtURL": "https://example.com/boxart.png",
+                                    "slug": "test-game",
+                                    "name": "Test Game",
+                                    "__typename": "Game",
+                                },
+                                "owner": {
+                                    "id": "inventory-org-2",
+                                    "name": "Test Organization",
+                                    "__typename": "Organization",
+                                },
+                                "allow": {
+                                    "channels": [
+                                        {
+                                            "id": "91070599",
+                                            "name": "testchannel",
+                                            "url": "https://www.twitch.tv/testchannel",
+                                            "__typename": "Channel",
+                                        },
+                                    ],
+                                    "__typename": "DropCampaignACL",
+                                },
+                                "timeBasedDrops": [],
+                                "eventBasedDrops": None,
+                                "__typename": "DropCampaign",
+                            },
+                        ],
+                        "gameEventDrops": None,
+                        "__typename": "Inventory",
+                    },
+                    "__typename": "User",
+                },
+            },
+            "extensions": {
+                "operationName": "Inventory",
+            },
+        }
+
+        # Validate and process response
+        success, broken_dir = command.process_responses(
+            responses=[payload],
+            file_path=Path("test_acl.json"),
+            options={},
+        )
+
+        assert success is True
+        assert broken_dir is None
+
+        # Check that campaign was created and allow_is_enabled defaults to True
+        campaign: DropCampaign = DropCampaign.objects.get(twitch_id="inventory-campaign-2")
+        assert campaign.name == "Test ACL Campaign"
+        assert campaign.allow_is_enabled is True  # Should default to True
+
+        # Check that the channel was created and linked
+        assert campaign.allow_channels.count() == 1
+        channel: Channel | None = campaign.allow_channels.first()
+        assert channel is not None
+
+        assert channel.name == "testchannel"
+        assert channel.twitch_id == "91070599"
+
 
 class CampaignStructureDetectionTests(TestCase):
     """Tests for campaign structure detection in _detect_campaign_structure method."""
@@ -208,7 +300,7 @@ class CampaignStructureDetectionTests(TestCase):
         command = Command()
 
         # Inventory format with dropCampaignsInProgress
-        response = {
+        response: dict[str, object] = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -226,7 +318,7 @@ class CampaignStructureDetectionTests(TestCase):
             },
         }
 
-        structure = command._detect_campaign_structure(response)
+        structure: str | None = command._detect_campaign_structure(response)
         assert structure == "inventory_campaigns"
 
     def test_detects_inventory_campaigns_structure_with_null(self) -> None:
@@ -247,7 +339,7 @@ class CampaignStructureDetectionTests(TestCase):
             },
         }
 
-        structure = command._detect_campaign_structure(response)
+        structure: str | None = command._detect_campaign_structure(response)
         # Should return None since there are no actual campaigns
         assert structure is None
 
@@ -255,7 +347,7 @@ class CampaignStructureDetectionTests(TestCase):
         """Ensure currentUser.dropCampaigns structure is correctly detected."""
         command = Command()
 
-        response = {
+        response: dict[str, object] = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -270,7 +362,7 @@ class CampaignStructureDetectionTests(TestCase):
             },
         }
 
-        structure = command._detect_campaign_structure(response)
+        structure: str | None = command._detect_campaign_structure(response)
         assert structure == "current_user_drop_campaigns"
 
 
@@ -323,7 +415,7 @@ class OperationNameFilteringTests(TestCase):
         }
 
         # Import an Inventory campaign
-        inventory_payload = {
+        inventory_payload: dict[str, object] = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -372,8 +464,12 @@ class OperationNameFilteringTests(TestCase):
         command.process_responses([inventory_payload], Path("inventory.json"), {})
 
         # Verify we can filter by operation_name
-        viewer_campaigns = DropCampaign.objects.filter(operation_name="ViewerDropsDashboard")
-        inventory_campaigns = DropCampaign.objects.filter(operation_name="Inventory")
+        viewer_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
+            operation_name="ViewerDropsDashboard",
+        )
+        inventory_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
+            operation_name="Inventory",
+        )
 
         assert viewer_campaigns.count() >= 1
         assert inventory_campaigns.count() >= 1

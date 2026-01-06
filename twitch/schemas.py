@@ -85,6 +85,7 @@ class ChannelInfoSchema(BaseModel):
     twitch_id: str = Field(alias="id")
     display_name: str | None = Field(default=None, alias="displayName")
     name: str  # Channel login name
+    url: str | None = None
     type_name: Literal["Channel"] = Field(alias="__typename")
 
     model_config = {
@@ -102,7 +103,7 @@ class DropCampaignACLSchema(BaseModel):
     """
 
     channels: list[ChannelInfoSchema] | None = None
-    is_enabled: bool = Field(alias="isEnabled")
+    is_enabled: bool | None = Field(default=None, alias="isEnabled")
     type_name: Literal["DropCampaignACL"] = Field(alias="__typename")
 
     model_config = {
