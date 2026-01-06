@@ -170,7 +170,7 @@ class TimeBasedDropSchema(BaseModel):
     required_subs: int = Field(alias="requiredSubs")
     start_at: str | None = Field(alias="startAt")
     end_at: str | None = Field(alias="endAt")
-    benefit_edges: list[DropBenefitEdgeSchema] = Field(alias="benefitEdges")
+    benefit_edges: list[DropBenefitEdgeSchema] = Field(default=[], alias="benefitEdges")
     type_name: Literal["TimeBasedDrop"] = Field(alias="__typename")
     # Inventory-specific fields
     precondition_drops: None = Field(default=None, alias="preconditionDrops")
@@ -184,6 +184,19 @@ class TimeBasedDropSchema(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+    @field_validator("benefit_edges", mode="before")
+    @classmethod
+    def handle_null_benefit_edges(cls, v: list | None) -> list:
+        """Convert null benefitEdges to empty list.
+
+        Args:
+            v: The raw benefit_edges value (list or None).
+
+        Returns:
+            Empty list if None, otherwise the list itself.
+        """
+        return v or []
 
 
 class DropCampaignSchema(BaseModel):
@@ -222,7 +235,7 @@ class DropCampaignSchema(BaseModel):
 class InventorySchema(BaseModel):
     """Schema for the inventory field in Inventory operation responses."""
 
-    drop_campaigns_in_progress: list[DropCampaignSchema] = Field(alias="dropCampaignsInProgress")
+    drop_campaigns_in_progress: list[DropCampaignSchema] = Field(default=[], alias="dropCampaignsInProgress")
     type_name: Literal["Inventory"] = Field(alias="__typename")
     # gameEventDrops field is present in Inventory but we don't process it yet
     game_event_drops: list | None = Field(default=None, alias="gameEventDrops")
@@ -233,6 +246,19 @@ class InventorySchema(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+    @field_validator("drop_campaigns_in_progress", mode="before")
+    @classmethod
+    def handle_null_campaigns(cls, v: list | None) -> list:
+        """Convert null dropCampaignsInProgress to empty list.
+
+        Args:
+            v: The raw drop_campaigns_in_progress value (list or None).
+
+        Returns:
+            Empty list if None, otherwise the list itself.
+        """
+        return v or []
 
 
 class CurrentUserSchema(BaseModel):
