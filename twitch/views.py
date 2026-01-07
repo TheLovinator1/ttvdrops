@@ -104,8 +104,6 @@ class OrgListView(ListView):
 
 
 # MARK: /organizations/<twitch_id>/
-
-
 def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
     """Function-based view for organization detail.
 
@@ -130,7 +128,12 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     serialized_org: str = serialize(
         "json",
         [organization],
-        fields=("name",),
+        fields=(
+            "twitch_id",
+            "name",
+            "added_at",
+            "updated_at",
+        ),
     )
     org_data: list[dict] = json.loads(serialized_org)
 
@@ -138,7 +141,15 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
         serialized_games: str = serialize(
             "json",
             games,
-            fields=("slug", "name", "display_name", "box_art"),
+            fields=(
+                "twitch_id",
+                "slug",
+                "name",
+                "display_name",
+                "box_art",
+                "added_at",
+                "updated_at",
+            ),
         )
         games_data: list[dict] = json.loads(serialized_games)
         org_data[0]["fields"]["games"] = games_data
@@ -220,11 +231,6 @@ def format_and_color_json(data: dict[str, Any] | str) -> str:
     return highlight(formatted_code, JsonLexer(), HtmlFormatter())
 
 
-# MARK: /campaigns/<twitch_id>/
-
-# MARK: /campaigns/<twitch_id>/
-
-
 def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.datetime) -> list[dict[str, Any]]:
     """Helper to enhance drops with countdown and context.
 
@@ -264,6 +270,7 @@ def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.da
     return enhanced
 
 
+# MARK: /campaigns/<twitch_id>/
 def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
     """Function-based view for a drop campaign detail.
 
@@ -303,6 +310,8 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             "image_url",
             "start_at",
             "end_at",
+            "allow_is_enabled",
+            "operation_name",
             "game",
             "created_at",
             "updated_at",
@@ -315,11 +324,14 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             "json",
             drops,
             fields=(
+                "twitch_id",
                 "name",
                 "required_minutes_watched",
                 "required_subs",
                 "start_at",
                 "end_at",
+                "added_at",
+                "updated_at",
             ),
         )
         drops_data: list[dict[str, Any]] = json.loads(serialized_drops)
@@ -330,7 +342,17 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
                 serialized_benefits = serialize(
                     "json",
                     drop_benefits,
-                    fields=("name", "image_asset_url"),
+                    fields=(
+                        "twitch_id",
+                        "name",
+                        "image_asset_url",
+                        "added_at",
+                        "updated_at",
+                        "created_at",
+                        "entitlement_limit",
+                        "is_ios_available",
+                        "distribution_type",
+                    ),
                 )
                 benefits_data = json.loads(serialized_benefits)
                 drops_data[i]["fields"]["benefits"] = benefits_data
@@ -541,11 +563,14 @@ class GameDetailView(DetailView):
             "json",
             [game],
             fields=(
+                "twitch_id",
                 "slug",
                 "name",
                 "display_name",
                 "box_art",
                 "owner",
+                "added_at",
+                "updated_at",
             ),
         )
         game_data: list[dict[str, Any]] = json.loads(serialized_game)
@@ -563,6 +588,12 @@ class GameDetailView(DetailView):
                     "image_url",
                     "start_at",
                     "end_at",
+                    "allow_is_enabled",
+                    "allow_channels",
+                    "game",
+                    "operation_name",
+                    "added_at",
+                    "updated_at",
                 ),
             )
             campaigns_data: list[dict[str, Any]] = json.loads(
@@ -922,8 +953,11 @@ class ChannelDetailView(DetailView):
             "json",
             [channel],
             fields=(
+                "twitch_id",
                 "name",
                 "display_name",
+                "added_at",
+                "updated_at",
             ),
         )
         channel_data = json.loads(serialized_channel)
@@ -941,6 +975,8 @@ class ChannelDetailView(DetailView):
                     "image_url",
                     "start_at",
                     "end_at",
+                    "added_at",
+                    "updated_at",
                 ),
             )
             campaigns_data = json.loads(serialized_campaigns)
