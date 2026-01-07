@@ -55,6 +55,7 @@
                         <div style="flex-shrink: 0;">
                             {% if game_group.grouper.box_art_best_url %}
                                 <img src="{{ game_group.grouper.box_art_best_url }}"
+                                     loading="lazy"
                                      alt="Box art for {{ game_group.grouper.display_name }}"
                                      width="120"
                                      height="160"

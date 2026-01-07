@@ -136,6 +136,7 @@
                                 {% if benefit.image_asset_url %}
                                     <img height="160"
                                          width="160"
+                                         loading="lazy"
                                          style="object-fit: cover;
                                                 margin-right: 3px"
                                          src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
