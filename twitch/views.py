@@ -14,8 +14,10 @@ from django.core.paginator import Paginator
 from django.core.serializers import serialize
 from django.db.models import Count
 from django.db.models import F
+from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import Q
+from django.db.models import Subquery
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
 from django.http import Http404
@@ -827,13 +829,17 @@ class ChannelListView(ListView):
         search_query: str | None = self.request.GET.get("search")
 
         if search_query:
-            queryset = queryset.filter(
-                Q(name__icontains=search_query) | Q(display_name__icontains=search_query),
-            )
+            queryset = queryset.filter(Q(name__icontains=search_query) | Q(display_name__icontains=search_query))
 
-        return queryset.annotate(
-            campaign_count=Count("allowed_campaigns", distinct=True),
-        ).order_by("-campaign_count", "name")
+        campaign_count_subquery: QuerySet[DropCampaign, dict[str, Any]] = (
+            DropCampaign.objects
+            .filter(allow_channels=OuterRef("pk"))
+            .values("allow_channels")
+            .annotate(count=Count("pk"))
+            .values("count")
+        )
+
+        return queryset.annotate(campaign_count=Subquery(campaign_count_subquery)).order_by("-campaign_count", "name")
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.

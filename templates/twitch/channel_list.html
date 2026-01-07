@@ -38,7 +38,7 @@
                                href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name }}</a>
                         </td>
                         <td>{{ channel.name }}</td>
-                        <td>{{ channel.campaign_count }}</td>
+                        <td>{{ channel.campaign_count|default:0 }}</td>
                         <td>
                             <time datetime="{{ channel.added_at|date:'c' }}"
                                   title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">
