@@ -43,7 +43,11 @@
                 <ul id="drops-list">
                     {% for drop in results.drops %}
                         <li id="drop-{{ drop.twitch_id }}">
-                            <a href="{% url 'twitch:campaign_detail' drop.campaign.twitch_id %}#drop-{{ drop.twitch_id }}">{{ drop.name }}</a> (in {{ drop.campaign.name }})
+                            {% if drop.campaign and drop.campaign.twitch_id %}
+                                <a href="{% url 'twitch:campaign_detail' drop.campaign.twitch_id %}">{{ drop.name }}</a> (in {{ drop.campaign.name }})
+                            {% else %}
+                                {{ drop.name }}
+                            {% endif %}
                         </li>
                     {% endfor %}
                 </ul>
@@ -53,7 +57,13 @@
                 <ul id="benefits-list">
                     {% for benefit in results.benefits %}
                         <li id="benefit-{{ benefit.twitch_id }}">
-                            <a href="{% url 'twitch:campaign_detail' benefit.drops.first.campaign.twitch_id %}">{{ benefit.name }}</a>
+                            {% with first_drop=benefit.drops.first %}
+                                {% if first_drop and first_drop.campaign and first_drop.campaign.twitch_id %}
+                                    <a href="{% url 'twitch:campaign_detail' first_drop.campaign.twitch_id %}">{{ benefit.name }}</a>
+                                {% else %}
+                                    {{ benefit.name }}
+                                {% endif %}
+                            {% endwith %}
                         </li>
                     {% endfor %}
                 </ul>
