@@ -8,6 +8,12 @@
         <p>
             <a href="{% url 'twitch:game_list' %}">Grid View</a>
         </p>
+        <!-- RSS Feeds -->
+        <div style="margin-bottom: 1rem;">
+            <a href="{% url 'twitch:game_feed' %}"
+               style="margin-right: 1rem"
+               title="RSS feed for all games">RSS feed for all games</a>
+        </div>
         {% if games_by_org %}
             {% for organization, games in games_by_org.items %}
                 <h2 id="org-{{ organization.twitch_id }}">{{ organization.name }}</h2>

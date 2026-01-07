@@ -17,6 +17,19 @@
             <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
         </p>
     {% endif %}
+    <!-- RSS Feeds -->
+    <div style="margin-bottom: 1rem;">
+        {% if campaign.game %}
+            <a href="{% url 'twitch:game_campaign_feed' campaign.game.twitch_id %}"
+               style="margin-right: 1rem"
+               title="RSS feed for {{ campaign.game.display_name }} campaigns">RSS feed for {{ campaign.game.display_name }} campaigns</a>
+        {% endif %}
+        {% if owner %}
+            <a href="{% url 'twitch:organization_campaign_feed' owner.twitch_id %}"
+               style="margin-right: 1rem"
+               title="RSS feed for {{ owner.name }} campaigns">RSS feed for {{ owner.name }} campaigns</a>
+        {% endif %}
+    </div>
     <!-- Campaign image -->
     {% if campaign.image_best_url or campaign.image_url %}
         <img id="campaign-image"

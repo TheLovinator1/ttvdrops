@@ -6,7 +6,9 @@ from django.urls import path
 
 from twitch import views
 from twitch.feeds import DropCampaignFeed
+from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
+from twitch.feeds import OrganizationCampaignFeed
 from twitch.feeds import OrganizationFeed
 
 if TYPE_CHECKING:
@@ -28,7 +30,9 @@ urlpatterns: list[URLPattern] = [
     path("channels/", views.ChannelListView.as_view(), name="channel_list"),
     path("channels/<str:twitch_id>/", views.ChannelDetailView.as_view(), name="channel_detail"),
     path("rss/organizations/", OrganizationFeed(), name="organization_feed"),
+    path("rss/organizations/<str:twitch_id>/campaigns/", OrganizationCampaignFeed(), name="organization_campaign_feed"),
     path("rss/games/", GameFeed(), name="game_feed"),
+    path("rss/games/<str:twitch_id>/campaigns/", GameCampaignFeed(), name="game_campaign_feed"),
     path("rss/campaigns/", DropCampaignFeed(), name="campaign_feed"),
     path("docs/rss/", views.docs_rss_view, name="docs_rss"),
 ]

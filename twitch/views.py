@@ -792,22 +792,35 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     """
     feeds: list[dict[str, str]] = [
         {
-            "title": "Organizations",
-            "description": "Latest organizations",
+            "title": "All Organizations",
+            "description": "Latest organizations added to TTVDrops",
             "url": "/rss/organizations/",
         },
         {
-            "title": "Games",
-            "description": "Latest games",
+            "title": "All Games",
+            "description": "Latest games added to TTVDrops",
             "url": "/rss/games/",
         },
         {
-            "title": "Drop Campaigns",
-            "description": "Latest drop campaigns",
+            "title": "All Drop Campaigns",
+            "description": "Latest drop campaigns across all games",
             "url": "/rss/campaigns/",
         },
     ]
-    return render(request, "twitch/docs_rss.html", {"feeds": feeds})
+
+    # Get sample game and organization for examples
+    sample_game = Game.objects.first()
+    sample_org = Organization.objects.first()
+
+    return render(
+        request,
+        "twitch/docs_rss.html",
+        {
+            "feeds": feeds,
+            "sample_game": sample_game,
+            "sample_org": sample_org,
+        },
+    )
 
 
 # MARK: /channels/

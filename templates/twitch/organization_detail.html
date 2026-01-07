@@ -4,36 +4,26 @@
 {% endblock title %}
 {% block content %}
     <h1 id="org-name">{{ organization.name }}</h1>
-    {% if user.is_authenticated %}
-        <form id="notification-form"
-              method="post"
-              action="{% url 'twitch:subscribe_org_notifications' org_id=organization.twitch_id %}">
-            {% csrf_token %}
-            <div>
-                <input type="checkbox"
-                       id="found"
-                       name="notify_found"
-                       {% if subscription and subscription.notify_found %}checked{% endif %} />
-                <label for="found">🔔 Get notified as soon as a drop for {{ organization.name }} appears on Twitch.</label>
-            </div>
-            <div>
-                <input type="checkbox"
-                       id="live"
-                       name="notify_live"
-                       {% if subscription and subscription.notify_live %}checked{% endif %} />
-                <label for="live">🎮 Get notified when the drop is live and ready to be farmed.</label>
-            </div>
-            <button id="save-preferences-button" type="submit">Save preferences</button>
-        </form>
-    {% else %}
-        <p id="login-prompt">Login to subscribe!</p>
-    {% endif %}
-    <ul id="games-list">
-        {% for game in games %}
-            <li id="game-{{ game.twitch_id }}">
-                <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game }}</a>
-            </li>
-        {% endfor %}
-    </ul>
+    <!-- RSS Feeds -->
+    <div style="margin-bottom: 1rem;">
+        <a href="{% url 'twitch:organization_campaign_feed' organization.twitch_id %}"
+           style="margin-right: 1rem"
+           title="RSS feed for {{ organization.name }} campaigns">RSS feed for {{ organization.name }} campaigns</a>
+    </div>
+    <theader>
+    <h2 id="games-header">Games by {{ organization.name }}</h2>
+    </theader>
+    <table id="games-table">
+        <tbody>
+            {% for game in games %}
+                <tr id="game-row-{{ game.twitch_id }}">
+                    <td>
+                        <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game }}</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <hr />
     {{ org_data|safe }}
 {% endblock content %}

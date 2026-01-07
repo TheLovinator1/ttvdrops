@@ -10,6 +10,12 @@
             <p>
                 <a href="{% url 'twitch:game_list_simple' %}">List View</a>
             </p>
+            <!-- RSS Feeds -->
+            <div style="margin-bottom: 1rem;">
+                <a href="{% url 'twitch:game_feed' %}"
+                   style="margin-right: 1rem"
+                   title="RSS feed for all games">RSS feed for all games</a>
+            </div>
         </header>
         {% if games_by_org %}
             <section>

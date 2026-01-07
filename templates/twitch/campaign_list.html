@@ -8,6 +8,12 @@
         <header>
             <h1 id="page-title">Drop Campaigns</h1>
             <p>Browse all available drop campaigns</p>
+            <!-- RSS Feeds -->
+            <div style="margin-bottom: 1rem;">
+                <a href="{% url 'twitch:campaign_feed' %}"
+                   style="margin-right: 1rem"
+                   title="RSS feed for all campaigns">RSS feed for all campaigns</a>
+            </div>
         </header>
         <form id="filter-form"
               method="get"

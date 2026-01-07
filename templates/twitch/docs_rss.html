@@ -8,7 +8,8 @@
         <h1 id="page-title">RSS Feeds Documentation</h1>
         <p>This page lists all available RSS feeds for TTVDrops.</p>
         <section>
-            <h2 id="available-feeds-header">Available RSS Feeds</h2>
+            <h2 id="available-feeds-header">Global RSS Feeds</h2>
+            <p>These feeds contain all items across the entire site:</p>
             <ul id="feeds-list">
                 {% for feed in feeds %}
                     <li id="feed-{{ forloop.counter }}">
@@ -19,6 +20,41 @@
                         </p>
                     </li>
                 {% endfor %}
+            </ul>
+        </section>
+        <section style="margin-top: 2rem;">
+            <h2 id="filtered-feeds-header">Filtered RSS Feeds</h2>
+            <p>
+                You can also subscribe to RSS feeds for specific games or organizations. These feeds are available on each game or organization detail page.
+            </p>
+            <h3>Game-Specific Campaign Feeds</h3>
+            <p>
+                Subscribe to campaigns for a specific game using: <code>/rss/games/&lt;game_id&gt;/campaigns/</code>
+            </p>
+            {% if sample_game %}
+                <p>
+                    Example: <a href="{% url 'twitch:game_campaign_feed' sample_game.twitch_id %}">{{ sample_game.display_name }} Campaigns RSS Feed</a>
+                </p>
+            {% endif %}
+            <h3>Organization-Specific Campaign Feeds</h3>
+            <p>
+                Subscribe to campaigns for a specific organization using: <code>/rss/organizations/&lt;org_id&gt;/campaigns/</code>
+            </p>
+            {% if sample_org %}
+                <p>
+                    Example: <a href="{% url 'twitch:organization_campaign_feed' sample_org.twitch_id %}">{{ sample_org.name }} Campaigns RSS Feed</a>
+                </p>
+            {% endif %}
+        </section>
+        <section style="margin-top: 2rem;">
+            <h2 id="usage-header">How to Use RSS Feeds</h2>
+            <p>
+                RSS feeds allow you to stay updated with new content. You can use any RSS reader application to subscribe to these feeds.
+            </p>
+            <ul>
+                <li>Copy the feed URL</li>
+                <li>Paste it into your favorite RSS reader (Feedly, Inoreader, NetNewsWire, etc.)</li>
+                <li>Get automatic updates when new content is added</li>
             </ul>
         </section>
     </main>

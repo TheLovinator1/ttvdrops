@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
     from django.db.models import Model
     from django.db.models import QuerySet
+    from django.http import HttpRequest
 
 
 # MARK: /rss/organizations/
@@ -239,3 +240,73 @@ class DropCampaignFeed(Feed):
     def item_enclosure_mime_type(self, item: DropCampaign) -> str:  # noqa: ARG002
         """Returns the MIME type of the enclosure."""
         return "image/jpeg"
+
+
+# MARK: /rss/games/<twitch_id>/campaigns/
+class GameCampaignFeed(DropCampaignFeed):
+    """RSS feed for campaigns of a specific game."""
+
+    def get_object(self, request: HttpRequest, twitch_id: str) -> Game:  # noqa: ARG002
+        """Get the game object for this feed.
+
+        Args:
+            request: The HTTP request.
+            twitch_id: The Twitch ID of the game.
+
+        Returns:
+            Game: The game object.
+        """
+        return Game.objects.get(twitch_id=twitch_id)
+
+    def title(self, obj: Game) -> str:
+        """Return the feed title."""
+        return f"TTVDrops: {obj.display_name} Campaigns"
+
+    def link(self, obj: Game) -> str:
+        """Return the link to the game detail."""
+        return reverse("twitch:game_detail", args=[obj.twitch_id])
+
+    def description(self, obj: Game) -> str:
+        """Return the feed description."""
+        return f"Latest drop campaigns for {obj.display_name}"
+
+    def items(self, obj: Game) -> list[DropCampaign]:
+        """Return the latest 100 campaigns for this game."""
+        return list(
+            DropCampaign.objects.filter(game=obj).select_related("game").order_by("-added_at")[:100],
+        )
+
+
+# MARK: /rss/organizations/<twitch_id>/campaigns/
+class OrganizationCampaignFeed(DropCampaignFeed):
+    """RSS feed for campaigns of a specific organization."""
+
+    def get_object(self, request: HttpRequest, twitch_id: str) -> Organization:  # noqa: ARG002
+        """Get the organization object for this feed.
+
+        Args:
+            request: The HTTP request.
+            twitch_id: The Twitch ID of the organization.
+
+        Returns:
+            Organization: The organization object.
+        """
+        return Organization.objects.get(twitch_id=twitch_id)
+
+    def title(self, obj: Organization) -> str:
+        """Return the feed title."""
+        return f"TTVDrops: {obj.name} Campaigns"
+
+    def link(self, obj: Organization) -> str:
+        """Return the link to the organization detail."""
+        return reverse("twitch:organization_detail", args=[obj.twitch_id])
+
+    def description(self, obj: Organization) -> str:
+        """Return the feed description."""
+        return f"Latest drop campaigns for {obj.name}"
+
+    def items(self, obj: Organization) -> list[DropCampaign]:
+        """Return the latest 100 campaigns for this organization."""
+        return list(
+            DropCampaign.objects.filter(game__owner=obj).select_related("game").order_by("-added_at")[:100],
+        )

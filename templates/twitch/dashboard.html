@@ -10,6 +10,12 @@
 Drops are sorted alphabetically by organization and game. Click on a campaign or game title to see more details.
 Hover over the end time to see the exact date and time.
 </pre>
+        <!-- RSS Feeds -->
+        <div style="margin-bottom: 1rem;">
+            <a href="{% url 'twitch:campaign_feed' %}"
+               style="margin-right: 1rem"
+               title="RSS feed for all campaigns">RSS feed for campaigns</a>
+        </div>
         {% if campaigns_by_org_game %}
             {% for org_id, org_data in campaigns_by_org_game.items %}
                 <section id="org-section-{{ org_id }}">

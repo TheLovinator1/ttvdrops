@@ -8,6 +8,20 @@
         {{ game.display_name }}
         {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
     </h1>
+    <!-- RSS Feeds -->
+    <div style="margin-bottom: 1rem;">
+        <a href="{% url 'twitch:game_campaign_feed' game.twitch_id %}"
+           style="margin-right: 1rem"
+           title="RSS feed for {{ game.display_name }} campaigns">RSS feed for {{ game.display_name }} campaigns</a>
+        {% if owner %}
+            <a href="{% url 'twitch:organization_campaign_feed' owner.twitch_id %}"
+               style="margin-right: 1rem"
+               title="RSS feed for {{ owner.name }} campaigns">RSS feed for {{ owner.name }} campaigns</a>
+        {% endif %}
+        <a href="{% url 'twitch:campaign_feed' %}"
+           style="margin-right: 1rem"
+           title="RSS feed for all campaigns">RSS feed for all campaigns</a>
+    </div>
     <!-- Game image -->
     {% if game.box_art %}
         <img id="game-image"
