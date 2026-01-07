@@ -32,9 +32,9 @@
             </thead>
             <tbody>
                 {% for channel in channels %}
-                    <tr id="channel-row-{{ channel.id }}">
+                    <tr id="channel-row-{{ channel.twitch_id }}">
                         <td>
-                            <a id="channel-link-{{ channel.id }}"
+                            <a id="channel-link-{{ channel.twitch_id }}"
                                href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name }}</a>
                         </td>
                         <td>{{ channel.name }}</td>

@@ -10,10 +10,10 @@
         </p>
         {% if games_by_org %}
             {% for organization, games in games_by_org.items %}
-                <h2 id="org-{{ organization.id }}">{{ organization.name }}</h2>
+                <h2 id="org-{{ organization.twitch_id }}">{{ organization.name }}</h2>
                 <ul style="list-style: none; padding: 0; margin: 0;">
                     {% for item in games %}
-                        <li id="game-{{ item.game.id }}">
+                        <li id="game-{{ item.game.twitch_id }}">
                             <a href="{% url 'twitch:game_detail' item.game.twitch_id %}">{{ item.game.display_name }}</a>
                         </li>
                     {% endfor %}

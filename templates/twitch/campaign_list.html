@@ -25,9 +25,9 @@
                     <select id="game" name="game">
                         <option value="">All Games</option>
                         {% for game in games %}
-                            <option value="{{ game.id }}"
-                                    {% if selected_game == game.id %}selected{% endif %}>
-                                {{ game.display_name|default:game.name|default:game.slug|default:game.id }}
+                            <option value="{{ game.twitch_id }}"
+                                    {% if selected_game == game.twitch_id %}selected{% endif %}>
+                                {{ game.display_name|default:game.name|default:game.slug|default:game.twitch_id }}
                             </option>
                         {% endfor %}
                     </select>
@@ -80,7 +80,7 @@
                                 <h2 style="margin: 0 0 0.5rem 0;">
                                     <a id="game-link-{{ game_group.grouper.twitch_id }}"
                                        href="{% url 'twitch:game_detail' game_group.grouper.twitch_id %}"
-                                       style="text-decoration: none">{{ game_group.grouper.display_name|default:game_group.grouper.name|default:game_group.grouper.slug|default:game_group.grouper.id }}</a>
+                                       style="text-decoration: none">{{ game_group.grouper.display_name|default:game_group.grouper.name|default:game_group.grouper.slug|default:game_group.grouper.twitch_id }}</a>
                                 </h2>
                                 {% comment %} Check if the owner exists and has a valid ID before creating the link {% endcomment %}
                                 {% if game_group.grouper.owner and game_group.grouper.owner.twitch_id %}

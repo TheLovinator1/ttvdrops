@@ -130,7 +130,7 @@
             </thead>
             <tbody>
                 {% for drop in drops %}
-                    <tr id="drop-{{ drop.drop.id }}">
+                    <tr id="drop-{{ drop.drop.twitch_id }}">
                         <td>
                             {% for benefit in drop.drop.benefits.all %}
                                 {% if benefit.image_asset_url %}

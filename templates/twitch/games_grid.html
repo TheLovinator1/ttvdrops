@@ -16,7 +16,7 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
                     {% for organization, games in games_by_org.items %}
                         {% for item in games %}
-                            <article id="game-{{ item.game.id }}"
+                            <article id="game-{{ item.game.twitch_id }}"
                                      style="padding: 0.25rem;
                                             border-radius: 8px;
                                             flex: 1 1 160px;

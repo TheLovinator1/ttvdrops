@@ -12,7 +12,7 @@
         {% if games_without_owner %}
             <ul id="games-without-owner-list">
                 {% for game in games_without_owner %}
-                    <li id="game-{{ game.id }}">
+                    <li id="game-{{ game.twitch_id }}">
                         <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.display_name }}</a> (ID: {{ game.twitch_id }})
                     </li>
                 {% endfor %}
@@ -45,7 +45,7 @@
                     {# A benefit is linked to a game via a drop and a campaign. #}
                     {# We use the 'with' tag to get the first drop for cleaner access. #}
                     {% with first_drop=b.drops.all.0 %}
-                        <li id="benefit-{{ b.id }}">
+                        <li id="benefit-{{ b.twitch_id }}">
                             {{ b.name }}
                             {# Check if the relationship path to the game exists #}
                             {% if first_drop and first_drop.campaign and first_drop.campaign.game %}
@@ -124,7 +124,7 @@
                     {% for row in duplicate_name_campaigns %}
                         <tr>
                             <td>
-                                <a href="{% url 'twitch:game_detail' row.game_id %}">{{ row.game__display_name }}</a>
+                                <a href="{% url 'twitch:game_detail' row.game__twitch_id %}">{{ row.game__display_name }}</a>
                             </td>
                             <td>{{ row.name }}</td>
                             <td>{{ row.name_count }}</td>

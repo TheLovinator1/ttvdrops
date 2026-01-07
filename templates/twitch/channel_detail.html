@@ -12,7 +12,7 @@
     {% endif %}
     <!-- Channel Info -->
     <p>
-        <strong>Channel ID:</strong> {{ channel.id }}
+        <strong>Channel ID:</strong> {{ channel.twitch_id }}
     </p>
     <p>
         <strong>Added to database:</strong>
@@ -50,7 +50,7 @@
                         </td>
                         <td>
                             {% if campaign.game %}
-                                <a href="{% url 'twitch:game_detail' campaign.game.id %}">
+                                <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">
                                     {{ campaign.game.display_name|default:campaign.game.name }}
                                 </a>
                             {% else %}
@@ -94,7 +94,7 @@
                         </td>
                         <td>
                             {% if campaign.game %}
-                                <a href="{% url 'twitch:game_detail' campaign.game.id %}">
+                                <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">
                                     {{ campaign.game.display_name|default:campaign.game.name }}
                                 </a>
                             {% else %}
@@ -138,7 +138,7 @@
                         </td>
                         <td>
                             {% if campaign.game %}
-                                <a href="{% url 'twitch:game_detail' campaign.game.id %}">
+                                <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">
                                     {{ campaign.game.display_name|default:campaign.game.name }}
                                 </a>
                             {% else %}

@@ -68,7 +68,9 @@ def search_view(request: HttpRequest) -> HttpResponse:
                 Q(name__istartswith=query) | Q(description__icontains=query),
             ).select_related("game")
             results["drops"] = TimeBasedDrop.objects.filter(name__istartswith=query).select_related("campaign")
-            results["benefits"] = DropBenefit.objects.filter(name__istartswith=query)
+            results["benefits"] = DropBenefit.objects.filter(name__istartswith=query).prefetch_related(
+                "drops__campaign",
+            )
         else:
             # SQLite-compatible text search using icontains
             results["organizations"] = Organization.objects.filter(
@@ -85,7 +87,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
             ).select_related("campaign")
             results["benefits"] = DropBenefit.objects.filter(
                 name__icontains=query,
-            )
+            ).prefetch_related("drops__campaign")
 
     return render(
         request,
@@ -181,7 +183,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
     queryset: QuerySet[DropCampaign] = DropCampaign.objects.all()
 
     if game_filter:
-        queryset = queryset.filter(game__id=game_filter)
+        queryset = queryset.filter(game__twitch_id=game_filter)
 
     queryset = queryset.select_related("game__owner").order_by("-start_at")
 
@@ -541,24 +543,6 @@ class GameDetailView(DetailView):
             campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now
         ]
 
-        # Build campaign data with sorted benefits
-        campaigns_with_benefits: list[dict[str, Any]] = []
-        for campaign in all_campaigns:
-            benefits_dict: dict[int, DropBenefit] = {}
-            for drop in campaign.time_based_drops.all():  # type: ignore[attr-defined]
-                for benefit in drop.benefits.all():
-                    benefits_dict[benefit.id] = benefit
-            sorted_benefits = sorted(
-                benefits_dict.values(),
-                key=lambda b: b.name,
-            )
-            campaigns_with_benefits.append(
-                {
-                    "campaign": campaign,
-                    "sorted_benefits": sorted_benefits,
-                },
-            )
-
         serialized_game: str = serialize(
             "json",
             [game],
@@ -606,7 +590,6 @@ class GameDetailView(DetailView):
                 "active_campaigns": active_campaigns,
                 "upcoming_campaigns": upcoming_campaigns,
                 "expired_campaigns": expired_campaigns,
-                "campaigns_with_benefits": campaigns_with_benefits,
                 "owner": game.owner,
                 "now": now,
                 "game_data": format_and_color_json(game_data[0]),
@@ -732,7 +715,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     # We retrieve the game's name for user-friendly display.
     duplicate_name_campaigns = (
         DropCampaign.objects
-        .values("game_id", "game__display_name", "name")
+        .values("game__display_name", "name", "game__twitch_id")
         .annotate(name_count=Count("twitch_id"))
         .filter(name_count__gt=1)
         .order_by("game__display_name", "name")
@@ -931,24 +914,6 @@ class ChannelDetailView(DetailView):
             campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now
         ]
 
-        # Build campaign data with sorted benefits
-        campaigns_with_benefits = []
-        for campaign in all_campaigns:
-            benefits_dict: dict[int, DropBenefit] = {}
-            for drop in campaign.time_based_drops.all():  # type: ignore[attr-defined]
-                for benefit in drop.benefits.all():
-                    benefits_dict[benefit.id] = benefit
-            sorted_benefits = sorted(
-                benefits_dict.values(),
-                key=lambda b: b.name,
-            )
-            campaigns_with_benefits.append(
-                {
-                    "campaign": campaign,
-                    "sorted_benefits": sorted_benefits,
-                },
-            )
-
         serialized_channel = serialize(
             "json",
             [channel],
@@ -987,7 +952,6 @@ class ChannelDetailView(DetailView):
                 "active_campaigns": active_campaigns,
                 "upcoming_campaigns": upcoming_campaigns,
                 "expired_campaigns": expired_campaigns,
-                "campaigns_with_benefits": campaigns_with_benefits,
                 "now": now,
                 "channel_data": format_and_color_json(channel_data[0]),
             },

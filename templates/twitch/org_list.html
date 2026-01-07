@@ -7,7 +7,7 @@
     {% if orgs %}
         <ul id="org-list">
             {% for organization in orgs %}
-                <li id="org-{{ organization.id }}">
+                <li id="org-{{ organization.twitch_id }}">
                     <a href="{% url 'twitch:organization_detail' organization.twitch_id %}">{{ organization.name }}</a>
                 </li>
             {% endfor %}

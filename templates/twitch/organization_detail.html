@@ -7,7 +7,7 @@
     {% if user.is_authenticated %}
         <form id="notification-form"
               method="post"
-              action="{% url 'twitch:subscribe_org_notifications' org_id=organization.id %}">
+              action="{% url 'twitch:subscribe_org_notifications' org_id=organization.twitch_id %}">
             {% csrf_token %}
             <div>
                 <input type="checkbox"
@@ -30,7 +30,7 @@
     {% endif %}
     <ul id="games-list">
         {% for game in games %}
-            <li id="game-{{ game.id }}">
+            <li id="game-{{ game.twitch_id }}">
                 <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game }}</a>
             </li>
         {% endfor %}
