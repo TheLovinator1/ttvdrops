@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}
-    Games
+    Organizations
 {% endblock title %}
 {% block content %}
     <h1 id="page-title">Organizations</h1>
@@ -13,6 +13,7 @@
             {% endfor %}
         </ul>
     {% else %}
-        <p>No games found.</p>
+        <p>No organizations found.</p>
     {% endif %}
+    {{ orgs_data|safe }}
 {% endblock content %}

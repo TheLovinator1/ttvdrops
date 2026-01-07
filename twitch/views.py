@@ -97,12 +97,36 @@ def search_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /organizations/
-class OrgListView(ListView):
-    """List view for organization."""
+def org_list_view(request: HttpRequest) -> HttpResponse:
+    """Function-based view for organization list.
 
-    model = Organization
-    template_name = "twitch/org_list.html"
-    context_object_name = "orgs"
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered organization list page.
+    """
+    orgs: QuerySet[Organization] = Organization.objects.all().order_by("name")
+
+    # Serialize all organizations
+    serialized_orgs: str = serialize(
+        "json",
+        orgs,
+        fields=(
+            "twitch_id",
+            "name",
+            "added_at",
+            "updated_at",
+        ),
+    )
+    orgs_data: list[dict] = json.loads(serialized_orgs)
+
+    context: dict[str, Any] = {
+        "orgs": orgs,
+        "orgs_data": format_and_color_json(orgs_data),
+    }
+
+    return render(request, "twitch/org_list.html", context)
 
 
 # MARK: /organizations/<twitch_id>/
@@ -156,12 +180,10 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
         games_data: list[dict] = json.loads(serialized_games)
         org_data[0]["fields"]["games"] = games_data
 
-    pretty_org_data: str = json.dumps(org_data[0], indent=4)
-
     context: dict[str, Any] = {
         "organization": organization,
         "games": games,
-        "org_data": pretty_org_data,
+        "org_data": format_and_color_json(org_data[0]),
     }
 
     return render(request, "twitch/organization_detail.html", context)
@@ -217,16 +239,16 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
     return render(request, "twitch/campaign_list.html", context)
 
 
-def format_and_color_json(data: dict[str, Any] | str) -> str:
+def format_and_color_json(data: dict[str, Any] | list[dict] | str) -> str:
     """Format and color a JSON string for HTML display.
 
     Args:
-        data: Either a dictionary or a JSON string to format.
+        data: Either a dictionary, list of dictionaries, or a JSON string to format.
 
     Returns:
         str: The formatted code with HTML styles.
     """
-    if isinstance(data, dict):
+    if isinstance(data, (dict, list)):
         formatted_code: str = json.dumps(data, indent=4)
     else:
         formatted_code = data

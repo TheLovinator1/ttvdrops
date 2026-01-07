@@ -35,5 +35,5 @@
             </li>
         {% endfor %}
     </ul>
-    <pre><code id="org-data">{{ org_data }}</code></pre>
+    {{ org_data|safe }}
 {% endblock content %}
