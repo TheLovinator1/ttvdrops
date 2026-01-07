@@ -831,11 +831,13 @@ class ChannelListView(ListView):
         if search_query:
             queryset = queryset.filter(Q(name__icontains=search_query) | Q(display_name__icontains=search_query))
 
-        campaign_count_subquery: QuerySet[DropCampaign, dict[str, Any]] = (
-            DropCampaign.objects
-            .filter(allow_channels=OuterRef("pk"))
-            .values("allow_channels")
-            .annotate(count=Count("pk"))
+        # Count directly from the through table for maximum efficiency
+        # This avoids unnecessary JOINs and GROUP BY operations
+        campaign_count_subquery = (
+            DropCampaign.allow_channels.through.objects
+            .filter(channel_id=OuterRef("pk"))
+            .values("channel_id")
+            .annotate(count=Count("id"))
             .values("count")
         )
 

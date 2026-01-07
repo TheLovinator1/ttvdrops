@@ -6,6 +6,7 @@ from typing import Literal
 
 import pytest
 
+from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
@@ -116,14 +117,14 @@ class TestSearchView:
         assert response.status_code == 200
 
         # Map model keys to result keys
-        result_key_map = {
+        result_key_map: dict[str, str] = {
             "org": "organizations",
             "game": "games",
             "campaign": "campaigns",
             "drop": "drops",
             "benefit": "benefits",
         }
-        result_key = result_key_map[model_key]
+        result_key: str = result_key_map[model_key]
         assert sample_data[model_key] in context["results"][result_key]
 
     @pytest.mark.parametrize(
@@ -143,14 +144,14 @@ class TestSearchView:
         assert response.status_code == 200
 
         # Map model keys to result keys
-        result_key_map = {
+        result_key_map: dict[str, str] = {
             "org": "organizations",
             "game": "games",
             "campaign": "campaigns",
             "drop": "drops",
             "benefit": "benefits",
         }
-        result_key = result_key_map[model_key]
+        result_key: str = result_key_map[model_key]
         assert sample_data[model_key] in context["results"][result_key]
 
     def test_campaign_description_search(
@@ -220,9 +221,175 @@ class TestSearchView:
         response: _MonkeyPatchedWSGIResponse = client.get("/search/?q=Test")
         context: ContextList | dict[str, Any] = self._get_context(response)
 
-        results = context["results"][model_key]
+        results: list[Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit] = context["results"][model_key]
         assert len(results) > 0
 
         # Verify the related object is accessible without additional query
-        first_result = results[0]
+        first_result: Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit = results[0]
         assert hasattr(first_result, related_field)
+
+
+@pytest.mark.django_db
+class TestChannelListView:
+    """Tests for the ChannelListView."""
+
+    @pytest.fixture
+    def channel_with_campaigns(self) -> dict[str, Channel | Game | Organization | list[DropCampaign]]:
+        """Create a channel with multiple campaigns for testing.
+
+        Returns:
+            A dictionary containing the created channel and campaigns.
+        """
+        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+            owner=org,
+        )
+
+        # Create a channel
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel1",
+            name="testchannel",
+            display_name="TestChannel",
+        )
+
+        # Create multiple campaigns and add the channel to them
+        campaigns: list[DropCampaign] = []
+        for i in range(5):
+            campaign: DropCampaign = DropCampaign.objects.create(
+                twitch_id=f"campaign{i}",
+                name=f"Campaign {i}",
+                game=game,
+            )
+            campaign.allow_channels.add(channel)
+            campaigns.append(campaign)
+
+        return {
+            "channel": channel,
+            "campaigns": campaigns,
+            "game": game,
+            "org": org,
+        }
+
+    def test_channel_list_loads(self, client: Client) -> None:
+        """Test that channel list view loads successfully."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        assert response.status_code == 200
+
+    def test_campaign_count_annotation(
+        self,
+        client: Client,
+        channel_with_campaigns: dict[str, Channel | Game | Organization | list[DropCampaign]],
+    ) -> None:
+        """Test that campaign_count is correctly annotated for channels."""
+        channel: Channel = channel_with_campaigns["channel"]  # type: ignore[assignment]
+        campaigns: list[DropCampaign] = channel_with_campaigns["campaigns"]  # type: ignore[assignment]
+
+        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        channels: list[Channel] = context["channels"]
+
+        # Find our test channel in the results
+        test_channel: Channel | None = next((ch for ch in channels if ch.twitch_id == channel.twitch_id), None)
+
+        assert test_channel is not None
+        assert hasattr(test_channel, "campaign_count")
+
+        campaign_count: int | None = getattr(test_channel, "campaign_count", None)
+        assert campaign_count == len(campaigns), f"Expected campaign_count to be {len(campaigns)}, got {campaign_count}"
+
+    def test_campaign_count_zero_for_channel_without_campaigns(
+        self,
+        client: Client,
+    ) -> None:
+        """Test that campaign_count is 0 for channels with no campaigns."""
+        # Create a channel with no campaigns
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_no_campaigns",
+            name="nocampaigns",
+            display_name="NoCompaigns",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        channels: list[Channel] = context["channels"]
+        test_channel: Channel | None = next((ch for ch in channels if ch.twitch_id == channel.twitch_id), None)
+
+        assert test_channel is not None
+        assert hasattr(test_channel, "campaign_count")
+
+        campaign_count: int | None = getattr(test_channel, "campaign_count", None)
+        assert campaign_count is None or campaign_count == 0
+
+    def test_channels_ordered_by_campaign_count(
+        self,
+        client: Client,
+        channel_with_campaigns: dict[str, Channel | Game | Organization | list[DropCampaign]],
+    ) -> None:
+        """Test that channels are ordered by campaign_count descending."""
+        game: Game = channel_with_campaigns["game"]  # type: ignore[assignment]
+
+        # Create another channel with more campaigns
+        channel2: Channel = Channel.objects.create(
+            twitch_id="channel2",
+            name="channel2",
+            display_name="Channel2",
+        )
+
+        # Add 10 campaigns to this channel
+        for i in range(10):
+            campaign = DropCampaign.objects.create(
+                twitch_id=f"campaign_ch2_{i}",
+                name=f"Campaign Ch2 {i}",
+                game=game,
+            )
+            campaign.allow_channels.add(channel2)
+
+        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        channels: list[Channel] = list(context["channels"])
+
+        # The channel with 10 campaigns should come before the one with 5
+        channel2_index: int | None = next((i for i, ch in enumerate(channels) if ch.twitch_id == "channel2"), None)
+        channel1_index: int | None = next((i for i, ch in enumerate(channels) if ch.twitch_id == "channel1"), None)
+
+        assert channel2_index is not None
+        assert channel1_index is not None
+        assert channel2_index < channel1_index, "Channel with more campaigns should appear first"
+
+    def test_channel_search_filters_correctly(
+        self,
+        client: Client,
+        channel_with_campaigns: dict[str, Channel | Game | Organization | list[DropCampaign]],
+    ) -> None:
+        """Test that search parameter filters channels correctly."""
+        channel: Channel = channel_with_campaigns["channel"]  # type: ignore[assignment]
+
+        # Create another channel that won't match the search
+        Channel.objects.create(
+            twitch_id="other_channel",
+            name="otherchannel",
+            display_name="OtherChannel",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(f"/channels/?search={channel.name}")
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        channels: list[Channel] = list(context["channels"])
+
+        # Should only contain the searched channel
+        assert len(channels) == 1
+        assert channels[0].twitch_id == channel.twitch_id
