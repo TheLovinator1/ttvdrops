@@ -682,8 +682,6 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 def debug_view(request: HttpRequest) -> HttpResponse:
     """Debug view showing potentially broken or inconsistent data.
 
-    Only staff users may access this endpoint.
-
     Returns:
         HttpResponse: Rendered debug template or redirect if unauthorized.
     """

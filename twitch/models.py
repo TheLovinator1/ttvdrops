@@ -157,6 +157,8 @@ class Game(models.Model):
     @property
     def twitch_directory_url(self) -> str:
         """Return Twitch directory URL with drops filter when slug exists."""
+        # TODO(TheLovinator): If no slug, get from Twitch API or IGDB?  # noqa: TD003
+
         if self.slug:
             return f"https://www.twitch.tv/directory/category/{self.slug}?filter=drops"
         return ""
@@ -251,7 +253,7 @@ class Channel(models.Model):
     )
     display_name = models.TextField(
         verbose_name="Display Name",
-        help_text=("The display name of the channel (with proper capitalization)."),
+        help_text="The display name of the channel (with proper capitalization).",
     )
 
     added_at = models.DateTimeField(
@@ -436,6 +438,11 @@ class DropCampaign(models.Model):
                 exc,
             )
         return self.image_url or ""
+
+    @property
+    def is_subscription_only(self) -> bool:
+        """Determine if the campaign is subscription only based on its benefits."""
+        return any(drop.required_subs > 0 for drop in self.time_based_drops.all())  # pyright: ignore[reportAttributeAccessIssue]
 
 
 # MARK: DropBenefit

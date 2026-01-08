@@ -27,6 +27,8 @@
         "Mailgun",
         "makemigrations",
         "McCabe",
+        "noopener",
+        "noreferrer",
         "platformdirs",
         "prefetcher",
         "psutil",
