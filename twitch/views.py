@@ -641,9 +641,11 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         .prefetch_related(
             "allow_channels",
         )
+        .order_by("-start_at")
     )
 
-    campaigns_by_org_game: dict[str, Any] = {}
+    # Use OrderedDict to preserve insertion order (newest campaigns first)
+    campaigns_by_org_game: OrderedDict[str, Any] = OrderedDict()
 
     for campaign in active_campaigns:
         owner: Organization | None = campaign.game.owner
@@ -654,7 +656,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         game_name: str = campaign.game.display_name
 
         if org_id not in campaigns_by_org_game:
-            campaigns_by_org_game[org_id] = {"name": org_name, "games": {}}
+            campaigns_by_org_game[org_id] = {"name": org_name, "games": OrderedDict()}
 
         if game_id not in campaigns_by_org_game[org_id]["games"]:
             campaigns_by_org_game[org_id]["games"][game_id] = {
@@ -663,33 +665,14 @@ def dashboard(request: HttpRequest) -> HttpResponse:
                 "campaigns": [],
             }
 
-        campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(
-            campaign,
-        )
-
-    sorted_campaigns_by_org_game: dict[str, Any] = {
-        org_id: campaigns_by_org_game[org_id]
-        for org_id in sorted(
-            campaigns_by_org_game.keys(),
-            key=lambda k: campaigns_by_org_game[k]["name"],
-        )
-    }
-
-    for org_data in sorted_campaigns_by_org_game.values():
-        org_data["games"] = {
-            game_id: org_data["games"][game_id]
-            for game_id in sorted(
-                org_data["games"].keys(),
-                key=lambda k: org_data["games"][k]["name"],
-            )
-        }
+        campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(campaign)
 
     return render(
         request,
         "twitch/dashboard.html",
         {
             "active_campaigns": active_campaigns,
-            "campaigns_by_org_game": sorted_campaigns_by_org_game,
+            "campaigns_by_org_game": campaigns_by_org_game,
             "now": now,
         },
     )
