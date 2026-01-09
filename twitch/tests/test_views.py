@@ -35,8 +35,8 @@ class TestSearchView:
             twitch_id="456",
             name="test_game",
             display_name="Test Game",
-            owner=org,
         )
+        game.owners.add(org)
         campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="789",
             name="Test Campaign",
@@ -246,8 +246,8 @@ class TestChannelListView:
             twitch_id="game1",
             name="test_game",
             display_name="Test Game",
-            owner=org,
         )
+        game.owners.add(org)
 
         # Create a channel
         channel: Channel = Channel.objects.create(

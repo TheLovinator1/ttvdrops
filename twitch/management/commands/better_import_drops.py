@@ -443,48 +443,43 @@ class Command(BaseCommand):
         Returns:
             Game instance.
         """
-        # Determine correct owner organization for the game
-        owner_org_obj = campaign_org_obj
+        # Collect all possible owner organizations
+        owner_orgs = set()
         if hasattr(game_data, "owner_organization") and game_data.owner_organization:
             owner_org_data = game_data.owner_organization
             if isinstance(owner_org_data, dict):
-                # Convert dict to OrganizationSchema
                 owner_org_data = OrganizationSchema.model_validate(owner_org_data)
-            owner_org_obj = self._get_or_create_organization(owner_org_data)
+            owner_orgs.add(self._get_or_create_organization(owner_org_data))
+        # Always add campaign_org_obj as fallback
+        if campaign_org_obj:
+            owner_orgs.add(campaign_org_obj)
 
         if game_data.twitch_id in self.game_cache:
             game_obj: Game = self.game_cache[game_data.twitch_id]
-
             update_fields: list[str] = []
-
-            # Ensure owner is correct without triggering a read
-            if game_obj.owner_id != owner_org_obj.pk:  # type: ignore[attr-defined]
-                game_obj.owner = owner_org_obj
-                update_fields.append("owner")
-
+            # Update owners (ManyToMany)
+            current_owners = set(game_obj.owners.all())
+            new_owners = owner_orgs - current_owners
+            if new_owners:
+                game_obj.owners.add(*new_owners)
             # Persist normalized display name when provided
             if game_data.display_name and game_obj.display_name != game_data.display_name:
                 game_obj.display_name = game_data.display_name
                 update_fields.append("display_name")
-
             # Persist canonical name when provided (Inventory format)
             if game_data.name and game_obj.name != game_data.name:
                 game_obj.name = game_data.name
                 update_fields.append("name")
-
             # Persist slug when provided by API (Inventory and DropCampaignDetails)
             if game_data.slug is not None and game_obj.slug != (game_data.slug or ""):
                 game_obj.slug = game_data.slug or ""
                 update_fields.append("slug")
-
             # Persist box art URL when provided
             if game_data.box_art_url is not None and game_obj.box_art != (game_data.box_art_url or ""):
                 game_obj.box_art = game_data.box_art_url or ""
                 update_fields.append("box_art")
-
             if update_fields:
                 game_obj.save(update_fields=update_fields)
-
             return game_obj
 
         game_obj, created = Game.objects.update_or_create(
@@ -494,12 +489,13 @@ class Command(BaseCommand):
                 "name": game_data.name or "",
                 "slug": game_data.slug or "",
                 "box_art": game_data.box_art_url or "",
-                "owner": owner_org_obj,
             },
         )
+        # Set owners (ManyToMany)
+        if created or owner_orgs:
+            game_obj.owners.add(*owner_orgs)
         if created:
             tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}")
-
         self.game_cache[game_data.twitch_id] = game_obj
         return game_obj
 

@@ -18,6 +18,7 @@
         "dotenv",
         "dropcampaign",
         "elif",
+        "Facepunch",
         "filterwarnings",
         "granian",
         "gunicorn",

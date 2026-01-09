@@ -211,7 +211,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
     if game_filter:
         queryset = queryset.filter(game__twitch_id=game_filter)
 
-    queryset = queryset.select_related("game__owner").order_by("-start_at")
+    queryset = queryset.prefetch_related("game__owners").order_by("-start_at")
 
     # Optionally filter by status (active, upcoming, expired)
     now = timezone.now()
@@ -398,7 +398,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         "now": now,
         "drops": enhanced_drops,
         "campaign_data": format_and_color_json(campaign_data[0]),
-        "owner": campaign.game.owner,
+        "owners": list(campaign.game.owners.all()),
         "allowed_channels": campaign.allow_channels.all().order_by("display_name"),
     }
 
@@ -454,7 +454,7 @@ class GamesGridView(ListView):
         games_with_campaigns: QuerySet[Game] = (
             Game.objects
             .filter(drop_campaigns__isnull=False)
-            .select_related("owner")
+            .prefetch_related("owners")
             .annotate(
                 campaign_count=Count("drop_campaigns", distinct=True),
                 active_count=Count(
@@ -466,13 +466,13 @@ class GamesGridView(ListView):
                     distinct=True,
                 ),
             )
-            .order_by("owner__name", "display_name")
+            .order_by("display_name")
         )
 
         games_by_org: defaultdict[Organization, list[dict[str, Game]]] = defaultdict(list)
         for game in games_with_campaigns:
-            if game.owner:
-                games_by_org[game.owner].append({"game": game})
+            for org in game.owners.all():
+                games_by_org[org].append({"game": game})
 
         context["games_by_org"] = OrderedDict(
             sorted(games_by_org.items(), key=lambda item: item[0].name),
@@ -619,7 +619,7 @@ class GameDetailView(DetailView):
                 "active_campaigns": active_campaigns,
                 "upcoming_campaigns": upcoming_campaigns,
                 "expired_campaigns": expired_campaigns,
-                "owner": game.owner,
+                "owners": list(game.owners.all()),
                 "now": now,
                 "game_data": format_and_color_json(game_data[0]),
             },
@@ -653,24 +653,23 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     campaigns_by_org_game: OrderedDict[str, Any] = OrderedDict()
 
     for campaign in active_campaigns:
-        owner: Organization | None = campaign.game.owner
+        for owner in campaign.game.owners.all():
+            org_id: str = owner.twitch_id if owner else "unknown"
+            org_name: str = owner.name if owner else "Unknown"
+            game_id: str = campaign.game.twitch_id
+            game_name: str = campaign.game.display_name
 
-        org_id: str = owner.twitch_id if owner else "unknown"
-        org_name: str = owner.name if owner else "Unknown"
-        game_id: str = campaign.game.twitch_id
-        game_name: str = campaign.game.display_name
+            if org_id not in campaigns_by_org_game:
+                campaigns_by_org_game[org_id] = {"name": org_name, "games": OrderedDict()}
 
-        if org_id not in campaigns_by_org_game:
-            campaigns_by_org_game[org_id] = {"name": org_name, "games": OrderedDict()}
+            if game_id not in campaigns_by_org_game[org_id]["games"]:
+                campaigns_by_org_game[org_id]["games"][game_id] = {
+                    "name": game_name,
+                    "box_art": campaign.game.box_art,
+                    "campaigns": [],
+                }
 
-        if game_id not in campaigns_by_org_game[org_id]["games"]:
-            campaigns_by_org_game[org_id]["games"][game_id] = {
-                "name": game_name,
-                "box_art": campaign.game.box_art,
-                "campaigns": [],
-            }
-
-        campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(campaign)
+            campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(campaign)
 
     return render(
         request,
@@ -694,7 +693,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
 
     # Games with no assigned owner organization
     games_without_owner: QuerySet[Game] = Game.objects.filter(
-        owner__isnull=True,
+        owners__isnull=True,
     ).order_by("display_name")
 
     # Campaigns with missing or obviously broken images

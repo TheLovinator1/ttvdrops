@@ -654,7 +654,7 @@ class OrganizationCampaignFeed(Feed):
         """Return the latest 100 drop campaigns for this organization, ordered by most recently added."""
         return list(
             DropCampaign.objects
-            .filter(game__owner=obj, operation_name="DropCampaignDetails")
+            .filter(game__owners=obj, operation_name="DropCampaignDetails")
             .select_related("game")
             .order_by("-added_at")[:100],
         )

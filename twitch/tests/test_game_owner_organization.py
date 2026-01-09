@@ -64,12 +64,12 @@ class GameOwnerOrganizationTests(TestCase):
         assert success is True
         assert broken_dir is None
 
-        # Check game owner is Twitch Gaming, not Other Org
+        # Check game owners include Twitch Gaming and Other Org
         game: Game = Game.objects.get(twitch_id="263490")
-        org: Organization = Organization.objects.get(twitch_id="d32de13d-937e-4196-8198-1a7f875f295a")
-        assert game.owner == org
-        assert game.owner
-        assert game.owner.name == "Twitch Gaming"
-
-        # Check both organizations exist
-        Organization.objects.get(twitch_id="other-org-id")
+        org1: Organization = Organization.objects.get(twitch_id="d32de13d-937e-4196-8198-1a7f875f295a")
+        org2: Organization = Organization.objects.get(twitch_id="other-org-id")
+        owners = list(game.owners.all())
+        assert org1 in owners
+        assert org2 in owners
+        assert any(o.name == "Twitch Gaming" for o in owners)
+        assert any(o.name == "Other Org" for o in owners)

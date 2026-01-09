@@ -27,8 +27,8 @@ class RSSFeedTestCase(TestCase):
             slug="test-game",
             name="Test Game",
             display_name="Test Game",
-            owner=self.org,
         )
+        self.game.owners.add(self.org)
         self.campaign = DropCampaign.objects.create(
             twitch_id="test-campaign-123",
             name="Test Campaign",
@@ -87,8 +87,8 @@ class RSSFeedTestCase(TestCase):
             slug="other-game",
             name="Other Game",
             display_name="Other Game",
-            owner=self.org,
         )
+        other_game.owners.add(self.org)
         DropCampaign.objects.create(
             twitch_id="other-campaign-123",
             name="Other Campaign",
@@ -120,8 +120,8 @@ class RSSFeedTestCase(TestCase):
             slug="other-game-2",
             name="Other Game 2",
             display_name="Other Game 2",
-            owner=other_org,
         )
+        other_game.owners.add(other_org)
         DropCampaign.objects.create(
             twitch_id="other-campaign-456",
             name="Other Campaign 2",

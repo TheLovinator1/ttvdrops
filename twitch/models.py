@@ -92,14 +92,12 @@ class Game(models.Model):
         help_text="Locally cached box art image served from this site.",
     )
 
-    owner = models.ForeignKey(
+    owners = models.ManyToManyField(
         Organization,
-        on_delete=models.SET_NULL,
         related_name="games",
-        null=True,
         blank=True,
-        verbose_name="Organization",
-        help_text="The organization that owns this game.",
+        verbose_name="Organizations",
+        help_text="Organizations that own this game.",
     )
 
     added_at = models.DateTimeField(
@@ -118,11 +116,10 @@ class Game(models.Model):
             models.Index(fields=["name"]),
             models.Index(fields=["slug"]),
             models.Index(fields=["twitch_id"]),
-            models.Index(fields=["owner"]),
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
-            # For games_grid_view grouping by owner + display_name
-            models.Index(fields=["owner", "display_name"]),
+            # For games_grid_view grouping by owners + display_name
+            # ManyToManyField does not support direct indexing, so skip these
         ]
 
     def __str__(self) -> str:

@@ -567,7 +567,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "django-stubs", specifier = ">=5.2.8" },
+    { name = "django-stubs" },
     { name = "djlint" },
     { name = "pytest" },
     { name = "pytest-django" },
