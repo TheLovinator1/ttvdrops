@@ -322,7 +322,7 @@ class Command(BaseCommand):
                 for name, model, cache_attr in progress_bar:
                     self.load_cache_for_model(progress_bar, name, model, cache_attr)
             tqdm.write("")
-        except (DatabaseError, OSError, RuntimeError, ValueError, TypeError):
+        except DatabaseError, OSError, RuntimeError, ValueError, TypeError:
             # If cache loading fails completely, just use empty caches
             tqdm.write(f"{Fore.YELLOW}⚠{Style.RESET_ALL} Cache preload skipped (database error)\n")
 
@@ -1120,7 +1120,7 @@ class Command(BaseCommand):
                 campaign_structure=campaign_structure,
             )
 
-        except (ValidationError, json.JSONDecodeError):
+        except ValidationError, json.JSONDecodeError:
             if options["crash_on_error"]:
                 raise
 
@@ -1229,7 +1229,7 @@ class Command(BaseCommand):
 
                 progress_bar.update(1)
                 progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")
-            except (ValidationError, json.JSONDecodeError):
+            except ValidationError, json.JSONDecodeError:
                 if options["crash_on_error"]:
                     raise
 

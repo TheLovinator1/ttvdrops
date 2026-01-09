@@ -1,74 +1,156 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <script type="speculationrules">
-        {"prefetch":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/accounts/logout/"}}]}}],"prerender":[{"where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":"/accounts/logout/"}}]},"eagerness":"eager"}]}
-        </script>
-        <script>
-        if (!HTMLScriptElement.supports || !HTMLScriptElement.supports('speculationrules')) {
-            const preloadedUrls = {};
-
-            function pointerenterHandler () {
-            if (!preloadedUrls[this.href]) {
-                preloadedUrls[this.href] = true;
-
-                const prefetcher = document.createElement('link');
-
-                prefetcher.as = prefetcher.relList.supports('prefetch') ? 'document' : 'fetch';
-                prefetcher.rel = prefetcher.relList.supports('prefetch') ? 'prefetch' : 'preload';
-                prefetcher.href = this.href;
-
-                document.head.appendChild(prefetcher);
-            }
-            }
-
-            document.querySelectorAll('a[href^="/"]').forEach(item => {
-            item.addEventListener('pointerenter', pointerenterHandler);
-            });
-        }
-        </script>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="apple-touch-icon"
+              sizes="180x180"
+              href="{% static 'apple-touch-icon.png' %}" />
+        <link rel="icon"
+              type="image/png"
+              sizes="32x32"
+              href="{% static 'favicon-32x32.png' %}" />
+        <link rel="icon"
+              type="image/png"
+              sizes="16x16"
+              href="{% static 'favicon-16x16.png' %}" />
+        <link rel="manifest" href="{% static 'site.webmanifest' %}" />
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="description"
-              content="Twitch Drops Tracker - Track your Twitch drops and campaigns easily.">
-        <meta name="keywords" content="Twitch, Drops">
+              content="Twitch Drops Tracker - Track your Twitch drops and campaigns easily." />
+        <meta name="keywords" content="Twitch, Drops" />
         <title>
             {% block title %}
                 ttvdrops
             {% endblock title %}
         </title>
         <style>
-            html { color-scheme: light dark; }
+            html {
+                color-scheme: light dark;
+            }
 
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; line-height: 1.4; padding: 0; font-size: 115%; max-width: 75%; margin: 0 auto;}
-            @media (max-width: 900px) { body { max-width: 95%; } }
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+                line-height: 1.4;
+                padding: 0;
+                font-size: 115%;
+                max-width: 75%;
+                margin: 0 auto;
+            }
 
-            table { width: 100%; }
-            th, td { padding: 8px; text-align: left; vertical-align: middle; }
-            th {background-color: Canvas; color: CanvasText; font-weight: bold; }
-            tr:nth-child(even) { background-color: color-mix(in srgb, Canvas 95%, CanvasText 5%); }
-            td > img { display: block; height: 160px; width: 160px; object-fit: cover; border-radius: 4px; }
+            @media (max-width: 900px) {
+                body {
+                    max-width: 95%;
+                }
+            }
 
-            .campaign-benefits { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
-            .benefit-item { display: inline-flex; align-items: center; padding: 2px 6px; background-color: color-mix(in srgb, Canvas 90%, CanvasText 10%); border-radius: 4px; font-size: 0.9em; }
-            .benefit-item img { width: 24px !important; height: 24px !important; display: inline-block !important; margin-right: 4px; border-radius: 2px; }
+            table {
+                width: 100%;
+            }
+
+            th,
+            td {
+                padding: 8px;
+                text-align: left;
+                vertical-align: middle;
+            }
+
+            th {
+                background-color: Canvas;
+                color: CanvasText;
+                font-weight: bold;
+            }
+
+            tr:nth-child(even) {
+                background-color: color-mix(in srgb, Canvas 95%, CanvasText 5%);
+            }
+
+            td>img {
+                display: block;
+                height: 160px;
+                width: 160px;
+                object-fit: cover;
+                border-radius: 4px;
+            }
+
+            .campaign-benefits {
+                margin-top: 4px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .benefit-item {
+                display: inline-flex;
+                align-items: center;
+                padding: 2px 6px;
+                background-color: color-mix(in srgb, Canvas 90%, CanvasText 10%);
+                border-radius: 4px;
+                font-size: 0.9em;
+            }
+
+            .benefit-item img {
+                width: 24px !important;
+                height: 24px !important;
+                display: inline-block !important;
+                margin-right: 4px;
+                border-radius: 2px;
+            }
 
             @media (prefers-color-scheme: dark) {
-                .highlight { background: #0d1117; color: #E6EDF3; }
-                .highlight .p { color: #E6EDF3; }
-                .highlight .nt { color: #7EE787; }
-                .highlight .s2, .highlight .mi { color: #A5D6FF; }
-                .highlight .kc { color: #79C0FF; }
-                .highlight .w { color: #6E7681; }
+                .highlight {
+                    background: #0d1117;
+                    color: #E6EDF3;
+                }
+
+                .highlight .p {
+                    color: #E6EDF3;
+                }
+
+                .highlight .nt {
+                    color: #7EE787;
+                }
+
+                .highlight .s2,
+                .highlight .mi {
+                    color: #A5D6FF;
+                }
+
+                .highlight .kc {
+                    color: #79C0FF;
+                }
+
+                .highlight .w {
+                    color: #6E7681;
+                }
             }
 
             @media (prefers-color-scheme: light) {
-                .highlight { background: #f6f8fa; color: #24292e; }
-                .highlight .p { color: #24292e; }
-                .highlight .nt { color: #005cc5; }
-                .highlight .s2, .highlight .mi { color: #032f62; }
-                .highlight .kc { color: #d73a49; }
-                .highlight .w { color: #6a737d; }
+                .highlight {
+                    background: #f6f8fa;
+                    color: #24292e;
+                }
+
+                .highlight .p {
+                    color: #24292e;
+                }
+
+                .highlight .nt {
+                    color: #005cc5;
+                }
+
+                .highlight .s2,
+                .highlight .mi {
+                    color: #032f62;
+                }
+
+                .highlight .kc {
+                    color: #d73a49;
+                }
+
+                .highlight .w {
+                    color: #6a737d;
+                }
             }
         </style>
     </head>
@@ -86,7 +168,7 @@
             <input type="search"
                    name="q"
                    placeholder="Search..."
-                   value="{{ request.GET.q }}">
+                   value="{{ request.GET.q }}" />
             <button type="submit">Search</button>
         </form>
         {% if messages %}

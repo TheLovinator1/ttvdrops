@@ -15,15 +15,6 @@ urlpatterns: list[URLResolver] | list[URLPattern | URLResolver] = [  # type: ign
     path(route="", view=include("twitch.urls", namespace="twitch")),
 ]
 
-if not settings.TESTING:
-    # Import debug_toolbar lazily to avoid ImportError when not installed in testing environments
-    from debug_toolbar.toolbar import debug_toolbar_urls  # pyright: ignore[reportMissingTypeStubs]
-
-    urlpatterns = [
-        *urlpatterns,
-        *debug_toolbar_urls(),
-    ]
-
 # Serve media in development
 if settings.DEBUG:
     urlpatterns += static(

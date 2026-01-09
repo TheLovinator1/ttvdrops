@@ -6,12 +6,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import django_stubs_ext
 from dotenv import load_dotenv
 from platformdirs import user_data_dir
 
 logger: logging.Logger = logging.getLogger("ttvdrops.settings")
-django_stubs_ext.monkeypatch()
 
 load_dotenv(verbose=True)
 
@@ -100,7 +98,7 @@ MEDIA_ROOT: Path = DATA_DIR / "media"
 MEDIA_ROOT.mkdir(exist_ok=True)
 MEDIA_URL = "/media/"
 
-STATIC_ROOT: Path = BASE_DIR / "staticfiles"
+STATIC_ROOT: Path = DATA_DIR / "staticfiles"
 STATIC_ROOT.mkdir(exist_ok=True)
 STATIC_URL = "static/"
 STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
@@ -181,18 +179,3 @@ DATABASES: dict[str, dict[str, str | Path | dict[str, str]]] = {
         },
     },
 }
-
-TESTING: bool = "test" in sys.argv or "PYTEST_VERSION" in os.environ
-
-if not TESTING:
-    DEBUG_TOOLBAR_CONFIG: dict[str, str] = {
-        "ROOT_TAG_EXTRA_ATTRS": "hx-preserve",
-    }
-    INSTALLED_APPS = [  # pyright: ignore[reportConstantRedefinition]
-        *INSTALLED_APPS,
-        "debug_toolbar",
-    ]
-    MIDDLEWARE = [  # pyright: ignore[reportConstantRedefinition]
-        "debug_toolbar.middleware.DebugToolbarMiddleware",
-        *MIDDLEWARE,
-    ]

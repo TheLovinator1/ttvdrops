@@ -3,27 +3,24 @@ name = "ttvdrops"
 version = "0.1.0"
 description = "Get notified when a new drop is available on Twitch."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
-    "dateparser>=1.2.2",
-    "django-debug-toolbar>=5.2.0",
-    "django>=5.2.4",
-    "djlint>=1.36.4",
-    "json-repair>=0.50.0",
-    "platformdirs>=4.3.8",
-    "python-dotenv>=1.1.1",
-    "pygments>=2.19.2",
-    "httpx>=0.28.1",
-    "pydantic>=2.12.5",
-    "tqdm>=4.67.1",
-    "colorama>=0.4.6",
-    "django-stubs-ext>=5.2.8",
-    "django-stubs[compatible-mypy]>=5.2.8",
-    "types-pygments>=2.19.0.20251121",
+    "dateparser",
+    "django-debug-toolbar",
+    "django",
+    "json-repair",
+    "platformdirs",
+    "python-dotenv",
+    "pygments",
+    "httpx",
+    "pydantic",
+    "tqdm",
+    "colorama",
+    "gunicorn",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.4.1", "pytest-django>=4.11.1"]
+dev = ["pytest", "pytest-django", "djlint"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
@@ -98,9 +95,3 @@ line-length = 120
 [tool.djlint]
 profile = "django"
 ignore = "H021"
-
-[tool.mypy]
-plugins = ["mypy_django_plugin.main"]
-
-[tool.django-stubs]
-django_settings_module = "config.settings"
