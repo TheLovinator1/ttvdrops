@@ -9,7 +9,7 @@ ENV UV_PYTHON_DOWNLOADS=0
 WORKDIR /app
 COPY . /app/
 
-RUN uv sync
+RUN uv sync --locked
 RUN chmod +x /app/start.sh
 
 ENV PATH="/app/.venv/bin:$PATH"
