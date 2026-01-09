@@ -1,0 +1,63 @@
+name: Test and Build Docker Image
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 14 * * *" # Run every day at 14:00 CET
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SECRET_KEY: 1234567890
+      DJANGO_DEBUG: False
+
+    steps:
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: thelovinator1
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/ruff-action@v3
+        with:
+          version: "latest"
+      - run: ruff check --exit-non-zero-on-fix --verbose
+      - run: ruff format --check --verbose
+
+      - run: docker build --check .
+      - uses: actions/setup-python@v6
+        with:
+          python-version: 3.14
+
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --locked --all-extras --dev
+      - run: uv run pytest
+
+      - run: uv run python manage.py makemigrations --check
+      - run: uv run python manage.py migrate
+      - run: uv run python manage.py collectstatic --noinput
+      - id: meta
+        uses: docker/metadata-action@v5
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: |
+            ghcr.io/thelovinator1/ttvdrops
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          annotations: ${{ steps.meta.outputs.annotations }}
