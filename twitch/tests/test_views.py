@@ -42,6 +42,7 @@ class TestSearchView:
             name="Test Campaign",
             description="A test campaign",
             game=game,
+            operation_name="DropCampaignDetails",
         )
         drop: TimeBasedDrop = TimeBasedDrop.objects.create(
             twitch_id="1011",
@@ -262,6 +263,7 @@ class TestChannelListView:
                 twitch_id=f"campaign{i}",
                 name=f"Campaign {i}",
                 game=game,
+                operation_name="DropCampaignDetails",
             )
             campaign.allow_channels.add(channel)
             campaigns.append(campaign)
@@ -350,6 +352,7 @@ class TestChannelListView:
                 twitch_id=f"campaign_ch2_{i}",
                 name=f"Campaign Ch2 {i}",
                 game=game,
+                operation_name="DropCampaignDetails",
             )
             campaign.allow_channels.add(channel2)
 

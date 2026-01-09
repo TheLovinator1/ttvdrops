@@ -432,25 +432,34 @@ class Command(BaseCommand):
     def _get_or_create_game(
         self,
         game_data: GameSchema,
-        org_obj: Organization,
+        campaign_org_obj: Organization,
     ) -> Game:
-        """Get or create a game from cache or database.
+        """Get or create a game from cache or database, using correct owner organization.
 
         Args:
             game_data: Game data from Pydantic model.
-            org_obj: Organization that owns this game.
+            campaign_org_obj: Organization that owns the campaign (fallback).
 
         Returns:
             Game instance.
         """
+        # Determine correct owner organization for the game
+        owner_org_obj = campaign_org_obj
+        if hasattr(game_data, "owner_organization") and game_data.owner_organization:
+            owner_org_data = game_data.owner_organization
+            if isinstance(owner_org_data, dict):
+                # Convert dict to OrganizationSchema
+                owner_org_data = OrganizationSchema.model_validate(owner_org_data)
+            owner_org_obj = self._get_or_create_organization(owner_org_data)
+
         if game_data.twitch_id in self.game_cache:
             game_obj: Game = self.game_cache[game_data.twitch_id]
 
             update_fields: list[str] = []
 
             # Ensure owner is correct without triggering a read
-            if game_obj.owner_id != org_obj.pk:  # type: ignore[attr-defined]
-                game_obj.owner = org_obj
+            if game_obj.owner_id != owner_org_obj.pk:  # type: ignore[attr-defined]
+                game_obj.owner = owner_org_obj
                 update_fields.append("owner")
 
             # Persist normalized display name when provided
@@ -485,7 +494,7 @@ class Command(BaseCommand):
                 "name": game_data.name or "",
                 "slug": game_data.slug or "",
                 "box_art": game_data.box_art_url or "",
-                "owner": org_obj,
+                "owner": owner_org_obj,
             },
         )
         if created:
@@ -631,7 +640,7 @@ class Command(BaseCommand):
 
                 game_obj: Game = self._get_or_create_game(
                     game_data=drop_campaign.game,
-                    org_obj=org_obj,
+                    campaign_org_obj=org_obj,
                 )
 
                 start_at_dt: datetime | None = parse_date(drop_campaign.start_at)

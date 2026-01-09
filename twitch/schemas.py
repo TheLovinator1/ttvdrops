@@ -35,6 +35,7 @@ class GameSchema(BaseModel):
     slug: str | None = None  # Present in Inventory format
     name: str | None = None  # Present in Inventory format (alternative to displayName)
     type_name: Literal["Game"] = Field(alias="__typename")  # Present in both formats
+    owner_organization: dict | None = Field(default=None, alias="ownerOrganization")
 
     model_config = {
         "extra": "forbid",
@@ -58,7 +59,6 @@ class GameSchema(BaseModel):
         """
         if isinstance(data, dict) and "displayName" not in data and "name" in data:
             data["displayName"] = data["name"]
-
         return data
 
 
