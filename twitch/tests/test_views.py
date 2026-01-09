@@ -5,6 +5,7 @@ from typing import Any
 from typing import Literal
 
 import pytest
+from django.urls import reverse
 
 from twitch.models import Channel
 from twitch.models import DropBenefit
@@ -396,3 +397,94 @@ class TestChannelListView:
         # Should only contain the searched channel
         assert len(channels) == 1
         assert channels[0].twitch_id == channel.twitch_id
+
+    @pytest.mark.django_db
+    def test_dashboard_view(self, client: Client) -> None:
+        """Test dashboard view returns 200 and has active_campaigns in context."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
+        assert response.status_code == 200
+        assert "active_campaigns" in response.context
+
+    @pytest.mark.django_db
+    def test_debug_view(self, client: Client) -> None:
+        """Test debug view returns 200 and has games_without_owner in context."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:debug"))
+        assert response.status_code == 200
+        assert "games_without_owner" in response.context
+
+    @pytest.mark.django_db
+    def test_drop_campaign_list_view(self, client: Client) -> None:
+        """Test campaign list view returns 200 and has campaigns in context."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:campaign_list"))
+        assert response.status_code == 200
+        assert "campaigns" in response.context
+
+    @pytest.mark.django_db
+    def test_drop_campaign_detail_view(self, client: Client, db: object) -> None:
+        """Test campaign detail view returns 200 and has campaign in context."""
+        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="c1",
+            name="Campaign",
+            game=game,
+            operation_name="DropCampaignDetails",
+        )
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+        assert "campaign" in response.context
+
+    @pytest.mark.django_db
+    def test_games_grid_view(self, client: Client) -> None:
+        """Test games grid view returns 200 and has games in context."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:game_list"))
+        assert response.status_code == 200
+        assert "games" in response.context
+
+    @pytest.mark.django_db
+    def test_games_list_view(self, client: Client) -> None:
+        """Test games list view returns 200 and has games in context."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:game_list_simple"))
+        assert response.status_code == 200
+        assert "games" in response.context
+
+    @pytest.mark.django_db
+    def test_game_detail_view(self, client: Client, db: object) -> None:
+        """Test game detail view returns 200 and has game in context."""
+        game: Game = Game.objects.create(twitch_id="g2", name="Game2", display_name="Game2")
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+        assert "game" in response.context
+
+    @pytest.mark.django_db
+    def test_org_list_view(self, client: Client) -> None:
+        """Test org list view returns 200 and has orgs in context."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:org_list"))
+        assert response.status_code == 200
+        assert "orgs" in response.context
+
+    @pytest.mark.django_db
+    def test_organization_detail_view(self, client: Client, db: object) -> None:
+        """Test organization detail view returns 200 and has organization in context."""
+        org: Organization = Organization.objects.create(twitch_id="o1", name="Org1")
+        url: str = reverse("twitch:organization_detail", args=[org.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+        assert "organization" in response.context
+
+    @pytest.mark.django_db
+    def test_channel_detail_view(self, client: Client, db: object) -> None:
+        """Test channel detail view returns 200 and has channel in context."""
+        channel: Channel = Channel.objects.create(twitch_id="ch1", name="Channel1", display_name="Channel1")
+        url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+        assert "channel" in response.context
+
+    @pytest.mark.django_db
+    def test_docs_rss_view(self, client: Client) -> None:
+        """Test docs RSS view returns 200 and has feeds in context."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:docs_rss"))
+        assert response.status_code == 200
+        assert "feeds" in response.context

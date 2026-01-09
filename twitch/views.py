@@ -313,7 +313,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         Http404: If the campaign is not found.
     """
     try:
-        campaign: DropCampaign = DropCampaign.objects.select_related("game__owner").get(
+        campaign: DropCampaign = DropCampaign.objects.prefetch_related("game__owners").get(
             twitch_id=twitch_id,
             operation_name="DropCampaignDetails",
         )
@@ -533,7 +533,7 @@ class GameDetailView(DetailView):
         all_campaigns: QuerySet[DropCampaign] = (
             DropCampaign.objects
             .filter(game=game, operation_name="DropCampaignDetails")
-            .select_related("game__owner")
+            .prefetch_related("game__owners")
             .prefetch_related(
                 Prefetch(
                     "time_based_drops",
@@ -642,7 +642,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     active_campaigns: QuerySet[DropCampaign] = (
         DropCampaign.objects
         .filter(start_at__lte=now, end_at__gte=now, operation_name="DropCampaignDetails")
-        .select_related("game__owner")
+        .prefetch_related("game__owners")
         .prefetch_related(
             "allow_channels",
         )
@@ -907,7 +907,7 @@ class ChannelDetailView(DetailView):
         all_campaigns: QuerySet[DropCampaign] = (
             DropCampaign.objects
             .filter(allow_channels=channel, operation_name="DropCampaignDetails")
-            .select_related("game__owner")
+            .prefetch_related("game__owners")
             .prefetch_related(
                 Prefetch(
                     "time_based_drops",

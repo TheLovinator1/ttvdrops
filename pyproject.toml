@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest", "pytest-django", "djlint", "django-stubs"]
+dev = ["pytest", "pytest-django", "djlint", "django-stubs", "pytest-cov"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
