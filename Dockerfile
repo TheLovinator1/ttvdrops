@@ -17,7 +17,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/ || exit 1
 
-VOLUME ["/home/root/.local/share/TTVDrops"]
+VOLUME ["/root/.local/share/TTVDrops"]
 EXPOSE 8000
 ENTRYPOINT [ "/app/start.sh" ]
 CMD ["uv", "run", "gunicorn", "config.wsgi:application", "--workers", "27", "--bind", "0.0.0.0:8000"]

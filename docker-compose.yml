@@ -1,18 +1,28 @@
 services:
   ttvdrops:
     container_name: ttvdrops
-    build: .
-    ports:
-      - "8000:8000"
-    env_file: .env
+    image: ghcr.io/thelovinator1/ttvdrops:latest
+    expose:
+      - "8000"
+    user: 1000:1000
     environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY?Please set DJANGO_SECRET_KEY in your environment}
-      - DEBUG=1
-      - EMAIL_HOST=${EMAIL_HOST:-smtp.example.com}
-      - EMAIL_PORT=${EMAIL_PORT:-587}
-      - EMAIL_HOST_USER=${EMAIL_HOST_USER:-}
-      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD:-}
+      - DEBUG=False
+      - DJANGO_SECRET_KEY=
+      - TWITCH_CLIENT_ID=
+      - TWITCH_CLIENT_SECRET=
+      - EMAIL_HOST=smtp.gmail.com
+      - EMAIL_PORT=587
+      - EMAIL_HOST_USER=
+      - EMAIL_HOST_PASSWORD=
+      - EMAIL_USE_TLS=True
+      - EMAIL_USE_SSL=False
     volumes:
-    # Data is stored in /home/root/.local/share/TTVDrops" inside the container
-      - ./data:/home/root/.local/share/TTVDrops
+      # Data is stored in /root/.local/share/TTVDrops" inside the container
+      - /mnt/Docker/Data/ttvdrops/data:/root/.local/share/TTVDrops
     restart: unless-stopped
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
