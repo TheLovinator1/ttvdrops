@@ -49,6 +49,42 @@ MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
 
 
+def emote_gallery_view(request: HttpRequest) -> HttpResponse:
+    """View to display all emote images (distribution_type='EMOTE'), clickable to their campaign.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered emote gallery page.
+    """
+    emote_benefits: QuerySet[DropBenefit, DropBenefit] = (
+        DropBenefit.objects
+        .filter(distribution_type="EMOTE")
+        .select_related()
+        .prefetch_related(
+            Prefetch(
+                "drops",
+                queryset=TimeBasedDrop.objects.select_related("campaign"),
+                to_attr="_emote_drops",
+            ),
+        )
+    )
+
+    emotes: list[dict[str, str | DropCampaign]] = []
+    for benefit in emote_benefits:
+        # Find the first drop with a campaign for this benefit
+        drop: TimeBasedDrop | None = next((d for d in getattr(benefit, "_emote_drops", []) if d.campaign), None)
+        if drop and drop.campaign:
+            emotes.append({
+                "image_url": benefit.image_best_url,
+                "campaign": drop.campaign,
+            })
+
+    context: dict[str, list[dict[str, Any]]] = {"emotes": emotes}
+    return render(request, "twitch/emote_gallery.html", context)
+
+
 # MARK: /search/
 def search_view(request: HttpRequest) -> HttpResponse:
     """Search view for all models.
