@@ -694,7 +694,7 @@ class Command(BaseCommand):
                     )
 
                 # Process allowed channels from the campaign's ACL
-                if drop_campaign.allow and drop_campaign.allow.channels:
+                if drop_campaign.allow:
                     self._process_allowed_channels(
                         campaign_obj=campaign_obj,
                         allow_schema=drop_campaign.allow,

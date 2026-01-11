@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -7,14 +8,15 @@ from django.test import TestCase
 
 from twitch.management.commands.better_import_drops import Command
 from twitch.models import Channel
+from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
+from twitch.models import Organization
+from twitch.models import TimeBasedDrop
 from twitch.schemas import DropBenefitSchema
 
 if TYPE_CHECKING:
     from debug_toolbar.panels.templates.panel import QuerySet
-
-    from twitch.models import DropBenefit
 
 
 class GetOrUpdateBenefitTests(TestCase):
@@ -540,3 +542,68 @@ class GameImportTests(TestCase):
         game = Game.objects.get(twitch_id="497057")
         assert game.slug == "destiny-2"
         assert game.display_name == "Destiny 2"
+
+
+class ExampleJsonImportTests(TestCase):
+    """Regression tests based on the real-world `example.json` payload."""
+
+    def test_imports_drop_campaign_details_and_persists_urls(self) -> None:
+        """Ensure `imageURL` and other URL-ish fields are persisted from DropCampaignDetails."""
+        command = Command()
+        command.pre_fill_cache()
+
+        repo_root: Path = Path(__file__).resolve().parents[2]
+        example_path: Path = repo_root / "example.json"
+
+        responses = json.loads(example_path.read_text(encoding="utf-8"))
+
+        success, broken_dir = command.process_responses(
+            responses=responses,
+            file_path=example_path,
+            options={},
+        )
+
+        assert success is True
+        assert broken_dir is None
+
+        campaign: DropCampaign = DropCampaign.objects.get(twitch_id="3b965979-ecd2-11f0-876e-0a58a9feac02")
+
+        # Core campaign fields
+        assert campaign.name == "Jan Drops Week 2"
+        assert "Viewers will receive 50 Wandering Market Coins" in campaign.description
+        assert campaign.details_url == "https://www.smite2.com/news/closed-alpha-twitch-drops/"
+        assert campaign.account_link_url == "https://link.smite2.com/"
+
+        # The regression: ensure imageURL makes it into DropCampaign.image_url
+        assert (
+            campaign.image_url
+            == "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/47db66e8-933c-484f-ab5a-30ba09093098.png"
+        )
+
+        # Allow ACL normalization
+        assert campaign.allow_is_enabled is False
+        assert campaign.allow_channels.count() == 0
+
+        # Operation name provenance
+        assert campaign.operation_name == "DropCampaignDetails"
+
+        # Related game/org normalization
+        game: Game = Game.objects.get(twitch_id="2094865572")
+        assert game.display_name == "SMITE 2"
+        assert game.slug == "smite-2"
+
+        org: Organization = Organization.objects.get(twitch_id="51a157a0-674a-4863-b120-7bb6ee2466a8")
+        assert org.name == "Hi-Rez Studios"
+        assert game.owners.filter(pk=org.pk).exists()
+
+        # Drops + benefits
+        assert TimeBasedDrop.objects.filter(campaign=campaign).count() == 6
+        first_drop: TimeBasedDrop = TimeBasedDrop.objects.get(twitch_id="933c8f91-ecd2-11f0-b3fd-0a58a9feac02")
+        assert first_drop.name == "Market Coins Bundle 1"
+        assert first_drop.required_minutes_watched == 120
+        assert DropBenefit.objects.count() == 1
+        benefit: DropBenefit = DropBenefit.objects.get(twitch_id="ccb3fb7f-e59b-11ef-aef0-0a58a9feac02")
+        assert (
+            benefit.image_asset_url
+            == "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/903496ad-de97-41ff-ad97-12f099e20ea8.jpeg"
+        )
