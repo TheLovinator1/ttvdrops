@@ -675,6 +675,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     active_campaigns: QuerySet[DropCampaign] = (
         DropCampaign.objects
         .filter(start_at__lte=now, end_at__gte=now)
+        .select_related("game")
         .prefetch_related("game__owners")
         .prefetch_related(
             "allow_channels",
@@ -682,34 +683,30 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         .order_by("-start_at")
     )
 
-    # Use OrderedDict to preserve insertion order (newest campaigns first)
-    campaigns_by_org_game: OrderedDict[str, Any] = OrderedDict()
+    # Preserve insertion order (newest campaigns first). Group by game so games with multiple owners
+    # don't render duplicate campaign cards.
+    campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
     for campaign in active_campaigns:
-        for owner in campaign.game.owners.all():
-            org_id: str = owner.twitch_id if owner else "unknown"
-            org_name: str = owner.name if owner else "Unknown"
-            game_id: str = campaign.game.twitch_id
-            game_name: str = campaign.game.display_name
+        game: Game = campaign.game
+        game_id: str = game.twitch_id
 
-            if org_id not in campaigns_by_org_game:
-                campaigns_by_org_game[org_id] = {"name": org_name, "games": OrderedDict()}
+        if game_id not in campaigns_by_game:
+            campaigns_by_game[game_id] = {
+                "name": game.display_name,
+                "box_art": game.box_art_best_url,
+                "owners": list(game.owners.all()),
+                "campaigns": [],
+            }
 
-            if game_id not in campaigns_by_org_game[org_id]["games"]:
-                campaigns_by_org_game[org_id]["games"][game_id] = {
-                    "name": game_name,
-                    "box_art": campaign.game.box_art,
-                    "campaigns": [],
-                }
-
-            campaigns_by_org_game[org_id]["games"][game_id]["campaigns"].append(campaign)
+        campaigns_by_game[game_id]["campaigns"].append(campaign)
 
     return render(
         request,
         "twitch/dashboard.html",
         {
             "active_campaigns": active_campaigns,
-            "campaigns_by_org_game": campaigns_by_org_game,
+            "campaigns_by_game": campaigns_by_game,
             "now": now,
         },
     )

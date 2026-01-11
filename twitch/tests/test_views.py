@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from twitch.models import Channel
 from twitch.models import DropBenefit
@@ -404,6 +406,39 @@ class TestChannelListView:
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
         assert response.status_code == 200
         assert "active_campaigns" in response.context
+
+    @pytest.mark.django_db
+    def test_dashboard_dedupes_campaigns_for_multi_owner_game(self, client: Client) -> None:
+        """Dashboard should not render duplicate campaign cards when a game has multiple owners."""
+        now = timezone.now()
+        org1: Organization = Organization.objects.create(twitch_id="org_a", name="Org A")
+        org2: Organization = Organization.objects.create(twitch_id="org_b", name="Org B")
+        game: Game = Game.objects.create(twitch_id="game_multi_owner", name="game", display_name="Multi Owner")
+        game.owners.add(org1, org2)
+
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Campaign",
+            game=game,
+            operation_name="DropCampaignDetails",
+            start_at=now - datetime.timedelta(hours=1),
+            end_at=now + datetime.timedelta(hours=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
+        assert response.status_code == 200
+
+        context: ContextList | dict[str, Any] = response.context
+        if isinstance(context, list):
+            context = context[-1]
+
+        assert "campaigns_by_game" in context
+        assert game.twitch_id in context["campaigns_by_game"]
+        assert len(context["campaigns_by_game"][game.twitch_id]["campaigns"]) == 1
+
+        # Template renders each campaign with a stable id, so we can assert it appears once.
+        html = response.content.decode("utf-8")
+        assert html.count(f"campaign-article-{campaign.twitch_id}") == 1
 
     @pytest.mark.django_db
     def test_debug_view(self, client: Client) -> None:

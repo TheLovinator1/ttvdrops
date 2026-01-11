@@ -16,106 +16,99 @@ Hover over the end time to see the exact date and time.
                style="margin-right: 1rem"
                title="RSS feed for all campaigns">RSS feed for campaigns</a>
         </div>
-        {% if campaigns_by_org_game %}
-            {% for org_id, org_data in campaigns_by_org_game.items %}
-                {% for game_id, game_data in org_data.games.items %}
-                    <article id="game-article-{{ game_id }}" style="margin-bottom: 2rem;">
-                        <header style="margin-bottom: 1rem;">
-                            <h2 style="margin: 0 0 0.5rem 0;">
-                                <a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a>
-                            </h2>
-                        </header>
-                        <div style="display: flex; gap: 1rem;">
-                            <div style="flex-shrink: 0;">
-                                <img src="{{ game_data.box_art }}"
-                                     alt="Box art for {{ game_data.name }}"
-                                     width="200"
-                                     height="267"
-                                     style="border-radius: 8px" />
+        {% if campaigns_by_game %}
+            {% for game_id, game_data in campaigns_by_game.items %}
+                <article id="game-article-{{ game_id }}" style="margin-bottom: 2rem;">
+                    <header style="margin-bottom: 1rem;">
+                        <h2 style="margin: 0 0 0.5rem 0;">
+                            <a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a>
+                        </h2>
+                        {% if game_data.owners %}
+                            <div style="font-size: 0.9rem; color: #666;">
+                                Organizations:
+                                {% for org in game_data.owners %}
+                                    <a href="{% url 'twitch:organization_detail' org.twitch_id %}">{{ org.name }}</a>{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
                             </div>
-                            <div style="flex: 1; overflow-x: auto;">
-                                <div style="display: flex; gap: 1rem; min-width: max-content;">
-                                    {% for campaign in game_data.campaigns %}
-                                        <article id="campaign-article-{{ campaign.twitch_id }}"
-                                                 style="display: flex;
-                                                        flex-direction: column;
-                                                        align-items: center;
-                                                        padding: 0.5rem;
-                                                        flex-shrink: 0">
-                                            <div>
-                                                <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">
-                                                    <img src="{{ campaign.image_url }}"
-                                                         alt="Image for {{ campaign.name }}"
-                                                         width="120"
-                                                         height="120"
-                                                         style="border-radius: 4px" />
-                                                    <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign.clean_name }}</h4>
-                                                </a>
-                                                <time datetime="{{ campaign.end_at|date:'c' }}"
-                                                      title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}"
-                                                      style="font-size: 0.9rem;
-                                                             display: block;
-                                                             text-align: left">
-                                                    Ends in {{ campaign.end_at|timeuntil }}
-                                                </time>
-                                                <time datetime="{{ campaign.start_at|date:'c' }}"
-                                                      title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}"
-                                                      style="font-size: 0.9rem;
-                                                             display: block;
-                                                             text-align: left">
-                                                    Started {{ campaign.start_at|timesince }} ago
-                                                </time>
-                                                <time datetime="{{ campaign.added_at|date:'c' }}"
-                                                      title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}"
-                                                      style="font-size: 0.9rem;
-                                                             display: block;
-                                                             text-align: left">
-                                                    Scraped {{ campaign.added_at|timesince }} ago
-                                                </time>
-                                                <time datetime="{{ campaign.start_at|date:'c' }} to {{ campaign.end_at|date:'c' }}"
-                                                      title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}"
-                                                      style="font-size: 0.9rem;
-                                                             display: block;
-                                                             text-align: left">
-                                                    Duration: {{ campaign.start_at|timesince:campaign.end_at }}
-                                                </time>
-                                                <div style="margin-top: 0.5rem; font-size: 0.8rem; ">
-                                                    <strong>Channels:</strong>
-                                                    <ul style="margin: 0.25rem 0 0 0;
-                                                               padding-left: 1rem;
-                                                               list-style-type: none">
-                                                        {% if campaign.allow_is_enabled %}
-                                                            {% if campaign.allow_channels.all %}
-                                                                {% for channel in campaign.allow_channels.all %}
-                                                                    {% if forloop.counter <= 5 %}
-                                                                        <li style="margin-bottom: 0.1rem;">
-                                                                            <a href="https://twitch.tv/{{ channel.name }}"
-                                                                               target="_blank"
-                                                                               rel="noopener noreferrer"
-                                                                               title="Watch {{ channel.display_name }} on Twitch">
-                                                                                {{ channel.display_name }}
-                                                                            </a>
-                                                                        </li>
-                                                                    {% endif %}
-                                                                {% endfor %}
-                                                                {% if campaign.allow_channels.all|length > 5 %}
-                                                                    <li style="margin-bottom: 0.1rem; color: #666; font-style: italic;">
-                                                                        ... and {{ campaign.allow_channels.all|length|add:"-5" }} more
-                                                                    </li>
-                                                                {% endif %}
-                                                            {% else %}
-                                                                {% if campaign.game.twitch_directory_url %}
-                                                                    <li>
-                                                                        <a href="{{ campaign.game.twitch_directory_url }}"
+                        {% endif %}
+                    </header>
+                    <div style="display: flex; gap: 1rem;">
+                        <div style="flex-shrink: 0;">
+                            <img src="{{ game_data.box_art }}"
+                                 alt="Box art for {{ game_data.name }}"
+                                 width="200"
+                                 height="267"
+                                 style="border-radius: 8px" />
+                        </div>
+                        <div style="flex: 1; overflow-x: auto;">
+                            <div style="display: flex; gap: 1rem; min-width: max-content;">
+                                {% for campaign in game_data.campaigns %}
+                                    <article id="campaign-article-{{ campaign.twitch_id }}"
+                                             style="display: flex;
+                                                    flex-direction: column;
+                                                    align-items: center;
+                                                    padding: 0.5rem;
+                                                    flex-shrink: 0">
+                                        <div>
+                                            <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">
+                                                <img src="{{ campaign.image_url }}"
+                                                     alt="Image for {{ campaign.name }}"
+                                                     width="120"
+                                                     height="120"
+                                                     style="border-radius: 4px" />
+                                                <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign.clean_name }}</h4>
+                                            </a>
+                                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                                  title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}"
+                                                  style="font-size: 0.9rem;
+                                                         display: block;
+                                                         text-align: left">
+                                                Ends in {{ campaign.end_at|timeuntil }}
+                                            </time>
+                                            <time datetime="{{ campaign.start_at|date:'c' }}"
+                                                  title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}"
+                                                  style="font-size: 0.9rem;
+                                                         display: block;
+                                                         text-align: left">
+                                                Started {{ campaign.start_at|timesince }} ago
+                                            </time>
+                                            <time datetime="{{ campaign.added_at|date:'c' }}"
+                                                  title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}"
+                                                  style="font-size: 0.9rem;
+                                                         display: block;
+                                                         text-align: left">
+                                                Scraped {{ campaign.added_at|timesince }} ago
+                                            </time>
+                                            <time datetime="{{ campaign.start_at|date:'c' }} to {{ campaign.end_at|date:'c' }}"
+                                                  title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}"
+                                                  style="font-size: 0.9rem;
+                                                         display: block;
+                                                         text-align: left">
+                                                Duration: {{ campaign.start_at|timesince:campaign.end_at }}
+                                            </time>
+                                            <div style="margin-top: 0.5rem; font-size: 0.8rem; ">
+                                                <strong>Channels:</strong>
+                                                <ul style="margin: 0.25rem 0 0 0;
+                                                           padding-left: 1rem;
+                                                           list-style-type: none">
+                                                    {% if campaign.allow_is_enabled %}
+                                                        {% if campaign.allow_channels.all %}
+                                                            {% for channel in campaign.allow_channels.all %}
+                                                                {% if forloop.counter <= 5 %}
+                                                                    <li style="margin-bottom: 0.1rem;">
+                                                                        <a href="https://twitch.tv/{{ channel.name }}"
                                                                            target="_blank"
                                                                            rel="noopener noreferrer"
-                                                                           title="Open Twitch category page for {{ campaign.game.display_name }} with Drops filter">
-                                                                            Browse {{ campaign.game.display_name }} category
+                                                                           title="Watch {{ channel.display_name }} on Twitch">
+                                                                            {{ channel.display_name }}
                                                                         </a>
                                                                     </li>
-                                                                {% else %}
-                                                                    <li>Failed to get Twitch category URL :(</li>
                                                                 {% endif %}
+                                                            {% endfor %}
+                                                            {% if campaign.allow_channels.all|length > 5 %}
+                                                                <li style="margin-bottom: 0.1rem; color: #666; font-style: italic;">
+                                                                    ... and {{ campaign.allow_channels.all|length|add:"-5" }} more
+                                                                </li>
                                                             {% endif %}
                                                         {% else %}
                                                             {% if campaign.game.twitch_directory_url %}
@@ -123,24 +116,37 @@ Hover over the end time to see the exact date and time.
                                                                     <a href="{{ campaign.game.twitch_directory_url }}"
                                                                        target="_blank"
                                                                        rel="noopener noreferrer"
-                                                                       title="Find streamers playing {{ campaign.game.display_name }} with drops enabled">
-                                                                        Go to a participating live channel
+                                                                       title="Open Twitch category page for {{ campaign.game.display_name }} with Drops filter">
+                                                                        Browse {{ campaign.game.display_name }} category
                                                                     </a>
                                                                 </li>
                                                             {% else %}
-                                                                <li>Failed to get Twitch directory URL :(</li>
+                                                                <li>Failed to get Twitch category URL :(</li>
                                                             {% endif %}
                                                         {% endif %}
-                                                    </ul>
-                                                </div>
+                                                    {% else %}
+                                                        {% if campaign.game.twitch_directory_url %}
+                                                            <li>
+                                                                <a href="{{ campaign.game.twitch_directory_url }}"
+                                                                   target="_blank"
+                                                                   rel="noopener noreferrer"
+                                                                   title="Find streamers playing {{ campaign.game.display_name }} with drops enabled">
+                                                                    Go to a participating live channel
+                                                                </a>
+                                                            </li>
+                                                        {% else %}
+                                                            <li>Failed to get Twitch directory URL :(</li>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </ul>
                                             </div>
-                                        </article>
-                                    {% endfor %}
-                                </div>
+                                        </div>
+                                    </article>
+                                {% endfor %}
                             </div>
                         </div>
-                    </article>
-                {% endfor %}
+                    </div>
+                </article>
             {% endfor %}
         {% else %}
             <p>No active campaigns at the moment.</p>
