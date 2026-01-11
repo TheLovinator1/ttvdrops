@@ -232,6 +232,22 @@ class DropCampaignSchema(BaseModel):
         "populate_by_name": True,
     }
 
+    @field_validator("account_link_url", "details_url", "image_url", mode="before")
+    @classmethod
+    def normalize_nullable_urls(cls, v: str | None) -> str:
+        """Normalize nullable URL-ish fields to empty strings.
+
+        Twitch sometimes returns `null` for URL fields. With `strict=True`,
+        we normalize these to "" to keep imports resilient.
+
+        Args:
+            v: The raw URL field value (str or None).
+
+        Returns:
+            The URL string, or empty string if None.
+        """
+        return v or ""
+
 
 class InventorySchema(BaseModel):
     """Schema for the inventory field in Inventory operation responses."""

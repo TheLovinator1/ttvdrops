@@ -243,6 +243,12 @@ def extract_operation_name_from_parsed(
             return extract_operation_name_from_parsed(payload[0])
         return None
 
+    # json_repair can return (data, repair_log)
+    if isinstance(payload, tuple):
+        if len(payload) > 0:
+            return extract_operation_name_from_parsed(payload[0])
+        return None
+
     if not isinstance(payload, dict):
         return None
 
@@ -1038,9 +1044,6 @@ class Command(BaseCommand):
         Args:
             parsed_json: The parsed JSON data from the file.
 
-        Raises:
-            TypeError: If the parsed JSON is a tuple, which is unsupported.
-
         Returns:
             A list of response dictionaries.
         """
@@ -1049,8 +1052,10 @@ class Command(BaseCommand):
         if isinstance(parsed_json, list):
             return [item for item in parsed_json if isinstance(item, dict)]
         if isinstance(parsed_json, tuple):
-            msg = "Tuple responses are not supported in this context."
-            raise TypeError(msg)
+            # json_repair returns (data, repair_log). Normalize based on the data portion.
+            if len(parsed_json) > 0:
+                return self._normalize_responses(parsed_json[0])
+            return []
         return []
 
     def process_file_worker(

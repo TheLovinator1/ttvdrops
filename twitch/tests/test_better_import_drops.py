@@ -607,3 +607,77 @@ class ExampleJsonImportTests(TestCase):
             benefit.image_asset_url
             == "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/903496ad-de97-41ff-ad97-12f099e20ea8.jpeg"
         )
+
+
+class ImporterRobustnessTests(TestCase):
+    """Tests for importer resiliency against real-world payload quirks."""
+
+    def test_normalize_responses_accepts_json_repair_tuple(self) -> None:
+        """Ensure tuple payloads from json_repair don't crash the importer."""
+        command = Command()
+
+        parsed = (
+            {
+                "data": {
+                    "currentUser": {
+                        "id": "123",
+                        "dropCampaigns": [],
+                        "__typename": "User",
+                    },
+                },
+                "extensions": {"operationName": "ViewerDropsDashboard"},
+            },
+            [{"json_repair": "log"}],
+        )
+
+        normalized = command._normalize_responses(parsed)
+        assert isinstance(normalized, list)
+        assert len(normalized) == 1
+        assert normalized[0]["extensions"]["operationName"] == "ViewerDropsDashboard"
+
+    def test_allows_null_image_url_and_persists_empty_string(self) -> None:
+        """Ensure null imageURL doesn't fail validation and results in empty string in DB."""
+        command = Command()
+        command.pre_fill_cache()
+
+        payload: dict[str, object] = {
+            "data": {
+                "user": {
+                    "id": "123",
+                    "dropCampaign": {
+                        "id": "campaign-null-image",
+                        "name": "Null Image Campaign",
+                        "description": "",
+                        "startAt": "2025-01-01T00:00:00Z",
+                        "endAt": "2025-01-02T00:00:00Z",
+                        "accountLinkURL": "https://example.com/link",
+                        "detailsURL": "https://example.com/details",
+                        "imageURL": None,
+                        "status": "ACTIVE",
+                        "self": {"isAccountConnected": False, "__typename": "DropCampaignSelfEdge"},
+                        "game": {
+                            "id": "g-null-image",
+                            "displayName": "Test Game",
+                            "boxArtURL": "https://example.com/box.png",
+                            "__typename": "Game",
+                        },
+                        "timeBasedDrops": [],
+                        "__typename": "DropCampaign",
+                    },
+                    "__typename": "User",
+                },
+            },
+            "extensions": {"operationName": "DropCampaignDetails"},
+        }
+
+        success, broken_dir = command.process_responses(
+            responses=[payload],
+            file_path=Path("null_image.json"),
+            options={},
+        )
+
+        assert success is True
+        assert broken_dir is None
+
+        campaign = DropCampaign.objects.get(twitch_id="campaign-null-image")
+        assert not campaign.image_url
