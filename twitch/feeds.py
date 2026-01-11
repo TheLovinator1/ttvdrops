@@ -468,10 +468,7 @@ class DropCampaignFeed(Feed):
     def items(self) -> list[DropCampaign]:
         """Return the latest 100 drop campaigns."""
         return list(
-            DropCampaign.objects
-            .filter(operation_name="DropCampaignDetails")
-            .select_related("game")
-            .order_by("-added_at")[:100],
+            DropCampaign.objects.select_related("game").order_by("-added_at")[:100],
         )
 
     def item_title(self, item: Model) -> SafeText:
@@ -615,10 +612,7 @@ class GameCampaignFeed(Feed):
     def items(self, obj: Game) -> list[DropCampaign]:
         """Return the latest 100 drop campaigns for this game, ordered by most recently added."""
         return list(
-            DropCampaign.objects
-            .filter(game=obj, operation_name="DropCampaignDetails")
-            .select_related("game")
-            .order_by("-added_at")[:100],
+            DropCampaign.objects.filter(game=obj).select_related("game").order_by("-added_at")[:100],
         )
 
 
@@ -653,10 +647,7 @@ class OrganizationCampaignFeed(Feed):
     def items(self, obj: Organization) -> list[DropCampaign]:
         """Return the latest 100 drop campaigns for this organization, ordered by most recently added."""
         return list(
-            DropCampaign.objects
-            .filter(game__owners=obj, operation_name="DropCampaignDetails")
-            .select_related("game")
-            .order_by("-added_at")[:100],
+            DropCampaign.objects.filter(game__owners=obj).select_related("game").order_by("-added_at")[:100],
         )
 
     def item_author_name(self, item: DropCampaign) -> str:

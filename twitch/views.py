@@ -104,7 +104,6 @@ def search_view(request: HttpRequest) -> HttpResponse:
             results["games"] = Game.objects.filter(Q(name__istartswith=query) | Q(display_name__istartswith=query))
             results["campaigns"] = DropCampaign.objects.filter(
                 Q(name__istartswith=query) | Q(description__icontains=query),
-                operation_name="DropCampaignDetails",
             ).select_related("game")
             results["drops"] = TimeBasedDrop.objects.filter(name__istartswith=query).select_related("campaign")
             results["benefits"] = DropBenefit.objects.filter(name__istartswith=query).prefetch_related(
@@ -120,7 +119,6 @@ def search_view(request: HttpRequest) -> HttpResponse:
             )
             results["campaigns"] = DropCampaign.objects.filter(
                 Q(name__icontains=query) | Q(description__icontains=query),
-                operation_name="DropCampaignDetails",
             ).select_related("game")
             results["drops"] = TimeBasedDrop.objects.filter(
                 name__icontains=query,
@@ -242,7 +240,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
     game_filter: str | None = request.GET.get("game")
     status_filter: str | None = request.GET.get("status")
     per_page: int = 100
-    queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(operation_name="DropCampaignDetails")
+    queryset: QuerySet[DropCampaign] = DropCampaign.objects.all()
 
     if game_filter:
         queryset = queryset.filter(game__twitch_id=game_filter)
@@ -351,7 +349,6 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     try:
         campaign: DropCampaign = DropCampaign.objects.prefetch_related("game__owners").get(
             twitch_id=twitch_id,
-            operation_name="DropCampaignDetails",
         )
     except DropCampaign.DoesNotExist as exc:
         msg = "No campaign found matching the query"
@@ -568,7 +565,7 @@ class GameDetailView(DetailView):
         now: datetime.datetime = timezone.now()
         all_campaigns: QuerySet[DropCampaign] = (
             DropCampaign.objects
-            .filter(game=game, operation_name="DropCampaignDetails")
+            .filter(game=game)
             .prefetch_related("game__owners")
             .prefetch_related(
                 Prefetch(
@@ -677,7 +674,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     now: datetime.datetime = timezone.now()
     active_campaigns: QuerySet[DropCampaign] = (
         DropCampaign.objects
-        .filter(start_at__lte=now, end_at__gte=now, operation_name="DropCampaignDetails")
+        .filter(start_at__lte=now, end_at__gte=now)
         .prefetch_related("game__owners")
         .prefetch_related(
             "allow_channels",
@@ -735,7 +732,6 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     # Campaigns with missing or obviously broken images
     broken_image_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
         Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
-        operation_name="DropCampaignDetails",
     ).select_related("game")
 
     # Benefits with missing images
@@ -755,14 +751,12 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     # Campaigns with invalid dates (start after end or missing either)
     invalid_date_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
         Q(start_at__gt=F("end_at")) | Q(start_at__isnull=True) | Q(end_at__isnull=True),
-        operation_name="DropCampaignDetails",
     ).select_related("game")
 
     # Duplicate campaign names per game.
     # We retrieve the game's name for user-friendly display.
     duplicate_name_campaigns = (
         DropCampaign.objects
-        .filter(operation_name="DropCampaignDetails")
         .values("game__display_name", "name", "game__twitch_id")
         .annotate(name_count=Count("twitch_id"))
         .filter(name_count__gt=1)
@@ -772,7 +766,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     # Campaigns currently active but image missing
     active_missing_image: QuerySet[DropCampaign] = (
         DropCampaign.objects
-        .filter(start_at__lte=now, end_at__gte=now, operation_name="DropCampaignDetails")
+        .filter(start_at__lte=now, end_at__gte=now)
         .filter(
             Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
         )
@@ -942,7 +936,7 @@ class ChannelDetailView(DetailView):
         now: datetime.datetime = timezone.now()
         all_campaigns: QuerySet[DropCampaign] = (
             DropCampaign.objects
-            .filter(allow_channels=channel, operation_name="DropCampaignDetails")
+            .filter(allow_channels=channel)
             .prefetch_related("game__owners")
             .prefetch_related(
                 Prefetch(
