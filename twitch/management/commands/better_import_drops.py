@@ -260,6 +260,115 @@ def extract_operation_name_from_parsed(
     return None
 
 
+def repair_partially_broken_json(raw_text: str) -> str:  # noqa: PLR0915
+    """Attempt to repair partially broken JSON with multiple fallback strategies.
+
+    Handles "half-bad" JSON by:
+    1. First attempting json_repair on the whole content
+    2. If that fails, tries to extract valid JSON objects from the text
+    3. Falls back to wrapping content in an array if possible
+
+    Args:
+        raw_text: The potentially broken JSON string.
+
+    Returns:
+        A JSON-valid string, either repaired or best-effort fixed.
+    """
+    # Strategy 1: Direct repair attempt
+    try:
+        fixed: str = json_repair.repair_json(raw_text)
+        # Validate it produces valid JSON
+        parsed_data = json.loads(fixed)
+
+        # If it's a list, validate all items are GraphQL responses
+        if isinstance(parsed_data, list):
+            # Filter to only keep GraphQL responses
+            filtered = [
+                item for item in parsed_data if isinstance(item, dict) and ("data" in item or "extensions" in item)
+            ]
+            if filtered:
+                # If we filtered anything out, return the filtered version
+                if len(filtered) < len(parsed_data):
+                    return json.dumps(filtered)
+                # Otherwise return as-is
+                return fixed
+        # Single dict - check if it's a GraphQL response
+        elif isinstance(parsed_data, dict):
+            if "data" in parsed_data or "extensions" in parsed_data:
+                return fixed
+    except ValueError, TypeError, json.JSONDecodeError:
+        pass
+
+    # Strategy 2: Try wrapping in array brackets and validate the result
+    # Only use this if it produces valid GraphQL responses
+    try:
+        wrapped: str = f"[{raw_text}]"
+        wrapped_data = json.loads(wrapped)
+        # Validate that all items look like GraphQL responses
+        if isinstance(wrapped_data, list) and wrapped_data:  # noqa: SIM102
+            # Check if all items have "data" or "extensions" (GraphQL response structure)
+            if all(isinstance(item, dict) and ("data" in item or "extensions" in item) for item in wrapped_data):
+                return wrapped
+    except ValueError, json.JSONDecodeError:
+        pass
+
+    # Strategy 3: Try to extract individual valid GraphQL response objects
+    # Look for balanced braces and try to parse them, but only keep objects
+    # that look like GraphQL responses (have "data" or "extensions" fields)
+    valid_objects: list[dict[str, Any]] = []
+    depth: int = 0
+    current_obj: str = ""
+
+    for char in raw_text:
+        if char == "{":
+            if depth == 0:
+                current_obj = "{"
+            else:
+                current_obj += char
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            current_obj += char
+            if depth == 0 and current_obj.strip():
+                try:
+                    obj: dict[str, Any] = json.loads(current_obj)
+                    # Only keep objects that look like GraphQL responses
+                    # (have "data" field) or extension metadata (have "extensions")
+                    if "data" in obj or "extensions" in obj:
+                        valid_objects.append(obj)
+                except ValueError, json.JSONDecodeError:
+                    pass
+                current_obj = ""
+        elif depth > 0:
+            current_obj += char
+
+    if valid_objects:
+        return json.dumps(valid_objects)
+
+    # Strategy 4: Last resort - attempt repair on each line
+    # Only keep lines that look like GraphQL responses
+    lines: list[str] = raw_text.split("\n")
+    valid_lines: list[dict[str, Any]] = []
+
+    for line in lines:
+        line: str = line.strip()  # noqa: PLW2901
+        if line and line.startswith("{"):
+            try:
+                fixed_line: str = json_repair.repair_json(line)
+                obj = json.loads(fixed_line)
+                # Only keep objects that look like GraphQL responses
+                if "data" in obj or "extensions" in obj:
+                    valid_lines.append(obj)
+            except ValueError, TypeError, json.JSONDecodeError:
+                pass
+
+    if valid_lines:
+        return json.dumps(valid_lines)
+
+    # Final fallback: return the original text and let downstream handle it
+    return raw_text
+
+
 class Command(BaseCommand):
     """Import Twitch drop campaign data from a JSON file or directory."""
 
@@ -1081,9 +1190,10 @@ class Command(BaseCommand):
         try:
             raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
 
-            # Parse JSON early to extract operation name for better directory organization
-            parsed_json: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str = json_repair.loads(
-                raw_text,
+            # Repair potentially broken JSON with multiple fallback strategies
+            fixed_json_str: str = repair_partially_broken_json(raw_text)
+            parsed_json: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str = json.loads(
+                fixed_json_str,
             )
             operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
 
@@ -1170,9 +1280,10 @@ class Command(BaseCommand):
             try:
                 raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
 
-                # Parse JSON early to extract operation name for better directory organization
-                parsed_json: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str = json_repair.loads(
-                    raw_text,
+                # Repair potentially broken JSON with multiple fallback strategies
+                fixed_json_str: str = repair_partially_broken_json(raw_text)
+                parsed_json: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str = json.loads(
+                    fixed_json_str,
                 )
                 operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
 
