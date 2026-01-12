@@ -1033,6 +1033,12 @@ class Command(BaseCommand):
     ) -> list[dict[str, Any]]:
         """Normalize various parsed JSON shapes into a list of dict responses.
 
+        Handles:
+        - Single dict response: {"data": {...}}
+        - List of responses: [{"data": {...}}, {"data": {...}}]
+        - Batched format: {"responses": [{"data": {...}}, {"data": {...}}]}
+        - Tuple from json_repair: (data, repair_log)
+
         Args:
             parsed_json: The parsed JSON data from the file.
 
@@ -1040,6 +1046,10 @@ class Command(BaseCommand):
             A list of response dictionaries.
         """
         if isinstance(parsed_json, dict):
+            # Check for batched format: {"responses": [...]}
+            if "responses" in parsed_json and isinstance(parsed_json["responses"], list):
+                return [item for item in parsed_json["responses"] if isinstance(item, dict)]
+            # Single response: {"data": {...}}
             return [parsed_json]
         if isinstance(parsed_json, list):
             return [item for item in parsed_json if isinstance(item, dict)]

@@ -449,3 +449,20 @@ class GraphQLResponse(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+
+class BatchedGraphQLResponse(BaseModel):
+    """Schema for batched GraphQL responses wrapped in a 'responses' array.
+
+    Handles cases where multiple GraphQL responses are collected and wrapped
+    in an outer object with a 'responses' field.
+    """
+
+    responses: list[GraphQLResponse]
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
