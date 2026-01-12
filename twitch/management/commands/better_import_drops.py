@@ -438,7 +438,7 @@ class Command(BaseCommand):
     def _get_or_create_game(
         self,
         game_data: GameSchema,
-        campaign_org_obj: Organization,
+        campaign_org_obj: Organization | None,
     ) -> Game:
         """Get or create a game from cache or database, using correct owner organization.
 
@@ -456,7 +456,7 @@ class Command(BaseCommand):
             if isinstance(owner_org_data, dict):
                 owner_org_data = OrganizationSchema.model_validate(owner_org_data)
             owner_orgs.add(self._get_or_create_organization(owner_org_data))
-        # Always add campaign_org_obj as fallback
+        # Add campaign organization as fallback only when provided
         if campaign_org_obj:
             owner_orgs.add(campaign_org_obj)
 
@@ -628,17 +628,9 @@ class Command(BaseCommand):
             for drop_campaign in campaigns_to_process:
                 # Handle campaigns without owner (e.g., from Inventory operation)
                 owner_data: OrganizationSchema | None = getattr(drop_campaign, "owner", None)
+                org_obj: Organization | None = None
                 if owner_data:
-                    org_obj: Organization = self._get_or_create_organization(
-                        org_data=owner_data,
-                    )
-                else:
-                    # Create a default organization for campaigns without owner
-                    org_obj, _ = Organization.objects.get_or_create(
-                        twitch_id="unknown",
-                        defaults={"name": "Unknown Organization"},
-                    )
-                    self.organization_cache["unknown"] = org_obj
+                    org_obj = self._get_or_create_organization(org_data=owner_data)
 
                 game_obj: Game = self._get_or_create_game(
                     game_data=drop_campaign.game,
