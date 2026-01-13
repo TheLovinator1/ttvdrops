@@ -221,6 +221,51 @@ def detect_non_campaign_keyword(raw_text: str) -> str | None:
     return None
 
 
+def detect_error_only_response(
+    parsed_json: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str,
+) -> str | None:
+    """Detect if response contains only GraphQL errors and no data.
+
+    Args:
+        parsed_json: The parsed JSON data from the file.
+
+    Returns:
+        Error description if only errors present, None if data exists.
+    """
+    # Handle tuple from json_repair
+    if isinstance(parsed_json, tuple):
+        parsed_json = parsed_json[0]
+
+    # Check if it's a list of responses
+    if isinstance(parsed_json, list):
+        for item in parsed_json:
+            if isinstance(item, dict) and "errors" in item:
+                errors: Any = item.get("errors")
+                data: Any = item.get("data")
+                # Data is missing if key doesn't exist or value is None
+                if errors and data is None and isinstance(errors, list) and len(errors) > 0:
+                    first_error: dict[str, Any] = errors[0]
+                    message: str = first_error.get("message", "unknown error")
+                    return f"error_only: {message}"
+        return None
+
+    if not isinstance(parsed_json, dict):
+        return None
+
+    # Check if it's a single response dict
+    if "errors" in parsed_json:
+        errors = parsed_json.get("errors")
+        data = parsed_json.get("data")
+
+        # Data is missing if key doesn't exist or value is None
+        if errors and data is None and isinstance(errors, list) and len(errors) > 0:
+            first_error = errors[0]
+            message = first_error.get("message", "unknown error")
+            return f"error_only: {message}"
+
+    return None
+
+
 def extract_operation_name_from_parsed(
     payload: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str,
 ) -> str | None:
@@ -1197,6 +1242,18 @@ class Command(BaseCommand):
             )
             operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
 
+            # Check for error-only responses first
+            error_description: str | None = detect_error_only_response(parsed_json)
+            if error_description:
+                if not options.get("skip_broken_moves"):
+                    broken_dir: Path | None = move_file_to_broken_subdir(
+                        file_path,
+                        error_description,
+                        operation_name=operation_name,
+                    )
+                    return {"success": False, "broken_dir": str(broken_dir), "reason": error_description}
+                return {"success": False, "broken_dir": "(skipped)", "reason": error_description}
+
             matched: str | None = detect_non_campaign_keyword(raw_text)
             if matched:
                 if not options.get("skip_broken_moves"):
@@ -1286,6 +1343,26 @@ class Command(BaseCommand):
                     fixed_json_str,
                 )
                 operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
+
+                # Check for error-only responses first
+                error_description: str | None = detect_error_only_response(parsed_json)
+                if error_description:
+                    if not options.get("skip_broken_moves"):
+                        broken_dir: Path | None = move_file_to_broken_subdir(
+                            file_path,
+                            error_description,
+                            operation_name=operation_name,
+                        )
+                        progress_bar.write(
+                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                            f"{broken_dir}/{file_path.name} "
+                            f"({error_description})",
+                        )
+                    else:
+                        progress_bar.write(
+                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} ({error_description}, move skipped)",
+                        )
+                    return
 
                 matched: str | None = detect_non_campaign_keyword(raw_text)
                 if matched:

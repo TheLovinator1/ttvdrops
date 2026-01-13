@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from django.test import TestCase
 
 from twitch.management.commands.better_import_drops import Command
+from twitch.management.commands.better_import_drops import detect_error_only_response
 from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
@@ -681,3 +682,154 @@ class ImporterRobustnessTests(TestCase):
 
         campaign = DropCampaign.objects.get(twitch_id="campaign-null-image")
         assert not campaign.image_url
+
+
+class ErrorOnlyResponseDetectionTests(TestCase):
+    """Tests for detecting responses that only contain GraphQL errors without data."""
+
+    def test_detects_error_only_response_with_service_timeout(self) -> None:
+        """Ensure error-only response with service timeout is detected."""
+        parsed_json = {
+            "errors": [
+                {
+                    "message": "service timeout",
+                    "path": ["currentUser", "dropCampaigns"],
+                },
+            ],
+        }
+
+        result = detect_error_only_response(parsed_json)
+        assert result == "error_only: service timeout"
+
+    def test_detects_error_only_response_with_null_data(self) -> None:
+        """Ensure error-only response with null data field is detected."""
+        parsed_json = {
+            "errors": [
+                {
+                    "message": "internal server error",
+                    "path": ["data"],
+                },
+            ],
+            "data": None,
+        }
+
+        result = detect_error_only_response(parsed_json)
+        assert result == "error_only: internal server error"
+
+    def test_detects_error_only_response_with_empty_data(self) -> None:
+        """Ensure error-only response with empty data dict is allowed through."""
+        parsed_json = {
+            "errors": [
+                {
+                    "message": "unauthorized",
+                },
+            ],
+            "data": {},
+        }
+
+        result = detect_error_only_response(parsed_json)
+        # Empty dict {} is considered "data exists" so this should pass
+        assert result is None
+
+    def test_detects_error_only_response_without_data_key(self) -> None:
+        """Ensure error-only response without data key is detected."""
+        parsed_json = {
+            "errors": [
+                {
+                    "message": "missing data",
+                },
+            ],
+        }
+
+        result = detect_error_only_response(parsed_json)
+        assert result == "error_only: missing data"
+
+    def test_allows_response_with_both_errors_and_data(self) -> None:
+        """Ensure responses with both errors and valid data are not flagged."""
+        parsed_json = {
+            "errors": [
+                {
+                    "message": "partial failure",
+                },
+            ],
+            "data": {
+                "currentUser": {
+                    "dropCampaigns": [],
+                },
+            },
+        }
+
+        result = detect_error_only_response(parsed_json)
+        assert result is None
+
+    def test_allows_response_with_no_errors(self) -> None:
+        """Ensure normal responses without errors are not flagged."""
+        parsed_json = {
+            "data": {
+                "currentUser": {
+                    "dropCampaigns": [],
+                },
+            },
+        }
+
+        result = detect_error_only_response(parsed_json)
+        assert result is None
+
+    def test_detects_error_only_in_list_of_responses(self) -> None:
+        """Ensure error-only detection works with list of responses."""
+        parsed_json = [
+            {
+                "errors": [
+                    {
+                        "message": "rate limit exceeded",
+                    },
+                ],
+            },
+        ]
+
+        result = detect_error_only_response(parsed_json)
+        assert result == "error_only: rate limit exceeded"
+
+    def test_handles_json_repair_tuple_format(self) -> None:
+        """Ensure error-only detection works with json_repair tuple format."""
+        parsed_json = (
+            {
+                "errors": [
+                    {
+                        "message": "service timeout",
+                        "path": ["currentUser", "dropCampaigns"],
+                    },
+                ],
+            },
+            [{"json_repair": "log"}],
+        )
+
+        result = detect_error_only_response(parsed_json)
+        assert result == "error_only: service timeout"
+
+    def test_returns_none_for_non_dict_input(self) -> None:
+        """Ensure non-dict input is handled gracefully."""
+        result = detect_error_only_response("invalid")
+        assert result is None
+
+    def test_returns_none_for_empty_errors_list(self) -> None:
+        """Ensure empty errors list is not flagged as error-only."""
+        parsed_json = {
+            "errors": [],
+        }
+
+        result = detect_error_only_response(parsed_json)
+        assert result is None
+
+    def test_handles_error_without_message_field(self) -> None:
+        """Ensure errors without message field use default text."""
+        parsed_json = {
+            "errors": [
+                {
+                    "path": ["data"],
+                },
+            ],
+        }
+
+        result = detect_error_only_response(parsed_json)
+        assert result == "error_only: unknown error"
