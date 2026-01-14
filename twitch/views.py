@@ -36,6 +36,7 @@ from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
@@ -109,6 +110,9 @@ def search_view(request: HttpRequest) -> HttpResponse:
             results["benefits"] = DropBenefit.objects.filter(name__istartswith=query).prefetch_related(
                 "drops__campaign",
             )
+            results["reward_campaigns"] = RewardCampaign.objects.filter(
+                Q(name__istartswith=query) | Q(brand__istartswith=query) | Q(summary__icontains=query),
+            ).select_related("game")
         else:
             # SQLite-compatible text search using icontains
             results["organizations"] = Organization.objects.filter(
@@ -126,6 +130,9 @@ def search_view(request: HttpRequest) -> HttpResponse:
             results["benefits"] = DropBenefit.objects.filter(
                 name__icontains=query,
             ).prefetch_related("drops__campaign")
+            results["reward_campaigns"] = RewardCampaign.objects.filter(
+                Q(name__icontains=query) | Q(brand__icontains=query) | Q(summary__icontains=query),
+            ).select_related("game")
 
     return render(
         request,
@@ -701,15 +708,130 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
         campaigns_by_game[game_id]["campaigns"].append(campaign)
 
+    # Get active reward campaigns (Quest rewards)
+    active_reward_campaigns: QuerySet[RewardCampaign] = (
+        RewardCampaign.objects
+        .filter(starts_at__lte=now, ends_at__gte=now)
+        .select_related("game")
+        .order_by("-starts_at")
+    )
+
     return render(
         request,
         "twitch/dashboard.html",
         {
             "active_campaigns": active_campaigns,
             "campaigns_by_game": campaigns_by_game,
+            "active_reward_campaigns": active_reward_campaigns,
             "now": now,
         },
     )
+
+
+# MARK: /reward-campaigns/
+def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
+    """Function-based view for reward campaigns list.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered reward campaigns list page.
+    """
+    game_filter: str | None = request.GET.get("game")
+    status_filter: str | None = request.GET.get("status")
+    per_page: int = 100
+    queryset: QuerySet[RewardCampaign] = RewardCampaign.objects.all()
+
+    if game_filter:
+        queryset = queryset.filter(game__twitch_id=game_filter)
+
+    queryset = queryset.select_related("game").order_by("-starts_at")
+
+    # Optionally filter by status (active, upcoming, expired)
+    now = timezone.now()
+    if status_filter == "active":
+        queryset = queryset.filter(starts_at__lte=now, ends_at__gte=now)
+    elif status_filter == "upcoming":
+        queryset = queryset.filter(starts_at__gt=now)
+    elif status_filter == "expired":
+        queryset = queryset.filter(ends_at__lt=now)
+
+    paginator = Paginator(queryset, per_page)
+    page = request.GET.get("page") or 1
+    try:
+        reward_campaigns = paginator.page(page)
+    except PageNotAnInteger:
+        reward_campaigns = paginator.page(1)
+    except EmptyPage:
+        reward_campaigns = paginator.page(paginator.num_pages)
+
+    context: dict[str, Any] = {
+        "reward_campaigns": reward_campaigns,
+        "games": Game.objects.all().order_by("display_name"),
+        "status_options": ["active", "upcoming", "expired"],
+        "now": now,
+        "selected_game": game_filter or "",
+        "selected_per_page": per_page,
+        "selected_status": status_filter or "",
+    }
+    return render(request, "twitch/reward_campaign_list.html", context)
+
+
+# MARK: /reward-campaigns/<twitch_id>/
+def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+    """Function-based view for a reward campaign detail.
+
+    Args:
+        request: The HTTP request.
+        twitch_id: The Twitch ID of the reward campaign.
+
+    Returns:
+        HttpResponse: The rendered reward campaign detail page.
+
+    Raises:
+        Http404: If the reward campaign is not found.
+    """
+    try:
+        reward_campaign: RewardCampaign = RewardCampaign.objects.select_related("game").get(
+            twitch_id=twitch_id,
+        )
+    except RewardCampaign.DoesNotExist as exc:
+        msg = "No reward campaign found matching the query"
+        raise Http404(msg) from exc
+
+    serialized_campaign = serialize(
+        "json",
+        [reward_campaign],
+        fields=(
+            "twitch_id",
+            "name",
+            "brand",
+            "summary",
+            "instructions",
+            "external_url",
+            "about_url",
+            "reward_value_url_param",
+            "starts_at",
+            "ends_at",
+            "is_sitewide",
+            "game",
+            "added_at",
+            "updated_at",
+        ),
+    )
+    campaign_data: list[dict[str, Any]] = json.loads(serialized_campaign)
+
+    now: datetime.datetime = timezone.now()
+
+    context: dict[str, Any] = {
+        "reward_campaign": reward_campaign,
+        "now": now,
+        "campaign_data": format_and_color_json(campaign_data[0]),
+        "is_active": reward_campaign.is_active,
+    }
+
+    return render(request, "twitch/reward_campaign_detail.html", context)
 
 
 # MARK: /debug/
@@ -820,6 +942,11 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "title": "All Drop Campaigns",
             "description": "Latest drop campaigns across all games",
             "url": "/rss/campaigns/",
+        },
+        {
+            "title": "All Reward Campaigns",
+            "description": "Latest reward campaigns (Quest rewards) on Twitch",
+            "url": "/rss/reward-campaigns/",
         },
     ]
 

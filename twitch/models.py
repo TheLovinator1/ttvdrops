@@ -652,3 +652,115 @@ class TimeBasedDrop(models.Model):
     def __str__(self) -> str:
         """Return a string representation of the time-based drop."""
         return self.name
+
+
+# MARK: RewardCampaign
+class RewardCampaign(models.Model):
+    """Represents a Twitch reward campaign (Quest rewards)."""
+
+    twitch_id = models.TextField(
+        unique=True,
+        editable=False,
+        help_text="The Twitch ID for this reward campaign.",
+    )
+    name = models.TextField(
+        help_text="Name of the reward campaign.",
+    )
+    brand = models.TextField(
+        blank=True,
+        default="",
+        help_text="Brand associated with the reward campaign.",
+    )
+    starts_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Datetime when the reward campaign starts.",
+    )
+    ends_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Datetime when the reward campaign ends.",
+    )
+    status = models.TextField(
+        max_length=50,
+        default="UNKNOWN",
+        help_text="Status of the reward campaign.",
+    )
+    summary = models.TextField(
+        blank=True,
+        default="",
+        help_text="Summary description of the reward campaign.",
+    )
+    instructions = models.TextField(
+        blank=True,
+        default="",
+        help_text="Instructions for the reward campaign.",
+    )
+    external_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="External URL for the reward campaign.",
+    )
+    reward_value_url_param = models.TextField(
+        blank=True,
+        default="",
+        help_text="URL parameter for reward value.",
+    )
+    about_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="About URL for the reward campaign.",
+    )
+    is_sitewide = models.BooleanField(
+        default=False,
+        help_text="Whether the reward campaign is sitewide.",
+    )
+    game = models.ForeignKey(
+        Game,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reward_campaigns",
+        help_text="Game associated with this reward campaign (if any).",
+    )
+
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Timestamp when this reward campaign record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Timestamp when this reward campaign record was last updated.",
+    )
+
+    class Meta:
+        ordering = ["-starts_at"]
+        indexes = [
+            models.Index(fields=["-starts_at"]),
+            models.Index(fields=["ends_at"]),
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["brand"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["is_sitewide"]),
+            models.Index(fields=["game"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+            # Composite indexes for common queries
+            models.Index(fields=["starts_at", "ends_at"]),
+            models.Index(fields=["status", "-starts_at"]),
+        ]
+
+    def __str__(self) -> str:
+        """Return a string representation of the reward campaign."""
+        return f"{self.brand}: {self.name}" if self.brand else self.name
+
+    @property
+    def is_active(self) -> bool:
+        """Check if the reward campaign is currently active."""
+        now: datetime.datetime = timezone.now()
+        if self.starts_at is None or self.ends_at is None:
+            return False
+        return self.starts_at <= now <= self.ends_at

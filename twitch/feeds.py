@@ -20,6 +20,7 @@ from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
@@ -743,3 +744,127 @@ class OrganizationCampaignFeed(Feed):
             parts.append(format_html('<a href="{}">About</a>', details_url))
 
         return SafeText("".join(str(p) for p in parts))
+
+
+# MARK: /rss/reward-campaigns/
+class RewardCampaignFeed(Feed):
+    """RSS feed for latest reward campaigns (Quest rewards)."""
+
+    title: str = "Twitch Reward Campaigns (Quest Rewards)"
+    link: str = "/campaigns/"
+    description: str = "Latest Twitch reward campaigns (Quest rewards) on TTVDrops"
+    feed_url: str = "/rss/reward-campaigns/"
+    feed_copyright: str = "Information wants to be free."
+
+    def items(self) -> list[RewardCampaign]:
+        """Return the latest 100 reward campaigns."""
+        return list(
+            RewardCampaign.objects.select_related("game").order_by("-added_at")[:100],
+        )
+
+    def item_title(self, item: Model) -> SafeText:
+        """Return the reward campaign name as the item title."""
+        brand: str = getattr(item, "brand", "")
+        name: str = getattr(item, "name", str(item))
+        if brand:
+            return SafeText(f"{brand}: {name}")
+        return SafeText(name)
+
+    def item_description(self, item: Model) -> SafeText:
+        """Return a description of the reward campaign."""
+        parts: list[SafeText] = []
+
+        summary: str | None = getattr(item, "summary", None)
+        if summary:
+            parts.append(format_html("<p>{}</p>", summary))
+
+        # Insert start and end date info (uses starts_at/ends_at instead of start_at/end_at)
+        ends_at: datetime.datetime | None = getattr(item, "ends_at", None)
+        starts_at: datetime.datetime | None = getattr(item, "starts_at", None)
+
+        if starts_at or ends_at:
+            start_part: SafeString = (
+                format_html("Starts: {} ({})", starts_at.strftime("%Y-%m-%d %H:%M %Z"), naturaltime(starts_at))
+                if starts_at
+                else SafeText("")
+            )
+            end_part: SafeString = (
+                format_html("Ends: {} ({})", ends_at.strftime("%Y-%m-%d %H:%M %Z"), naturaltime(ends_at))
+                if ends_at
+                else SafeText("")
+            )
+            if start_part and end_part:
+                parts.append(format_html("<p>{}<br />{}</p>", start_part, end_part))
+            elif start_part:
+                parts.append(format_html("<p>{}</p>", start_part))
+            elif end_part:
+                parts.append(format_html("<p>{}</p>", end_part))
+
+        is_sitewide: bool = getattr(item, "is_sitewide", False)
+        if is_sitewide:
+            parts.append(SafeText("<p><strong>This is a sitewide reward campaign</strong></p>"))
+        else:
+            game: Game | None = getattr(item, "game", None)
+            if game:
+                parts.append(format_html("<p>Game: {}</p>", game.display_name or game.name))
+
+        about_url: str | None = getattr(item, "about_url", None)
+        if about_url:
+            parts.append(format_html('<p><a href="{}">Learn more</a></p>', about_url))
+
+        external_url: str | None = getattr(item, "external_url", None)
+        if external_url:
+            parts.append(format_html('<p><a href="{}">Redeem reward</a></p>', external_url))
+
+        return SafeText("".join(str(p) for p in parts))
+
+    def item_link(self, item: Model) -> str:
+        """Return the link to the reward campaign (external URL or dashboard)."""
+        external_url: str | None = getattr(item, "external_url", None)
+        if external_url:
+            return external_url
+        return reverse("twitch:dashboard")
+
+    def item_pubdate(self, item: Model) -> datetime.datetime:
+        """Returns the publication date to the feed item.
+
+        Fallback to added_at or now if missing.
+        """
+        added_at: datetime.datetime | None = getattr(item, "added_at", None)
+        if added_at:
+            return added_at
+        return timezone.now()
+
+    def item_updateddate(self, item: RewardCampaign) -> datetime.datetime:
+        """Returns the reward campaign's last update time."""
+        return item.updated_at
+
+    def item_categories(self, item: RewardCampaign) -> tuple[str, ...]:
+        """Returns the associated game's name and brand as categories."""
+        categories: list[str] = ["twitch", "rewards", "quests"]
+
+        brand: str | None = getattr(item, "brand", None)
+        if brand:
+            categories.append(brand)
+
+        item_game: Game | None = getattr(item, "game", None)
+        if item_game:
+            categories.append(item_game.get_game_name)
+
+        return tuple(categories)
+
+    def item_guid(self, item: RewardCampaign) -> str:
+        """Return a unique identifier for each reward campaign."""
+        return item.twitch_id + "@ttvdrops.com"
+
+    def item_author_name(self, item: RewardCampaign) -> str:
+        """Return the author name for the reward campaign."""
+        brand: str | None = getattr(item, "brand", None)
+        if brand:
+            return brand
+
+        item_game: Game | None = getattr(item, "game", None)
+        if item_game and item_game.display_name:
+            return item_game.display_name
+
+        return "Twitch"

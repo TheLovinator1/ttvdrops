@@ -365,12 +365,16 @@ class DataSchema(BaseModel):
     """Schema for the data field in Twitch API responses.
 
     Handles both currentUser (standard) and user (legacy) field names,
-    as well as channel-based campaign structures.
+    as well as channel-based campaign structures and reward campaigns.
     """
 
     current_user: CurrentUserSchema | None = Field(default=None, alias="currentUser")
     user: CurrentUserSchema | None = Field(default=None, alias="user")
     channel: ChannelSchema | None = Field(default=None, alias="channel")
+    reward_campaigns_available_to_user: list[RewardCampaign] | None = Field(
+        default=None,
+        alias="rewardCampaignsAvailableToUser",
+    )
 
     model_config = {
         "extra": "forbid",
@@ -407,6 +411,84 @@ class DataSchema(BaseModel):
             self.current_user = self.user
 
         return self
+
+
+class QuestRewardUnlockRequirements(BaseModel):
+    """Schema for quest reward unlock requirements."""
+
+    subs_goal: int | None = Field(default=None, alias="subsGoal")
+    minute_watched_goal: int | None = Field(default=None, alias="minuteWatchedGoal")
+    type_name: Literal["QuestRewardUnlockRequirements"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class RewardCampaignImageSet(BaseModel):
+    """Schema for reward campaign image sets."""
+
+    image1x_url: str | None = Field(default=None, alias="image1xURL")
+    type_name: Literal["RewardCampaignImageSet"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class Reward(BaseModel):
+    """Schema for a reward in a RewardCampaign."""
+
+    twitch_id: str = Field(alias="id")
+    name: str
+    banner_image: RewardCampaignImageSet | None = Field(default=None, alias="bannerImage")
+    thumbnail_image: RewardCampaignImageSet | None = Field(default=None, alias="thumbnailImage")
+    earnable_until: str | None = Field(default=None, alias="earnableUntil")
+    redemption_instructions: str = Field(default="", alias="redemptionInstructions")
+    redemption_url: str = Field(default="", alias="redemptionURL")
+    type_name: Literal["Reward"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class RewardCampaign(BaseModel):
+    """Schema for a RewardCampaign from rewardCampaignsAvailableToUser."""
+
+    twitch_id: str = Field(alias="id")
+    name: str
+    brand: str
+    starts_at: str = Field(alias="startsAt")
+    ends_at: str = Field(alias="endsAt")
+    status: str
+    summary: str = Field(default="")
+    instructions: str = Field(default="")
+    external_url: str = Field(default="", alias="externalURL")
+    reward_value_url_param: str = Field(default="", alias="rewardValueURLParam")
+    about_url: str = Field(default="", alias="aboutURL")
+    is_sitewide: bool = Field(default=False, alias="isSitewide")
+    game: dict | None = None
+    unlock_requirements: QuestRewardUnlockRequirements | None = Field(default=None, alias="unlockRequirements")
+    image: RewardCampaignImageSet | None = None
+    rewards: list[Reward] = Field(default=[])
+    type_name: Literal["RewardCampaign"] = Field(alias="__typename")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
 
 
 class Extensions(BaseModel):

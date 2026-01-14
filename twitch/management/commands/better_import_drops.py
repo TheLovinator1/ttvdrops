@@ -27,6 +27,7 @@ from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import ChannelInfoSchema
 from twitch.schemas import CurrentUserSchema
@@ -37,6 +38,7 @@ from twitch.schemas import DropCampaignSchema
 from twitch.schemas import GameSchema
 from twitch.schemas import GraphQLResponse
 from twitch.schemas import OrganizationSchema
+from twitch.schemas import RewardCampaign as RewardCampaignSchema
 from twitch.schemas import TimeBasedDropSchema
 from twitch.utils import parse_date
 
@@ -852,6 +854,13 @@ class Command(BaseCommand):
                         allow_schema=drop_campaign.allow,
                     )
 
+            # Process reward campaigns if present
+            if response.data.reward_campaigns_available_to_user:
+                self._process_reward_campaigns(
+                    reward_campaigns=response.data.reward_campaigns_available_to_user,
+                    options=options,
+                )
+
         return True, None
 
     def _process_time_based_drops(
@@ -988,6 +997,73 @@ class Command(BaseCommand):
 
         # Update the M2M relationship with the allowed channels
         campaign_obj.allow_channels.set(channel_objects)
+
+    def _process_reward_campaigns(
+        self,
+        reward_campaigns: list[RewardCampaignSchema],
+        options: dict[str, Any],
+    ) -> None:
+        """Process reward campaigns from the API response.
+
+        Args:
+            reward_campaigns: List of RewardCampaign Pydantic schemas.
+            options: Command options dictionary.
+
+        Raises:
+            ValueError: If datetime parsing fails for campaign dates and
+                crash-on-error is enabled.
+        """
+        for reward_campaign in reward_campaigns:
+            starts_at_dt: datetime | None = parse_date(reward_campaign.starts_at)
+            ends_at_dt: datetime | None = parse_date(reward_campaign.ends_at)
+
+            if starts_at_dt is None or ends_at_dt is None:
+                tqdm.write(f"{Fore.RED}✗{Style.RESET_ALL} Invalid datetime in reward campaign: {reward_campaign.name}")
+                if options.get("crash_on_error"):
+                    msg: str = f"Failed to parse datetime for reward campaign {reward_campaign.name}"
+                    raise ValueError(msg)
+                continue
+
+            # Handle game reference if present
+            game_obj: Game | None = None
+            if reward_campaign.game:
+                # The game field in reward campaigns is a dict, not a full GameSchema
+                # We'll try to find an existing game by twitch_id if available
+                game_id = reward_campaign.game.get("id")
+                if game_id:
+                    try:
+                        game_obj = Game.objects.get(twitch_id=game_id)
+                    except Game.DoesNotExist:
+                        if options.get("verbose"):
+                            tqdm.write(
+                                f"{Fore.YELLOW}→{Style.RESET_ALL} Game not found for reward campaign: {game_id}",
+                            )
+
+            defaults: dict[str, str | datetime | Game | bool | None] = {
+                "name": reward_campaign.name,
+                "brand": reward_campaign.brand,
+                "starts_at": starts_at_dt,
+                "ends_at": ends_at_dt,
+                "status": reward_campaign.status,
+                "summary": reward_campaign.summary,
+                "instructions": reward_campaign.instructions,
+                "external_url": reward_campaign.external_url,
+                "reward_value_url_param": reward_campaign.reward_value_url_param,
+                "about_url": reward_campaign.about_url,
+                "is_sitewide": reward_campaign.is_sitewide,
+                "game": game_obj,
+            }
+
+            _reward_campaign_obj, created = RewardCampaign.objects.update_or_create(
+                twitch_id=reward_campaign.twitch_id,
+                defaults=defaults,
+            )
+
+            action: Literal["Imported new", "Updated"] = "Imported new" if created else "Updated"
+            display_name = (
+                f"{reward_campaign.brand}: {reward_campaign.name}" if reward_campaign.brand else reward_campaign.name
+            )
+            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: {display_name}")
 
     def handle(self, *args, **options) -> None:  # noqa: ARG002
         """Main entry point for the command.

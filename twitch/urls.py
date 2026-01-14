@@ -10,6 +10,7 @@ from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
 from twitch.feeds import OrganizationCampaignFeed
 from twitch.feeds import OrganizationFeed
+from twitch.feeds import RewardCampaignFeed
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
@@ -30,10 +31,13 @@ urlpatterns: list[URLPattern] = [
     path("games/<str:twitch_id>/", views.GameDetailView.as_view(), name="game_detail"),
     path("organizations/", views.org_list_view, name="org_list"),
     path("organizations/<str:twitch_id>/", views.organization_detail_view, name="organization_detail"),
+    path("reward-campaigns/", views.reward_campaign_list_view, name="reward_campaign_list"),
+    path("reward-campaigns/<str:twitch_id>/", views.reward_campaign_detail_view, name="reward_campaign_detail"),
     path("rss/campaigns/", DropCampaignFeed(), name="campaign_feed"),
     path("rss/games/", GameFeed(), name="game_feed"),
     path("rss/games/<str:twitch_id>/campaigns/", GameCampaignFeed(), name="game_campaign_feed"),
     path("rss/organizations/", OrganizationFeed(), name="organization_feed"),
     path("rss/organizations/<str:twitch_id>/campaigns/", OrganizationCampaignFeed(), name="organization_campaign_feed"),
+    path("rss/reward-campaigns/", RewardCampaignFeed(), name="reward_campaign_feed"),
     path("search/", views.search_view, name="search"),
 ]

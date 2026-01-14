@@ -376,3 +376,104 @@ def test_drop_campaign_details_missing_distribution_type() -> None:
     benefit: DropBenefitSchema = first_drop.benefit_edges[0].benefit
     assert benefit.name == "13.7 Update: 250 CT"
     assert benefit.distribution_type is None  # This field was missing in the API response
+
+
+def test_reward_campaigns_available_to_user() -> None:
+    """Test that rewardCampaignsAvailableToUser field validates correctly.
+
+    The ViewerDropsDashboard operation can include reward campaigns (Quest rewards)
+    alongside drop campaigns. This test verifies that the schema properly handles
+    this additional data.
+    """
+    payload: dict[str, object] = {
+        "data": {
+            "currentUser": {
+                "id": "58162970",
+                "login": "lovibot",
+                "dropCampaigns": [],
+                "__typename": "User",
+            },
+            "rewardCampaignsAvailableToUser": [
+                {
+                    "id": "dc4ff0b4-4de0-11ef-9ec3-621fb0811846",
+                    "name": "Buy 1 new sub, get 3 months of Apple TV+",
+                    "brand": "Apple TV+",
+                    "startsAt": "2024-07-30T19:00:00Z",
+                    "endsAt": "2024-08-19T19:00:00Z",
+                    "status": "UNKNOWN",
+                    "summary": "Get 3 months of Apple TV+",
+                    "instructions": "",
+                    "externalURL": "https://tv.apple.com/includes/commerce/redeem/code-entry",
+                    "rewardValueURLParam": "",
+                    "aboutURL": "https://blog.twitch.tv/2024/07/26/sub-and-get-apple-tv/",
+                    "isSitewide": True,
+                    "game": None,
+                    "unlockRequirements": {
+                        "subsGoal": 1,
+                        "minuteWatchedGoal": 0,
+                        "__typename": "QuestRewardUnlockRequirements",
+                    },
+                    "image": {
+                        "image1xURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_150x200.png",
+                        "__typename": "RewardCampaignImageSet",
+                    },
+                    "rewards": [
+                        {
+                            "id": "dc2e9810-4de0-11ef-9ec3-621fb0811846",
+                            "name": "3 months of Apple TV+",
+                            "bannerImage": {
+                                "image1xURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png",
+                                "__typename": "RewardCampaignImageSet",
+                            },
+                            "thumbnailImage": {
+                                "image1xURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_200x200.png",
+                                "__typename": "RewardCampaignImageSet",
+                            },
+                            "earnableUntil": "2024-08-19T19:00:00Z",
+                            "redemptionInstructions": "",
+                            "redemptionURL": "https://tv.apple.com/includes/commerce/redeem/code-entry",
+                            "__typename": "Reward",
+                        },
+                    ],
+                    "__typename": "RewardCampaign",
+                },
+            ],
+        },
+        "extensions": {
+            "operationName": "ViewerDropsDashboard",
+        },
+    }
+
+    # This should not raise ValidationError
+    response: GraphQLResponse = GraphQLResponse.model_validate(payload)
+
+    # Verify the reward campaigns were parsed correctly
+    assert response.data.reward_campaigns_available_to_user is not None
+    assert len(response.data.reward_campaigns_available_to_user) == 1
+
+    reward_campaign = response.data.reward_campaigns_available_to_user[0]
+    assert reward_campaign.twitch_id == "dc4ff0b4-4de0-11ef-9ec3-621fb0811846"
+    assert reward_campaign.name == "Buy 1 new sub, get 3 months of Apple TV+"
+    assert reward_campaign.brand == "Apple TV+"
+    assert reward_campaign.is_sitewide is True
+    assert reward_campaign.game is None
+
+    # Verify unlock requirements
+    assert reward_campaign.unlock_requirements is not None
+    assert reward_campaign.unlock_requirements.subs_goal == 1
+    assert reward_campaign.unlock_requirements.minute_watched_goal == 0
+
+    # Verify image
+    assert reward_campaign.image is not None
+    assert (
+        reward_campaign.image.image1x_url
+        == "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/quests_appletv_q3_2024/apple_150x200.png"
+    )
+
+    # Verify rewards
+    assert len(reward_campaign.rewards) == 1
+    reward = reward_campaign.rewards[0]
+    assert reward.twitch_id == "dc2e9810-4de0-11ef-9ec3-621fb0811846"
+    assert reward.name == "3 months of Apple TV+"
+    assert reward.banner_image is not None
+    assert reward.thumbnail_image is not None

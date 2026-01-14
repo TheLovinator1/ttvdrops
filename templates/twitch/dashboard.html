@@ -27,7 +27,8 @@ Hover over the end time to see the exact date and time.
                             <div style="font-size: 0.9rem; color: #666;">
                                 Organizations:
                                 {% for org in game_data.owners %}
-                                    <a href="{% url 'twitch:organization_detail' org.twitch_id %}">{{ org.name }}</a>{% if not forloop.last %}, {% endif %}
+                                    <a href="{% url 'twitch:organization_detail' org.twitch_id %}">{{ org.name }}</a>
+                                    {% if not forloop.last %},{% endif %}
                                 {% endfor %}
                             </div>
                         {% endif %}
@@ -150,6 +151,97 @@ Hover over the end time to see the exact date and time.
             {% endfor %}
         {% else %}
             <p>No active campaigns at the moment.</p>
+        {% endif %}
+        <!-- Reward Campaigns Section -->
+        {% if active_reward_campaigns %}
+            <section id="reward-campaigns-section"
+                     style="margin-top: 2rem;
+                            border-top: 2px solid #ddd;
+                            padding-top: 1rem">
+                <header style="margin-bottom: 1rem;">
+                    <h2 style="margin: 0 0 0.5rem 0;">
+                        <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns (Quest Rewards)</a>
+                    </h2>
+                    <p style="font-size: 0.9rem; color: #666; margin: 0.5rem 0 0 0;">Complete quests to earn rewards</p>
+                </header>
+                <div style="display: grid;
+                            gap: 1rem;
+                            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))">
+                    {% for campaign in active_reward_campaigns %}
+                        <article id="reward-campaign-{{ campaign.twitch_id }}"
+                                 style="border: 1px solid #ddd;
+                                        border-radius: 8px;
+                                        padding: 1rem">
+                            <h3 style="margin: 0 0 0.5rem 0;">
+                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                                    {% if campaign.brand %}
+                                        {{ campaign.brand }}: {{ campaign.name }}
+                                    {% else %}
+                                        {{ campaign.name }}
+                                    {% endif %}
+                                </a>
+                            </h3>
+                            {% if campaign.summary %}
+                                <p style="font-size: 0.9rem; color: #555; margin: 0.5rem 0;">{{ campaign.summary }}</p>
+                            {% endif %}
+                            <div style="font-size: 0.85rem; color: #666;">
+                                <p style="margin: 0.25rem 0;">
+                                    <strong>Status:</strong>
+                                    {% if campaign.is_active %}
+                                        <span style="color: green;">Active</span>
+                                    {% elif campaign.starts_at > now %}
+                                        <span style="color: orange;">Upcoming</span>
+                                    {% else %}
+                                        <span style="color: red;">Expired</span>
+                                    {% endif %}
+                                </p>
+                                {% if campaign.starts_at %}
+                                    <p style="margin: 0.25rem 0;">
+                                        <strong>Starts:</strong>
+                                        <time datetime="{{ campaign.starts_at|date:'c' }}"
+                                              title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
+                                            {{ campaign.starts_at|date:"M d, Y H:i" }}
+                                        </time>
+                                    </p>
+                                {% endif %}
+                                {% if campaign.ends_at %}
+                                    <p style="margin: 0.25rem 0;">
+                                        <strong>Ends:</strong>
+                                        <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                              title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                                            {{ campaign.ends_at|date:"M d, Y H:i" }}
+                                        </time>
+                                    </p>
+                                {% endif %}
+                                {% if campaign.game %}
+                                    <p style="margin: 0.25rem 0;">
+                                        <strong>Game:</strong>
+                                        <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                                    </p>
+                                {% elif campaign.is_sitewide %}
+                                    <p style="margin: 0.25rem 0;">
+                                        <strong>Type:</strong> Site-wide reward campaign
+                                    </p>
+                                {% endif %}
+                            </div>
+                            {% if campaign.external_url %}
+                                <div style="margin-top: 0.75rem;">
+                                    <a href="{{ campaign.external_url }}"
+                                       target="_blank"
+                                       rel="noopener noreferrer"
+                                       style="display: inline-block;
+                                              padding: 0.5rem 1rem;
+                                              background-color: #9146ff;
+                                              color: white;
+                                              border-radius: 4px;
+                                              text-decoration: none;
+                                              font-size: 0.9rem">Claim Reward</a>
+                                </div>
+                            {% endif %}
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
         {% endif %}
     </main>
 {% endblock content %}

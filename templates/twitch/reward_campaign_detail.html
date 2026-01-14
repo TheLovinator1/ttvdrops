@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}
+    {{ reward_campaign.name }}
+{% endblock title %}
+{% block content %}
+    <!-- Campaign Title -->
+    {% if reward_campaign.brand %}
+        <h1 id="campaign-title">{{ reward_campaign.brand }}: {{ reward_campaign.name }}</h1>
+    {% else %}
+        <h1 id="campaign-title">{{ reward_campaign.name }}</h1>
+    {% endif %}
+    <!-- Back to list link -->
+    <p>
+        <a href="{% url 'twitch:reward_campaign_list' %}">← Back to Reward Campaigns</a>
+    </p>
+    <!-- RSS Feeds -->
+    <div style="margin-bottom: 1rem;">
+        <a href="{% url 'twitch:reward_campaign_feed' %}"
+           style="margin-right: 1rem"
+           title="RSS feed for all reward campaigns">RSS feed for all reward campaigns</a>
+    </div>
+    <!-- Campaign Summary -->
+    {% if reward_campaign.summary %}<p id="campaign-summary">{{ reward_campaign.summary|linebreaksbr }}</p>{% endif %}
+    <!-- Campaign Status -->
+    <h5>Status</h5>
+    <table>
+        <tbody>
+            <tr>
+                <td>
+                    <strong>Status:</strong>
+                </td>
+                <td>
+                    {% if is_active %}
+                        Active
+                    {% elif reward_campaign.starts_at > now %}
+                        Upcoming
+                    {% else %}
+                        Expired
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Starts:</strong>
+                </td>
+                <td>
+                    <time datetime="{{ reward_campaign.starts_at|date:'c' }}"
+                          title="{{ reward_campaign.starts_at|date:'DATETIME_FORMAT' }}">
+                        {{ reward_campaign.starts_at|date:"M d, Y H:i" }}
+                    </time>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Ends:</strong>
+                </td>
+                <td>
+                    <time datetime="{{ reward_campaign.ends_at|date:'c' }}"
+                          title="{{ reward_campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                        {{ reward_campaign.ends_at|date:"M d, Y H:i" }}
+                    </time>
+                </td>
+            </tr>
+            {% if reward_campaign.game %}
+                <tr>
+                    <td>
+                        <strong>Game:</strong>
+                    </td>
+                    <td>
+                        <a href="{% url 'twitch:game_detail' reward_campaign.game.twitch_id %}">{{ reward_campaign.game.display_name }}</a>
+                    </td>
+                </tr>
+            {% elif reward_campaign.is_sitewide %}
+                <tr>
+                    <td>
+                        <strong>Type:</strong>
+                    </td>
+                    <td>Site-wide reward campaign</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+    <!-- Instructions -->
+    {% if reward_campaign.instructions %}
+        <h5>Instructions</h5>
+        <p>{{ reward_campaign.instructions|linebreaksbr }}</p>
+    {% endif %}
+    <!-- Actions -->
+    {% if reward_campaign.external_url or reward_campaign.about_url %}
+        <p>
+            {% if reward_campaign.external_url %}
+                <a href="{{ reward_campaign.external_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer">Claim Reward →</a>
+            {% endif %}
+            {% if reward_campaign.about_url %}
+                <a href="{{ reward_campaign.about_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer">Learn More →</a>
+            {% endif %}
+        </p>
+    {% endif %}
+    <!-- Metadata -->
+    <h5>Campaign Information</h5>
+    <table>
+        <tbody>
+            {% if reward_campaign.brand %}
+                <tr>
+                    <td>
+                        <strong>Brand:</strong>
+                    </td>
+                    <td>{{ reward_campaign.brand }}</td>
+                </tr>
+            {% endif %}
+            <tr>
+                <td>
+                    <strong>Twitch ID:</strong>
+                </td>
+                <td>
+                    <code>{{ reward_campaign.twitch_id }}</code>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Added to tracker:</strong>
+                </td>
+                <td>
+                    <time datetime="{{ reward_campaign.added_at|date:'c' }}"
+                          title="{{ reward_campaign.added_at|date:'DATETIME_FORMAT' }}">
+                        {{ reward_campaign.added_at|date:"M d, Y H:i" }}
+                    </time>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <strong>Last updated:</strong>
+                </td>
+                <td>
+                    <time datetime="{{ reward_campaign.updated_at|date:'c' }}"
+                          title="{{ reward_campaign.updated_at|date:'DATETIME_FORMAT' }}">
+                        {{ reward_campaign.updated_at|date:"M d, Y H:i" }}
+                    </time>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <hr />
+    {{ campaign_data|safe }}
+{% endblock content %}

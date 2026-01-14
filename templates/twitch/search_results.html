@@ -5,7 +5,7 @@
 {% block content %}
     <div class="container" id="search-results-container">
         <h1 id="page-title">Search Results for "{{ query }}"</h1>
-        {% if not results.organizations and not results.games and not results.campaigns and not results.drops and not results.benefits %}
+        {% if not results.organizations and not results.games and not results.campaigns and not results.drops and not results.benefits and not results.reward_campaigns %}
             <p id="no-results">No results found.</p>
         {% else %}
             {% if results.organizations %}
@@ -64,6 +64,20 @@
                                     {{ benefit.name }}
                                 {% endif %}
                             {% endwith %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if results.reward_campaigns %}
+                <h2 id="reward-campaigns-header">Reward Campaigns</h2>
+                <ul id="reward-campaigns-list">
+                    {% for campaign in results.reward_campaigns %}
+                        <li id="reward-campaign-{{ campaign.twitch_id }}">
+                            {% if campaign.brand %}
+                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">{{ campaign.brand }}: {{ campaign.name }}</a>
+                            {% else %}
+                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">{{ campaign.name }}</a>
+                            {% endif %}
                         </li>
                     {% endfor %}
                 </ul>
