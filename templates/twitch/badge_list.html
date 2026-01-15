@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}
+    Chat Badges - ttvdrops
+{% endblock title %}
+{% block content %}
+    <h1>Twitch Chat Badges</h1>
+    <pre>
+These are the global chat badges available on Twitch.
+</pre>
+    {% if badge_sets %}
+        <p>total badge sets: {{ badge_sets.count }}</p>
+        {% for data in badge_data %}
+            <hr />
+            <h2>
+                <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">[{{ data.set.set_id }}]</a>
+            </h2>
+            {% for badge in data.badges %}
+                <table>
+                    <tr>
+                        <td style="width: 40px;">
+                            <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">
+                                <img src="{{ badge.image_url_4x }}"
+                                     height="36"
+                                     width="36"
+                                     alt="{{ badge.title }}"
+                                     title="{{ badge.description }}" />
+                            </a>
+                        </td>
+                        <td>
+                            <strong>{{ badge.title }}</strong>
+                            <br />
+                            <br />
+                            {{ badge.description }}
+                        </td>
+                    </tr>
+                </table>
+            {% endfor %}
+            <br />
+            {% if data.badges|length > 1 %}<small>versions: {{ data.badges|length }}</small>{% endif %}
+        {% endfor %}
+        <hr />
+    {% else %}
+        <p>no badge sets found.</p>
+        <p>
+            run: <code>uv run python manage.py import_chat_badges</code>
+        </p>
+    {% endif %}
+{% endblock content %}

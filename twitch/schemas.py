@@ -548,3 +548,51 @@ class BatchedGraphQLResponse(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+
+# MARK: ChatBadge Schemas
+class ChatBadgeVersionSchema(BaseModel):
+    """Schema for a single chat badge version."""
+
+    badge_id: str = Field(alias="id")
+    image_url_1x: str = Field(alias="image_url_1x")
+    image_url_2x: str = Field(alias="image_url_2x")
+    image_url_4x: str = Field(alias="image_url_4x")
+    title: str
+    description: str
+    click_action: str | None = Field(default=None, alias="click_action")
+    click_url: str | None = Field(default=None, alias="click_url")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class ChatBadgeSetSchema(BaseModel):
+    """Schema for a chat badge set containing multiple versions."""
+
+    set_id: str = Field(alias="set_id")
+    versions: list[ChatBadgeVersionSchema]
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class GlobalChatBadgesResponse(BaseModel):
+    """Schema for the Twitch global chat badges API response."""
+
+    data: list[ChatBadgeSetSchema]
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "strict": True,
+        "populate_by_name": True,
+    }

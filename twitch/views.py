@@ -32,6 +32,8 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers.data import JsonLexer
 
 from twitch.models import Channel
+from twitch.models import ChatBadge
+from twitch.models import ChatBadgeSet
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
@@ -113,6 +115,10 @@ def search_view(request: HttpRequest) -> HttpResponse:
             results["reward_campaigns"] = RewardCampaign.objects.filter(
                 Q(name__istartswith=query) | Q(brand__istartswith=query) | Q(summary__icontains=query),
             ).select_related("game")
+            results["badge_sets"] = ChatBadgeSet.objects.filter(set_id__istartswith=query)
+            results["badges"] = ChatBadge.objects.filter(
+                Q(title__istartswith=query) | Q(description__icontains=query),
+            ).select_related("badge_set")
         else:
             # SQLite-compatible text search using icontains
             results["organizations"] = Organization.objects.filter(
@@ -133,6 +139,10 @@ def search_view(request: HttpRequest) -> HttpResponse:
             results["reward_campaigns"] = RewardCampaign.objects.filter(
                 Q(name__icontains=query) | Q(brand__icontains=query) | Q(summary__icontains=query),
             ).select_related("game")
+            results["badge_sets"] = ChatBadgeSet.objects.filter(set_id__icontains=query)
+            results["badges"] = ChatBadge.objects.filter(
+                Q(title__icontains=query) | Q(description__icontains=query),
+            ).select_related("badge_set")
 
     return render(
         request,
@@ -1143,3 +1153,110 @@ class ChannelDetailView(DetailView):
         )
 
         return context
+
+
+# MARK: /badges/
+def badge_list_view(request: HttpRequest) -> HttpResponse:
+    """List view for chat badge sets.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered badge list page.
+    """
+    badge_sets: QuerySet[ChatBadgeSet] = (
+        ChatBadgeSet.objects
+        .all()
+        .prefetch_related(
+            Prefetch(
+                "badges",
+                queryset=ChatBadge.objects.order_by("badge_id"),
+            ),
+        )
+        .order_by("set_id")
+    )
+
+    # Group badges by set for easier display
+    badge_data: list[dict[str, Any]] = [
+        {
+            "set": badge_set,
+            "badges": list(badge_set.badges.all()),  # pyright: ignore[reportAttributeAccessIssue]
+        }
+        for badge_set in badge_sets
+    ]
+
+    context: dict[str, Any] = {
+        "badge_sets": badge_sets,
+        "badge_data": badge_data,
+    }
+
+    return render(request, "twitch/badge_list.html", context)
+
+
+# MARK: /badges/<set_id>/
+def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
+    """Detail view for a specific badge set.
+
+    Args:
+        request: The HTTP request.
+        set_id: The ID of the badge set.
+
+    Returns:
+        HttpResponse: The rendered badge set detail page.
+
+    Raises:
+        Http404: If the badge set is not found.
+    """
+    try:
+        badge_set: ChatBadgeSet = ChatBadgeSet.objects.prefetch_related(
+            Prefetch(
+                "badges",
+                queryset=ChatBadge.objects.order_by("badge_id"),
+            ),
+        ).get(set_id=set_id)
+    except ChatBadgeSet.DoesNotExist as exc:
+        msg = "No badge set found matching the query"
+        raise Http404(msg) from exc
+
+    badges: QuerySet[ChatBadge] = badge_set.badges.all()  # pyright: ignore[reportAttributeAccessIssue]
+
+    # Serialize for JSON display
+    serialized_set = serialize(
+        "json",
+        [badge_set],
+        fields=(
+            "set_id",
+            "added_at",
+            "updated_at",
+        ),
+    )
+    set_data: list[dict[str, Any]] = json.loads(serialized_set)
+
+    if badges.exists():
+        serialized_badges = serialize(
+            "json",
+            badges,
+            fields=(
+                "badge_id",
+                "image_url_1x",
+                "image_url_2x",
+                "image_url_4x",
+                "title",
+                "description",
+                "click_action",
+                "click_url",
+                "added_at",
+                "updated_at",
+            ),
+        )
+        badges_data: list[dict[str, Any]] = json.loads(serialized_badges)
+        set_data[0]["fields"]["badges"] = badges_data
+
+    context: dict[str, Any] = {
+        "badge_set": badge_set,
+        "badges": badges,
+        "set_data": format_and_color_json(set_data[0]),
+    }
+
+    return render(request, "twitch/badge_set_detail.html", context)

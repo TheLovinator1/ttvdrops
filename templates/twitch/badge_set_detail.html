@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}
+    {{ badge_set.set_id }} Badges - ttvdrops
+{% endblock title %}
+{% block content %}
+    <h1>
+        Badge Set: <strong>{{ badge_set.set_id }}</strong>
+    </h1>
+    <p>
+        <a href="{% url 'twitch:badge_list' %}">Back to all badges</a>
+    </p>
+    <ul>
+        <li>
+            <strong>Set ID:</strong> {{ badge_set.set_id }}
+        </li>
+        <li>
+            <strong>Total Versions:</strong> {{ badges.count }}
+        </li>
+        <li>
+            <strong>Added:</strong> {{ badge_set.added_at|date:"Y-m-d H:i:s T" }}
+        </li>
+        <li>
+            <strong>Updated:</strong> {{ badge_set.updated_at|date:"Y-m-d H:i:s T" }}
+        </li>
+    </ul>
+    {% if badges %}
+        <h2>Badge Versions ({{ badges.count }})</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Preview</th>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Images</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for badge in badges %}
+                    <tr>
+                        <td>
+                            <code>{{ badge.badge_id }}</code>
+                        </td>
+                        <td>
+                            <img src="{{ badge.image_url_4x }}"
+                                 height="72"
+                                 width="72"
+                                 alt="{{ badge.title }}"
+                                 title="{{ badge.description }}"
+                                 style="width: 72px !important;
+                                        height: 72px !important;
+                                        object-fit: contain" />
+                        </td>
+                        <td>
+                            <strong>{{ badge.title }}</strong>
+                        </td>
+                        <td>{{ badge.description }}</td>
+                        <td style="font-size: 0.85em">
+                            <a href="{{ badge.image_url_1x }}" target="_blank">18px</a> |
+                            <a href="{{ badge.image_url_2x }}" target="_blank">36px</a> |
+                            <a href="{{ badge.image_url_4x }}" target="_blank">72px</a>
+                        </td>
+                        <td>
+                            {% if badge.click_url %}
+                                <a href="{{ badge.click_url }}" target="_blank" rel="noopener">{{ badge.click_action|default:"visit_url" }}</a>
+                            {% else %}
+                                <em>None</em>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No badges found in this set.</p>
+    {% endif %}
+    {{ set_data|safe }}
+{% endblock content %}

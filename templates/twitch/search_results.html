@@ -5,7 +5,7 @@
 {% block content %}
     <div class="container" id="search-results-container">
         <h1 id="page-title">Search Results for "{{ query }}"</h1>
-        {% if not results.organizations and not results.games and not results.campaigns and not results.drops and not results.benefits and not results.reward_campaigns %}
+        {% if not results.organizations and not results.games and not results.campaigns and not results.drops and not results.benefits and not results.reward_campaigns and not results.badge_sets and not results.badges %}
             <p id="no-results">No results found.</p>
         {% else %}
             {% if results.organizations %}
@@ -78,6 +78,27 @@
                             {% else %}
                                 <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">{{ campaign.name }}</a>
                             {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if results.badge_sets %}
+                <h2 id="badge-sets-header">Badge Sets</h2>
+                <ul id="badge-sets-list">
+                    {% for badge_set in results.badge_sets %}
+                        <li id="badge-set-{{ badge_set.set_id }}">
+                            <a href="{% url 'twitch:badge_set_detail' set_id=badge_set.set_id %}">{{ badge_set.set_id }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if results.badges %}
+                <h2 id="badges-header">Chat Badges</h2>
+                <ul id="badges-list">
+                    {% for badge in results.badges %}
+                        <li id="badge-{{ badge.badge_set.set_id }}-{{ badge.badge_id }}">
+                            <a href="{% url 'twitch:badge_set_detail' set_id=badge.badge_set.set_id %}">{{ badge.title }}</a>
+                            <small>({{ badge.badge_set.set_id }}/{{ badge.badge_id }})</small>
                         </li>
                     {% endfor %}
                 </ul>

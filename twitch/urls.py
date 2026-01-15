@@ -19,6 +19,8 @@ app_name = "twitch"
 
 urlpatterns: list[URLPattern] = [
     path("", views.dashboard, name="dashboard"),
+    path("badges/", views.badge_list_view, name="badge_list"),
+    path("badges/<str:set_id>/", views.badge_set_detail_view, name="badge_set_detail"),
     path("campaigns/", views.drop_campaign_list_view, name="campaign_list"),
     path("campaigns/<str:twitch_id>/", views.drop_campaign_detail_view, name="campaign_detail"),
     path("channels/", views.ChannelListView.as_view(), name="channel_list"),

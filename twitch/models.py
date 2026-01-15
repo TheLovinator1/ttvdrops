@@ -764,3 +764,125 @@ class RewardCampaign(models.Model):
         if self.starts_at is None or self.ends_at is None:
             return False
         return self.starts_at <= now <= self.ends_at
+
+
+# MARK: ChatBadgeSet
+class ChatBadgeSet(models.Model):
+    """Represents a set of Twitch global chat badges (e.g., VIP, Subscriber, Bits)."""
+
+    set_id = models.TextField(
+        unique=True,
+        verbose_name="Set ID",
+        help_text="Identifier for this badge set (e.g., 'vip', 'subscriber', 'bits').",
+    )
+
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Added At",
+        editable=False,
+        help_text="Timestamp when this badge set record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Updated At",
+        editable=False,
+        help_text="Timestamp when this badge set record was last updated.",
+    )
+
+    class Meta:
+        ordering = ["set_id"]
+        indexes = [
+            models.Index(fields=["set_id"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
+
+    def __str__(self) -> str:
+        """Return a string representation of the badge set."""
+        return self.set_id
+
+
+# MARK: ChatBadge
+class ChatBadge(models.Model):
+    """Represents a specific version of a Twitch global chat badge."""
+
+    badge_set = models.ForeignKey(
+        ChatBadgeSet,
+        on_delete=models.CASCADE,
+        related_name="badges",
+        verbose_name="Badge Set",
+        help_text="The badge set this badge belongs to.",
+    )
+    badge_id = models.TextField(
+        verbose_name="Badge ID",
+        help_text="Version identifier for this badge (e.g., '1', 'Alliance', '10000').",
+    )
+    image_url_1x = models.URLField(
+        max_length=500,
+        verbose_name="Image URL (18px)",
+        help_text="URL to the small version (18px x 18px) of the badge.",
+    )
+    image_url_2x = models.URLField(
+        max_length=500,
+        verbose_name="Image URL (36px)",
+        help_text="URL to the medium version (36px x 36px) of the badge.",
+    )
+    image_url_4x = models.URLField(
+        max_length=500,
+        verbose_name="Image URL (72px)",
+        help_text="URL to the large version (72px x 72px) of the badge.",
+    )
+    title = models.TextField(
+        verbose_name="Title",
+        help_text="The title of the badge (e.g., 'VIP').",
+    )
+    description = models.TextField(
+        verbose_name="Description",
+        help_text="The description of the badge.",
+    )
+    click_action = models.TextField(  # noqa: DJ001
+        blank=True,
+        null=True,
+        verbose_name="Click Action",
+        help_text="The action to take when clicking on the badge (e.g., 'visit_url').",
+    )
+    click_url = models.URLField(  # noqa: DJ001
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name="Click URL",
+        help_text="The URL to navigate to when clicking on the badge.",
+    )
+
+    added_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Added At",
+        editable=False,
+        help_text="Timestamp when this badge record was created.",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Updated At",
+        editable=False,
+        help_text="Timestamp when this badge record was last updated.",
+    )
+
+    class Meta:
+        ordering = ["badge_set", "badge_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["badge_set", "badge_id"],
+                name="unique_badge_set_id",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["badge_set"]),
+            models.Index(fields=["badge_id"]),
+            models.Index(fields=["title"]),
+            models.Index(fields=["added_at"]),
+            models.Index(fields=["updated_at"]),
+        ]
+
+    def __str__(self) -> str:
+        """Return a string representation of the badge."""
+        return f"{self.badge_set.set_id}/{self.badge_id}: {self.title}"

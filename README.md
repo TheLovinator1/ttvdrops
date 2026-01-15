@@ -18,3 +18,13 @@ uv run pytest
 ```bash
 uv run python manage.py better_import_drops <file|dir> [--recursive] [--verbose] [--crash-on-error] [--skip-broken-moves]
 ```
+
+## Import Chat Badges
+
+Import Twitch's global chat badges for archival and reference:
+
+```bash
+uv run python manage.py import_chat_badges
+```
+
+Requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` environment variables to be set.
