@@ -67,6 +67,18 @@
                             {% else %}
                                 <em>None</em>
                             {% endif %}
+                            {% if badge.award_campaigns %}
+                                <div style="margin-top: 8px; font-size: 0.9em;">
+                                    <strong>Awarded by Drop Campaigns:</strong>
+                                    <ul style="margin: 0; padding-left: 18px;">
+                                        {% for campaign in badge.award_campaigns %}
+                                            <li>
+                                                <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
                         </td>
                     </tr>
                 {% endfor %}

@@ -320,7 +320,7 @@ def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.da
     Returns:
         List of dicts with drop, local_start, local_end, timezone_name, and countdown_text.
     """
-    enhanced = []
+    enhanced: list[dict[str, Any]] = []
     for drop in drops:
         if drop.end_at and drop.end_at > now:
             time_diff: datetime.timedelta = drop.end_at - now
@@ -441,7 +441,16 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         campaign_data[0]["fields"]["drops"] = drops_data
 
     now: datetime.datetime = timezone.now()
-    enhanced_drops = _enhance_drops_with_context(drops, now)
+    enhanced_drops: list[dict[str, Any]] = _enhance_drops_with_context(drops, now)
+    # Attach awarded_badge to each drop in enhanced_drops
+    for enhanced_drop in enhanced_drops:
+        drop = enhanced_drop["drop"]
+        awarded_badge = None
+        for benefit in drop.benefits.all():
+            if benefit.distribution_type == "BADGE":
+                awarded_badge: ChatBadge | None = ChatBadge.objects.filter(title=benefit.name).first()
+                break
+        enhanced_drop["awarded_badge"] = awarded_badge
 
     context: dict[str, Any] = {
         "campaign": campaign,
@@ -580,6 +589,20 @@ class GameDetailView(DetailView):
         game: Game = self.get_object()  # pyright: ignore[reportAssignmentType]
 
         now: datetime.datetime = timezone.now()
+        # For each drop, find awarded badge (distribution_type BADGE)
+        drop_awarded_badges: dict[str, ChatBadge] = {}
+        drops: QuerySet[TimeBasedDrop, TimeBasedDrop] = TimeBasedDrop.objects.filter(
+            campaign__game=game,
+        ).prefetch_related("benefits")
+
+        for drop in drops:
+            for benefit in drop.benefits.all():
+                if benefit.distribution_type == "BADGE":
+                    # Find badge by title
+                    badge: ChatBadge | None = ChatBadge.objects.filter(title=benefit.name).first()
+                    if badge:
+                        drop_awarded_badges[drop.twitch_id] = badge
+
         all_campaigns: QuerySet[DropCampaign] = (
             DropCampaign.objects
             .filter(game=game)
@@ -670,6 +693,7 @@ class GameDetailView(DetailView):
                 "upcoming_campaigns": upcoming_campaigns,
                 "expired_campaigns": expired_campaigns,
                 "owners": list(game.owners.all()),
+                "drop_awarded_badges": drop_awarded_badges,
                 "now": now,
                 "game_data": format_and_color_json(game_data[0]),
             },
@@ -1220,6 +1244,17 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         raise Http404(msg) from exc
 
     badges: QuerySet[ChatBadge] = badge_set.badges.all()  # pyright: ignore[reportAttributeAccessIssue]
+
+    # Attach award_campaigns attribute to each badge for template use
+    for badge in badges:
+        benefits: QuerySet[DropBenefit, DropBenefit] = DropBenefit.objects.filter(
+            distribution_type="BADGE",
+            name=badge.title,
+        )
+        campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
+            time_based_drops__benefits__in=benefits,
+        ).distinct()
+        badge.award_campaigns = list(campaigns)  # pyright: ignore[reportAttributeAccessIssue]
 
     # Serialize for JSON display
     serialized_set = serialize(

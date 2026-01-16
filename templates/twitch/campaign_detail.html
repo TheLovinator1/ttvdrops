@@ -155,6 +155,20 @@
                                          src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
                                          alt="{{ benefit.name }}" />
                                 {% endif %}
+                                {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
+                                    <div style="margin-top: 6px; font-size: 0.9em;">
+                                        <strong>Awards Badge:</strong>
+                                        <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
+                                            <img src="{{ drop.awarded_badge.image_url_2x }}"
+                                                 alt="{{ drop.awarded_badge.title }} badge"
+                                                 height="24"
+                                                 width="24"
+                                                 style="vertical-align: middle;
+                                                        margin-right: 4px" />
+                                            {{ drop.awarded_badge.title }}
+                                        </a>
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                         </td>
                         <td>
