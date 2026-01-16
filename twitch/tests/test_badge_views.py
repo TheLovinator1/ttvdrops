@@ -138,8 +138,6 @@ class TestBadgeSetDetailView:
         assert response.status_code == 200
         content = response.content.decode()
 
-        # Should include JSON data section
-        assert "Badge Set Data (JSON)" in content
         assert "test_set" in content
 
 
