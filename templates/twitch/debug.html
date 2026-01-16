@@ -8,6 +8,27 @@
         Generated at: <time id="generation-time">{{ now }}</time>
     </p>
     <section>
+        <h2 id="operation-names-header">Distinct GraphQL operation_names ({{ operation_names_with_counts|length }})</h2>
+        {% if operation_names_with_counts %}
+            <table id="operation-names-table">
+                <thead>
+                    <tr>
+                        <th>Operation Name</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in operation_names_with_counts %}
+                        <tr>
+                            <td>{{ item.trimmed_op }}</td>
+                            <td>{{ item.count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+    <section>
         <h2 id="games-without-owner-header">Games Without an Assigned Owner ({{ games_without_owner|length }})</h2>
         {% if games_without_owner %}
             <ul id="games-without-owner-list">

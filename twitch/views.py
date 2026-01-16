@@ -950,6 +950,16 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         .select_related("game")
     )
 
+    # Distinct GraphQL operation names used to fetch campaigns with counts
+    operation_names_with_counts: list[dict[str, Any]] = list(
+        DropCampaign.objects
+        .annotate(trimmed_op=Trim("operation_name"))
+        .filter(~Q(trimmed_op__exact=""))
+        .values("trimmed_op")
+        .annotate(count=Count("twitch_id"))
+        .order_by("trimmed_op"),
+    )
+
     context: dict[str, Any] = {
         "now": now,
         "games_without_owner": games_without_owner,
@@ -959,6 +969,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         "invalid_date_campaigns": invalid_date_campaigns,
         "duplicate_name_campaigns": duplicate_name_campaigns,
         "active_missing_image": active_missing_image,
+        "operation_names_with_counts": operation_names_with_counts,
     }
 
     return render(
