@@ -167,6 +167,9 @@
                                                         margin-right: 4px" />
                                             {{ drop.awarded_badge.title }}
                                         </a>
+                                        {% if drop.awarded_badge.description %}
+                                            <div style="margin-top: 4px; color: #a9a9a9; font-size: 0.9em;">{{ drop.awarded_badge.description|linebreaksbr }}</div>
+                                        {% endif %}
                                     </div>
                                 {% endif %}
                             {% endfor %}

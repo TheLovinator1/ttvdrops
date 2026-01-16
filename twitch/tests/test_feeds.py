@@ -8,9 +8,13 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from twitch.models import ChatBadge
+from twitch.models import ChatBadgeSet
+from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import TimeBasedDrop
 
 
 class RSSFeedTestCase(TestCase):
@@ -58,6 +62,39 @@ class RSSFeedTestCase(TestCase):
         response = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
+
+    def test_campaign_feed_includes_badge_description(self) -> None:
+        """Badge benefit descriptions should be visible in the RSS drop summary."""
+        drop = TimeBasedDrop.objects.create(
+            twitch_id="drop-1",
+            name="Diana Chat Badge",
+            campaign=self.campaign,
+            required_minutes_watched=0,
+            required_subs=1,
+        )
+        benefit = DropBenefit.objects.create(
+            twitch_id="benefit-1",
+            name="Diana",
+            distribution_type="BADGE",
+        )
+        drop.benefits.add(benefit)
+
+        badge_set = ChatBadgeSet.objects.create(set_id="diana")
+        ChatBadge.objects.create(
+            badge_set=badge_set,
+            badge_id="1",
+            image_url_1x="https://example.com/1x.png",
+            image_url_2x="https://example.com/2x.png",
+            image_url_4x="https://example.com/4x.png",
+            title="Diana",
+            description="This badge was earned by subscribing.",
+        )
+
+        url = reverse("twitch:campaign_feed")
+        response = self.client.get(url)
+        assert response.status_code == 200
+        content = response.content.decode("utf-8")
+        assert "This badge was earned by subscribing." in content
 
     def test_game_campaign_feed(self) -> None:
         """Test game-specific campaign feed returns 200."""

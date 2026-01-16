@@ -10,6 +10,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from twitch.models import Channel
+from twitch.models import ChatBadge
+from twitch.models import ChatBadgeSet
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
@@ -468,6 +470,54 @@ class TestChannelListView:
         response: _MonkeyPatchedWSGIResponse = client.get(url)
         assert response.status_code == 200
         assert "campaign" in response.context
+
+    @pytest.mark.django_db
+    def test_drop_campaign_detail_view_badge_benefit_includes_description_from_chatbadge(
+        self,
+        client: Client,
+    ) -> None:
+        """Test campaign detail view includes badge benefit description from ChatBadge."""
+        game: Game = Game.objects.create(twitch_id="g-badge", name="Game", display_name="Game")
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="c-badge",
+            name="Campaign",
+            game=game,
+            operation_name="DropCampaignDetails",
+        )
+
+        drop = TimeBasedDrop.objects.create(
+            twitch_id="d1",
+            name="Drop",
+            campaign=campaign,
+            required_minutes_watched=0,
+            required_subs=1,
+        )
+
+        benefit = DropBenefit.objects.create(
+            twitch_id="b1",
+            name="Diana",
+            distribution_type="BADGE",
+        )
+        drop.benefits.add(benefit)
+
+        badge_set = ChatBadgeSet.objects.create(set_id="diana")
+        ChatBadge.objects.create(
+            badge_set=badge_set,
+            badge_id="1",
+            image_url_1x="https://example.com/1",
+            image_url_2x="https://example.com/2",
+            image_url_4x="https://example.com/4",
+            title="Diana",
+            description="This badge was earned by subscribing.",
+        )
+
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+
+        # The campaign detail page prints a syntax-highlighted JSON block; the badge description should be present.
+        html = response.content.decode("utf-8")
+        assert "This badge was earned by subscribing." in html
 
     @pytest.mark.django_db
     def test_games_grid_view(self, client: Client) -> None:

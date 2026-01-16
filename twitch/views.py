@@ -350,7 +350,7 @@ def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.da
 
 
 # MARK: /campaigns/<twitch_id>/
-def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # noqa: PLR0914
     """Function-based view for a drop campaign detail.
 
     Args:
@@ -401,6 +401,16 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     campaign_data = json.loads(serialized_campaign)
 
     if drops.exists():
+        badge_benefit_names: set[str] = {
+            benefit.name
+            for drop in drops
+            for benefit in drop.benefits.all()
+            if benefit.distribution_type == "BADGE" and benefit.name
+        }
+        badge_descriptions_by_title: dict[str, str] = dict(
+            ChatBadge.objects.filter(title__in=badge_benefit_names).values_list("title", "description"),
+        )
+
         serialized_drops = serialize(
             "json",
             drops,
@@ -436,6 +446,20 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
                     ),
                 )
                 benefits_data = json.loads(serialized_benefits)
+
+                for benefit_data in benefits_data:
+                    fields: dict[str, Any] = benefit_data.get("fields", {})
+                    if fields.get("distribution_type") != "BADGE":
+                        continue
+
+                    # DropBenefit doesn't have a description field; fetch it from ChatBadge when possible.
+                    if fields.get("description"):
+                        continue
+
+                    badge_description: str | None = badge_descriptions_by_title.get(fields.get("name", ""))
+                    if badge_description:
+                        fields["description"] = badge_description
+
                 drops_data[i]["fields"]["benefits"] = benefits_data
 
         campaign_data[0]["fields"]["drops"] = drops_data

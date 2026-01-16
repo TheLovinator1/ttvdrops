@@ -16,6 +16,7 @@ from django.utils.safestring import SafeString
 from django.utils.safestring import SafeText
 
 from twitch.models import Channel
+from twitch.models import ChatBadge
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
@@ -229,6 +230,18 @@ def _construct_drops_summary(drops_data: list[dict]) -> SafeText:
     if not drops_data:
         return SafeText("")
 
+    badge_titles: set[str] = set()
+    for drop in drops_data:
+        for b in drop.get("benefits", []):
+            if getattr(b, "distribution_type", "") == "BADGE" and getattr(b, "name", ""):
+                badge_titles.add(b.name)
+
+    badge_descriptions_by_title: dict[str, str] = {}
+    if badge_titles:
+        badge_descriptions_by_title = dict(
+            ChatBadge.objects.filter(title__in=badge_titles).values_list("title", "description"),
+        )
+
     def sort_key(drop: dict) -> tuple[bool, int]:
         req: str = drop.get("requirements", "")
         m: re.Match[str] | None = re.search(r"(\d+) minutes watched", req)
@@ -246,14 +259,19 @@ def _construct_drops_summary(drops_data: list[dict]) -> SafeText:
         benefit_names: list[tuple[str]] = []
         for b in benefits:
             benefit_name: str = getattr(b, "name", str(b))
+            badge_desc: str | None = badge_descriptions_by_title.get(benefit_name)
             if is_sub_required and channel_name:
-                benefit_names.append((
-                    format_html(
-                        '<a href="https://twitch.tv/{}" target="_blank">{}</a>',
-                        channel_name,
-                        benefit_name,
-                    ),
-                ))
+                linked_name: SafeString = format_html(
+                    '<a href="https://twitch.tv/{}" target="_blank">{}</a>',
+                    channel_name,
+                    benefit_name,
+                )
+                if badge_desc:
+                    benefit_names.append((format_html("{} (<em>{}</em>)", linked_name, badge_desc),))
+                else:
+                    benefit_names.append((linked_name,))
+            elif badge_desc:
+                benefit_names.append((format_html("{} (<em>{}</em>)", benefit_name, badge_desc),))
             else:
                 benefit_names.append((benefit_name,))
         benefits_str: SafeString = format_html_join(", ", "{}", benefit_names) if benefit_names else SafeText("")
