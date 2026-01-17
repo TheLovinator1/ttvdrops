@@ -346,10 +346,10 @@ class DropCampaign(models.Model):
         help_text="Game associated with this campaign.",
     )
 
-    operation_name = models.TextField(
+    operation_names = models.JSONField(
+        default=list,
         blank=True,
-        default="",
-        help_text="The GraphQL operation name used to fetch this campaign data (e.g., 'ViewerDropsDashboard').",
+        help_text="List of GraphQL operation names used to fetch this campaign data (e.g., ['ViewerDropsDashboard', 'Inventory']).",  # noqa: E501
     )
 
     added_at = models.DateTimeField(
@@ -371,7 +371,7 @@ class DropCampaign(models.Model):
             models.Index(fields=["name"]),
             models.Index(fields=["description"]),
             models.Index(fields=["allow_is_enabled"]),
-            models.Index(fields=["operation_name"]),
+            models.Index(fields=["operation_names"]),
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
             # Composite indexes for common queries

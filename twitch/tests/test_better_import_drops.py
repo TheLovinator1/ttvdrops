@@ -169,7 +169,7 @@ class ExtractCampaignsTests(TestCase):
         # Check that campaign was created with operation_name
         campaign: DropCampaign = DropCampaign.objects.get(twitch_id="inventory-campaign-1")
         assert campaign.name == "Test Inventory Campaign"
-        assert campaign.operation_name == "Inventory"
+        assert campaign.operation_names == ["Inventory"]
 
     def test_handles_inventory_with_null_campaigns(self) -> None:
         """Ensure Inventory JSON with null dropCampaignsInProgress is handled correctly."""
@@ -467,24 +467,25 @@ class OperationNameFilteringTests(TestCase):
         command.process_responses([viewer_drops_payload], Path("viewer.json"), {})
         command.process_responses([inventory_payload], Path("inventory.json"), {})
 
-        # Verify we can filter by operation_name
-        viewer_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
-            operation_name="ViewerDropsDashboard",
-        )
-        inventory_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
-            operation_name="Inventory",
-        )
+        # Verify we can filter by operation_names
+        # SQLite doesn't support JSON contains, so we filter in Python
+        all_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.all()
+        viewer_campaigns: list[DropCampaign] = [c for c in all_campaigns if "ViewerDropsDashboard" in c.operation_names]
+        inventory_campaigns: list[DropCampaign] = [c for c in all_campaigns if "Inventory" in c.operation_names]
 
-        assert viewer_campaigns.count() >= 1
-        assert inventory_campaigns.count() >= 1
+        assert len(viewer_campaigns) >= 1
+        assert len(inventory_campaigns) >= 1
 
-        # Verify the correct campaigns are in each queryset
-        assert viewer_campaigns.filter(twitch_id="viewer-campaign-1").exists()
-        assert inventory_campaigns.filter(twitch_id="inventory-campaign-1").exists()
+        # Verify the correct campaigns are in each list
+        viewer_ids = [c.twitch_id for c in viewer_campaigns]
+        inventory_ids = [c.twitch_id for c in inventory_campaigns]
+
+        assert "viewer-campaign-1" in viewer_ids
+        assert "inventory-campaign-1" in inventory_ids
 
         # Cross-check: Inventory campaign should not be in viewer campaigns
-        assert not viewer_campaigns.filter(twitch_id="inventory-campaign-1").exists()
-        assert not inventory_campaigns.filter(twitch_id="viewer-campaign-1").exists()
+        assert "inventory-campaign-1" not in viewer_ids
+        assert "viewer-campaign-1" not in inventory_ids
 
 
 class GameImportTests(TestCase):
@@ -586,7 +587,7 @@ class ExampleJsonImportTests(TestCase):
         assert campaign.allow_channels.count() == 0
 
         # Operation name provenance
-        assert campaign.operation_name == "DropCampaignDetails"
+        assert campaign.operation_names == ["DropCampaignDetails"]
 
         # Related game/org normalization
         game: Game = Game.objects.get(twitch_id="2094865572")

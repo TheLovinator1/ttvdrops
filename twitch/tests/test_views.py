@@ -47,7 +47,7 @@ class TestSearchView:
             name="Test Campaign",
             description="A test campaign",
             game=game,
-            operation_name="DropCampaignDetails",
+            operation_names=["DropCampaignDetails"],
         )
         drop: TimeBasedDrop = TimeBasedDrop.objects.create(
             twitch_id="1011",
@@ -268,7 +268,7 @@ class TestChannelListView:
                 twitch_id=f"campaign{i}",
                 name=f"Campaign {i}",
                 game=game,
-                operation_name="DropCampaignDetails",
+                operation_names=["DropCampaignDetails"],
             )
             campaign.allow_channels.add(channel)
             campaigns.append(campaign)
@@ -357,7 +357,7 @@ class TestChannelListView:
                 twitch_id=f"campaign_ch2_{i}",
                 name=f"Campaign Ch2 {i}",
                 game=game,
-                operation_name="DropCampaignDetails",
+                operation_names=["DropCampaignDetails"],
             )
             campaign.allow_channels.add(channel2)
 
@@ -422,7 +422,7 @@ class TestChannelListView:
             twitch_id="camp1",
             name="Campaign",
             game=game,
-            operation_name="DropCampaignDetails",
+            operation_names=["DropCampaignDetails"],
             start_at=now - datetime.timedelta(hours=1),
             end_at=now + datetime.timedelta(hours=1),
         )
@@ -464,7 +464,7 @@ class TestChannelListView:
             twitch_id="c1",
             name="Campaign",
             game=game,
-            operation_name="DropCampaignDetails",
+            operation_names=["DropCampaignDetails"],
         )
         url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
@@ -482,7 +482,7 @@ class TestChannelListView:
             twitch_id="c-badge",
             name="Campaign",
             game=game,
-            operation_name="DropCampaignDetails",
+            operation_names=["DropCampaignDetails"],
         )
 
         drop = TimeBasedDrop.objects.create(

@@ -39,7 +39,7 @@ class RSSFeedTestCase(TestCase):
             game=self.game,
             start_at=timezone.now(),
             end_at=timezone.now() + timedelta(days=7),
-            operation_name="DropCampaignDetails",
+            operation_names=["DropCampaignDetails"],
         )
 
     def test_organization_feed(self) -> None:
@@ -132,7 +132,7 @@ class RSSFeedTestCase(TestCase):
             game=other_game,
             start_at=timezone.now(),
             end_at=timezone.now() + timedelta(days=7),
-            operation_name="DropCampaignDetails",
+            operation_names=["DropCampaignDetails"],
         )
 
         # Get feed for first game
@@ -165,7 +165,7 @@ class RSSFeedTestCase(TestCase):
             game=other_game,
             start_at=timezone.now(),
             end_at=timezone.now() + timedelta(days=7),
-            operation_name="DropCampaignDetails",
+            operation_names=["DropCampaignDetails"],
         )
 
         # Get feed for first organization

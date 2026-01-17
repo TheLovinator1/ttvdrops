@@ -392,7 +392,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             "start_at",
             "end_at",
             "allow_is_enabled",
-            "operation_name",
+            "operation_names",
             "game",
             "created_at",
             "updated_at",
@@ -701,7 +701,7 @@ class GameDetailView(DetailView):
                     "allow_is_enabled",
                     "allow_channels",
                     "game",
-                    "operation_name",
+                    "operation_names",
                     "added_at",
                     "updated_at",
                 ),
@@ -951,14 +951,16 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     )
 
     # Distinct GraphQL operation names used to fetch campaigns with counts
-    operation_names_with_counts: list[dict[str, Any]] = list(
-        DropCampaign.objects
-        .annotate(trimmed_op=Trim("operation_name"))
-        .filter(~Q(trimmed_op__exact=""))
-        .values("trimmed_op")
-        .annotate(count=Count("twitch_id"))
-        .order_by("trimmed_op"),
-    )
+    # Since operation_names is now a JSON list field, we need to flatten and count
+    operation_names_counter: dict[str, int] = {}
+    for campaign in DropCampaign.objects.only("operation_names"):
+        for op_name in campaign.operation_names:
+            if op_name and op_name.strip():
+                operation_names_counter[op_name.strip()] = operation_names_counter.get(op_name.strip(), 0) + 1
+
+    operation_names_with_counts: list[dict[str, Any]] = [
+        {"trimmed_op": op_name, "count": count} for op_name, count in sorted(operation_names_counter.items())
+    ]
 
     context: dict[str, Any] = {
         "now": now,

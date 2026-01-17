@@ -836,10 +836,10 @@ class Command(BaseCommand):
                 if (
                     response.extensions
                     and response.extensions.operation_name
-                    and campaign_obj.operation_name != response.extensions.operation_name
+                    and response.extensions.operation_name not in campaign_obj.operation_names
                 ):
-                    campaign_obj.operation_name = response.extensions.operation_name
-                    campaign_obj.save(update_fields=["operation_name"])
+                    campaign_obj.operation_names.append(response.extensions.operation_name)
+                    campaign_obj.save(update_fields=["operation_names"])
 
                 if drop_campaign.time_based_drops:
                     self._process_time_based_drops(
