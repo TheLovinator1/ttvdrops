@@ -962,6 +962,15 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         {"trimmed_op": op_name, "count": count} for op_name, count in sorted(operation_names_counter.items())
     ]
 
+    campaigns_missing_dropcampaigndetails: QuerySet[DropCampaign] = (
+        DropCampaign.objects
+        .filter(
+            Q(operation_names__isnull=True) | ~Q(operation_names__icontains="DropCampaignDetails"),
+        )
+        .select_related("game")
+        .order_by("game__display_name", "name")
+    )
+
     context: dict[str, Any] = {
         "now": now,
         "games_without_owner": games_without_owner,
@@ -972,6 +981,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         "duplicate_name_campaigns": duplicate_name_campaigns,
         "active_missing_image": active_missing_image,
         "operation_names_with_counts": operation_names_with_counts,
+        "campaigns_missing_dropcampaigndetails": campaigns_missing_dropcampaigndetails,
     }
 
     return render(

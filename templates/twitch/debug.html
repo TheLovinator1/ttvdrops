@@ -157,4 +157,22 @@
             <p>None ✅</p>
         {% endif %}
     </section>
+    <section>
+        <h2 id="missing-details-campaigns-header">
+            Campaigns Missing DropCampaignDetails ({{ campaigns_missing_dropcampaigndetails|length }})
+        </h2>
+        {% if campaigns_missing_dropcampaigndetails %}
+            <ul id="missing-details-campaigns-list">
+                {% for c in campaigns_missing_dropcampaigndetails %}
+                    <li id="campaign-{{ c.twitch_id }}">
+                        <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
+                        (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
+                        - Operations: {{ c.operation_names|join:", "|default:'(none)' }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
 {% endblock content %}
