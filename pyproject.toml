@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "dateparser",
-    "django-debug-toolbar",
     "django",
     "json-repair",
     "platformdirs",
