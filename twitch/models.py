@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from django.db import models
+from django.urls import reverse
 from django.utils import timezone
 
 if TYPE_CHECKING:
@@ -133,12 +134,14 @@ class Game(models.Model):
             return f"{self.display_name} ({self.name})"
         return self.display_name or self.name or self.slug or self.twitch_id
 
+    def get_absolute_url(self) -> str:
+        """Return canonical URL to the game details page."""
+        return reverse("game_detail", kwargs={"twitch_id": self.twitch_id})
+
     @property
     def organizations(self) -> models.QuerySet[Organization]:
         """Return orgs that own games with campaigns for this game."""
-        return Organization.objects.filter(
-            games__drop_campaigns__game=self,
-        ).distinct()
+        return Organization.objects.filter(games__drop_campaigns__game=self).distinct()
 
     @property
     def get_game_name(self) -> str:
