@@ -7,8 +7,10 @@ from collections import OrderedDict
 from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 
 from django.core.paginator import EmptyPage
+from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
 from django.core.serializers import serialize
@@ -120,7 +122,6 @@ def search_view(request: HttpRequest) -> HttpResponse:
                 Q(title__istartswith=query) | Q(description__icontains=query),
             ).select_related("badge_set")
         else:
-            # SQLite-compatible text search using icontains
             results["organizations"] = Organization.objects.filter(
                 name__icontains=query,
             )
@@ -815,10 +816,10 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     elif status_filter == "expired":
         queryset = queryset.filter(ends_at__lt=now)
 
-    paginator = Paginator(queryset, per_page)
-    page = request.GET.get("page") or 1
+    paginator: Paginator[RewardCampaign] = Paginator(queryset, per_page)
+    page: str | Literal[1] = request.GET.get("page") or 1
     try:
-        reward_campaigns = paginator.page(page)
+        reward_campaigns: Page[RewardCampaign] = paginator.page(page)
     except PageNotAnInteger:
         reward_campaigns = paginator.page(1)
     except EmptyPage:
@@ -1032,8 +1033,8 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     ]
 
     # Get sample game and organization for examples
-    sample_game = Game.objects.first()
-    sample_org = Organization.objects.first()
+    sample_game: Game | None = Game.objects.first()
+    sample_org: Organization | None = Organization.objects.first()
 
     return render(
         request,
@@ -1067,9 +1068,7 @@ class ChannelListView(ListView):
         if search_query:
             queryset = queryset.filter(Q(name__icontains=search_query) | Q(display_name__icontains=search_query))
 
-        # Count directly from the through table for maximum efficiency
-        # This avoids unnecessary JOINs and GROUP BY operations
-        campaign_count_subquery = (
+        campaign_count_subquery: QuerySet[DropCampaign, DropCampaign] = (
             DropCampaign.allow_channels.through.objects
             .filter(channel_id=OuterRef("pk"))
             .values("channel_id")
