@@ -21,11 +21,11 @@ from django.db.models import Prefetch
 from django.db.models import Q
 from django.db.models import Subquery
 from django.db.models.functions import Trim
-from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import HttpRequest
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView
 from django.views.generic import ListView
@@ -33,6 +33,12 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers.data import JsonLexer
 
+from twitch.feeds import DropCampaignFeed
+from twitch.feeds import GameCampaignFeed
+from twitch.feeds import GameFeed
+from twitch.feeds import OrganizationCampaignFeed
+from twitch.feeds import OrganizationRSSFeed
+from twitch.feeds import RewardCampaignFeed
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -44,9 +50,9 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
-    from django.db.models import QuerySet
-    from django.http import HttpRequest
-    from django.http import HttpResponse
+    from collections.abc import Callable
+
+    from django.db.models.query import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
@@ -507,6 +513,7 @@ class GamesGridView(ListView):
         return (
             super()
             .get_queryset()
+            .prefetch_related("owners")
             .annotate(
                 campaign_count=Count("drop_campaigns", distinct=True),
                 active_count=Count(
@@ -1009,38 +1016,92 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     Returns:
         Rendered HTML response with list of RSS feeds.
     """
+
+    def _pretty_example(xml_str: str, max_items: int = 1) -> str:
+        try:
+            trimmed = xml_str.strip()
+            first_item = trimmed.find("<item")
+            if first_item != -1 and max_items == 1:
+                second_item = trimmed.find("<item", first_item + 5)
+                if second_item != -1:
+                    end_channel = trimmed.find("</channel>", second_item)
+                    if end_channel != -1:
+                        trimmed = trimmed[:second_item] + trimmed[end_channel:]
+            formatted = trimmed.replace("><", ">\n<")
+            return "\n".join(line for line in formatted.splitlines() if line.strip())
+        except Exception:  # pragma: no cover - defensive formatting for docs only
+            logger.exception("Failed to pretty-print RSS example")
+            return xml_str
+
+    def render_feed(feed_view: Callable[..., HttpResponse], *args: object) -> str:
+        try:
+            response: HttpResponse = feed_view(request, *args)
+            return _pretty_example(response.content.decode("utf-8"))
+        except Exception:  # pragma: no cover - defensive logging for docs only
+            logger.exception("Failed to render %s for RSS docs", feed_view.__class__.__name__)
+        return ""
+
     feeds: list[dict[str, str]] = [
         {
             "title": "All Organizations",
             "description": "Latest organizations added to TTVDrops",
-            "url": "/rss/organizations/",
+            "url": reverse("twitch:organization_feed"),
+            "example_xml": render_feed(OrganizationRSSFeed()),
         },
         {
             "title": "All Games",
             "description": "Latest games added to TTVDrops",
-            "url": "/rss/games/",
+            "url": reverse("twitch:game_feed"),
+            "example_xml": render_feed(GameFeed()),
         },
         {
             "title": "All Drop Campaigns",
             "description": "Latest drop campaigns across all games",
-            "url": "/rss/campaigns/",
+            "url": reverse("twitch:campaign_feed"),
+            "example_xml": render_feed(DropCampaignFeed()),
         },
         {
             "title": "All Reward Campaigns",
             "description": "Latest reward campaigns (Quest rewards) on Twitch",
-            "url": "/rss/reward-campaigns/",
+            "url": reverse("twitch:reward_campaign_feed"),
+            "example_xml": render_feed(RewardCampaignFeed()),
         },
     ]
 
-    # Get sample game and organization for examples
     sample_game: Game | None = Game.objects.first()
     sample_org: Organization | None = Organization.objects.first()
+
+    filtered_feeds: list[dict[str, str | bool]] = [
+        {
+            "title": "Campaigns for a Single Game",
+            "description": "Latest drop campaigns for one game.",
+            "url": (
+                reverse("twitch:game_campaign_feed", args=[sample_game.twitch_id])
+                if sample_game
+                else "/rss/games/<game_id>/campaigns/"
+            ),
+            "has_sample": bool(sample_game),
+            "example_xml": render_feed(GameCampaignFeed(), sample_game.twitch_id) if sample_game else "",
+        },
+        {
+            "title": "Campaigns for an Organization",
+            "description": "Drop campaigns across games owned by one organization.",
+            "url": (
+                reverse("twitch:organization_campaign_feed", args=[sample_org.twitch_id])
+                if sample_org
+                else "/rss/organizations/<org_id>/campaigns/"
+            ),
+            "has_sample": bool(sample_org),
+            "example_xml": render_feed(OrganizationCampaignFeed(), sample_org.twitch_id) if sample_org else "",
+        },
+    ]
 
     return render(
         request,
         "twitch/docs_rss.html",
         {
             "feeds": feeds,
+            "filtered_feeds": filtered_feeds,
             "sample_game": sample_game,
             "sample_org": sample_org,
         },

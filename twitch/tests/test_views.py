@@ -573,3 +573,7 @@ class TestChannelListView:
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:docs_rss"))
         assert response.status_code == 200
         assert "feeds" in response.context
+        assert "filtered_feeds" in response.context
+        assert response.context["feeds"][0]["example_xml"]
+        html: str = response.content.decode()
+        assert '<code class="language-xml">' in html

@@ -9,7 +9,7 @@ from twitch.feeds import DropCampaignFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
 from twitch.feeds import OrganizationCampaignFeed
-from twitch.feeds import OrganizationFeed
+from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignFeed
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ rss_feeds_latest: list[URLPattern] = [
     path("rss/campaigns/", DropCampaignFeed(), name="campaign_feed"),
     path("rss/games/", GameFeed(), name="game_feed"),
     path("rss/games/<str:twitch_id>/campaigns/", GameCampaignFeed(), name="game_campaign_feed"),
-    path("rss/organizations/", OrganizationFeed(), name="organization_feed"),
+    path("rss/organizations/", OrganizationRSSFeed(), name="organization_feed"),
     path("rss/organizations/<str:twitch_id>/campaigns/", OrganizationCampaignFeed(), name="organization_campaign_feed"),
     path("rss/reward-campaigns/", RewardCampaignFeed(), name="reward_campaign_feed"),
 ]
@@ -33,7 +33,7 @@ v1_rss_feeds: list[URLPattern] = [
     path("rss/v1/campaigns/", DropCampaignFeed(), name="campaign_feed_v1"),
     path("rss/v1/games/", GameFeed(), name="game_feed_v1"),
     path("rss/v1/games/<str:twitch_id>/campaigns/", GameCampaignFeed(), name="game_campaign_feed_v1"),
-    path("rss/v1/organizations/", OrganizationFeed(), name="organization_feed_v1"),
+    path("rss/v1/organizations/", OrganizationRSSFeed(), name="organization_feed_v1"),
     path(
         "rss/v1/organizations/<str:twitch_id>/campaigns/",
         OrganizationCampaignFeed(),

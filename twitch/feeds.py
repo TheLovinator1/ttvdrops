@@ -9,6 +9,7 @@ from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.contrib.syndication.views import Feed
 from django.db.models.query import QuerySet
 from django.urls import reverse
+from django.utils import feedgenerator
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.html import format_html_join
@@ -283,55 +284,33 @@ def _construct_drops_summary(drops_data: list[dict]) -> SafeText:
 
 
 # MARK: /rss/organizations/
-class OrganizationFeed(Feed):
+class OrganizationRSSFeed(Feed):
     """RSS feed for latest organizations."""
 
+    # Spec: https://cyber.harvard.edu/rss/rss.html
+    feed_type = feedgenerator.Rss201rev2Feed
     title: str = "TTVDrops Organizations"
     link: str = "/organizations/"
     description: str = "Latest organizations on TTVDrops"
     feed_copyright: str = "Information wants to be free."
 
-    def items(self) -> list[Organization]:
+    def items(self) -> QuerySet[Organization, Organization]:
         """Return the latest 200 organizations."""
-        return list(Organization.objects.order_by("-added_at")[:200])
+        return Organization.objects.order_by("-added_at")[:200]
 
-    def item_title(self, item: Model) -> SafeText:
+    def item_title(self, item: Organization) -> SafeText:
         """Return the organization name as the item title."""
-        if not isinstance(item, Organization):
-            logger.error("item_title called with non-Organization item: %s", type(item))
-            return SafeText("New Twitch organization added")
-
         return SafeText(getattr(item, "name", str(item)))
 
-    def item_description(self, item: Model) -> SafeText:
+    def item_description(self, item: Organization) -> SafeText:
         """Return a description of the organization."""
-        if not isinstance(item, Organization):
-            logger.error("item_description called with non-Organization item: %s", type(item))
-            return SafeText("No description available.")
+        return SafeText(item.feed_description)
 
-        description_parts: list[SafeText] = []
-
-        name: str = getattr(item, "name", "")
-        twitch_id: str = getattr(item, "twitch_id", "")
-
-        # Link to ttvdrops organization page
-        description_parts.extend((
-            SafeText("<p>New Twitch organization added to TTVDrops:</p>"),
-            SafeText(
-                f"<p><a href='{reverse('twitch:organization_detail', args=[twitch_id])}' target='_blank' rel='noopener noreferrer'>{name}</a></p>",  # noqa: E501
-            ),
-        ))
-        return SafeText("".join(str(part) for part in description_parts))
-
-    def item_link(self, item: Model) -> str:
+    def item_link(self, item: Organization) -> str:
         """Return the link to the organization detail."""
-        if not isinstance(item, Organization):
-            logger.error("item_link called with non-Organization item: %s", type(item))
-            return reverse("twitch:dashboard")
-
         return reverse("twitch:organization_detail", args=[item.twitch_id])
 
-    def item_pubdate(self, item: Model) -> datetime.datetime:
+    def item_pubdate(self, item: Organization) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Fallback to added_at or now if missing.
@@ -341,24 +320,15 @@ class OrganizationFeed(Feed):
             return added_at
         return timezone.now()
 
-    def item_updateddate(self, item: Model) -> datetime.datetime:
+    def item_updateddate(self, item: Organization) -> datetime.datetime:
         """Returns the organization's last update time."""
         updated_at: datetime.datetime | None = getattr(item, "updated_at", None)
         if updated_at:
             return updated_at
         return timezone.now()
 
-    def item_guid(self, item: Model) -> str:
-        """Return a unique identifier for each organization."""
-        twitch_id: str = getattr(item, "twitch_id", "unknown")
-        return twitch_id + "@ttvdrops.com"
-
-    def item_author_name(self, item: Model) -> str:
+    def item_author_name(self, item: Organization) -> str:
         """Return the author name for the organization."""
-        if not isinstance(item, Organization):
-            logger.error("item_author_name called with non-Organization item: %s", type(item))
-            return "Twitch"
-
         return getattr(item, "name", "Twitch")
 
 

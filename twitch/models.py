@@ -6,9 +6,11 @@ from typing import TYPE_CHECKING
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 if TYPE_CHECKING:
     import datetime
+
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
 
@@ -54,6 +56,18 @@ class Organization(models.Model):
     def __str__(self) -> str:
         """Return a string representation of the organization."""
         return self.name or self.twitch_id
+
+    def feed_description(self: Organization) -> str:
+        """Return a description of the organization for RSS feeds."""
+        name: str = self.name or "Unknown Organization"
+        url: str = reverse("twitch:organization_detail", args=[self.twitch_id])
+
+        return format_html(
+            "<p>New Twitch organization added to TTVDrops:</p>\n"
+            '<p><a href="{}" target="_blank" rel="noopener noreferrer">{}</a></p>',
+            url,
+            name,
+        )
 
 
 # MARK: Game

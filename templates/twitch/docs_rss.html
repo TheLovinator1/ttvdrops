@@ -18,6 +18,10 @@
                         <p>
                             <a href="{{ feed.url }}">Subscribe to {{ feed.title }} RSS Feed</a>
                         </p>
+                        <details>
+                            <summary>Example XML</summary>
+                            <pre><code class="language-xml">{{ feed.example_xml|escape }}</code></pre>
+                        </details>
                     </li>
                 {% endfor %}
             </ul>
@@ -25,26 +29,31 @@
         <section style="margin-top: 2rem;">
             <h2 id="filtered-feeds-header">Filtered RSS Feeds</h2>
             <p>
-                You can also subscribe to RSS feeds for specific games or organizations. These feeds are available on each game or organization detail page.
+                You can subscribe to RSS feeds scoped to a specific game or organization. When available, links below point to live examples; otherwise use the endpoint template.
             </p>
-            <h3>Game-Specific Campaign Feeds</h3>
+            <ul id="filtered-feeds-list">
+                {% for feed in filtered_feeds %}
+                    <li id="filtered-feed-{{ forloop.counter }}">
+                        <h3>{{ feed.title }}</h3>
+                        <p>{{ feed.description }}</p>
+                        <p>
+                            Endpoint: <code>{{ feed.url }}</code>
+                        </p>
+                        {% if feed.has_sample %}
+                            <p>
+                                <a href="{{ feed.url }}">View a live example</a>
+                            </p>
+                        {% endif %}
+                        <details>
+                            <summary>Example XML</summary>
+                            <pre><code class="language-xml">{{ feed.example_xml|escape }}</code></pre>
+                        </details>
+                    </li>
+                {% endfor %}
+            </ul>
             <p>
-                Subscribe to campaigns for a specific game using: <code>/rss/games/&lt;game_id&gt;/campaigns/</code>
+                Versioned paths under <code>/rss/v1/</code> are available and return the same XML structure.
             </p>
-            {% if sample_game %}
-                <p>
-                    Example: <a href="{% url 'twitch:game_campaign_feed' sample_game.twitch_id %}">{{ sample_game.display_name }} Campaigns RSS Feed</a>
-                </p>
-            {% endif %}
-            <h3>Organization-Specific Campaign Feeds</h3>
-            <p>
-                Subscribe to campaigns for a specific organization using: <code>/rss/organizations/&lt;org_id&gt;/campaigns/</code>
-            </p>
-            {% if sample_org %}
-                <p>
-                    Example: <a href="{% url 'twitch:organization_campaign_feed' sample_org.twitch_id %}">{{ sample_org.name }} Campaigns RSS Feed</a>
-                </p>
-            {% endif %}
         </section>
         <section style="margin-top: 2rem;">
             <h2 id="usage-header">How to Use RSS Feeds</h2>
