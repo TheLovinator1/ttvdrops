@@ -114,7 +114,7 @@ def test_allowed_hosts_when_debug_true(reload_settings_module: Callable[..., Mod
     reloaded: ModuleType = reload_settings_module(DEBUG="1")
 
     assert reloaded.DEBUG is True
-    assert reloaded.ALLOWED_HOSTS == [".localhost", "127.0.0.1", "[::1]"]
+    assert reloaded.ALLOWED_HOSTS == [".localhost", "127.0.0.1", "[::1]", "testserver"]
 
 
 def test_debug_defaults_true_when_missing(reload_settings_module: Callable[..., ModuleType]) -> None:

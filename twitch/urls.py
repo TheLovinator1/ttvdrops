@@ -17,31 +17,6 @@ if TYPE_CHECKING:
 
 app_name = "twitch"
 
-# We have /rss/ that is always the latest, and versioned version to not break users regexes.
-
-
-rss_feeds_latest: list[URLPattern] = [
-    path("rss/campaigns/", DropCampaignFeed(), name="campaign_feed"),
-    path("rss/games/", GameFeed(), name="game_feed"),
-    path("rss/games/<str:twitch_id>/campaigns/", GameCampaignFeed(), name="game_campaign_feed"),
-    path("rss/organizations/", OrganizationRSSFeed(), name="organization_feed"),
-    path("rss/organizations/<str:twitch_id>/campaigns/", OrganizationCampaignFeed(), name="organization_campaign_feed"),
-    path("rss/reward-campaigns/", RewardCampaignFeed(), name="reward_campaign_feed"),
-]
-
-v1_rss_feeds: list[URLPattern] = [
-    path("rss/v1/campaigns/", DropCampaignFeed(), name="campaign_feed_v1"),
-    path("rss/v1/games/", GameFeed(), name="game_feed_v1"),
-    path("rss/v1/games/<str:twitch_id>/campaigns/", GameCampaignFeed(), name="game_campaign_feed_v1"),
-    path("rss/v1/organizations/", OrganizationRSSFeed(), name="organization_feed_v1"),
-    path(
-        "rss/v1/organizations/<str:twitch_id>/campaigns/",
-        OrganizationCampaignFeed(),
-        name="organization_campaign_feed_v1",
-    ),
-    path("rss/v1/reward-campaigns/", RewardCampaignFeed(), name="reward_campaign_feed_v1"),
-]
-
 
 urlpatterns: list[URLPattern] = [
     path("", views.dashboard, name="dashboard"),
@@ -62,6 +37,10 @@ urlpatterns: list[URLPattern] = [
     path("reward-campaigns/", views.reward_campaign_list_view, name="reward_campaign_list"),
     path("reward-campaigns/<str:twitch_id>/", views.reward_campaign_detail_view, name="reward_campaign_detail"),
     path("search/", views.search_view, name="search"),
-    *rss_feeds_latest,
-    *v1_rss_feeds,
+    path("rss/campaigns/", DropCampaignFeed(), name="campaign_feed"),
+    path("rss/games/", GameFeed(), name="game_feed"),
+    path("rss/games/<str:twitch_id>/campaigns/", GameCampaignFeed(), name="game_campaign_feed"),
+    path("rss/organizations/", OrganizationRSSFeed(), name="organization_feed"),
+    path("rss/organizations/<str:twitch_id>/campaigns/", OrganizationCampaignFeed(), name="organization_campaign_feed"),
+    path("rss/reward-campaigns/", RewardCampaignFeed(), name="reward_campaign_feed"),
 ]

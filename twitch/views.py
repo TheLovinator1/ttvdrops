@@ -1017,6 +1017,13 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
         Rendered HTML response with list of RSS feeds.
     """
 
+    def absolute(path: str) -> str:
+        try:
+            return request.build_absolute_uri(path)
+        except Exception:  # pragma: no cover - defensive logging for docs only
+            logger.exception("Failed to build absolute URL for %s", path)
+        return path
+
     def _pretty_example(xml_str: str, max_items: int = 1) -> str:
         try:
             trimmed = xml_str.strip()
@@ -1045,25 +1052,25 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
         {
             "title": "All Organizations",
             "description": "Latest organizations added to TTVDrops",
-            "url": reverse("twitch:organization_feed"),
+            "url": absolute(reverse("twitch:organization_feed")),
             "example_xml": render_feed(OrganizationRSSFeed()),
         },
         {
             "title": "All Games",
             "description": "Latest games added to TTVDrops",
-            "url": reverse("twitch:game_feed"),
+            "url": absolute(reverse("twitch:game_feed")),
             "example_xml": render_feed(GameFeed()),
         },
         {
             "title": "All Drop Campaigns",
             "description": "Latest drop campaigns across all games",
-            "url": reverse("twitch:campaign_feed"),
+            "url": absolute(reverse("twitch:campaign_feed")),
             "example_xml": render_feed(DropCampaignFeed()),
         },
         {
             "title": "All Reward Campaigns",
             "description": "Latest reward campaigns (Quest rewards) on Twitch",
-            "url": reverse("twitch:reward_campaign_feed"),
+            "url": absolute(reverse("twitch:reward_campaign_feed")),
             "example_xml": render_feed(RewardCampaignFeed()),
         },
     ]
@@ -1076,9 +1083,9 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "title": "Campaigns for a Single Game",
             "description": "Latest drop campaigns for one game.",
             "url": (
-                reverse("twitch:game_campaign_feed", args=[sample_game.twitch_id])
+                absolute(reverse("twitch:game_campaign_feed", args=[sample_game.twitch_id]))
                 if sample_game
-                else "/rss/games/<game_id>/campaigns/"
+                else absolute("/rss/games/<game_id>/campaigns/")
             ),
             "has_sample": bool(sample_game),
             "example_xml": render_feed(GameCampaignFeed(), sample_game.twitch_id) if sample_game else "",
@@ -1087,9 +1094,9 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "title": "Campaigns for an Organization",
             "description": "Drop campaigns across games owned by one organization.",
             "url": (
-                reverse("twitch:organization_campaign_feed", args=[sample_org.twitch_id])
+                absolute(reverse("twitch:organization_campaign_feed", args=[sample_org.twitch_id]))
                 if sample_org
-                else "/rss/organizations/<org_id>/campaigns/"
+                else absolute("/rss/organizations/<org_id>/campaigns/")
             ),
             "has_sample": bool(sample_org),
             "example_xml": render_feed(OrganizationCampaignFeed(), sample_org.twitch_id) if sample_org else "",

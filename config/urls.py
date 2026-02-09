@@ -11,9 +11,12 @@ if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
     from django.urls.resolvers import URLResolver
 
-urlpatterns: list[URLResolver] | list[URLPattern | URLResolver] = [  # type: ignore[assignment]
+urlpatterns: [URLPattern | URLResolver] = [  # type: ignore[assignment]
     path(route="", view=include("twitch.urls", namespace="twitch")),
 ]
+
+if getattr(settings, "ENABLE_SILK", False):
+    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
 
 # Serve media in development
 if settings.DEBUG:

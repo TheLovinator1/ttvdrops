@@ -7,6 +7,7 @@ from typing import Literal
 
 from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.contrib.syndication.views import Feed
+from django.db.models import Prefetch
 from django.db.models.query import QuerySet
 from django.urls import reverse
 from django.utils import feedgenerator
@@ -33,6 +34,20 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
+
+
+def _with_campaign_related(queryset: QuerySet[DropCampaign]) -> QuerySet[DropCampaign]:
+    """Apply related-selects/prefetches needed by feed rendering to avoid N+1 queries.
+
+    Returns:
+        QuerySet[DropCampaign]: Queryset with related data preloaded for feed rendering.
+    """
+    drops_prefetch: Prefetch = Prefetch(
+        "time_based_drops",
+        queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
+    )
+
+    return queryset.select_related("game").prefetch_related("game__owners", "allow_channels", drops_prefetch)
 
 
 def insert_date_info(item: Model, parts: list[SafeText]) -> None:
@@ -460,9 +475,8 @@ class DropCampaignFeed(Feed):
 
     def items(self) -> list[DropCampaign]:
         """Return the latest 200 drop campaigns ordered by most recent start date."""
-        return list(
-            DropCampaign.objects.select_related("game").order_by("-start_at")[:200],
-        )
+        queryset: QuerySet[DropCampaign] = DropCampaign.objects.order_by("-start_at")
+        return list(_with_campaign_related(queryset)[:200])
 
     def item_title(self, item: Model) -> SafeText:
         """Return the campaign name as the item title (SafeText for RSS)."""
@@ -477,7 +491,7 @@ class DropCampaignFeed(Feed):
 
         drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
         if drops:
-            drops_data = _build_drops_data(drops.select_related().prefetch_related("benefits").all())
+            drops_data = _build_drops_data(drops.all())
 
         parts: list[SafeText] = []
 
@@ -610,9 +624,8 @@ class GameCampaignFeed(Feed):
 
     def items(self, obj: Game) -> list[DropCampaign]:
         """Return the latest 200 drop campaigns for this game, ordered by most recent start date."""
-        return list(
-            DropCampaign.objects.filter(game=obj).select_related("game").order_by("-start_at")[:200],
-        )
+        queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(game=obj).order_by("-start_at")
+        return list(_with_campaign_related(queryset)[:200])
 
     def item_title(self, item: Model) -> SafeText:
         """Return the campaign name as the item title (SafeText for RSS)."""
@@ -625,7 +638,7 @@ class GameCampaignFeed(Feed):
 
         drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
         if drops:
-            drops_data = _build_drops_data(drops.select_related().prefetch_related("benefits").all())
+            drops_data = _build_drops_data(drops.all())
 
         parts: list[SafeText] = []
 
@@ -751,9 +764,8 @@ class OrganizationCampaignFeed(Feed):
 
     def items(self, obj: Organization) -> list[DropCampaign]:
         """Return the latest 200 drop campaigns for this organization, ordered by most recent start date."""
-        return list(
-            DropCampaign.objects.filter(game__owners=obj).select_related("game").order_by("-start_at")[:200],
-        )
+        queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(game__owners=obj).order_by("-start_at")
+        return list(_with_campaign_related(queryset)[:200])
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""
@@ -818,7 +830,7 @@ class OrganizationCampaignFeed(Feed):
 
         drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
         if drops:
-            drops_data = _build_drops_data(drops.select_related().prefetch_related("benefits").all())
+            drops_data = _build_drops_data(drops.all())
 
         parts: list[SafeText] = []
 

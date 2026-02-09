@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -188,6 +190,237 @@ class RSSFeedTestCase(TestCase):
         assert "Other Campaign 2" not in content
 
 
+QueryAsserter = Callable[..., AbstractContextManager[object]]
+
+
+def _build_campaign(game: Game, idx: int) -> DropCampaign:
+    """Create a campaign with a channel, drop, and benefit for query counting.
+
+    Returns:
+        DropCampaign: Newly created campaign instance.
+    """
+    campaign: DropCampaign = DropCampaign.objects.create(
+        twitch_id=f"test-campaign-{idx}",
+        name=f"Test Campaign {idx}",
+        game=game,
+        start_at=timezone.now(),
+        end_at=timezone.now() + timedelta(days=7),
+        operation_names=["DropCampaignDetails"],
+    )
+
+    channel: Channel = Channel.objects.create(
+        twitch_id=f"test-channel-{idx}",
+        name=f"testchannel{idx}",
+        display_name=f"TestChannel{idx}",
+    )
+    campaign.allow_channels.add(channel)
+
+    drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+        twitch_id=f"drop-{idx}",
+        name=f"Drop {idx}",
+        campaign=campaign,
+        required_minutes_watched=30,
+        start_at=timezone.now(),
+        end_at=timezone.now() + timedelta(hours=1),
+    )
+    benefit: DropBenefit = DropBenefit.objects.create(
+        twitch_id=f"benefit-{idx}",
+        name=f"Benefit {idx}",
+        distribution_type="ITEM",
+    )
+    drop.benefits.add(benefit)
+
+    return campaign
+
+
+def _build_reward_campaign(game: Game, idx: int) -> RewardCampaign:
+    """Create a reward campaign for query counting.
+
+    Returns:
+        RewardCampaign: Newly created reward campaign instance.
+    """
+    return RewardCampaign.objects.create(
+        twitch_id=f"test-reward-{idx}",
+        name=f"Test Reward {idx}",
+        brand="Test Brand",
+        starts_at=timezone.now(),
+        ends_at=timezone.now() + timedelta(days=14),
+        status="ACTIVE",
+        summary="Test reward summary",
+        instructions="Watch and complete objectives",
+        external_url="https://example.com/reward",
+        about_url="https://example.com/about",
+        is_sitewide=False,
+        game=game,
+    )
+
+
+@pytest.mark.django_db
+def test_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+    """Campaign feed should stay within a small, fixed query budget."""
+    org: Organization = Organization.objects.create(
+        twitch_id="test-org-queries",
+        name="Query Org",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="test-game-queries",
+        slug="query-game",
+        name="Query Game",
+        display_name="Query Game",
+    )
+    game.owners.add(org)
+
+    for i in range(3):
+        _build_campaign(game, i)
+
+    url: str = reverse("twitch:campaign_feed")
+    with django_assert_num_queries(20, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_game_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+    """Game campaign feed should not issue excess queries when rendering multiple campaigns."""
+    org: Organization = Organization.objects.create(
+        twitch_id="test-org-game-queries",
+        name="Query Org Game",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="test-game-campaign-queries",
+        slug="query-game-campaign",
+        name="Query Game Campaign",
+        display_name="Query Game Campaign",
+    )
+    game.owners.add(org)
+
+    for i in range(3):
+        _build_campaign(game, i)
+
+    url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
+    with django_assert_num_queries(22, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_organization_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+    """Organization RSS feed should stay within a modest query budget."""
+    for i in range(5):
+        Organization.objects.create(
+            twitch_id=f"org-feed-{i}",
+            name=f"Org Feed {i}",
+        )
+
+    url: str = reverse("twitch:organization_feed")
+    with django_assert_num_queries(6, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_game_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+    """Game RSS feed should stay within a modest query budget with multiple games."""
+    org: Organization = Organization.objects.create(
+        twitch_id="game-feed-org",
+        name="Game Feed Org",
+    )
+
+    for i in range(3):
+        game: Game = Game.objects.create(
+            twitch_id=f"game-feed-{i}",
+            slug=f"game-feed-{i}",
+            name=f"Game Feed {i}",
+            display_name=f"Game Feed {i}",
+        )
+        game.owners.add(org)
+
+    url: str = reverse("twitch:game_feed")
+    with django_assert_num_queries(10, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_organization_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+    """Organization campaign feed should not regress in query count."""
+    org: Organization = Organization.objects.create(
+        twitch_id="org-campaign-feed",
+        name="Org Campaign Feed",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="org-campaign-game",
+        slug="org-campaign-game",
+        name="Org Campaign Game",
+        display_name="Org Campaign Game",
+    )
+    game.owners.add(org)
+
+    for i in range(3):
+        _build_campaign(game, i)
+
+    url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
+    with django_assert_num_queries(22, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_reward_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+    """Reward campaign feed should stay within a modest query budget."""
+    org: Organization = Organization.objects.create(
+        twitch_id="reward-feed-org",
+        name="Reward Feed Org",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="reward-feed-game",
+        slug="reward-feed-game",
+        name="Reward Feed Game",
+        display_name="Reward Feed Game",
+    )
+    game.owners.add(org)
+
+    for i in range(3):
+        _build_reward_campaign(game, i)
+
+    url: str = reverse("twitch:reward_campaign_feed")
+    with django_assert_num_queries(8, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_docs_rss_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+    """Docs RSS page should stay within a reasonable query budget."""
+    org: Organization = Organization.objects.create(
+        twitch_id="docs-org",
+        name="Docs Org",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="docs-game",
+        slug="docs-game",
+        name="Docs Game",
+        display_name="Docs Game",
+    )
+    game.owners.add(org)
+
+    for i in range(2):
+        _build_campaign(game, i)
+        _build_reward_campaign(game, i)
+
+    url: str = reverse("twitch:docs_rss")
+    with django_assert_num_queries(60, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
 URL_NAMES: list[tuple[str, dict[str, str]]] = [
     ("twitch:dashboard", {}),
     ("twitch:badge_list", {}),
@@ -213,12 +446,6 @@ URL_NAMES: list[tuple[str, dict[str, str]]] = [
     ("twitch:organization_feed", {}),
     ("twitch:organization_campaign_feed", {"twitch_id": "test-org-123"}),
     ("twitch:reward_campaign_feed", {}),
-    ("twitch:campaign_feed_v1", {}),
-    ("twitch:game_feed_v1", {}),
-    ("twitch:game_campaign_feed_v1", {"twitch_id": "test-game-123"}),
-    ("twitch:organization_feed_v1", {}),
-    ("twitch:organization_campaign_feed_v1", {"twitch_id": "test-org-123"}),
-    ("twitch:reward_campaign_feed_v1", {}),
 ]
 
 

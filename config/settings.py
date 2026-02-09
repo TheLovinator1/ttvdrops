@@ -39,6 +39,7 @@ def env_int(key: str, default: int) -> int:
 
 
 DEBUG: bool = env_bool(key="DEBUG", default=True)
+RUNNING_TESTS: bool = "PYTEST_VERSION" in os.environ or any("pytest" in arg for arg in sys.argv)
 
 
 def get_data_dir() -> Path:
@@ -110,7 +111,7 @@ INTERNAL_IPS: list[str] = []
 if DEBUG:
     INTERNAL_IPS = ["127.0.0.1", "localhost"]  # pyright: ignore[reportConstantRedefinition]
 
-ALLOWED_HOSTS: list[str] = [".localhost", "127.0.0.1", "[::1]"]
+ALLOWED_HOSTS: list[str] = [".localhost", "127.0.0.1", "[::1]", "testserver"]
 if not DEBUG:
     ALLOWED_HOSTS = ["ttvdrops.lovinator.space"]  # pyright: ignore[reportConstantRedefinition]
 
@@ -141,10 +142,12 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
     "twitch.apps.TwitchConfig",
+    *(["silk"] if not RUNNING_TESTS else []),
 ]
 
 MIDDLEWARE: list[str] = [
     "django.middleware.security.SecurityMiddleware",
+    *(["silk.middleware.SilkyMiddleware"] if not RUNNING_TESTS else []),
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
