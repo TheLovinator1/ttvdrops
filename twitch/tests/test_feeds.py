@@ -274,7 +274,8 @@ def test_campaign_feed_queries_bounded(client: Client, django_assert_num_queries
         _build_campaign(game, i)
 
     url: str = reverse("twitch:campaign_feed")
-    with django_assert_num_queries(20, exact=False):
+    # TODO(TheLovinator): 14 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    with django_assert_num_queries(14, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
@@ -299,7 +300,9 @@ def test_game_campaign_feed_queries_bounded(client: Client, django_assert_num_qu
         _build_campaign(game, i)
 
     url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
-    with django_assert_num_queries(22, exact=False):
+
+    # TODO(TheLovinator): 15 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    with django_assert_num_queries(15, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
@@ -315,7 +318,7 @@ def test_organization_feed_queries_bounded(client: Client, django_assert_num_que
         )
 
     url: str = reverse("twitch:organization_feed")
-    with django_assert_num_queries(6, exact=False):
+    with django_assert_num_queries(1, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
@@ -339,7 +342,7 @@ def test_game_feed_queries_bounded(client: Client, django_assert_num_queries: Qu
         game.owners.add(org)
 
     url: str = reverse("twitch:game_feed")
-    with django_assert_num_queries(10, exact=False):
+    with django_assert_num_queries(1, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
@@ -364,7 +367,8 @@ def test_organization_campaign_feed_queries_bounded(client: Client, django_asser
         _build_campaign(game, i)
 
     url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
-    with django_assert_num_queries(22, exact=False):
+    # TODO(TheLovinator): 15 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    with django_assert_num_queries(15, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
@@ -389,7 +393,7 @@ def test_reward_campaign_feed_queries_bounded(client: Client, django_assert_num_
         _build_reward_campaign(game, i)
 
     url: str = reverse("twitch:reward_campaign_feed")
-    with django_assert_num_queries(8, exact=False):
+    with django_assert_num_queries(1, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
@@ -397,7 +401,11 @@ def test_reward_campaign_feed_queries_bounded(client: Client, django_assert_num_
 
 @pytest.mark.django_db
 def test_docs_rss_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
-    """Docs RSS page should stay within a reasonable query budget."""
+    """Docs RSS page should stay within a reasonable query budget.
+
+    With limit=1 for documentation examples, we should have dramatically fewer queries
+    than if we were rendering 200+ items per feed.
+    """
     org: Organization = Organization.objects.create(
         twitch_id="docs-org",
         name="Docs Org",
@@ -415,7 +423,9 @@ def test_docs_rss_queries_bounded(client: Client, django_assert_num_queries: Que
         _build_reward_campaign(game, i)
 
     url: str = reverse("twitch:docs_rss")
-    with django_assert_num_queries(60, exact=False):
+
+    # TODO(TheLovinator): 31 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    with django_assert_num_queries(31, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200

@@ -5,6 +5,7 @@ import json
 import logging
 from collections import OrderedDict
 from collections import defaultdict
+from copy import copy
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -52,6 +53,7 @@ from twitch.models import TimeBasedDrop
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from debug_toolbar.utils import QueryDict
     from django.db.models.query import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
@@ -1042,7 +1044,13 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
 
     def render_feed(feed_view: Callable[..., HttpResponse], *args: object) -> str:
         try:
-            response: HttpResponse = feed_view(request, *args)
+            limited_request: HttpRequest = copy(request)
+            # Add limit=1 to GET parameters
+            get_data: QueryDict = request.GET.copy()
+            get_data["limit"] = "1"
+            limited_request.GET = get_data  # pyright: ignore[reportAttributeAccessIssue]
+
+            response: HttpResponse = feed_view(limited_request, *args)
             return _pretty_example(response.content.decode("utf-8"))
         except Exception:  # pragma: no cover - defensive logging for docs only
             logger.exception("Failed to render %s for RSS docs", feed_view.__class__.__name__)
@@ -1075,8 +1083,10 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
         },
     ]
 
-    sample_game: Game | None = Game.objects.first()
-    sample_org: Organization | None = Organization.objects.first()
+    sample_game: Game | None = Game.objects.order_by("-added_at").first()
+    sample_org: Organization | None = Organization.objects.order_by("-added_at").first()
+    if sample_org is None and sample_game is not None:
+        sample_org = sample_game.owners.order_by("-pk").first()
 
     filtered_feeds: list[dict[str, str | bool]] = [
         {

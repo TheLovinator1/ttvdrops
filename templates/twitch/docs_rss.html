@@ -5,35 +5,32 @@
 {% endblock title %}
 {% block content %}
     <main>
-        <h1 id="page-title">RSS Feeds Documentation</h1>
+        <h1>RSS Feeds Documentation</h1>
         <p>This page lists all available RSS feeds for TTVDrops.</p>
         <section>
-            <h2 id="available-feeds-header">Global RSS Feeds</h2>
+            <h2>Global RSS Feeds</h2>
             <p>These feeds contain all items across the entire site:</p>
-            <ul id="feeds-list">
+            <ul>
                 {% for feed in feeds %}
-                    <li id="feed-{{ forloop.counter }}">
+                    <li>
                         <h3>{{ feed.title }}</h3>
                         <p>{{ feed.description }}</p>
                         <p>
                             <a href="{{ feed.url }}">Subscribe to {{ feed.title }} RSS Feed</a>
                         </p>
-                        <details>
-                            <summary>Example XML</summary>
-                            <pre><code class="language-xml">{{ feed.example_xml|escape }}</code></pre>
-                        </details>
+                        <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
                     </li>
                 {% endfor %}
             </ul>
         </section>
-        <section style="margin-top: 2rem;">
-            <h2 id="filtered-feeds-header">Filtered RSS Feeds</h2>
+        <section>
+            <h2>Filtered RSS Feeds</h2>
             <p>
                 You can subscribe to RSS feeds scoped to a specific game or organization. When available, links below point to live examples; otherwise use the endpoint template.
             </p>
-            <ul id="filtered-feeds-list">
+            <ul>
                 {% for feed in filtered_feeds %}
-                    <li id="filtered-feed-{{ forloop.counter }}">
+                    <li>
                         <h3>{{ feed.title }}</h3>
                         <p>{{ feed.description }}</p>
                         <p>
@@ -44,19 +41,13 @@
                                 <a href="{{ feed.url }}">View a live example</a>
                             </p>
                         {% endif %}
-                        <details>
-                            <summary>Example XML</summary>
-                            <pre><code class="language-xml">{{ feed.example_xml|escape }}</code></pre>
-                        </details>
+                        <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
                     </li>
                 {% endfor %}
             </ul>
-            <p>
-                Versioned paths under <code>/rss/v1/</code> are available and return the same XML structure.
-            </p>
         </section>
-        <section style="margin-top: 2rem;">
-            <h2 id="usage-header">How to Use RSS Feeds</h2>
+        <section>
+            <h2>How to Use RSS Feeds</h2>
             <p>
                 RSS feeds allow you to stay updated with new content. You can use any RSS reader application to subscribe to these feeds.
             </p>
