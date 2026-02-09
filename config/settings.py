@@ -39,7 +39,7 @@ def env_int(key: str, default: int) -> int:
 
 
 DEBUG: bool = env_bool(key="DEBUG", default=True)
-RUNNING_TESTS: bool = "PYTEST_VERSION" in os.environ or any("pytest" in arg for arg in sys.argv)
+TESTING: bool = "test" in sys.argv or "PYTEST_VERSION" in os.environ
 
 
 def get_data_dir() -> Path:
@@ -142,12 +142,10 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.contenttypes",
     "django.contrib.staticfiles",
     "twitch.apps.TwitchConfig",
-    *(["silk"] if not RUNNING_TESTS else []),
 ]
 
 MIDDLEWARE: list[str] = [
     "django.middleware.security.SecurityMiddleware",
-    *(["silk.middleware.SilkyMiddleware"] if not RUNNING_TESTS else []),
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -182,3 +180,15 @@ DATABASES: dict[str, dict[str, str | Path | dict[str, str]]] = {
         },
     },
 }
+
+if not TESTING:
+    INSTALLED_APPS = [
+        *INSTALLED_APPS,
+        "debug_toolbar",
+        "silk",
+    ]
+    MIDDLEWARE = [
+        "debug_toolbar.middleware.DebugToolbarMiddleware",
+        "silk.middleware.SilkyMiddleware",
+        *MIDDLEWARE,
+    ]

@@ -15,12 +15,15 @@ urlpatterns: [URLPattern | URLResolver] = [  # type: ignore[assignment]
     path(route="", view=include("twitch.urls", namespace="twitch")),
 ]
 
-if getattr(settings, "ENABLE_SILK", False):
-    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
-
 # Serve media in development
 if settings.DEBUG:
     urlpatterns += static(
         settings.MEDIA_URL,
         document_root=settings.MEDIA_ROOT,
     )
+
+if not settings.TESTING:
+    from debug_toolbar.toolbar import debug_toolbar_urls
+
+    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
+    urlpatterns = [*urlpatterns, *debug_toolbar_urls()]

@@ -18,6 +18,7 @@ dependencies = [
     "gunicorn",
     "django-silk",
     "django-auto-prefetch",
+    "django-debug-toolbar",
 ]
 
 [dependency-groups]
