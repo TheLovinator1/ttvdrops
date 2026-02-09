@@ -319,7 +319,7 @@ class TestChannelListView:
         channel: Channel = Channel.objects.create(
             twitch_id="channel_no_campaigns",
             name="nocampaigns",
-            display_name="NoCompaigns",
+            display_name="NoCampaigns",
         )
 
         response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
