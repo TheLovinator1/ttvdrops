@@ -16,7 +16,8 @@ dependencies = [
     "tqdm",
     "colorama",
     "gunicorn",
-    "django-silk>=5.4.3",
+    "django-silk",
+    "django-auto-prefetch",
 ]
 
 [dependency-groups]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import auto_prefetch
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -16,7 +17,7 @@ logger: logging.Logger = logging.getLogger("ttvdrops")
 
 
 # MARK: Organization
-class Organization(models.Model):
+class Organization(auto_prefetch.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
     twitch_id = models.TextField(
@@ -44,7 +45,7 @@ class Organization(models.Model):
         help_text="Timestamp when this organization record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["name"]),
@@ -71,7 +72,7 @@ class Organization(models.Model):
 
 
 # MARK: Game
-class Game(models.Model):
+class Game(auto_prefetch.Model):
     """Represents a game on Twitch."""
 
     twitch_id = models.TextField(verbose_name="Twitch game ID", unique=True)
@@ -124,7 +125,7 @@ class Game(models.Model):
         help_text="Timestamp when this game record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["display_name"]
         indexes = [
             models.Index(fields=["display_name"]),
@@ -189,7 +190,7 @@ class Game(models.Model):
 
 
 # MARK: TwitchGame
-class TwitchGameData(models.Model):
+class TwitchGameData(auto_prefetch.Model):
     """Represents game metadata returned from the Twitch API.
 
     This mirrors the public Twitch API fields for a game and is tied to the
@@ -208,7 +209,7 @@ class TwitchGameData(models.Model):
         unique=True,
         help_text="The Twitch ID for this game.",
     )
-    game = models.ForeignKey(
+    game = auto_prefetch.ForeignKey(
         Game,
         on_delete=models.SET_NULL,
         related_name="twitch_game_data",
@@ -237,7 +238,7 @@ class TwitchGameData(models.Model):
         help_text="Record last update time.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["name"]
         indexes = [
             models.Index(fields=["name"]),
@@ -253,7 +254,7 @@ class TwitchGameData(models.Model):
 
 
 # MARK: Channel
-class Channel(models.Model):
+class Channel(auto_prefetch.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
 
     twitch_id = models.TextField(
@@ -279,7 +280,7 @@ class Channel(models.Model):
         help_text="Timestamp when this channel record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["display_name"]
         indexes = [
             models.Index(fields=["display_name"]),
@@ -295,7 +296,7 @@ class Channel(models.Model):
 
 
 # MARK: DropCampaign
-class DropCampaign(models.Model):
+class DropCampaign(auto_prefetch.Model):
     """Represents a Twitch drop campaign."""
 
     twitch_id = models.TextField(
@@ -355,7 +356,7 @@ class DropCampaign(models.Model):
         help_text="Channels that are allowed to participate in this campaign.",
     )
 
-    game = models.ForeignKey(
+    game = auto_prefetch.ForeignKey(
         Game,
         on_delete=models.CASCADE,
         related_name="drop_campaigns",
@@ -378,7 +379,7 @@ class DropCampaign(models.Model):
         help_text="Timestamp when this campaign record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["-start_at"]
         indexes = [
             models.Index(fields=["-start_at"]),
@@ -460,7 +461,7 @@ class DropCampaign(models.Model):
 
 
 # MARK: DropBenefit
-class DropBenefit(models.Model):
+class DropBenefit(auto_prefetch.Model):
     """Represents a benefit that can be earned from a drop."""
 
     twitch_id = models.TextField(
@@ -515,7 +516,7 @@ class DropBenefit(models.Model):
         help_text="Timestamp when this benefit record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["-created_at"]),
@@ -546,15 +547,15 @@ class DropBenefit(models.Model):
 
 
 # MARK: DropBenefitEdge
-class DropBenefitEdge(models.Model):
+class DropBenefitEdge(auto_prefetch.Model):
     """Link a TimeBasedDrop to a DropBenefit."""
 
-    drop = models.ForeignKey(
+    drop = auto_prefetch.ForeignKey(
         to="twitch.TimeBasedDrop",
         on_delete=models.CASCADE,
         help_text="The time-based drop in this relationship.",
     )
-    benefit = models.ForeignKey(
+    benefit = auto_prefetch.ForeignKey(
         DropBenefit,
         on_delete=models.CASCADE,
         help_text="The benefit in this relationship.",
@@ -573,7 +574,7 @@ class DropBenefitEdge(models.Model):
         help_text="Timestamp when this drop-benefit edge was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         constraints = [
             models.UniqueConstraint(
                 fields=("drop", "benefit"),
@@ -594,7 +595,7 @@ class DropBenefitEdge(models.Model):
 
 
 # MARK: TimeBasedDrop
-class TimeBasedDrop(models.Model):
+class TimeBasedDrop(auto_prefetch.Model):
     """Represents a time-based drop in a drop campaign."""
 
     twitch_id = models.TextField(
@@ -626,7 +627,7 @@ class TimeBasedDrop(models.Model):
     )
 
     # Foreign keys
-    campaign = models.ForeignKey(
+    campaign = auto_prefetch.ForeignKey(
         DropCampaign,
         on_delete=models.CASCADE,
         related_name="time_based_drops",
@@ -648,7 +649,7 @@ class TimeBasedDrop(models.Model):
         help_text=("Timestamp when this time-based drop record was last updated."),
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["start_at"]
         indexes = [
             models.Index(fields=["start_at"]),
@@ -672,7 +673,7 @@ class TimeBasedDrop(models.Model):
 
 
 # MARK: RewardCampaign
-class RewardCampaign(models.Model):
+class RewardCampaign(auto_prefetch.Model):
     """Represents a Twitch reward campaign (Quest rewards)."""
 
     twitch_id = models.TextField(
@@ -734,7 +735,7 @@ class RewardCampaign(models.Model):
         default=False,
         help_text="Whether the reward campaign is sitewide.",
     )
-    game = models.ForeignKey(
+    game = auto_prefetch.ForeignKey(
         Game,
         on_delete=models.SET_NULL,
         null=True,
@@ -752,7 +753,7 @@ class RewardCampaign(models.Model):
         help_text="Timestamp when this reward campaign record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["-starts_at"]
         indexes = [
             models.Index(fields=["-starts_at"]),
@@ -784,7 +785,7 @@ class RewardCampaign(models.Model):
 
 
 # MARK: ChatBadgeSet
-class ChatBadgeSet(models.Model):
+class ChatBadgeSet(auto_prefetch.Model):
     """Represents a set of Twitch global chat badges (e.g., VIP, Subscriber, Bits)."""
 
     set_id = models.TextField(
@@ -806,7 +807,7 @@ class ChatBadgeSet(models.Model):
         help_text="Timestamp when this badge set record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["set_id"]
         indexes = [
             models.Index(fields=["set_id"]),
@@ -820,10 +821,10 @@ class ChatBadgeSet(models.Model):
 
 
 # MARK: ChatBadge
-class ChatBadge(models.Model):
+class ChatBadge(auto_prefetch.Model):
     """Represents a specific version of a Twitch global chat badge."""
 
-    badge_set = models.ForeignKey(
+    badge_set = auto_prefetch.ForeignKey(
         ChatBadgeSet,
         on_delete=models.CASCADE,
         related_name="badges",
@@ -884,7 +885,7 @@ class ChatBadge(models.Model):
         help_text="Timestamp when this badge record was last updated.",
     )
 
-    class Meta:
+    class Meta(auto_prefetch.Model.Meta):
         ordering = ["badge_set", "badge_id"]
         constraints = [
             models.UniqueConstraint(
