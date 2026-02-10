@@ -329,7 +329,7 @@ class OrganizationRSSFeed(Feed):
                 self._limit = None
         return super().__call__(request, *args, **kwargs)
 
-    def items(self) -> QuerySet[Organization, Organization]:
+    def items(self) -> QuerySet[Organization]:
         """Return the latest organizations (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
         return Organization.objects.order_by("-added_at")[:limit]
@@ -401,21 +401,12 @@ class GameFeed(Feed):
         limit: int = self._limit if self._limit is not None else 200
         return list(Game.objects.order_by("-added_at")[:limit])
 
-    def item_title(self, item: Model) -> SafeText:
+    def item_title(self, item: Game) -> SafeText:
         """Return the game name as the item title (SafeText for RSS)."""
-        if not isinstance(item, Game):
-            logger.error("item_title called with non-Game item: %s", type(item))
-            return SafeText("New Twitch game added to TTVDrops")
-
         return SafeText(item.get_game_name)
 
-    def item_description(self, item: Model) -> SafeText:
+    def item_description(self, item: Game) -> SafeText:
         """Return a description of the game."""
-        # Return all the information we have about the game
-        if not isinstance(item, Game):
-            logger.error("item_description called with non-Game item: %s", type(item))
-            return SafeText("No description available.")
-
         twitch_id: str = getattr(item, "twitch_id", "")
         slug: str = getattr(item, "slug", "")
         name: str = getattr(item, "name", "")
@@ -447,15 +438,11 @@ class GameFeed(Feed):
 
         return SafeText("".join(str(part) for part in description_parts))
 
-    def item_link(self, item: Model) -> str:
+    def item_link(self, item: Game) -> str:
         """Return the link to the game detail."""
-        if not isinstance(item, Game):
-            logger.error("item_link called with non-Game item: %s", type(item))
-            return reverse("twitch:dashboard")
-
         return reverse("twitch:game_detail", args=[item.twitch_id])
 
-    def item_pubdate(self, item: Model) -> datetime.datetime:
+    def item_pubdate(self, item: Game) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Fallback to added_at or now if missing.
@@ -465,19 +452,19 @@ class GameFeed(Feed):
             return added_at
         return timezone.now()
 
-    def item_updateddate(self, item: Model) -> datetime.datetime:
+    def item_updateddate(self, item: Game) -> datetime.datetime:
         """Returns the game's last update time."""
         updated_at: datetime.datetime | None = getattr(item, "updated_at", None)
         if updated_at:
             return updated_at
         return timezone.now()
 
-    def item_guid(self, item: Model) -> str:
+    def item_guid(self, item: Game) -> str:
         """Return a unique identifier for each game."""
         twitch_id: str = getattr(item, "twitch_id", "unknown")
         return twitch_id + "@ttvdrops.com"
 
-    def item_author_name(self, item: Model) -> str:
+    def item_author_name(self, item: Game) -> str:
         """Return the author name for the game, typically the owner organization name."""
         owner: Organization | None = getattr(item, "owner", None)
         if owner and owner.name:
@@ -485,20 +472,20 @@ class GameFeed(Feed):
 
         return "Twitch"
 
-    def item_enclosure_url(self, item: Model) -> str:
+    def item_enclosure_url(self, item: Game) -> str:
         """Returns the URL of the game's box art for enclosure."""
         box_art: str | None = getattr(item, "box_art", None)
         if box_art:
             return box_art
         return ""
 
-    def item_enclosure_length(self, item: Model) -> int:  # noqa: ARG002
+    def item_enclosure_length(self, item: Game) -> int:  # noqa: ARG002
         """Returns the length of the enclosure."""
         # TODO(TheLovinator): Track image size for proper length  # noqa: TD003
 
         return 0
 
-    def item_enclosure_mime_type(self, item: Model) -> str:  # noqa: ARG002
+    def item_enclosure_mime_type(self, item: Game) -> str:  # noqa: ARG002
         """Returns the MIME type of the enclosure."""
         # TODO(TheLovinator): Determine actual MIME type if needed  # noqa: TD003
         return "image/jpeg"
@@ -539,14 +526,11 @@ class DropCampaignFeed(Feed):
         queryset: QuerySet[DropCampaign] = DropCampaign.objects.order_by("-start_at")
         return list(_with_campaign_related(queryset)[:limit])
 
-    def item_title(self, item: Model) -> SafeText:
+    def item_title(self, item: DropCampaign) -> SafeText:
         """Return the campaign name as the item title (SafeText for RSS)."""
-        game: Game | None = getattr(item, "game", None)
-        game_name: str = getattr(game, "display_name", str(game)) if game else ""
-        clean_name: str = getattr(item, "clean_name", str(item))
-        return SafeText(f"{game_name}: {clean_name}")
+        return SafeText(item.get_feed_title())
 
-    def item_description(self, item: Model) -> SafeText:
+    def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
         drops_data: list[dict] = []
 
@@ -586,23 +570,16 @@ class DropCampaignFeed(Feed):
 
         return SafeText("".join(str(p) for p in parts))
 
-    def item_link(self, item: Model) -> str:
+    def item_link(self, item: DropCampaign) -> str:
         """Return the link to the campaign detail."""
-        if not isinstance(item, DropCampaign):
-            logger.error("item_link called with non-DropCampaign item: %s", type(item))
-            return reverse("twitch:dashboard")
+        return item.get_feed_link()
 
-        return reverse("twitch:campaign_detail", args=[item.twitch_id])
-
-    def item_pubdate(self, item: Model) -> datetime.datetime:
+    def item_pubdate(self, item: DropCampaign) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Fallback to updated_at or now if missing.
         """
-        added_at: datetime.datetime | None = getattr(item, "added_at", None)
-        if added_at:
-            return added_at
-        return timezone.now()
+        return item.get_feed_pubdate()
 
     def item_updateddate(self, item: DropCampaign) -> datetime.datetime:
         """Returns the campaign's last update time."""
@@ -610,37 +587,23 @@ class DropCampaignFeed(Feed):
 
     def item_categories(self, item: DropCampaign) -> tuple[str, ...]:
         """Returns the associated game's name as a category."""
-        categories: list[str] = ["twitch", "drops"]
-
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game:
-            categories.append(item_game.get_game_name)
-            item_game_owner: Organization | None = getattr(item_game, "owner", None)
-            if item_game_owner:
-                categories.extend((str(item_game_owner.name), str(item_game_owner.twitch_id)))
-
-        return tuple(categories)
+        return item.get_feed_categories()
 
     def item_guid(self, item: DropCampaign) -> str:
         """Return a unique identifier for each campaign."""
-        return item.twitch_id + "@ttvdrops.com"
+        return item.get_feed_guid()
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game and item_game.display_name:
-            return item_game.display_name
-
-        return "Twitch"
+        return item.get_feed_author_name()
 
     def item_enclosure_url(self, item: DropCampaign) -> str:
         """Returns the URL of the campaign image for enclosure."""
-        return item.image_url
+        return item.get_feed_enclosure_url()
 
     def item_enclosure_length(self, item: DropCampaign) -> int:  # noqa: ARG002
         """Returns the length of the enclosure."""
         # TODO(TheLovinator): Track image size for proper length  # noqa: TD003
-
         return 0
 
     def item_enclosure_mime_type(self, item: DropCampaign) -> str:  # noqa: ARG002
@@ -708,12 +671,11 @@ class GameCampaignFeed(Feed):
         queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(game=obj).order_by("-start_at")
         return list(_with_campaign_related(queryset)[:limit])
 
-    def item_title(self, item: Model) -> SafeText:
+    def item_title(self, item: DropCampaign) -> SafeText:
         """Return the campaign name as the item title (SafeText for RSS)."""
-        clean_name: str = getattr(item, "clean_name", str(item))
-        return SafeText(clean_name)
+        return SafeText(item.get_feed_title())
 
-    def item_description(self, item: Model) -> SafeText:
+    def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
         drops_data: list[dict] = []
 
@@ -757,17 +719,16 @@ class GameCampaignFeed(Feed):
 
         return SafeText("".join(str(p) for p in parts))
 
-    def item_pubdate(self, item: Model) -> datetime.datetime:
+    def item_pubdate(self, item: DropCampaign) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Uses start_at (when the drop starts). Fallback to added_at or now if missing.
         """
-        start_at: datetime.datetime | None = getattr(item, "start_at", None)
-        if start_at:
-            return start_at
-        added_at: datetime.datetime | None = getattr(item, "added_at", None)
-        if added_at:
-            return added_at
+        if isinstance(item, DropCampaign):
+            if item.start_at:
+                return item.start_at
+            if item.added_at:
+                return item.added_at
         return timezone.now()
 
     def item_updateddate(self, item: DropCampaign) -> datetime.datetime:
@@ -776,32 +737,19 @@ class GameCampaignFeed(Feed):
 
     def item_categories(self, item: DropCampaign) -> tuple[str, ...]:
         """Returns the associated game's name as a category."""
-        categories: list[str] = ["twitch", "drops"]
-
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game:
-            categories.append(item_game.get_game_name)
-            item_game_owner: Organization | None = getattr(item_game, "owner", None)
-            if item_game_owner:
-                categories.extend((str(item_game_owner.name), str(item_game_owner.twitch_id)))
-
-        return tuple(categories)
+        return item.get_feed_categories()
 
     def item_guid(self, item: DropCampaign) -> str:
         """Return a unique identifier for each campaign."""
-        return item.twitch_id + "@ttvdrops.com"
+        return item.get_feed_guid()
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game and item_game.display_name:
-            return item_game.display_name
-
-        return "Twitch"
+        return item.get_feed_author_name()
 
     def item_enclosure_url(self, item: DropCampaign) -> str:
         """Returns the URL of the campaign image for enclosure."""
-        return item.image_url
+        return item.get_feed_enclosure_url()
 
     def item_enclosure_length(self, item: DropCampaign) -> int:  # noqa: ARG002
         """Returns the length of the enclosure."""
@@ -871,19 +819,15 @@ class OrganizationCampaignFeed(Feed):
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game and item_game.display_name:
-            return item_game.display_name
-
-        return "Twitch"
+        return item.get_feed_author_name()
 
     def item_guid(self, item: DropCampaign) -> str:
         """Return a unique identifier for each campaign."""
-        return item.twitch_id + "@ttvdrops.com"
+        return item.get_feed_guid()
 
     def item_enclosure_url(self, item: DropCampaign) -> str:
         """Returns the URL of the campaign image for enclosure."""
-        return item.image_url
+        return item.get_feed_enclosure_url()
 
     def item_enclosure_length(self, item: DropCampaign) -> int:  # noqa: ARG002
         """Returns the length of the enclosure."""
@@ -898,35 +842,24 @@ class OrganizationCampaignFeed(Feed):
 
     def item_categories(self, item: DropCampaign) -> tuple[str, ...]:
         """Returns the associated game's name as a category."""
-        categories: list[str] = ["twitch", "drops"]
-
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game:
-            categories.append(item_game.get_game_name)
-            item_game_owner: Organization | None = getattr(item_game, "owner", None)
-            if item_game_owner:
-                categories.extend((str(item_game_owner.name), str(item_game_owner.twitch_id)))
-
-        return tuple(categories)
+        return item.get_feed_categories()
 
     def item_updateddate(self, item: DropCampaign) -> datetime.datetime:
         """Returns the campaign's last update time."""
         return item.updated_at
 
-    def item_pubdate(self, item: Model) -> datetime.datetime:
+    def item_pubdate(self, item: DropCampaign) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Uses start_at (when the drop starts). Fallback to added_at or now if missing.
         """
-        start_at: datetime.datetime | None = getattr(item, "start_at", None)
-        if start_at:
-            return start_at
-        added_at: datetime.datetime | None = getattr(item, "added_at", None)
-        if added_at:
-            return added_at
+        if item.start_at:
+            return item.start_at
+        if item.added_at:
+            return item.added_at
         return timezone.now()
 
-    def item_description(self, item: Model) -> SafeText:
+    def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
         drops_data: list[dict] = []
 
@@ -1003,81 +936,24 @@ class RewardCampaignFeed(Feed):
             RewardCampaign.objects.select_related("game").order_by("-added_at")[:limit],
         )
 
-    def item_title(self, item: Model) -> SafeText:
+    def item_title(self, item: RewardCampaign) -> SafeText:
         """Return the reward campaign name as the item title."""
-        brand: str = getattr(item, "brand", "")
-        name: str = getattr(item, "name", str(item))
-        if brand:
-            return SafeText(f"{brand}: {name}")
-        return SafeText(name)
+        return SafeText(item.get_feed_title())
 
-    def item_description(self, item: Model) -> SafeText:
+    def item_description(self, item: RewardCampaign) -> SafeText:
         """Return a description of the reward campaign."""
-        parts: list[SafeText] = []
+        return SafeText(item.get_feed_description())
 
-        summary: str | None = getattr(item, "summary", None)
-        if summary:
-            parts.append(format_html("<p>{}</p>", summary))
-
-        # Insert start and end date info (uses starts_at/ends_at instead of start_at/end_at)
-        ends_at: datetime.datetime | None = getattr(item, "ends_at", None)
-        starts_at: datetime.datetime | None = getattr(item, "starts_at", None)
-
-        if starts_at or ends_at:
-            start_part: SafeString = (
-                format_html("Starts: {} ({})", starts_at.strftime("%Y-%m-%d %H:%M %Z"), naturaltime(starts_at))
-                if starts_at
-                else SafeText("")
-            )
-            end_part: SafeString = (
-                format_html("Ends: {} ({})", ends_at.strftime("%Y-%m-%d %H:%M %Z"), naturaltime(ends_at))
-                if ends_at
-                else SafeText("")
-            )
-            if start_part and end_part:
-                parts.append(format_html("<p>{}<br />{}</p>", start_part, end_part))
-            elif start_part:
-                parts.append(format_html("<p>{}</p>", start_part))
-            elif end_part:
-                parts.append(format_html("<p>{}</p>", end_part))
-
-        is_sitewide: bool = getattr(item, "is_sitewide", False)
-        if is_sitewide:
-            parts.append(SafeText("<p><strong>This is a sitewide reward campaign</strong></p>"))
-        else:
-            game: Game | None = getattr(item, "game", None)
-            if game:
-                parts.append(format_html("<p>Game: {}</p>", game.display_name or game.name))
-
-        about_url: str | None = getattr(item, "about_url", None)
-        if about_url:
-            parts.append(format_html('<p><a href="{}">Learn more</a></p>', about_url))
-
-        external_url: str | None = getattr(item, "external_url", None)
-        if external_url:
-            parts.append(format_html('<p><a href="{}">Redeem reward</a></p>', external_url))
-
-        return SafeText("".join(str(p) for p in parts))
-
-    def item_link(self, item: Model) -> str:
+    def item_link(self, item: RewardCampaign) -> str:
         """Return the link to the reward campaign (external URL or dashboard)."""
-        external_url: str | None = getattr(item, "external_url", None)
-        if external_url:
-            return external_url
-        return reverse("twitch:dashboard")
+        return item.get_feed_link()
 
-    def item_pubdate(self, item: Model) -> datetime.datetime:
+    def item_pubdate(self, item: RewardCampaign) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Uses starts_at (when the reward starts). Fallback to added_at or now if missing.
         """
-        starts_at: datetime.datetime | None = getattr(item, "starts_at", None)
-        if starts_at:
-            return starts_at
-        added_at: datetime.datetime | None = getattr(item, "added_at", None)
-        if added_at:
-            return added_at
-        return timezone.now()
+        return item.get_feed_pubdate()
 
     def item_updateddate(self, item: RewardCampaign) -> datetime.datetime:
         """Returns the reward campaign's last update time."""
@@ -1085,30 +961,12 @@ class RewardCampaignFeed(Feed):
 
     def item_categories(self, item: RewardCampaign) -> tuple[str, ...]:
         """Returns the associated game's name and brand as categories."""
-        categories: list[str] = ["twitch", "rewards", "quests"]
-
-        brand: str | None = getattr(item, "brand", None)
-        if brand:
-            categories.append(brand)
-
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game:
-            categories.append(item_game.get_game_name)
-
-        return tuple(categories)
+        return item.get_feed_categories()
 
     def item_guid(self, item: RewardCampaign) -> str:
         """Return a unique identifier for each reward campaign."""
-        return item.twitch_id + "@ttvdrops.com"
+        return item.get_feed_guid()
 
     def item_author_name(self, item: RewardCampaign) -> str:
         """Return the author name for the reward campaign."""
-        brand: str | None = getattr(item, "brand", None)
-        if brand:
-            return brand
-
-        item_game: Game | None = getattr(item, "game", None)
-        if item_game and item_game.display_name:
-            return item_game.display_name
-
-        return "Twitch"
+        return item.get_feed_author_name()

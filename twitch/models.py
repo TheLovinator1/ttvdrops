@@ -4,10 +4,12 @@ import logging
 from typing import TYPE_CHECKING
 
 import auto_prefetch
+from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.safestring import SafeText
 
 if TYPE_CHECKING:
     import datetime
@@ -459,6 +461,51 @@ class DropCampaign(auto_prefetch.Model):
         """Determine if the campaign is subscription only based on its benefits."""
         return any(drop.required_subs > 0 for drop in self.time_based_drops.all())  # pyright: ignore[reportAttributeAccessIssue]
 
+    def get_feed_title(self) -> str:
+        """Return the campaign title for RSS feeds."""
+        game_name: str = self.game.display_name if self.game else ""
+        return f"{game_name}: {self.clean_name}"
+
+    def get_feed_link(self) -> str:
+        """Return the link to the campaign detail."""
+        return reverse("twitch:campaign_detail", args=[self.twitch_id])
+
+    def get_feed_pubdate(self) -> datetime.datetime:
+        """Return the publication date for the feed item."""
+        if self.added_at:
+            return self.added_at
+        return timezone.now()
+
+    def get_feed_categories(self) -> tuple[str, ...]:
+        """Return category tags for the feed item."""
+        categories: list[str] = ["twitch", "drops"]
+
+        game: Game | None = self.game
+        if game:
+            categories.append(game.get_game_name)
+            # Add first owner if available
+            first_owner: Organization | None = game.owners.first()
+            if first_owner:
+                categories.extend((str(first_owner.name), str(first_owner.twitch_id)))
+
+        return tuple(categories)
+
+    def get_feed_guid(self) -> str:
+        """Return a unique identifier for the feed item."""
+        return f"{self.twitch_id}@ttvdrops.com"
+
+    def get_feed_author_name(self) -> str:
+        """Return the author name for the feed item."""
+        game: Game | None = self.game
+        if game and game.display_name:
+            return game.display_name
+
+        return "Twitch"
+
+    def get_feed_enclosure_url(self) -> str:
+        """Return the campaign image URL for RSS enclosures."""
+        return self.image_url
+
 
 # MARK: DropBenefit
 class DropBenefit(auto_prefetch.Model):
@@ -782,6 +829,101 @@ class RewardCampaign(auto_prefetch.Model):
         if self.starts_at is None or self.ends_at is None:
             return False
         return self.starts_at <= now <= self.ends_at
+
+    def get_feed_title(self) -> str:
+        """Return the reward campaign name as the feed item title."""
+        if self.brand:
+            return f"{self.brand}: {self.name}"
+        return self.name
+
+    def get_feed_description(self) -> str:
+        """Return HTML description of the reward campaign for RSS feeds."""
+        parts: list = []
+
+        if self.summary:
+            parts.append(format_html("<p>{}</p>", self.summary))
+
+        if self.starts_at or self.ends_at:
+            start_part = (
+                format_html(
+                    "Starts: {} ({})",
+                    self.starts_at.strftime("%Y-%m-%d %H:%M %Z"),
+                    naturaltime(self.starts_at),
+                )
+                if self.starts_at
+                else ""
+            )
+            end_part = (
+                format_html(
+                    "Ends: {} ({})",
+                    self.ends_at.strftime("%Y-%m-%d %H:%M %Z"),
+                    naturaltime(self.ends_at),
+                )
+                if self.ends_at
+                else ""
+            )
+            if start_part and end_part:
+                parts.append(format_html("<p>{}<br />{}</p>", start_part, end_part))
+            elif start_part:
+                parts.append(format_html("<p>{}</p>", start_part))
+            elif end_part:
+                parts.append(format_html("<p>{}</p>", end_part))
+
+        if self.is_sitewide:
+            parts.append(SafeText("<p><strong>This is a sitewide reward campaign</strong></p>"))
+        elif self.game:
+            parts.append(format_html("<p>Game: {}</p>", self.game.display_name or self.game.name))
+
+        if self.about_url:
+            parts.append(format_html('<p><a href="{}">Learn more</a></p>', self.about_url))
+
+        if self.external_url:
+            parts.append(format_html('<p><a href="{}">Redeem reward</a></p>', self.external_url))
+
+        return "".join(str(p) for p in parts)
+
+    def get_feed_link(self) -> str:
+        """Return the link to the reward campaign (external URL or dashboard)."""
+        if self.external_url:
+            return self.external_url
+        return reverse("twitch:dashboard")
+
+    def get_feed_pubdate(self) -> datetime.datetime:
+        """Return the publication date for the feed item.
+
+        Uses starts_at (when the reward starts). Fallback to added_at or now if missing.
+        """
+        if self.starts_at:
+            return self.starts_at
+        if self.added_at:
+            return self.added_at
+        return timezone.now()
+
+    def get_feed_categories(self) -> tuple[str, ...]:
+        """Return category tags for the feed item."""
+        categories: list[str] = ["twitch", "rewards", "quests"]
+
+        if self.brand:
+            categories.append(self.brand)
+
+        if self.game:
+            categories.append(self.game.get_game_name)
+
+        return tuple(categories)
+
+    def get_feed_guid(self) -> str:
+        """Return a unique identifier for the feed item."""
+        return f"{self.twitch_id}@ttvdrops.com"
+
+    def get_feed_author_name(self) -> str:
+        """Return the author name for the feed item."""
+        if self.brand:
+            return self.brand
+
+        if self.game and self.game.display_name:
+            return self.game.display_name
+
+        return "Twitch"
 
 
 # MARK: ChatBadgeSet
