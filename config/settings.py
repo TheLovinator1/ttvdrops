@@ -140,6 +140,7 @@ LOGGING: dict[str, Any] = {
 
 INSTALLED_APPS: list[str] = [
     "django.contrib.contenttypes",
+    "django.contrib.sessions",
     "django.contrib.staticfiles",
     "twitch.apps.TwitchConfig",
 ]

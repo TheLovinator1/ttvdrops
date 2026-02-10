@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import pytest
+from django.contrib.sessions.models import Session
 
 from config import settings
 
@@ -122,3 +123,14 @@ def test_debug_defaults_true_when_missing(reload_settings_module: Callable[..., 
     reloaded: ModuleType = reload_settings_module(DEBUG=None)
 
     assert reloaded.DEBUG is True
+
+
+def test_sessions_app_installed() -> None:
+    """Sessions app should be registered when session middleware is enabled."""
+    assert "django.contrib.sessions" in settings.INSTALLED_APPS
+
+
+@pytest.mark.django_db
+def test_session_table_exists() -> None:
+    """The sessions table should be available in the database."""
+    Session.objects.count()
