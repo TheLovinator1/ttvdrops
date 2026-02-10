@@ -28,3 +28,17 @@ uv run python manage.py import_chat_badges
 ```
 
 Requires `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` environment variables to be set.
+
+## Create DB Backup
+
+Create a zstd-compressed SQL dump (only `twitch_` tables) in the datasets directory:
+
+```bash
+uv run python manage.py backup_db
+```
+
+Optional arguments:
+
+```bash
+uv run python manage.py backup_db --output-dir "<path>" --prefix "ttvdrops"
+```

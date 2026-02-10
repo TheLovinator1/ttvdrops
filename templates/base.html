@@ -155,6 +155,7 @@
         </style>
     </head>
     <body>
+        <h1 style="margin-top: 0.5em; margin-bottom: 0.5em; ">ttvdrops</h1>
         <strong>Twitch:</strong>
         <a href="{% url 'twitch:dashboard' %}">Dashboard</a> |
         <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> |
@@ -165,11 +166,14 @@
         <a href="{% url 'twitch:badge_list' %}">Badges</a> |
         <a href="{% url 'twitch:emote_gallery' %}">Emotes</a>
         <br />
-        <a href="{% url 'twitch:docs_rss' %}">RSS</a> | <a href="{% url 'twitch:debug' %}">Debug</a>
-        <form action="{% url 'twitch:search' %}"
-              method="get"
-              style="display: inline;
-                     margin-left: 1rem">
+        <strong>Other:</strong>
+        <a href="{% url 'twitch:docs_rss' %}">RSS</a> |
+        <a href="{% url 'twitch:debug' %}">Debug</a> |
+        <a href="{% url 'twitch:dataset_backups' %}">Dataset</a> |
+        <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
+        <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a>
+        <br />
+        <form action="{% url 'twitch:search' %}" method="get">
             <input type="search"
                    name="q"
                    placeholder="Search..."

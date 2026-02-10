@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import operator
 from collections import OrderedDict
 from collections import defaultdict
 from copy import copy
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
+from django.conf import settings
 from django.core.paginator import EmptyPage
 from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
@@ -22,10 +24,12 @@ from django.db.models import Prefetch
 from django.db.models import Q
 from django.db.models import Subquery
 from django.db.models.functions import Trim
+from django.http import FileResponse
 from django.http import Http404
 from django.http import HttpRequest
 from django.http import HttpResponse
 from django.shortcuts import render
+from django.template.defaultfilters import filesizeformat
 from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView
@@ -52,9 +56,12 @@ from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from os import stat_result
+    from pathlib import Path
 
     from debug_toolbar.utils import QueryDict
     from django.db.models.query import QuerySet
+
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
@@ -317,6 +324,99 @@ def format_and_color_json(data: dict[str, Any] | list[dict] | str) -> str:
     else:
         formatted_code = data
     return highlight(formatted_code, JsonLexer(), HtmlFormatter())
+
+
+# MARK: /datasets/
+def dataset_backups_view(request: HttpRequest) -> HttpResponse:
+    """View to list database backup datasets on disk.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered dataset backups page.
+    """
+    datasets_root: Path = settings.DATA_DIR / "datasets"
+    search_dirs: list[Path] = [datasets_root]
+    seen_paths: set[str] = set()
+    datasets: list[dict[str, Any]] = []
+
+    for folder in search_dirs:
+        if not folder.exists() or not folder.is_dir():
+            continue
+
+        # Only include .zst files
+        for path in folder.glob("*.zst"):
+            if not path.is_file():
+                continue
+            key = str(path.resolve())
+            if key in seen_paths:
+                continue
+            seen_paths.add(key)
+            stat: stat_result = path.stat()
+            updated_at: datetime.datetime = datetime.datetime.fromtimestamp(
+                stat.st_mtime,
+                tz=timezone.get_current_timezone(),
+            )
+            try:
+                display_path = str(path.relative_to(datasets_root))
+                download_path: str | None = display_path
+            except ValueError:
+                display_path: str = path.name
+                download_path: str | None = None
+            datasets.append({
+                "name": path.name,
+                "display_path": display_path,
+                "download_path": download_path,
+                "size": filesizeformat(stat.st_size),
+                "updated_at": updated_at,
+            })
+
+    datasets.sort(key=operator.itemgetter("updated_at"), reverse=True)
+
+    context: dict[str, Any] = {
+        "datasets": datasets,
+        "data_dir": str(datasets_root),
+        "dataset_count": len(datasets),
+    }
+    return render(request, "twitch/dataset_backups.html", context)
+
+
+def dataset_backup_download_view(request: HttpRequest, relative_path: str) -> FileResponse:  # noqa: ARG001
+    """Download a dataset backup from the data directory.
+
+    Args:
+        request: The HTTP request.
+        relative_path: The path relative to the data directory.
+
+    Returns:
+        FileResponse: The file response for the requested dataset.
+
+    Raises:
+        Http404: When the file is not found or is outside the data directory.
+    """
+    allowed_endings = (".zst",)
+    datasets_root: Path = settings.DATA_DIR / "datasets"
+    requested_path: Path = (datasets_root / relative_path).resolve()
+    data_root: Path = datasets_root.resolve()
+
+    try:
+        requested_path.relative_to(data_root)
+    except ValueError as exc:
+        msg = "File not found"
+        raise Http404(msg) from exc
+    if not requested_path.exists() or not requested_path.is_file():
+        msg = "File not found"
+        raise Http404(msg)
+    if not requested_path.name.endswith(allowed_endings):
+        msg = "File not found"
+        raise Http404(msg)
+
+    return FileResponse(
+        requested_path.open("rb"),
+        as_attachment=True,
+        filename=requested_path.name,
+    )
 
 
 def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.datetime) -> list[dict[str, Any]]:

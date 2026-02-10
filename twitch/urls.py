@@ -27,6 +27,12 @@ urlpatterns: list[URLPattern] = [
     path("channels/", views.ChannelListView.as_view(), name="channel_list"),
     path("channels/<str:twitch_id>/", views.ChannelDetailView.as_view(), name="channel_detail"),
     path("debug/", views.debug_view, name="debug"),
+    path("datasets/", views.dataset_backups_view, name="dataset_backups"),
+    path(
+        "datasets/download/<path:relative_path>/",
+        views.dataset_backup_download_view,
+        name="dataset_backup_download",
+    ),
     path("docs/rss/", views.docs_rss_view, name="docs_rss"),
     path("emotes/", views.emote_gallery_view, name="emote_gallery"),
     path("games/", views.GamesGridView.as_view(), name="game_list"),
