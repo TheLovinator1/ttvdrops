@@ -11,6 +11,8 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.safestring import SafeText
 
+from twitch.utils import normalize_twitch_box_art_url
+
 if TYPE_CHECKING:
     import datetime
 
@@ -187,7 +189,7 @@ class Game(auto_prefetch.Model):
                 return self.box_art_file.url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve Game.box_art_file url: %s", exc)
-        return self.box_art or ""
+        return normalize_twitch_box_art_url(self.box_art or "")
 
 
 # MARK: TwitchGame

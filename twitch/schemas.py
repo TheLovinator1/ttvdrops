@@ -7,6 +7,8 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
+from twitch.utils import normalize_twitch_box_art_url
+
 
 class OrganizationSchema(BaseModel):
     """Schema for Twitch Organization objects."""
@@ -43,6 +45,24 @@ class GameSchema(BaseModel):
         "strict": True,
         "populate_by_name": True,
     }
+
+    @field_validator("box_art_url", mode="before")
+    @classmethod
+    def normalize_box_art_url(cls, v: str | None) -> str | None:
+        """Normalize Twitch box art URLs to higher quality variants.
+
+        Twitch's box art URLs often include size suffixes (e.g. -120x160) that point to lower quality images.
+        This validator removes those suffixes to get the original higher quality image.
+
+        Args:
+            v: The raw box_art_url value (str or None).
+
+        Returns:
+            The normalized box_art_url string, or None if input was None.
+        """
+        if v:
+            return normalize_twitch_box_art_url(v)
+        return v
 
     @model_validator(mode="before")
     @classmethod

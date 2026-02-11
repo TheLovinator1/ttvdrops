@@ -1158,7 +1158,7 @@ class GameDetailView(DetailView):
         game_description: str = (
             f"Twitch drop campaigns for {game_name}. View active, upcoming, and completed drop rewards."
         )
-        game_image: str | None = game.box_art
+        game_image: str | None = game.box_art_best_url
 
         game_schema: dict[str, Any] = {
             "@context": "https://schema.org",
@@ -1167,8 +1167,8 @@ class GameDetailView(DetailView):
             "description": game_description,
             "url": self.request.build_absolute_uri(reverse("twitch:game_detail", args=[game.twitch_id])),
         }
-        if game.box_art:
-            game_schema["image"] = game.box_art
+        if game.box_art_best_url:
+            game_schema["image"] = game.box_art_best_url
         if owners:
             game_schema["publisher"] = {
                 "@type": "Organization",
@@ -2295,7 +2295,7 @@ def export_games_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # n
             game.name,
             game.display_name,
             game.slug,
-            game.box_art,
+            game.box_art_best_url,
             game.added_at.isoformat() if game.added_at else "",
             game.updated_at.isoformat() if game.updated_at else "",
         ])
@@ -2321,7 +2321,7 @@ def export_games_json(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # 
             "name": game.name,
             "display_name": game.display_name,
             "slug": game.slug,
-            "box_art_url": game.box_art,
+            "box_art_url": game.box_art_best_url,
             "added_at": game.added_at.isoformat() if game.added_at else None,
             "updated_at": game.updated_at.isoformat() if game.updated_at else None,
         }

@@ -8,11 +8,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 from typing import Literal
+from urllib.parse import urlparse
 
+import httpx
 import json_repair
 from colorama import Fore
 from colorama import Style
 from colorama import init as colorama_init
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from django.core.management.base import CommandParser
@@ -40,6 +43,8 @@ from twitch.schemas import GraphQLResponse
 from twitch.schemas import OrganizationSchema
 from twitch.schemas import RewardCampaign as RewardCampaignSchema
 from twitch.schemas import TimeBasedDropSchema
+from twitch.utils import is_twitch_box_art_url
+from twitch.utils import normalize_twitch_box_art_url
 from twitch.utils import parse_date
 
 
@@ -642,6 +647,7 @@ class Command(BaseCommand):
                 update_fields.append("box_art")
             if update_fields:
                 game_obj.save(update_fields=update_fields)
+            self._download_game_box_art(game_obj, game_data.box_art_url or game_obj.box_art)
             return game_obj
 
         game_obj, created = Game.objects.update_or_create(
@@ -659,7 +665,33 @@ class Command(BaseCommand):
         if created:
             tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}")
         self.game_cache[game_data.twitch_id] = game_obj
+        self._download_game_box_art(game_obj, game_obj.box_art)
         return game_obj
+
+    def _download_game_box_art(self, game_obj: Game, box_art_url: str | None) -> None:
+        """Download and cache Twitch box art locally when possible."""
+        if not box_art_url:
+            return
+        if not is_twitch_box_art_url(box_art_url):
+            return
+        if game_obj.box_art_file and getattr(game_obj.box_art_file, "name", ""):
+            return
+
+        normalized_url: str = normalize_twitch_box_art_url(box_art_url)
+        parsed_url = urlparse(normalized_url)
+        suffix: str = Path(parsed_url.path).suffix or ".jpg"
+        file_name: str = f"{game_obj.twitch_id}{suffix}"
+
+        try:
+            response = httpx.get(normalized_url, timeout=20)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            tqdm.write(
+                f"{Fore.YELLOW}!{Style.RESET_ALL} Failed to download box art for {game_obj.twitch_id}: {exc}",
+            )
+            return
+
+        game_obj.box_art_file.save(file_name, ContentFile(response.content), save=True)
 
     def _get_or_create_channel(self, channel_info: ChannelInfoSchema) -> Channel:
         """Get or create a channel from cache or database.

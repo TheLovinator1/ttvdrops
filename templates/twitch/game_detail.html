@@ -22,11 +22,11 @@
            title="RSS feed for all campaigns">RSS feed for all campaigns</a>
     </div>
     <!-- Game image -->
-    {% if game.box_art %}
+    {% if game.box_art_best_url %}
         <img id="game-image"
              height="160"
              width="160"
-             src="{{ game.box_art }}"
+             src="{{ game.box_art_best_url }}"
              alt="{{ game.name }}" />
     {% endif %}
     <!-- Game owner -->

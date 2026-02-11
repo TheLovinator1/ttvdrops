@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from twitch.schemas import DropBenefitSchema
 from twitch.schemas import DropCampaignSchema
+from twitch.schemas import GameSchema
 from twitch.schemas import GraphQLResponse
 from twitch.schemas import TimeBasedDropSchema
 
@@ -116,6 +117,20 @@ def test_inventory_operation_validation() -> None:
     # Verify benefits
     assert len(first_drop.benefit_edges) == 1
     assert first_drop.benefit_edges[0].benefit.name == "Test Benefit"
+
+
+def test_game_schema_normalizes_twitch_box_art_url() -> None:
+    """Ensure Twitch box art URLs are normalized for higher quality."""
+    schema: GameSchema = GameSchema.model_validate(
+        {
+            "id": "65654",
+            "displayName": "Test Game",
+            "boxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/65654_IGDB-120x160.jpg",
+            "__typename": "Game",
+        },
+    )
+
+    assert schema.box_art_url == "https://static-cdn.jtvnw.net/ttv-boxart/65654_IGDB.jpg"
 
 
 def test_viewer_drops_dashboard_operation_still_works() -> None:

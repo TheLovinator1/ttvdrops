@@ -411,7 +411,7 @@ class GameFeed(Feed):
         slug: str = getattr(item, "slug", "")
         name: str = getattr(item, "name", "")
         display_name: str = getattr(item, "display_name", "")
-        box_art: str | None = getattr(item, "box_art", None)
+        box_art: str = item.box_art_best_url
         owner: Organization | None = getattr(item, "owner", None)
 
         description_parts: list[SafeText] = []
@@ -474,7 +474,7 @@ class GameFeed(Feed):
 
     def item_enclosure_url(self, item: Game) -> str:
         """Returns the URL of the game's box art for enclosure."""
-        box_art: str | None = getattr(item, "box_art", None)
+        box_art: str = item.box_art_best_url
         if box_art:
             return box_art
         return ""
