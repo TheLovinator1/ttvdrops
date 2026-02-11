@@ -4,22 +4,23 @@
 {% endblock title %}
 {% block content %}
     <main>
-        <h1 id="page-title">Games List</h1>
-        <p>
-            <a href="{% url 'twitch:game_list' %}">Grid View</a>
-        </p>
-        <!-- RSS Feeds -->
-        <div style="margin-bottom: 1rem;">
-            <a href="{% url 'twitch:game_feed' %}"
-               style="margin-right: 1rem"
-               title="RSS feed for all games">RSS feed for all games</a>
+        <h1>Games List</h1>
+        <div>
+            <a href="{% url 'twitch:games_grid' %}" title="View games as grid">[grid]</a>
+            <a href="{% url 'twitch:game_feed' %}" title="RSS feed for all games">[rss]</a>
+            <a href="{% url 'twitch:export_games_csv' %}"
+               title="Export all games as CSV">[csv]</a>
+            <a href="{% url 'twitch:export_games_json' %}"
+               title="Export all games as JSON">[json]</a>
         </div>
         {% if games_by_org %}
             {% for organization, games in games_by_org.items %}
-                <h2 id="org-{{ organization.twitch_id }}">{{ organization.name }}</h2>
-                <ul style="list-style: none; padding: 0; margin: 0;">
+                <h2>
+                    <a href="{% url 'twitch:organization_detail' organization.twitch_id %}">{{ organization.name }}</a>
+                </h2>
+                <ul>
                     {% for item in games %}
-                        <li id="game-{{ item.game.twitch_id }}">
+                        <li>
                             <a href="{% url 'twitch:game_detail' item.game.twitch_id %}">{{ item.game.display_name }}</a>
                         </li>
                     {% endfor %}

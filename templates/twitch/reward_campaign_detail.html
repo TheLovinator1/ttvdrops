@@ -90,14 +90,10 @@
     {% if reward_campaign.external_url or reward_campaign.about_url %}
         <p>
             {% if reward_campaign.external_url %}
-                <a href="{{ reward_campaign.external_url }}"
-                   target="_blank"
-                   rel="noopener noreferrer">Claim Reward →</a>
+                <a href="{{ reward_campaign.external_url }}" rel="nofollow ugc">Claim Reward →</a>
             {% endif %}
             {% if reward_campaign.about_url %}
-                <a href="{{ reward_campaign.about_url }}"
-                   target="_blank"
-                   rel="noopener noreferrer">Learn More →</a>
+                <a href="{{ reward_campaign.about_url }}" rel="nofollow ugc">Learn More →</a>
             {% endif %}
         </p>
     {% endif %}

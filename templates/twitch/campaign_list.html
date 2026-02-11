@@ -14,6 +14,24 @@
                    style="margin-right: 1rem"
                    title="RSS feed for all campaigns">RSS feed for all campaigns</a>
             </div>
+            <!-- Export Options -->
+            <div style="margin-bottom: 1rem;
+                        display: flex;
+                        gap: 1rem;
+                        flex-wrap: wrap">
+                <a href="{% url 'twitch:export_campaigns_csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+                   title="Export campaigns as CSV">📥 Campaigns (CSV)</a>
+                <a href="{% url 'twitch:export_campaigns_json' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+                   title="Export campaigns as JSON">📥 Campaigns (JSON)</a>
+                <a href="{% url 'twitch:export_games_csv' %}"
+                   title="Export all games as CSV">📥 Games (CSV)</a>
+                <a href="{% url 'twitch:export_games_json' %}"
+                   title="Export all games as JSON">📥 Games (JSON)</a>
+                <a href="{% url 'twitch:export_organizations_csv' %}"
+                   title="Export all organizations as CSV">📥 Organizations (CSV)</a>
+                <a href="{% url 'twitch:export_organizations_json' %}"
+                   title="Export all organizations as JSON">📥 Organizations (JSON)</a>
+            </div>
         </header>
         <form id="filter-form"
               method="get"

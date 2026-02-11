@@ -126,26 +126,19 @@ class TestBackupCommand:
         assert output_dir.exists()
         assert len(list(output_dir.glob("test-*.sql.zst"))) == 1
 
-    def test_backup_uses_default_directory(self) -> None:
+    def test_backup_uses_default_directory(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that backup uses DATA_DIR/datasets by default."""
         # Create test data so tables exist
         Organization.objects.create(twitch_id="test004", name="Test Org")
 
-        datasets_dir = settings.DATA_DIR / "datasets"
+        monkeypatch.setattr(settings, "DATA_DIR", tmp_path)
+        datasets_dir = tmp_path / "datasets"
         datasets_dir.mkdir(exist_ok=True, parents=True)
-
-        # Clean up any existing test backups
-        for old_backup in datasets_dir.glob("ttvdrops-*.sql.zst"):
-            old_backup.unlink()
 
         call_command("backup_db")
 
         backup_files = list(datasets_dir.glob("ttvdrops-*.sql.zst"))
         assert len(backup_files) >= 1
-
-        # Clean up
-        for backup in backup_files:
-            backup.unlink()
 
 
 @pytest.mark.django_db

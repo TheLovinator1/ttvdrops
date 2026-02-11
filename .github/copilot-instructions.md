@@ -30,6 +30,8 @@
 - Use template tags and filters for common operations
 - Avoid complex logic in templates - move it to views or template tags
 - Use static files properly with `{% load static %}`
+- Avoid hiding controls with `<details>` or other collapse elements unless explicitly needed
+- Prioritize accessibility and discoverability of features
 
 ## Settings
 - Use environment variables in a single `settings.py` file
@@ -67,3 +69,9 @@
 - Management commands in `twitch/management/commands/` for data import and maintenance tasks
 - Use `pyproject.toml` + uv for dependency and environment management
 - Use `uv run python manage.py <command>` to run Django management commands
+
+## Documentation & Project Organization
+- Only create documentation files when explicitly requested by the user
+- Do not generate markdown files summarizing work or changes unless asked
+- Keep code comments focused on "why" not "what"; the code itself should be clear
+- Update existing documentation rather than creating new files

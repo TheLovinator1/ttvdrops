@@ -3,14 +3,9 @@
     Chat Badges - ttvdrops
 {% endblock title %}
 {% block content %}
-    <h1>Twitch Chat Badges</h1>
-    <pre>
-These are the global chat badges available on Twitch.
-</pre>
+    <h1>{{ badge_sets.count }} Twitch Chat Badges</h1>
     {% if badge_sets %}
-        <p>total badge sets: {{ badge_sets.count }}</p>
         {% for data in badge_data %}
-            <hr />
             <h2>
                 <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">[{{ data.set.set_id }}]</a>
             </h2>
@@ -28,9 +23,10 @@ These are the global chat badges available on Twitch.
                         </td>
                         <td>
                             <strong>{{ badge.title }}</strong>
-                            <br />
-                            <br />
-                            {{ badge.description }}
+                            {% if badge.description != badge.title %}
+                                <br>
+                                {{ badge.description }}
+                            {% endif %}
                         </td>
                     </tr>
                 </table>
@@ -38,7 +34,6 @@ These are the global chat badges available on Twitch.
             <br />
             {% if data.badges|length > 1 %}<small>versions: {{ data.badges|length }}</small>{% endif %}
         {% endfor %}
-        <hr />
     {% else %}
         <p>No badge sets found.</p>
         <p>

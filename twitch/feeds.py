@@ -48,7 +48,15 @@ def _with_campaign_related(queryset: QuerySet[DropCampaign]) -> QuerySet[DropCam
         queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
     )
 
-    return queryset.select_related("game").prefetch_related("game__owners", "allow_channels", drops_prefetch)
+    return queryset.select_related("game").prefetch_related(
+        "game__owners",
+        Prefetch(
+            "allow_channels",
+            queryset=Channel.objects.order_by("display_name"),
+            to_attr="channels_ordered",
+        ),
+        drops_prefetch,
+    )
 
 
 def insert_date_info(item: Model, parts: list[SafeText]) -> None:
@@ -122,30 +130,27 @@ def _build_drops_data(drops_qs: QuerySet[TimeBasedDrop]) -> list[dict]:
     return drops_data
 
 
-def _build_channels_html(channels: QuerySet[Channel], game: Game | None) -> SafeText:
+def _build_channels_html(channels: list[Channel] | QuerySet[Channel], game: Game | None) -> SafeText:
     """Render up to max_links channel links as <li>, then a count of additional channels, or fallback to game category link.
 
     If only one channel and drop_requirements is '1 subscriptions required',
     merge the Twitch link with the '1 subs' row.
 
     Args:
-        channels (QuerySet[Channel]): The queryset of channels.
+        channels (list[Channel] | QuerySet[Channel]): The channels (already ordered).
         game (Game | None): The game object for fallback link.
 
     Returns:
         SafeText: HTML <ul> with up to max_links channel links, count of more, or fallback link.
     """  # noqa: E501
     max_links = 5
-    channels_all: list[Channel] = list(channels.all())
+    channels_all: list[Channel] = list(channels) if isinstance(channels, list) else list(channels.all())
     total: int = len(channels_all)
 
     if channels_all:
         items: list[SafeString] = [
             format_html(
-                "<li>"
-                '<a href="https://twitch.tv/{}" target="_blank" rel="noopener noreferrer"'
-                ' title="Watch {} on Twitch">{}</a>'
-                "</li>",
+                '<li><a href="https://twitch.tv/{}" title="Watch {} on Twitch">{}</a></li>',
                 ch.name,
                 ch.display_name,
                 ch.display_name,
@@ -175,10 +180,7 @@ def _build_channels_html(channels: QuerySet[Channel], game: Game | None) -> Safe
     # If no channel is associated, the drop is category-wide; link to the game's Twitch directory
     display_name: str = getattr(game, "display_name", "this game")
     return format_html(
-        "<ul><li>"
-        '<a href="{}" target="_blank" rel="noopener noreferrer"'
-        ' title="Browse {} category">Category-wide for {}</a>'
-        "</li></ul>",
+        '<ul><li><a href="{}" title="Browse {} category">Category-wide for {}</a></li></ul>',
         game.twitch_directory_url,
         display_name,
         display_name,
@@ -189,11 +191,9 @@ def _get_channel_name_from_drops(drops: QuerySet[TimeBasedDrop]) -> str | None:
     for d in drops:
         campaign: DropCampaign | None = getattr(d, "campaign", None)
         if campaign:
-            allow_channels: QuerySet[Channel] | None = getattr(campaign, "allow_channels", None)
-            if allow_channels:
-                channels: QuerySet[Channel, Channel] = allow_channels.all()
-                if channels:
-                    return channels[0].name
+            channels: list[Channel] | None = getattr(campaign, "channels_ordered", None)
+            if channels:
+                return channels[0].name
     return None
 
 
@@ -279,7 +279,7 @@ def _construct_drops_summary(drops_data: list[dict]) -> SafeText:
             badge_desc: str | None = badge_descriptions_by_title.get(benefit_name)
             if is_sub_required and channel_name:
                 linked_name: SafeString = format_html(
-                    '<a href="https://twitch.tv/{}" target="_blank">{}</a>',
+                    '<a href="https://twitch.tv/{}" >{}</a>',
                     channel_name,
                     benefit_name,
                 )
@@ -427,7 +427,7 @@ class GameFeed(Feed):
         if slug:
             description_parts.append(
                 SafeText(
-                    f"<p><a href='https://www.twitch.tv/directory/game/{slug}' target='_blank' rel='noopener noreferrer'>{game_name} by {game_owner}</a></p>",  # noqa: E501
+                    f"<p><a href='https://www.twitch.tv/directory/game/{slug}'>{game_name} by {game_owner}</a></p>",
                 ),
             )
         else:
@@ -559,7 +559,7 @@ class DropCampaignFeed(Feed):
 
         # Only show channels if drop is not subscription only
         if not getattr(item, "is_subscription_only", False):
-            channels: QuerySet[Channel] | None = getattr(item, "allow_channels", None)
+            channels: list[Channel] | None = getattr(item, "channels_ordered", None)
             if channels is not None:
                 game: Game | None = getattr(item, "game", None)
                 parts.append(_build_channels_html(channels, game=game))
@@ -704,7 +704,7 @@ class GameCampaignFeed(Feed):
 
         # Only show channels if drop is not subscription only
         if not getattr(item, "is_subscription_only", False):
-            channels: QuerySet[Channel] | None = getattr(item, "allow_channels", None)
+            channels: list[Channel] | None = getattr(item, "channels_ordered", None)
             if channels is not None:
                 game: Game | None = getattr(item, "game", None)
                 parts.append(_build_channels_html(channels, game=game))
@@ -888,7 +888,7 @@ class OrganizationCampaignFeed(Feed):
 
         # Only show channels if drop is not subscription only
         if not getattr(item, "is_subscription_only", False):
-            channels: QuerySet[Channel] | None = getattr(item, "allow_channels", None)
+            channels: list[Channel] | None = getattr(item, "channels_ordered", None)
             if channels is not None:
                 game: Game | None = getattr(item, "game", None)
                 parts.append(_build_channels_html(channels, game=game))

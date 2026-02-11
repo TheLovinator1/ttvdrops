@@ -3,33 +3,21 @@
     {{ badge_set.set_id }} Badges - ttvdrops
 {% endblock title %}
 {% block content %}
-    <h1>
-        Badge Set: <strong>{{ badge_set.set_id }}</strong>
-    </h1>
-    <p>
-        <a href="{% url 'twitch:badge_list' %}">Back to all badges</a>
-    </p>
-    <ul>
-        <li>
-            <strong>Set ID:</strong> {{ badge_set.set_id }}
-        </li>
-        <li>
-            <strong>Total Versions:</strong> {{ badges.count }}
-        </li>
-        <li>
-            <strong>Added:</strong> {{ badge_set.added_at|date:"Y-m-d H:i:s T" }}
-        </li>
-        <li>
-            <strong>Updated:</strong> {{ badge_set.updated_at|date:"Y-m-d H:i:s T" }}
-        </li>
-    </ul>
+    <h1>{{ badge_set.set_id }}</h1>
     {% if badges %}
-        <h2>Badge Versions ({{ badges.count }})</h2>
+        <h2>
+            {{ badges.count }}
+            {% if badges.count == 1 %}
+                version
+            {% else %}
+                versions
+            {% endif %}
+        </h2>
         <table>
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Preview</th>
+                    <th></th>
                     <th>Title</th>
                     <th>Description</th>
                     <th>Images</th>
@@ -52,35 +40,33 @@
                                         height: 72px !important;
                                         object-fit: contain" />
                         </td>
-                        <td>
-                            <strong>{{ badge.title }}</strong>
-                        </td>
+                        <td>{{ badge.title }}</td>
                         <td>{{ badge.description }}</td>
-                        <td style="font-size: 0.85em">
-                            <a href="{{ badge.image_url_1x }}" target="_blank">18px</a> |
-                            <a href="{{ badge.image_url_2x }}" target="_blank">36px</a> |
-                            <a href="{{ badge.image_url_4x }}" target="_blank">72px</a>
+                        <td>
+                            <a href="{{ badge.image_url_1x }}" rel="nofollow ugc">[18px]</a>
+                            <a href="{{ badge.image_url_2x }}" rel="nofollow ugc">[36px]</a>
+                            <a href="{{ badge.image_url_4x }}" rel="nofollow ugc">[72px]</a>
                         </td>
                         <td>
                             {% if badge.click_url %}
-                                <a href="{{ badge.click_url }}" target="_blank" rel="noopener">{{ badge.click_action|default:"visit_url" }}</a>
+                                <a href="{{ badge.click_url }}" rel="nofollow ugc">{{ badge.click_action }}</a>
                             {% else %}
-                                <em>None</em>
-                            {% endif %}
-                            {% if badge.award_campaigns %}
-                                <div style="margin-top: 8px; font-size: 0.9em;">
-                                    <strong>Awarded by Drop Campaigns:</strong>
-                                    <ul style="margin: 0; padding-left: 18px;">
-                                        {% for campaign in badge.award_campaigns %}
-                                            <li>
-                                                <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
+                                -
                             {% endif %}
                         </td>
                     </tr>
+                    {% if badge.award_campaigns %}
+                        <div>
+                            The following campaigns have the same name as this badge and may be awarding it:
+                            <ul>
+                                {% for campaign in badge.award_campaigns %}
+                                    <li>
+                                        <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
                 {% endfor %}
             </tbody>
         </table>

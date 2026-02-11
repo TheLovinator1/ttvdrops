@@ -3,12 +3,13 @@
     Debug
 {% endblock title %}
 {% block content %}
-    <h1 id="page-title">Debug Data Integrity Report</h1>
+    <h1>Debug</h1>
     <p>
-        Generated at: <time id="generation-time">{{ now }}</time>
+        Generated at: <time datetime="{{ now|date:'c' }}"
+       title="{{ now|date:'DATETIME_FORMAT' }}">{{ now }}</time>
     </p>
     <section>
-        <h2 id="operation-names-header">Distinct GraphQL operation_names ({{ operation_names_with_counts|length }})</h2>
+        <h2>Distinct GraphQL operation_names ({{ operation_names_with_counts|length }})</h2>
         {% if operation_names_with_counts %}
             <table id="operation-names-table">
                 <thead>
@@ -29,11 +30,11 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="games-without-owner-header">Games Without an Assigned Owner ({{ games_without_owner|length }})</h2>
+        <h2>Games Without an Assigned Owner ({{ games_without_owner|length }})</h2>
         {% if games_without_owner %}
-            <ul id="games-without-owner-list">
+            <ul>
                 {% for game in games_without_owner %}
-                    <li id="game-{{ game.twitch_id }}">
+                    <li>
                         <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.display_name }}</a> (ID: {{ game.twitch_id }})
                     </li>
                 {% endfor %}
@@ -43,14 +44,13 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="broken-image-campaigns-header">Campaigns With Broken Image URLs ({{ broken_image_campaigns|length }})</h2>
+        <h2>Campaigns without Image URLs ({{ broken_image_campaigns|length }})</h2>
         {% if broken_image_campaigns %}
-            <ul id="broken-image-campaigns-list">
+            <ul>
                 {% for c in broken_image_campaigns %}
-                    <li id="campaign-{{ c.twitch_id }}">
+                    <li>
                         <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
-                        - URL: {{ c.image_best_url|default:c.image_url|default:'(empty)' }}
                     </li>
                 {% endfor %}
             </ul>
@@ -59,16 +59,13 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="broken-benefit-images-header">Benefits With Broken Image URLs ({{ broken_benefit_images|length }})</h2>
+        <h2>Benefits without image URLs ({{ broken_benefit_images|length }})</h2>
         {% if broken_benefit_images %}
-            <ul id="broken-benefit-images-list">
+            <ul>
                 {% for b in broken_benefit_images %}
-                    {# A benefit is linked to a game via a drop and a campaign. #}
-                    {# We use the 'with' tag to get the first drop for cleaner access. #}
                     {% with first_drop=b.drops.all.0 %}
-                        <li id="benefit-{{ b.twitch_id }}">
+                        <li>
                             {{ b.name }}
-                            {# Check if the relationship path to the game exists #}
                             {% if first_drop and first_drop.campaign and first_drop.campaign.game %}
                                 (Game: <a href="{% url 'twitch:game_detail' first_drop.campaign.game.twitch_id %}">{{ first_drop.campaign.game.display_name }}</a>)
                             {% else %}
@@ -84,11 +81,11 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="active-missing-image-header">Active Campaigns Missing Image ({{ active_missing_image|length }})</h2>
+        <h2>Active Campaigns Missing Image ({{ active_missing_image|length }})</h2>
         {% if active_missing_image %}
-            <ul id="active-missing-image-list">
+            <ul>
                 {% for c in active_missing_image %}
-                    <li id="campaign-{{ c.twitch_id }}">
+                    <li>
                         <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
                     </li>
@@ -99,11 +96,11 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="drops-without-benefits-header">Time-Based Drops Without Benefits ({{ drops_without_benefits|length }})</h2>
+        <h2>Time-Based Drops Without Benefits ({{ drops_without_benefits|length }})</h2>
         {% if drops_without_benefits %}
-            <ul id="drops-without-benefits-list">
+            <ul>
                 {% for d in drops_without_benefits %}
-                    <li id="drop-{{ d.twitch_id }}">
+                    <li>
                         {{ d.name }}
                         (Campaign: <a href="{% url 'twitch:campaign_detail' d.campaign.twitch_id %}">{{ d.campaign.name }}</a>
                         in Game: <a href="{% url 'twitch:game_detail' d.campaign.game.twitch_id %}">{{ d.campaign.game.display_name }}</a>)
@@ -115,11 +112,11 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="invalid-date-campaigns-header">Campaigns With Invalid Dates ({{ invalid_date_campaigns|length }})</h2>
+        <h2>Campaigns With Invalid Dates ({{ invalid_date_campaigns|length }})</h2>
         {% if invalid_date_campaigns %}
-            <ul id="invalid-date-campaigns-list">
+            <ul>
                 {% for c in invalid_date_campaigns %}
-                    <li id="campaign-{{ c.twitch_id }}">
+                    <li>
                         <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
                         - Start: {{ c.start_at|default:'(none)' }} / End: {{ c.end_at|default:'(none)' }}
@@ -131,9 +128,9 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="duplicate-name-campaigns-header">Duplicate Campaign Names Per Game ({{ duplicate_name_campaigns|length }})</h2>
+        <h2>Duplicate Campaign Names Per Game ({{ duplicate_name_campaigns|length }})</h2>
         {% if duplicate_name_campaigns %}
-            <table id="duplicate-name-campaigns-table">
+            <table>
                 <thead>
                     <tr>
                         <th>Game</th>
@@ -158,13 +155,11 @@
         {% endif %}
     </section>
     <section>
-        <h2 id="missing-details-campaigns-header">
-            Campaigns Missing DropCampaignDetails ({{ campaigns_missing_dropcampaigndetails|length }})
-        </h2>
+        <h2>Campaigns Missing DropCampaignDetails ({{ campaigns_missing_dropcampaigndetails|length }})</h2>
         {% if campaigns_missing_dropcampaigndetails %}
-            <ul id="missing-details-campaigns-list">
+            <ul>
                 {% for c in campaigns_missing_dropcampaigndetails %}
-                    <li id="campaign-{{ c.twitch_id }}">
+                    <li>
                         <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
                         - Operations: {{ c.operation_names|join:", "|default:'(none)' }}

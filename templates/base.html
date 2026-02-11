@@ -155,31 +155,38 @@
         </style>
     </head>
     <body>
-        <h1 style="margin-top: 0.5em; margin-bottom: 0.5em; ">ttvdrops</h1>
-        <strong>Twitch:</strong>
-        <a href="{% url 'twitch:dashboard' %}">Dashboard</a> |
-        <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> |
-        <a href="{% url 'twitch:reward_campaign_list' %}">Rewards</a> |
-        <a href="{% url 'twitch:game_list' %}">Games</a> |
-        <a href="{% url 'twitch:org_list' %}">Orgs</a> |
-        <a href="{% url 'twitch:channel_list' %}">Channels</a> |
-        <a href="{% url 'twitch:badge_list' %}">Badges</a> |
-        <a href="{% url 'twitch:emote_gallery' %}">Emotes</a>
-        <br />
-        <strong>Other:</strong>
-        <a href="{% url 'twitch:docs_rss' %}">RSS</a> |
-        <a href="{% url 'twitch:debug' %}">Debug</a> |
-        <a href="{% url 'twitch:dataset_backups' %}">Dataset</a> |
-        <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
-        <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a>
-        <br />
-        <form action="{% url 'twitch:search' %}" method="get">
-            <input type="search"
-                   name="q"
-                   placeholder="Search..."
-                   value="{{ request.GET.q }}" />
-            <button type="submit">Search</button>
-        </form>
+        <nav>
+            <a href="{% url 'twitch:dashboard' %}">Dashboard</a> |
+            <a href="{% url 'twitch:docs_rss' %}">RSS</a> |
+            <a href="{% url 'twitch:debug' %}">Debug</a> |
+            <a href="{% url 'twitch:dataset_backups' %}">Dataset</a> |
+            <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
+            <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a> |
+            <form action="{% url 'twitch:search' %}"
+                  method="get"
+                  style="display: inline">
+                <input type="search"
+                       name="q"
+                       placeholder="Search..."
+                       value="{{ request.GET.q }}" />
+                <button type="submit">Search</button>
+            </form>
+            <br />
+            <strong>Twitch</strong>
+            <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> |
+            <a href="{% url 'twitch:reward_campaign_list' %}">Rewards</a> |
+            <a href="{% url 'twitch:games_grid' %}">Games</a> |
+            <a href="{% url 'twitch:org_list' %}">Orgs</a> |
+            <a href="{% url 'twitch:channel_list' %}">Channels</a> |
+            <a href="{% url 'twitch:badge_list' %}">Badges</a> |
+            <a href="{% url 'twitch:emote_gallery' %}">Emotes</a>
+            <br />
+            <strong>Other sites</strong>
+            <a href="#">Steam</a> |
+            <a href="#">Kick</a> |
+            <a href="#">YouTube</a>
+        </nav>
+        <hr />
         {% if messages %}
             <ul>
                 {% for message in messages %}

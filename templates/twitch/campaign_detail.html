@@ -5,52 +5,37 @@
 {% endblock title %}
 {% block content %}
     <!-- Campaign Title -->
-    {% if campaign.game %}
-        <h1 id="campaign-title">
-            <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.get_game_name }}</a> - {{ campaign.clean_name }}
-        </h1>
-    {% else %}
-        <h1 id="campaign-title">{{ campaign.clean_name }}</h1>
-    {% endif %}
-    {% if owner %}
-        <p id="campaign-owner">
-            <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
-        </p>
-    {% endif %}
-    <!-- RSS Feeds -->
-    <div style="margin-bottom: 1rem;">
+    <h1>
         {% if campaign.game %}
-            <a href="{% url 'twitch:game_campaign_feed' campaign.game.twitch_id %}"
-               style="margin-right: 1rem"
-               title="RSS feed for {{ campaign.game.display_name }} campaigns">RSS feed for {{ campaign.game.display_name }} campaigns</a>
+            <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.get_game_name }}</a> - {{ campaign.clean_name }}
+        {% else %}
+            {{ campaign.clean_name }}
         {% endif %}
-        {% if owner %}
-            <a href="{% url 'twitch:organization_campaign_feed' owner.twitch_id %}"
-               style="margin-right: 1rem"
-               title="RSS feed for {{ owner.name }} campaigns">RSS feed for {{ owner.name }} campaigns</a>
-        {% endif %}
-    </div>
+    </h1>
+    <!-- Campaign Owners -->
+    {% for org in owners %}
+        <p>
+            <a href="{% url 'twitch:organization_detail' org.twitch_id %}">{{ org.name }}</a>
+        </p>
+    {% endfor %}
     <!-- Campaign image -->
-    {% if campaign.image_best_url or campaign.image_url %}
-        <img id="campaign-image"
-             height="160"
+    {% if campaign.image_url %}
+        <img height="160"
              width="160"
              src="{{ campaign.image_best_url|default:campaign.image_url }}"
              alt="{{ campaign.name }}" />
     {% endif %}
     <!-- Campaign description -->
-    <p id="campaign-description">{{ campaign.description|linebreaksbr }}</p>
+    <p>{{ campaign.description|linebreaksbr }}</p>
     <!-- Campaign end times -->
     <div>
         {% if campaign.end_at < now %}
-            <time id="campaign-end-time"
-                  datetime="{{ campaign.end_at|date:'c' }}"
+            <time datetime="{{ campaign.end_at|date:'c' }}"
                   title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">
                 <strong>Ended</strong> {{ campaign.end_at|timesince }} ago
             </time>
         {% else %}
-            <time id="campaign-end-time"
-                  datetime="{{ campaign.end_at|date:'c' }}"
+            <time datetime="{{ campaign.end_at|date:'c' }}"
                   title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">
                 <strong>Ends in</strong> {{ campaign.end_at|timeuntil }}
             </time>
@@ -59,73 +44,47 @@
     <!-- Campaign start times -->
     <div>
         {% if campaign.start_at > now %}
-            <time id="campaign-start-time"
-                  datetime="{{ campaign.start_at|date:'c' }}"
+            <time datetime="{{ campaign.start_at|date:'c' }}"
                   title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">
                 <strong>Starts in</strong> {{ campaign.start_at|timeuntil }}
             </time>
         {% else %}
-            <time id="campaign-start-time"
-                  datetime="{{ campaign.start_at|date:'c' }}"
+            <time datetime="{{ campaign.start_at|date:'c' }}"
                   title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">
                 <strong>Started</strong> {{ campaign.start_at|timesince }} ago
             </time>
         {% endif %}
     </div>
-    <!-- Campaign added times -->
-    <div>
-        <time id="campaign-added-time"
-              datetime="{{ campaign.added_at|date:'c' }}"
-              title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">
-            <strong>Scraped</strong> {{ campaign.added_at|timesince }} ago
-        </time>
-    </div>
     <!-- Campaign duration -->
     <div>
-        <time id="campaign-duration"
-              datetime="{{ campaign.start_at|date:'c' }} to {{ campaign.end_at|date:'c' }}"
+        <time datetime="{{ campaign.duration_iso }}"
               title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}">
-            <strong>Duration</strong> {{ campaign.start_at|timesince:campaign.end_at }}
+            <strong>Duration</strong> {{ campaign.end_at|timeuntil:campaign.start_at }}
         </time>
     </div>
-    <!-- Campaign Detail URL -->
-    {% if campaign.details_url %}
-        {# TODO: Archive this URL automatically #}
-        <p>
-            <a id="campaign-details-url"
-               href="{{ campaign.details_url }}"
-               target="_blank">Official Details</a>
-        </p>
-    {% endif %}
-    <!-- Campaign Account Link URL -->
-    {% if campaign.account_link_url %}
-        {# TODO: Archive this URL automatically #}
-        <p>
-            <a id="campaign-account-link-url"
-               href="{{ campaign.account_link_url }}"
-               target="_blank">Connect Account</a>
-        </p>
-    {% endif %}
-    <!-- Allowed Channels -->
+    <div>
+        <!-- Campaign Detail URL -->
+        {% if campaign.details_url %}<a href="{{ campaign.details_url }}" rel="nofollow ugc">[details]</a>{% endif %}
+        <!-- Campaign Account Link URL -->
+        {% if campaign.account_link_url %}
+            <a href="{{ campaign.account_link_url }}" rel="nofollow ugc">[connect]</a>
+        {% endif %}
+        <!-- RSS Feeds -->
+        {% if campaign.game %}
+            <a href="{% url 'twitch:game_campaign_feed' campaign.game.twitch_id %}"
+               title="RSS feed for {{ campaign.game.display_name }} campaigns">[rss]</a>
+        {% endif %}
+    </div>
     {% if allowed_channels %}
         <h5>Allowed Channels</h5>
-        <div id="allowed-channels" style="margin-bottom: 20px;">
+        <div>
             {% for channel in allowed_channels %}
-                <a href="{% url 'twitch:channel_detail' channel.twitch_id %}"
-                   style="display: inline-block;
-                          margin: 2px 5px 2px 0;
-                          padding: 3px 8px;
-                          background-color: #9146ff;
-                          color: white;
-                          text-decoration: none;
-                          border-radius: 4px;
-                          font-size: 0.9em">{{ channel.display_name }}</a>
+                <a href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name }}</a>
             {% endfor %}
         </div>
     {% else %}
         <a href="{{ campaign.game.twitch_directory_url }}"
-           target="_blank"
-           rel="noopener noreferrer"
+           rel="nofollow ugc"
            title="Find streamers playing {{ campaign.game.display_name }} with drops enabled">
             Go to a participating live channel
         </a>
@@ -135,7 +94,7 @@
         <table id="drops-table" style="border-collapse: collapse; width: 100%;">
             <thead>
                 <tr>
-                    <th>Benefits</th>
+                    <th></th>
                     <th>Drop Name</th>
                     <th>Requirements</th>
                     <th>Period</th>

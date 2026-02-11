@@ -1,21 +1,17 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}
-    Channels - Twitch Drops Tracker
+    Channels
 {% endblock title %}
 {% block content %}
-    <h1 id="page-title">Channels</h1>
+    <h1>Channels</h1>
     <p>Browse all channels that can participate in drop campaigns</p>
-    <form id="search-form"
-          method="get"
-          action="{% url 'twitch:channel_list' %}">
-        <label for="search">Search:</label>
+    <form method="get" action="{% url 'twitch:channel_list' %}">
         <input type="text"
-               id="search"
                name="search"
                value="{{ search_query }}"
                placeholder="Search channels..." />
-        <button id="search-button" type="submit">Search</button>
+        <button type="submit">Search</button>
         {% if search_query %}
             <a href="{% url 'twitch:channel_list' %}">Clear</a>
         {% endif %}
@@ -27,42 +23,36 @@
                     <th>Channel</th>
                     <th>Username</th>
                     <th>Campaigns</th>
-                    <th>Added</th>
                 </tr>
             </thead>
             <tbody>
                 {% for channel in channels %}
-                    <tr id="channel-row-{{ channel.twitch_id }}">
+                    <tr>
                         <td>
-                            <a id="channel-link-{{ channel.twitch_id }}"
-                               href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name }}</a>
+                            <a href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name }}</a>
                         </td>
                         <td>{{ channel.name }}</td>
                         <td>{{ channel.campaign_count|default:0 }}</td>
-                        <td>
-                            <time datetime="{{ channel.added_at|date:'c' }}"
-                                  title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">
-                                {{ channel.added_at|timesince }} ago
-                            </time>
-                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
         <!-- Pagination -->
         {% if is_paginated %}
-            <p>
-                {% if page_obj.has_previous %}
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page=1">««</a>
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page={{ page_obj.previous_page_number }}">«</a>
-                {% endif %}
-                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                {% if page_obj.has_next %}
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page={{ page_obj.next_page_number }}">»</a>
-                    <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page={{ page_obj.paginator.num_pages }}">»»</a>
-                {% endif %}
-            </p>
-            <p>Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} channels</p>
+            <div>
+                <p>
+                    {% if page_obj.has_previous %}
+                        <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page=1">[first]</a>
+                        <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page={{ page_obj.previous_page_number }}">[previous]</a>
+                    {% endif %}
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    {% if page_obj.has_next %}
+                        <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page={{ page_obj.next_page_number }}">[next]</a>
+                        <a href="?{% if search_query %}search={{ search_query }}&{% endif %}page={{ page_obj.paginator.num_pages }}">[last]</a>
+                    {% endif %}
+                </p>
+                <p>Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} channels</p>
+            </div>
         {% endif %}
     {% else %}
         {% if search_query %}

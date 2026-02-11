@@ -6,15 +6,13 @@
     <main>
         <header>
             <h1 id="page-title">All Games</h1>
-            <p>Browse all available games</p>
-            <p>
-                <a href="{% url 'twitch:game_list_simple' %}">List View</a>
-            </p>
-            <!-- RSS Feeds -->
-            <div style="margin-bottom: 1rem;">
-                <a href="{% url 'twitch:game_feed' %}"
-                   style="margin-right: 1rem"
-                   title="RSS feed for all games">RSS feed for all games</a>
+            <div>
+                <a href="{% url 'twitch:games_list' %}" title="View games as list">[list]</a>
+                <a href="{% url 'twitch:game_feed' %}" title="RSS feed for all games">[rss]</a>
+                <a href="{% url 'twitch:export_games_csv' %}"
+                   title="Export all games as CSV">[csv]</a>
+                <a href="{% url 'twitch:export_games_json' %}"
+                   title="Export all games as JSON">[json]</a>
             </div>
         </header>
         {% if games_by_org %}

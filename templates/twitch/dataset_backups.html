@@ -1,40 +1,31 @@
 {% extends "base.html" %}
 {% block title %}
-    Dataset Backups
+    Dataset
 {% endblock title %}
 {% block content %}
     <main>
-        <h1 id="page-title">Dataset Backups</h1>
-        <p>Scanning {{ data_dir }} for database backups.</p>
+        <h1>Dataset Backups</h1>
         {% if datasets %}
             <table>
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Path</th>
                         <th>Size</th>
                         <th>Updated</th>
-                        <th>Download</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for dataset in datasets %}
-                        <tr id="dataset-row-{{ forloop.counter }}">
-                            <td>{{ dataset.name }}</td>
-                            <td>{{ dataset.display_path }}</td>
+                        <tr">
+                            <td>
+                                <a href="{% url 'twitch:dataset_backup_download' dataset.download_path %}">{{ dataset.name }}</a>
+                            </td>
                             <td>{{ dataset.size }}</td>
                             <td>
                                 <time datetime="{{ dataset.updated_at|date:'c' }}"
                                       title="{{ dataset.updated_at|date:'DATETIME_FORMAT' }}">
-                                    {{ dataset.updated_at|timesince }} ago
+                                    {{ dataset.updated_at|timesince }} ago ({{ dataset.updated_at|date:'M d, Y H:i' }})
                                 </time>
-                            </td>
-                            <td>
-                                {% if dataset.download_path %}
-                                    <a href="{% url 'twitch:dataset_backup_download' dataset.download_path %}">Download</a>
-                                {% else %}
-                                    -
-                                {% endif %}
                             </td>
                         </tr>
                     {% endfor %}

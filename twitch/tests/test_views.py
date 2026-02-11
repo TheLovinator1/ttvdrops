@@ -522,14 +522,14 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_games_grid_view(self, client: Client) -> None:
         """Test games grid view returns 200 and has games in context."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:game_list"))
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:games_grid"))
         assert response.status_code == 200
         assert "games" in response.context
 
     @pytest.mark.django_db
     def test_games_list_view(self, client: Client) -> None:
         """Test games list view returns 200 and has games in context."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:game_list_simple"))
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:games_list"))
         assert response.status_code == 200
         assert "games" in response.context
 

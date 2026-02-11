@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import datetime
 import json
 import logging
@@ -473,7 +474,14 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         Http404: If the campaign is not found.
     """
     try:
-        campaign: DropCampaign = DropCampaign.objects.prefetch_related("game__owners").get(
+        campaign: DropCampaign = DropCampaign.objects.prefetch_related(
+            "game__owners",
+            Prefetch(
+                "allow_channels",
+                queryset=Channel.objects.order_by("display_name"),
+                to_attr="channels_ordered",
+            ),
+        ).get(
             twitch_id=twitch_id,
         )
     except DropCampaign.DoesNotExist as exc:
@@ -591,7 +599,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         "drops": enhanced_drops,
         "campaign_data": format_and_color_json(campaign_data[0]),
         "owners": list(campaign.game.owners.all()),
-        "allowed_channels": campaign.allow_channels.all().order_by("display_name"),
+        "allowed_channels": getattr(campaign, "channels_ordered", []),
     }
 
     return render(request, "twitch/campaign_detail.html", context)
@@ -809,7 +817,6 @@ class GameDetailView(DetailView):
                     "start_at",
                     "end_at",
                     "allow_is_enabled",
-                    "allow_channels",
                     "game",
                     "operation_names",
                     "added_at",
@@ -821,12 +828,15 @@ class GameDetailView(DetailView):
             )
             game_data[0]["fields"]["campaigns"] = campaigns_data
 
+        owners: list[Organization] = list(game.owners.all())
+
         context.update(
             {
                 "active_campaigns": active_campaigns,
                 "upcoming_campaigns": upcoming_campaigns,
                 "expired_campaigns": expired_campaigns,
-                "owners": list(game.owners.all()),
+                "owner": owners[0] if owners else None,
+                "owners": owners,
                 "drop_awarded_badges": drop_awarded_badges,
                 "now": now,
                 "game_data": format_and_color_json(game_data[0]),
@@ -853,7 +863,11 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         .select_related("game")
         .prefetch_related("game__owners")
         .prefetch_related(
-            "allow_channels",
+            Prefetch(
+                "allow_channels",
+                queryset=Channel.objects.order_by("display_name"),
+                to_attr="channels_ordered",
+            ),
         )
         .order_by("-start_at")
     )
@@ -874,7 +888,10 @@ def dashboard(request: HttpRequest) -> HttpResponse:
                 "campaigns": [],
             }
 
-        campaigns_by_game[game_id]["campaigns"].append(campaign)
+        campaigns_by_game[game_id]["campaigns"].append({
+            "campaign": campaign,
+            "allowed_channels": getattr(campaign, "channels_ordered", []),
+        })
 
     # Get active reward campaigns (Quest rewards)
     active_reward_campaigns: QuerySet[RewardCampaign] = (
@@ -1519,3 +1536,286 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     }
 
     return render(request, "twitch/badge_set_detail.html", context)
+
+
+# MARK: Export Views
+def export_campaigns_csv(request: HttpRequest) -> HttpResponse:
+    """Export drop campaigns to CSV format.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: CSV file response.
+    """
+    # Get filters from query parameters
+    game_filter: str | None = request.GET.get("game")
+    status_filter: str | None = request.GET.get("status")
+
+    queryset: QuerySet[DropCampaign] = DropCampaign.objects.all()
+
+    if game_filter:
+        queryset = queryset.filter(game__twitch_id=game_filter)
+
+    queryset = queryset.prefetch_related("game__owners").order_by("-start_at")
+
+    now: datetime.datetime = timezone.now()
+    if status_filter == "active":
+        queryset = queryset.filter(start_at__lte=now, end_at__gte=now)
+    elif status_filter == "upcoming":
+        queryset = queryset.filter(start_at__gt=now)
+    elif status_filter == "expired":
+        queryset = queryset.filter(end_at__lt=now)
+
+    # Create CSV response
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = "attachment; filename=campaigns.csv"
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Twitch ID",
+        "Name",
+        "Description",
+        "Game",
+        "Status",
+        "Start Date",
+        "End Date",
+        "Details URL",
+        "Created At",
+        "Updated At",
+    ])
+
+    for campaign in queryset:
+        # Determine campaign status
+        if campaign.start_at and campaign.end_at:
+            if campaign.start_at <= now <= campaign.end_at:
+                status = "Active"
+            elif campaign.start_at > now:
+                status = "Upcoming"
+            else:
+                status = "Expired"
+        else:
+            status = "Unknown"
+
+        writer.writerow([
+            campaign.twitch_id,
+            campaign.name,
+            campaign.description[:100] if campaign.description else "",  # Truncate for CSV
+            campaign.game.name if campaign.game else "",
+            status,
+            campaign.start_at.isoformat() if campaign.start_at else "",
+            campaign.end_at.isoformat() if campaign.end_at else "",
+            campaign.details_url,
+            campaign.added_at.isoformat() if campaign.added_at else "",
+            campaign.updated_at.isoformat() if campaign.updated_at else "",
+        ])
+
+    return response
+
+
+def export_campaigns_json(request: HttpRequest) -> HttpResponse:
+    """Export drop campaigns to JSON format.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: JSON file response.
+    """
+    # Get filters from query parameters
+    game_filter: str | None = request.GET.get("game")
+    status_filter: str | None = request.GET.get("status")
+
+    queryset: QuerySet[DropCampaign] = DropCampaign.objects.all()
+
+    if game_filter:
+        queryset = queryset.filter(game__twitch_id=game_filter)
+
+    queryset = queryset.prefetch_related("game__owners").order_by("-start_at")
+
+    now = timezone.now()
+    if status_filter == "active":
+        queryset = queryset.filter(start_at__lte=now, end_at__gte=now)
+    elif status_filter == "upcoming":
+        queryset = queryset.filter(start_at__gt=now)
+    elif status_filter == "expired":
+        queryset = queryset.filter(end_at__lt=now)
+
+    # Build data list
+    campaigns_data: list[dict[str, Any]] = []
+    for campaign in queryset:
+        # Determine campaign status
+        if campaign.start_at and campaign.end_at:
+            if campaign.start_at <= now <= campaign.end_at:
+                status = "Active"
+            elif campaign.start_at > now:
+                status = "Upcoming"
+            else:
+                status = "Expired"
+        else:
+            status = "Unknown"
+
+        campaigns_data.append({
+            "twitch_id": campaign.twitch_id,
+            "name": campaign.name,
+            "description": campaign.description,
+            "game": campaign.game.name if campaign.game else None,
+            "game_twitch_id": campaign.game.twitch_id if campaign.game else None,
+            "status": status,
+            "start_at": campaign.start_at.isoformat() if campaign.start_at else None,
+            "end_at": campaign.end_at.isoformat() if campaign.end_at else None,
+            "details_url": campaign.details_url,
+            "account_link_url": campaign.account_link_url,
+            "added_at": campaign.added_at.isoformat() if campaign.added_at else None,
+            "updated_at": campaign.updated_at.isoformat() if campaign.updated_at else None,
+        })
+
+    # Create JSON response
+    response = HttpResponse(
+        json.dumps(campaigns_data, indent=2),
+        content_type="application/json",
+    )
+    response["Content-Disposition"] = "attachment; filename=campaigns.json"
+
+    return response
+
+
+def export_games_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # noqa: ARG001
+    """Export games to CSV format.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: CSV file response.
+    """
+    queryset: QuerySet[Game] = Game.objects.all().order_by("display_name")
+
+    # Create CSV response
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = "attachment; filename=games.csv"
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Twitch ID",
+        "Name",
+        "Display Name",
+        "Slug",
+        "Box Art URL",
+        "Added At",
+        "Updated At",
+    ])
+
+    for game in queryset:
+        writer.writerow([
+            game.twitch_id,
+            game.name,
+            game.display_name,
+            game.slug,
+            game.box_art,
+            game.added_at.isoformat() if game.added_at else "",
+            game.updated_at.isoformat() if game.updated_at else "",
+        ])
+
+    return response
+
+
+def export_games_json(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # noqa: ARG001
+    """Export games to JSON format.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: JSON file response.
+    """
+    queryset: QuerySet[Game] = Game.objects.all().order_by("display_name")
+
+    # Build data list
+    games_data: list[dict[str, Any]] = [
+        {
+            "twitch_id": game.twitch_id,
+            "name": game.name,
+            "display_name": game.display_name,
+            "slug": game.slug,
+            "box_art_url": game.box_art,
+            "added_at": game.added_at.isoformat() if game.added_at else None,
+            "updated_at": game.updated_at.isoformat() if game.updated_at else None,
+        }
+        for game in queryset
+    ]
+
+    # Create JSON response
+    response = HttpResponse(
+        json.dumps(games_data, indent=2),
+        content_type="application/json",
+    )
+    response["Content-Disposition"] = "attachment; filename=games.json"
+
+    return response
+
+
+def export_organizations_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG001
+    """Export organizations to CSV format.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: CSV file response.
+    """
+    queryset: QuerySet[Organization] = Organization.objects.all().order_by("name")
+
+    # Create CSV response
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = "attachment; filename=organizations.csv"
+
+    writer = csv.writer(response)
+    writer.writerow([
+        "Twitch ID",
+        "Name",
+        "Added At",
+        "Updated At",
+    ])
+
+    for org in queryset:
+        writer.writerow([
+            org.twitch_id,
+            org.name,
+            org.added_at.isoformat() if org.added_at else "",
+            org.updated_at.isoformat() if org.updated_at else "",
+        ])
+
+    return response
+
+
+def export_organizations_json(request: HttpRequest) -> HttpResponse:  # noqa: ARG001
+    """Export organizations to JSON format.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: JSON file response.
+    """
+    queryset: QuerySet[Organization] = Organization.objects.all().order_by("name")
+
+    # Build data list
+    orgs_data: list[dict[str, Any]] = [
+        {
+            "twitch_id": org.twitch_id,
+            "name": org.name,
+            "added_at": org.added_at.isoformat() if org.added_at else None,
+            "updated_at": org.updated_at.isoformat() if org.updated_at else None,
+        }
+        for org in queryset
+    ]
+
+    # Create JSON response
+    response = HttpResponse(
+        json.dumps(orgs_data, indent=2),
+        content_type="application/json",
+    )
+    response["Content-Disposition"] = "attachment; filename=organizations.json"
+
+    return response

@@ -118,7 +118,6 @@ class TestBadgeSetDetailView:
         content = response.content.decode()
 
         assert "vip" in content
-        assert "Total Versions:" in content
         assert "1" in content
 
     def test_badge_set_detail_json_data(self, client: Client) -> None:

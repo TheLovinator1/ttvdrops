@@ -10,6 +10,13 @@
            style="margin-right: 1rem"
            title="RSS feed for all organizations">RSS feed for organizations</a>
     </div>
+    <!-- Export Options -->
+    <div style="margin-bottom: 1rem; display: flex; gap: 1rem;">
+        <a href="{% url 'twitch:export_organizations_csv' %}"
+           title="Export all organizations as CSV">[csv]</a>
+        <a href="{% url 'twitch:export_organizations_json' %}"
+           title="Export all organizations as JSON">[json]</a>
+    </div>
     {% if orgs %}
         <ul id="org-list">
             {% for organization in orgs %}

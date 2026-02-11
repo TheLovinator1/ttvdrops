@@ -4,22 +4,21 @@
 {% endblock title %}
 {% block content %}
     <!-- Game Title -->
-    <h1 id="game-name">
+    <h1>
         {{ game.display_name }}
         {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
     </h1>
     <!-- RSS Feeds -->
-    <div style="margin-bottom: 1rem;">
+    <div>
         <a href="{% url 'twitch:game_campaign_feed' game.twitch_id %}"
-           style="margin-right: 1rem"
            title="RSS feed for {{ game.display_name }} campaigns">RSS feed for {{ game.display_name }} campaigns</a>
-        {% if owner %}
-            <a href="{% url 'twitch:organization_campaign_feed' owner.twitch_id %}"
-               style="margin-right: 1rem"
-               title="RSS feed for {{ owner.name }} campaigns">RSS feed for {{ owner.name }} campaigns</a>
+        {% if owners %}
+            {% for owner in owners %}
+                <a href="{% url 'twitch:organization_campaign_feed' owner.twitch_id %}"
+                   title="RSS feed for {{ owner.name }} campaigns">RSS feed for {{ owner.name }} campaigns</a>
+            {% endfor %}
         {% endif %}
         <a href="{% url 'twitch:campaign_feed' %}"
-           style="margin-right: 1rem"
            title="RSS feed for all campaigns">RSS feed for all campaigns</a>
     </div>
     <!-- Game image -->
@@ -31,9 +30,14 @@
              alt="{{ game.name }}" />
     {% endif %}
     <!-- Game owner -->
-    {% if owner %}
-        <small><a id="owner-link"
-   href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a></small>
+    {% if owners %}
+        <small>
+            {% for owner in owners %}
+                <a id="owner-link-{{ owner.twitch_id }}"
+                   href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
+                {% if not forloop.last %},{% endif %}
+            {% endfor %}
+        </small>
     {% endif %}
     {% if active_campaigns %}
         <h5 id="active-campaigns-header">Active Campaigns</h5>

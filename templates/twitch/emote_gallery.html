@@ -4,28 +4,19 @@
 {% endblock title %}
 {% block content %}
   <h1>Emotes</h1>
-  <div class="emote-gallery"
-       style="display: flex;
-              flex-wrap: wrap;
-              gap: 1.5rem;
-              justify-content: flex-start">
-    {% for emote in emotes %}
-      <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"
-         title="{{ emote.campaign.name }}"
-         style="display: inline-block">
-        <img src="{{ emote.image_url }}"
-             height="96"
-             width="96"
-             alt="Emote"
-             style="max-width: 96px;
-                    max-height: 96px;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-                    padding: 4px"
-             loading="lazy" />
-      </a>
-    {% empty %}
-      <p>No drop campaigns with emotes found.</p>
-    {% endfor %}
-  </div>
+  {% for emote in emotes %}
+    <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"
+       title="{{ emote.campaign.name }}"
+       style="display: inline-block">
+      <img src="{{ emote.image_url }}"
+           height="96"
+           width="96"
+           alt="Emote"
+           style="max-width: 96px;
+                  max-height: 96px"
+           loading="lazy" />
+    </a>
+  {% empty %}
+    <p>No drop campaigns with emotes found.</p>
+  {% endfor %}
 {% endblock content %}

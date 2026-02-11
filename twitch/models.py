@@ -66,8 +66,7 @@ class Organization(auto_prefetch.Model):
         url: str = reverse("twitch:organization_detail", args=[self.twitch_id])
 
         return format_html(
-            "<p>New Twitch organization added to TTVDrops:</p>\n"
-            '<p><a href="{}" target="_blank" rel="noopener noreferrer">{}</a></p>',
+            '<p>New Twitch organization added to TTVDrops:</p>\n<p><a href="{}">{}</a></p>',
             url,
             name,
         )
@@ -455,6 +454,38 @@ class DropCampaign(auto_prefetch.Model):
                 exc,
             )
         return self.image_url or ""
+
+    @property
+    def duration_iso(self) -> str:
+        """Return the campaign duration in ISO 8601 format (e.g., 'P3DT4H30M').
+
+        This is used for the <time> element's datetime attribute to provide machine-readable duration.
+        If start_at or end_at is missing, returns an empty string.
+        """
+        if not self.start_at or not self.end_at:
+            return ""
+
+        total_seconds: int = int((self.end_at - self.start_at).total_seconds())
+        if total_seconds < 0:
+            total_seconds = abs(total_seconds)
+
+        days, remainder = divmod(total_seconds, 86400)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        time_parts: list[str] = []
+        if hours:
+            time_parts.append(f"{hours}H")
+        if minutes:
+            time_parts.append(f"{minutes}M")
+        if seconds or not time_parts:
+            time_parts.append(f"{seconds}S")
+
+        if days and time_parts:
+            return f"P{days}DT{''.join(time_parts)}"
+        if days:
+            return f"P{days}D"
+        return f"PT{''.join(time_parts)}"
 
     @property
     def is_subscription_only(self) -> bool:
