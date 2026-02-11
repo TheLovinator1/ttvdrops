@@ -282,7 +282,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
     queryset = queryset.prefetch_related("game__owners").order_by("-start_at")
 
     # Optionally filter by status (active, upcoming, expired)
-    now = timezone.now()
+    now: datetime.datetime = timezone.now()
     if status_filter == "active":
         queryset = queryset.filter(start_at__lte=now, end_at__gte=now)
     elif status_filter == "upcoming":
@@ -290,10 +290,10 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
     elif status_filter == "expired":
         queryset = queryset.filter(end_at__lt=now)
 
-    paginator = Paginator(queryset, per_page)
-    page = request.GET.get("page") or 1
+    paginator: Paginator[DropCampaign] = Paginator(queryset, per_page)
+    page: str | Literal[1] = request.GET.get("page") or 1
     try:
-        campaigns = paginator.page(page)
+        campaigns: Page[DropCampaign] = paginator.page(page)
     except PageNotAnInteger:
         campaigns = paginator.page(1)
     except EmptyPage:
@@ -301,6 +301,8 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:
 
     context: dict[str, Any] = {
         "campaigns": campaigns,
+        "page_obj": campaigns,
+        "is_paginated": campaigns.has_other_pages(),
         "games": Game.objects.all().order_by("display_name"),
         "status_options": ["active", "upcoming", "expired"],
         "now": now,

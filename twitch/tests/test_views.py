@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -455,6 +456,262 @@ class TestChannelListView:
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:campaign_list"))
         assert response.status_code == 200
         assert "campaigns" in response.context
+
+    @pytest.mark.django_db
+    def test_drop_campaign_list_pagination(self, client: Client) -> None:
+        """Test pagination works correctly with 100 items per page."""
+        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        now: datetime.datetime = timezone.now()
+
+        # Create 150 campaigns to test pagination
+        campaigns = [
+            DropCampaign(
+                twitch_id=f"c{i}",
+                name=f"Campaign {i}",
+                game=game,
+                start_at=now - timedelta(days=10),
+                end_at=now + timedelta(days=10),
+                operation_names=["DropCampaignDetails"],
+            )
+            for i in range(150)
+        ]
+        DropCampaign.objects.bulk_create(campaigns)
+
+        # Test first page
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:campaign_list"))
+        assert response.status_code == 200
+        assert "is_paginated" in response.context
+        assert response.context["is_paginated"] is True
+        assert "page_obj" in response.context
+        assert len(response.context["campaigns"]) == 100
+        assert response.context["page_obj"].number == 1
+        assert response.context["page_obj"].has_next() is True
+
+        # Test second page
+        response = client.get(reverse("twitch:campaign_list") + "?page=2")
+        assert response.status_code == 200
+        assert len(response.context["campaigns"]) == 50
+        assert response.context["page_obj"].number == 2
+        assert response.context["page_obj"].has_previous() is True
+        assert response.context["page_obj"].has_next() is False
+
+    @pytest.mark.django_db
+    def test_drop_campaign_list_status_filter_active(self, client: Client) -> None:
+        """Test filtering for active campaigns only."""
+        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        now: datetime.datetime = timezone.now()
+
+        # Create active campaign
+        _active_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="active",
+            name="Active Campaign",
+            game=game,
+            start_at=now - timedelta(days=5),
+            end_at=now + timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Create upcoming campaign
+        DropCampaign.objects.create(
+            twitch_id="upcoming",
+            name="Upcoming Campaign",
+            game=game,
+            start_at=now + timedelta(days=5),
+            end_at=now + timedelta(days=10),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Create expired campaign
+        DropCampaign.objects.create(
+            twitch_id="expired",
+            name="Expired Campaign",
+            game=game,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Test active filter
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?status=active",
+        )
+        assert response.status_code == 200
+        campaigns: list[DropCampaign] = list(response.context["campaigns"])
+        assert len(campaigns) == 1
+        assert campaigns[0].twitch_id == "active"
+
+    @pytest.mark.django_db
+    def test_drop_campaign_list_status_filter_upcoming(self, client: Client) -> None:
+        """Test filtering for upcoming campaigns only."""
+        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        now: datetime.datetime = timezone.now()
+
+        # Create active campaign
+        DropCampaign.objects.create(
+            twitch_id="active",
+            name="Active Campaign",
+            game=game,
+            start_at=now - timedelta(days=5),
+            end_at=now + timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Create upcoming campaign
+        _upcoming_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="upcoming",
+            name="Upcoming Campaign",
+            game=game,
+            start_at=now + timedelta(days=5),
+            end_at=now + timedelta(days=10),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Create expired campaign
+        DropCampaign.objects.create(
+            twitch_id="expired",
+            name="Expired Campaign",
+            game=game,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Test upcoming filter
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?status=upcoming",
+        )
+        assert response.status_code == 200
+        campaigns: list[DropCampaign] = list(response.context["campaigns"])
+        assert len(campaigns) == 1
+        assert campaigns[0].twitch_id == "upcoming"
+
+    @pytest.mark.django_db
+    def test_drop_campaign_list_status_filter_expired(self, client: Client) -> None:
+        """Test filtering for expired campaigns only."""
+        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        now: datetime.datetime = timezone.now()
+
+        # Create active campaign
+        DropCampaign.objects.create(
+            twitch_id="active",
+            name="Active Campaign",
+            game=game,
+            start_at=now - timedelta(days=5),
+            end_at=now + timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Create upcoming campaign
+        DropCampaign.objects.create(
+            twitch_id="upcoming",
+            name="Upcoming Campaign",
+            game=game,
+            start_at=now + timedelta(days=5),
+            end_at=now + timedelta(days=10),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Create expired campaign
+        _expired_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="expired",
+            name="Expired Campaign",
+            game=game,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Test expired filter
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?status=expired",
+        )
+        assert response.status_code == 200
+        campaigns: list[DropCampaign] = list(response.context["campaigns"])
+        assert len(campaigns) == 1
+        assert campaigns[0].twitch_id == "expired"
+
+    @pytest.mark.django_db
+    def test_drop_campaign_list_game_filter(self, client: Client) -> None:
+        """Test filtering campaigns by game."""
+        game1: Game = Game.objects.create(twitch_id="g1", name="Game 1", display_name="Game 1")
+        game2: Game = Game.objects.create(twitch_id="g2", name="Game 2", display_name="Game 2")
+        now: datetime.datetime = timezone.now()
+
+        # Create campaigns for game 1
+        DropCampaign.objects.create(
+            twitch_id="c1",
+            name="Campaign 1",
+            game=game1,
+            start_at=now - timedelta(days=5),
+            end_at=now + timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+        DropCampaign.objects.create(
+            twitch_id="c2",
+            name="Campaign 2",
+            game=game1,
+            start_at=now - timedelta(days=5),
+            end_at=now + timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Create campaign for game 2
+        DropCampaign.objects.create(
+            twitch_id="c3",
+            name="Campaign 3",
+            game=game2,
+            start_at=now - timedelta(days=5),
+            end_at=now + timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        # Test filtering by game1
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?game=g1",
+        )
+        assert response.status_code == 200
+        campaigns: list[DropCampaign] = list(response.context["campaigns"])
+        assert len(campaigns) == 2
+        assert all(c.game.twitch_id == "g1" for c in campaigns)
+
+        # Test filtering by game2
+        response = client.get(reverse("twitch:campaign_list") + "?game=g2")
+        assert response.status_code == 200
+        campaigns = list(response.context["campaigns"])
+        assert len(campaigns) == 1
+        assert campaigns[0].game.twitch_id == "g2"
+
+    @pytest.mark.django_db
+    def test_drop_campaign_list_pagination_preserves_filters(self, client: Client) -> None:
+        """Test that pagination links preserve game and status filters."""
+        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        now: datetime.datetime = timezone.now()
+
+        # Create 150 active campaigns for game g1
+        campaigns = [
+            DropCampaign(
+                twitch_id=f"c{i}",
+                name=f"Campaign {i}",
+                game=game,
+                start_at=now - timedelta(days=5),
+                end_at=now + timedelta(days=5),
+                operation_names=["DropCampaignDetails"],
+            )
+            for i in range(150)
+        ]
+        DropCampaign.objects.bulk_create(campaigns)
+
+        # Request first page with filters
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?game=g1&status=active",
+        )
+        assert response.status_code == 200
+        assert response.context["is_paginated"] is True
+
+        # Check that response HTML contains pagination links with filters
+        content: str = response.content.decode("utf-8")
+        assert "?status=active&game=g1" in content
+        assert "page=2" in content
 
     @pytest.mark.django_db
     def test_drop_campaign_detail_view(self, client: Client, db: object) -> None:
