@@ -16,14 +16,13 @@
         <link rel="manifest" href="{% static 'site.webmanifest' %}" />
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="description"
-              content="Twitch Drops Tracker - Track your Twitch drops and campaigns easily." />
         <meta name="keywords" content="Twitch, Drops" />
         <title>
             {% block title %}
                 ttvdrops
             {% endblock title %}
         </title>
+        {% include "includes/meta_tags.html" %}
         <style>
             html {
                 color-scheme: light dark;

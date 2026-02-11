@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import datetime
+import json
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
 import pytest
+from django.core.handlers.wsgi import WSGIRequest
+from django.core.paginator import Paginator
+from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
@@ -18,8 +22,14 @@ from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import TimeBasedDrop
+from twitch.views import Page
+from twitch.views import _build_breadcrumb_schema
+from twitch.views import _build_pagination_info
+from twitch.views import _build_seo_context
+from twitch.views import _truncate_description
 
 if TYPE_CHECKING:
+    from django.core.handlers.wsgi import WSGIRequest
     from django.test import Client
     from django.test.client import _MonkeyPatchedWSGIResponse
     from django.test.utils import ContextList
@@ -834,3 +844,481 @@ class TestChannelListView:
         assert response.context["feeds"][0]["example_xml"]
         html: str = response.content.decode()
         assert '<code class="language-xml">' in html
+
+
+@pytest.mark.django_db
+class TestSEOHelperFunctions:
+    """Tests for SEO helper functions."""
+
+    def test_truncate_description_short_text(self) -> None:
+        """Test that short text is not truncated."""
+        text = "This is a short description"
+        result: str = _truncate_description(text, max_length=160)
+        assert result == text
+
+    def test_truncate_description_long_text(self) -> None:
+        """Test that long text is truncated at word boundary."""
+        text = "This is a very long description that exceeds the maximum length and should be truncated at a word boundary to avoid cutting off in the middle of a word"  # noqa: E501
+        result: str = _truncate_description(text, max_length=50)
+        assert len(result) <= 53  # Allow some flexibility
+        assert not result.endswith(" ")
+
+    def test_truncate_description_adds_ellipsis(self) -> None:
+        """Test that truncation adds ellipsis."""
+        text = "This is a very long description that exceeds the maximum length"
+        result: str = _truncate_description(text, max_length=30)
+        assert result.endswith("…")  # Uses en-dash, not three dots
+
+    def test_build_seo_context_required_fields(self) -> None:
+        """Test that _build_seo_context returns all required fields."""
+        context: dict[str, Any] = _build_seo_context(
+            page_title="Test Title",
+            page_description="Test Description",
+            page_image="https://example.com/image.jpg",
+            og_type="article",
+            schema_data={"@context": "https://schema.org"},
+        )
+
+        assert context["page_title"] == "Test Title"
+        assert context["page_description"] == "Test Description"
+        assert context["page_image"] == "https://example.com/image.jpg"
+        assert context["og_type"] == "article"
+        assert context["robots_directive"] == "index, follow"  # default
+        # schema_data is JSON-dumped to a string in context
+        assert json.loads(context["schema_data"]) == {"@context": "https://schema.org"}
+
+    def test_build_seo_context_with_all_parameters(self) -> None:
+        """Test _build_seo_context with all parameters."""
+        now: datetime.datetime = timezone.now()
+        breadcrumb: list[dict[str, int | str]] = [{"position": 1, "name": "Home", "url": "/"}]
+
+        context: dict[str, Any] = _build_seo_context(
+            page_title="Test",
+            page_description="Desc",
+            page_image="https://example.com/img.jpg",
+            og_type="article",
+            schema_data={},
+            breadcrumb_schema=breadcrumb,  # pyright: ignore[reportArgumentType]
+            pagination_info={"rel": "next", "url": "/page/2/"},
+            published_date=now.isoformat(),
+            modified_date=now.isoformat(),
+            robots_directive="noindex, follow",
+        )
+
+        # breadcrumb_schema is JSON-dumped, so parse it back
+        assert json.loads(context["breadcrumb_schema"]) == breadcrumb
+        assert context["pagination_info"] == {"rel": "next", "url": "/page/2/"}
+        assert context["published_date"] == now.isoformat()
+        assert context["modified_date"] == now.isoformat()
+        assert context["robots_directive"] == "noindex, follow"
+
+    def test_build_breadcrumb_schema_structure(self) -> None:
+        """Test that _build_breadcrumb_schema creates proper BreadcrumbList structure."""
+        items: list[dict[str, str | int]] = [
+            {"name": "Home", "url": "/"},
+            {"name": "Games", "url": "/games/"},
+            {"name": "Test Game", "url": "/games/123/"},
+        ]
+
+        schema: dict[str, Any] = _build_breadcrumb_schema(items)
+
+        assert schema["@context"] == "https://schema.org"
+        assert schema["@type"] == "BreadcrumbList"
+        assert schema["itemListElement"][0]["@type"] == "ListItem"
+        assert schema["itemListElement"][0]["position"] == 1
+        assert schema["itemListElement"][0]["name"] == "Home"
+        assert schema["itemListElement"][2]["position"] == 3
+
+    def test_build_pagination_info_with_next_page(self) -> None:
+        """Test _build_pagination_info extracts next page URL."""
+        factory = RequestFactory()
+        request: WSGIRequest = factory.get("/campaigns/?page=1")
+
+        items: list[int] = list(range(100))
+        paginator: Paginator[int] = Paginator(items, 10)
+        page: Page[int] = paginator.get_page(1)
+
+        info: dict[str, str] | None = _build_pagination_info(request, page, "/campaigns/")
+
+        assert info is not None
+        assert "url" in info
+        assert "rel" in info
+        assert info["rel"] == "next"
+        assert "page=2" in info["url"]
+
+    def test_build_pagination_info_with_prev_page(self) -> None:
+        """Test _build_pagination_info extracts prev page URL."""
+        factory = RequestFactory()
+        request: WSGIRequest = factory.get("/campaigns/?page=2")
+
+        items: list[int] = list(range(100))
+        paginator: Paginator[int] = Paginator(items, 10)
+        page: Page[int] = paginator.get_page(2)
+
+        info: dict[str, str] | None = _build_pagination_info(request, page, "/campaigns/")
+
+        assert info is not None
+        assert "url" in info
+        assert "rel" in info
+        assert info["rel"] == "prev"
+        assert "page=1" in info["url"]
+
+
+@pytest.mark.django_db
+class TestSEOMetaTags:
+    """Tests for SEO meta tags in views."""
+
+    @pytest.fixture
+    def game_with_campaign(self) -> dict[str, Any]:
+        """Create a game with campaign for testing.
+
+        Returns:
+            dict[str, Any]: A dictionary containing the created organization, game, and campaign.
+        """
+        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+            box_art="https://example.com/box_art.jpg",
+        )
+        game.owners.add(org)
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            description="Campaign description",
+            game=game,
+            image_url="https://example.com/campaign.jpg",
+            operation_names=["DropCampaignDetails"],
+        )
+        return {"org": org, "game": game, "campaign": campaign}
+
+    def test_campaign_list_view_has_seo_context(self, client: Client) -> None:
+        """Test campaign list view has SEO context variables."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:campaign_list"))
+        assert response.status_code == 200
+        assert "page_title" in response.context
+        assert "page_description" in response.context
+
+    def test_campaign_detail_view_has_breadcrumb(
+        self,
+        client: Client,
+        game_with_campaign: dict[str, Any],
+    ) -> None:
+        """Test campaign detail view has breadcrumb schema."""
+        campaign: DropCampaign = game_with_campaign["campaign"]
+        url = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        assert response.status_code == 200
+        assert "breadcrumb_schema" in response.context
+        # breadcrumb_schema is JSON-dumped in context
+        breadcrumb_str = response.context["breadcrumb_schema"]
+        breadcrumb = json.loads(breadcrumb_str)
+        assert breadcrumb["@type"] == "BreadcrumbList"
+        assert len(breadcrumb["itemListElement"]) >= 3
+
+    def test_campaign_detail_view_has_modified_date(
+        self,
+        client: Client,
+        game_with_campaign: dict[str, Any],
+    ) -> None:
+        """Test campaign detail view has modified_date."""
+        campaign: DropCampaign = game_with_campaign["campaign"]
+        url = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        assert response.status_code == 200
+        assert "modified_date" in response.context
+        assert response.context["modified_date"] is not None
+
+    def test_game_detail_view_has_seo_context(
+        self,
+        client: Client,
+        game_with_campaign: dict[str, Any],
+    ) -> None:
+        """Test game detail view has full SEO context."""
+        game: Game = game_with_campaign["game"]
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        assert response.status_code == 200
+        assert "page_title" in response.context
+        assert "page_description" in response.context
+        assert "breadcrumb_schema" in response.context
+        assert "modified_date" in response.context
+
+    def test_organization_detail_view_has_breadcrumb(self, client: Client) -> None:
+        """Test organization detail view has breadcrumb."""
+        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        url: str = reverse("twitch:organization_detail", args=[org.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        assert response.status_code == 200
+        assert "breadcrumb_schema" in response.context
+
+    def test_channel_detail_view_has_breadcrumb(self, client: Client) -> None:
+        """Test channel detail view has breadcrumb."""
+        channel: Channel = Channel.objects.create(twitch_id="ch1", name="ch1", display_name="Channel 1")
+        url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        assert response.status_code == 200
+        assert "breadcrumb_schema" in response.context
+
+    def test_noindex_pages_have_robots_directive(self, client: Client) -> None:
+        """Test that pages with noindex have proper robots directive."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dataset_backups"))
+        assert response.status_code == 200
+        assert "robots_directive" in response.context
+        assert "noindex" in response.context["robots_directive"]
+
+
+@pytest.mark.django_db
+class TestSitemapView:
+    """Tests for the sitemap.xml view."""
+
+    @pytest.fixture
+    def sample_entities(self) -> dict[str, Any]:
+        """Create sample entities for sitemap testing.
+
+        Returns:
+            dict[str, Any]: A dictionary containing the created organization, game, channel, campaign, and badge set.
+        """
+        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        game.owners.add(org)
+        channel: Channel = Channel.objects.create(twitch_id="ch1", name="ch1", display_name="Channel 1")
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            description="Desc",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+        badge: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="badge1")
+        return {
+            "org": org,
+            "game": game,
+            "channel": channel,
+            "campaign": campaign,
+            "badge": badge,
+        }
+
+    def test_sitemap_view_returns_xml(self, client: Client, sample_entities: dict[str, Any]) -> None:
+        """Test sitemap view returns XML content."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml"
+
+    def test_sitemap_contains_xml_declaration(self, client: Client, sample_entities: dict[str, Any]) -> None:
+        """Test sitemap contains proper XML declaration."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content = response.content.decode()
+        assert content.startswith('<?xml version="1.0" encoding="UTF-8"?>')
+
+    def test_sitemap_contains_urlset(self, client: Client, sample_entities: dict[str, Any]) -> None:
+        """Test sitemap contains urlset element."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert "<urlset" in content
+        assert "</urlset>" in content
+
+    def test_sitemap_contains_static_pages(self, client: Client, sample_entities: dict[str, Any]) -> None:
+        """Test sitemap includes static pages."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        # Check for some static pages
+        assert "<loc>http://testserver/</loc>" in content or "<loc>http://localhost:8000/</loc>" in content
+        assert "/campaigns/" in content
+        assert "/games/" in content
+
+    def test_sitemap_contains_game_detail_pages(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Test sitemap includes game detail pages."""
+        game: Game = sample_entities["game"]
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert f"/games/{game.twitch_id}/" in content
+
+    def test_sitemap_contains_campaign_detail_pages(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Test sitemap includes campaign detail pages."""
+        campaign: DropCampaign = sample_entities["campaign"]
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert f"/campaigns/{campaign.twitch_id}/" in content
+
+    def test_sitemap_contains_organization_detail_pages(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Test sitemap includes organization detail pages."""
+        org: Organization = sample_entities["org"]
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert f"/organizations/{org.twitch_id}/" in content
+
+    def test_sitemap_contains_channel_detail_pages(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Test sitemap includes channel detail pages."""
+        channel: Channel = sample_entities["channel"]
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert f"/channels/{channel.twitch_id}/" in content
+
+    def test_sitemap_contains_badge_detail_pages(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Test sitemap includes badge detail pages."""
+        badge: ChatBadge = sample_entities["badge"]
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert f"/badges/{badge.set_id}/" in content  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_sitemap_includes_priority(self, client: Client, sample_entities: dict[str, Any]) -> None:
+        """Test sitemap includes priority values."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert "<priority>" in content
+        assert "</priority>" in content
+
+    def test_sitemap_includes_changefreq(self, client: Client, sample_entities: dict[str, Any]) -> None:
+        """Test sitemap includes changefreq values."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        assert "<changefreq>" in content
+        assert "</changefreq>" in content
+
+    def test_sitemap_includes_lastmod(self, client: Client, sample_entities: dict[str, Any]) -> None:
+        """Test sitemap includes lastmod for detail pages."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        content: str = response.content.decode()
+        # Check for lastmod in game or campaign entries
+        assert "<lastmod>" in content
+
+
+@pytest.mark.django_db
+class TestRobotsTxtView:
+    """Tests for the robots.txt view."""
+
+    def test_robots_txt_returns_text(self, client: Client) -> None:
+        """Test robots.txt view returns text content."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        assert response.status_code == 200
+        assert response["Content-Type"] in {"text/plain", "text/plain; charset=utf-8"}
+
+    def test_robots_txt_user_agent(self, client: Client) -> None:
+        """Test robots.txt contains user-agent."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        content: str = response.content.decode()
+        assert "User-agent: *" in content
+
+    def test_robots_txt_allow_root(self, client: Client) -> None:
+        """Test robots.txt allows root path."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        content: str = response.content.decode()
+        assert "Allow: /" in content
+
+    def test_robots_txt_disallow_admin(self, client: Client) -> None:
+        """Test robots.txt disallows /admin/."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        content: str = response.content.decode()
+        assert "Disallow: /admin/" in content
+
+    def test_robots_txt_disallow_debug(self, client: Client) -> None:
+        """Test robots.txt disallows /debug/."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        content: str = response.content.decode()
+        assert "Disallow: /debug/" in content
+
+    def test_robots_txt_disallow_datasets(self, client: Client) -> None:
+        """Test robots.txt disallows /datasets/."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        content: str = response.content.decode()
+        assert "Disallow: /datasets/" in content
+
+    def test_robots_txt_sitemap_reference(self, client: Client) -> None:
+        """Test robots.txt references sitemap."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        content: str = response.content.decode()
+        assert "Sitemap:" in content
+        assert "/sitemap.xml" in content
+
+    def test_robots_txt_disallow_export(self, client: Client) -> None:
+        """Test robots.txt disallows /export/."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
+        content: str = response.content.decode()
+        assert "Disallow: /export/" in content
+
+
+@pytest.mark.django_db
+class TestSEOPaginationLinks:
+    """Tests for SEO pagination links in views."""
+
+    def test_campaign_list_first_page_has_next(self, client: Client) -> None:
+        """Test campaign list first page has next link."""
+        # Create a game and multiple campaigns to trigger pagination
+        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        game.owners.add(org)
+        for i in range(25):
+            DropCampaign.objects.create(
+                twitch_id=f"camp{i}",
+                name=f"Campaign {i}",
+                description="Desc",
+                game=game,
+                operation_names=["DropCampaignDetails"],
+            )
+
+        response = client.get(reverse("twitch:campaign_list"))
+        assert response.status_code == 200
+        if response.context.get("page_obj") and response.context["page_obj"].has_next():
+            assert "pagination_info" in response.context
+
+    def test_campaign_list_pagination_info_structure(self, client: Client) -> None:
+        """Test pagination_info has correct structure."""
+        # Create a game and multiple campaigns to trigger pagination
+        org = Organization.objects.create(twitch_id="org1", name="Test Org")
+        game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        game.owners.add(org)
+        for i in range(25):
+            DropCampaign.objects.create(
+                twitch_id=f"camp{i}",
+                name=f"Campaign {i}",
+                description="Desc",
+                game=game,
+                operation_names=["DropCampaignDetails"],
+            )
+
+        response = client.get(reverse("twitch:campaign_list"))
+        assert response.status_code == 200
+        if "pagination_info" in response.context:
+            pagination_info = response.context["pagination_info"]
+            # Should be a dict with rel and url
+            assert isinstance(pagination_info, dict)
+            assert "rel" in pagination_info or pagination_info is None

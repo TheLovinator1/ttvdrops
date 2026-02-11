@@ -7,11 +7,15 @@ from django.conf.urls.static import static
 from django.urls import include
 from django.urls import path
 
+from twitch import views as twitch_views
+
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
     from django.urls.resolvers import URLResolver
 
-urlpatterns: [URLPattern | URLResolver] = [  # type: ignore[assignment]
+urlpatterns: list[URLPattern | URLResolver] = [
+    path("sitemap.xml", twitch_views.sitemap_view, name="sitemap"),
+    path("robots.txt", twitch_views.robots_txt_view, name="robots"),
     path(route="", view=include("twitch.urls", namespace="twitch")),
 ]
 
