@@ -367,8 +367,8 @@ def test_organization_campaign_feed_queries_bounded(client: Client, django_asser
         _build_campaign(game, i)
 
     url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
-    # TODO(TheLovinator): 15 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
-    with django_assert_num_queries(15, exact=True):
+    # TODO(TheLovinator): 12 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    with django_assert_num_queries(12, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
