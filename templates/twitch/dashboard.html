@@ -52,7 +52,7 @@ Hover over the end time to see the exact date and time.
                                                     flex-shrink: 0">
                                         <div>
                                             <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}">
-                                                <img src="{{ campaign_data.campaign.image_url }}"
+                                                <img src="{{ campaign_data.campaign.image_best_url|default:campaign_data.campaign.image_url }}"
                                                      alt="Image for {{ campaign_data.campaign.name }}"
                                                      width="120"
                                                      height="120"

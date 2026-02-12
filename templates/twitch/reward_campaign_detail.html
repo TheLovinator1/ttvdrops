@@ -14,6 +14,13 @@
     <p>
         <a href="{% url 'twitch:reward_campaign_list' %}">← Back to Reward Campaigns</a>
     </p>
+    <!-- Campaign image -->
+    {% if reward_campaign.image_url %}
+        <img height="160"
+             width="160"
+             src="{{ reward_campaign.image_best_url|default:reward_campaign.image_url }}"
+             alt="{{ reward_campaign.name }}" />
+    {% endif %}
     <!-- RSS Feeds -->
     <div style="margin-bottom: 1rem;">
         <a href="{% url 'twitch:reward_campaign_feed' %}"

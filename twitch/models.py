@@ -811,6 +811,18 @@ class RewardCampaign(auto_prefetch.Model):
         default="",
         help_text="About URL for the reward campaign.",
     )
+    image_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="URL to an image representing the reward campaign.",
+    )
+    image_file = models.FileField(
+        upload_to="reward_campaigns/images/",
+        blank=True,
+        null=True,
+        help_text="Locally cached reward campaign image served from this site.",
+    )
     is_sitewide = models.BooleanField(
         default=False,
         help_text="Whether the reward campaign is sitewide.",
@@ -862,6 +874,19 @@ class RewardCampaign(auto_prefetch.Model):
         if self.starts_at is None or self.ends_at is None:
             return False
         return self.starts_at <= now <= self.ends_at
+
+    @property
+    def image_best_url(self) -> str:
+        """Return the best URL for the reward campaign image (local first)."""
+        try:
+            if self.image_file and getattr(self.image_file, "url", None):
+                return self.image_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug(
+                "Failed to resolve RewardCampaign.image_file url: %s",
+                exc,
+            )
+        return self.image_url or ""
 
     def get_feed_title(self) -> str:
         """Return the reward campaign name as the feed item title."""

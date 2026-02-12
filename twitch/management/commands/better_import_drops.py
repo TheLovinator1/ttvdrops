@@ -1084,6 +1084,7 @@ class Command(BaseCommand):
                 "about_url": reward_campaign.about_url,
                 "is_sitewide": reward_campaign.is_sitewide,
                 "game": game_obj,
+                "image_url": reward_campaign.image.image1x_url if reward_campaign.image else "",
             }
 
             _reward_campaign_obj, created = RewardCampaign.objects.update_or_create(
