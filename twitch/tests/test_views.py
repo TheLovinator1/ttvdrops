@@ -1322,3 +1322,123 @@ class TestSEOPaginationLinks:
             # Should be a dict with rel and url
             assert isinstance(pagination_info, dict)
             assert "rel" in pagination_info or pagination_info is None
+
+
+@pytest.mark.django_db
+class TestDropCampaignImageFallback:
+    """Tests for DropCampaign image_best_url property with benefit fallback."""
+
+    def test_image_best_url_returns_campaign_image_url(self) -> None:
+        """Test that image_best_url returns campaign image_url when present."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url="https://example.com/campaign.png",
+        )
+        assert campaign.image_best_url == "https://example.com/campaign.png"
+
+    def test_image_best_url_uses_benefit_image_when_campaign_has_no_image(self) -> None:
+        """Test that image_best_url returns first benefit image when campaign has no image."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url="",  # No campaign image
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit1",
+            name="Test Benefit",
+            image_asset_url="https://example.com/benefit.png",
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop1",
+            name="Test Drop",
+            campaign=campaign,
+        )
+        drop.benefits.add(benefit)
+
+        assert campaign.image_best_url == "https://example.com/benefit.png"
+
+    def test_image_best_url_prefers_campaign_image_over_benefit_image(self) -> None:
+        """Test that campaign image is preferred over benefit image."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url="https://example.com/campaign.png",  # Campaign has image
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit1",
+            name="Test Benefit",
+            image_asset_url="https://example.com/benefit.png",
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop1",
+            name="Test Drop",
+            campaign=campaign,
+        )
+        drop.benefits.add(benefit)
+
+        # Should return campaign image, not benefit image
+        assert campaign.image_best_url == "https://example.com/campaign.png"
+
+    def test_image_best_url_returns_empty_when_no_images(self) -> None:
+        """Test that image_best_url returns empty string when no images available."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url="",  # No campaign image
+        )
+        # No benefits or drops
+
+        assert not campaign.image_best_url
+
+    def test_image_best_url_uses_benefit_best_url(self) -> None:
+        """Test that benefit's image_best_url property is used (prefers local file)."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url="",  # No campaign image
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit1",
+            name="Test Benefit",
+            image_asset_url="https://example.com/benefit.png",
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop1",
+            name="Test Drop",
+            campaign=campaign,
+        )
+        drop.benefits.add(benefit)
+
+        # Should use benefit's image_asset_url (since no local file)
+        assert campaign.image_best_url == benefit.image_best_url

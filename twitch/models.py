@@ -446,7 +446,13 @@ class DropCampaign(auto_prefetch.Model):
 
     @property
     def image_best_url(self) -> str:
-        """Return the best URL for the campaign image (local first)."""
+        """Return the best URL for the campaign image.
+
+        Priority:
+        1. Local cached image file
+        2. Campaign image URL
+        3. First benefit image URL (if campaign has no image)
+        """
         try:
             if self.image_file and getattr(self.image_file, "url", None):
                 return self.image_file.url
@@ -455,7 +461,18 @@ class DropCampaign(auto_prefetch.Model):
                 "Failed to resolve DropCampaign.image_file url: %s",
                 exc,
             )
-        return self.image_url or ""
+
+        if self.image_url:
+            return self.image_url
+
+        # If no campaign image, use the first benefit image
+        for drop in self.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
+            for benefit in drop.benefits.all():  # pyright: ignore[reportAttributeAccessIssue]
+                benefit_image_url: str = benefit.image_best_url
+                if benefit_image_url:
+                    return benefit_image_url
+
+        return ""
 
     @property
     def duration_iso(self) -> str:
@@ -537,7 +554,7 @@ class DropCampaign(auto_prefetch.Model):
 
     def get_feed_enclosure_url(self) -> str:
         """Return the campaign image URL for RSS enclosures."""
-        return self.image_url
+        return self.image_best_url
 
 
 # MARK: DropBenefit

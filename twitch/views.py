@@ -19,6 +19,7 @@ from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
 from django.core.serializers import serialize
 from django.db.models import Count
+from django.db.models import Exists
 from django.db.models import F
 from django.db.models import OuterRef
 from django.db.models import Prefetch
@@ -856,7 +857,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         if campaign.description
         else f"Twitch drop campaign: {campaign_name}"
     )
-    campaign_image: str | None = campaign.image_url
+    campaign_image: str | None = campaign.image_best_url
 
     campaign_schema: dict[str, str | dict[str, str]] = {
         "@context": "https://schema.org",
@@ -1510,10 +1511,21 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         owners__isnull=True,
     ).order_by("display_name")
 
-    # Campaigns with missing or obviously broken images
-    broken_image_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
-        Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
-    ).select_related("game")
+    # Campaigns with no images at all (no direct URL and no benefit image fallbacks)
+    broken_image_campaigns: QuerySet[DropCampaign] = (
+        DropCampaign.objects
+        .filter(
+            Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
+        )
+        .exclude(
+            Exists(
+                TimeBasedDrop.objects.filter(campaign=OuterRef("pk")).filter(
+                    benefits__image_asset_url__startswith="http",
+                ),
+            ),
+        )
+        .select_related("game")
+    )
 
     # Benefits with missing images
     broken_benefit_images: QuerySet[DropBenefit] = DropBenefit.objects.annotate(
@@ -1544,12 +1556,19 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         .order_by("game__display_name", "name")
     )
 
-    # Campaigns currently active but image missing
+    # Active campaigns with no images at all (no direct URL and no benefit image fallbacks)
     active_missing_image: QuerySet[DropCampaign] = (
         DropCampaign.objects
         .filter(start_at__lte=now, end_at__gte=now)
         .filter(
             Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
+        )
+        .exclude(
+            Exists(
+                TimeBasedDrop.objects.filter(campaign=OuterRef("pk")).filter(
+                    benefits__image_asset_url__startswith="http",
+                ),
+            ),
         )
         .select_related("game")
     )

@@ -44,7 +44,7 @@
         {% endif %}
     </section>
     <section>
-        <h2>Campaigns without Image URLs ({{ broken_image_campaigns|length }})</h2>
+        <h2>Campaigns without Images ({{ broken_image_campaigns|length }})</h2>
         {% if broken_image_campaigns %}
             <ul>
                 {% for c in broken_image_campaigns %}
@@ -81,7 +81,7 @@
         {% endif %}
     </section>
     <section>
-        <h2>Active Campaigns Missing Image ({{ active_missing_image|length }})</h2>
+        <h2>Active Campaigns without Images ({{ active_missing_image|length }})</h2>
         {% if active_missing_image %}
             <ul>
                 {% for c in active_missing_image %}

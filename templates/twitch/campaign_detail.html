@@ -19,10 +19,10 @@
         </p>
     {% endfor %}
     <!-- Campaign image -->
-    {% if campaign.image_url %}
+    {% if campaign.image_best_url %}
         <img height="160"
              width="160"
-             src="{{ campaign.image_best_url|default:campaign.image_url }}"
+             src="{{ campaign.image_best_url }}"
              alt="{{ campaign.name }}" />
     {% endif %}
     <!-- Campaign description -->

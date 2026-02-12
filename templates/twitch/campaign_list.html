@@ -97,8 +97,8 @@
                                             <div>
                                                 <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}"
                                                    style="text-decoration: none">
-                                                    {% if campaign.image_best_url or campaign.image_url %}
-                                                        <img src="{{ campaign.image_best_url|default:campaign.image_url }}"
+                                                    {% if campaign.image_best_url %}
+                                                        <img src="{{ campaign.image_best_url }}"
                                                              alt="Campaign artwork for {{ campaign.name }}"
                                                              width="120"
                                                              height="120"
