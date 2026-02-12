@@ -95,6 +95,10 @@ Hover over the end time to see the exact date and time.
                                                                            title="Watch {{ channel.display_name }} on Twitch">
                                                                             {{ channel.display_name }}
                                                                         </a>
+                                                                        <a href="{% url 'twitch:channel_detail' channel.twitch_id %}"
+                                                                           title="View {{ channel.display_name }} details"
+                                                                           style="font-family: monospace;
+                                                                                  text-decoration: none">[i]</a>
                                                                     </li>
                                                                 {% endif %}
                                                             {% endfor %}
