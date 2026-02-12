@@ -54,15 +54,7 @@
       href="{% firstof page_url request.build_absolute_uri %}" />
 {# Pagination links (for crawler efficiency) #}
 {% if pagination_info %}
-      {% if pagination_info.rel == "prev" %}
-            <link rel="prev" href="{{ pagination_info.url }}" />
-      {% elif pagination_info.rel == "next" %}
-            <link rel="next" href="{{ pagination_info.url }}" />
-      {% elif pagination_info.rel == "first" %}
-            <link rel="first" href="{{ pagination_info.url }}" />
-      {% elif pagination_info.rel == "last" %}
-            <link rel="last" href="{{ pagination_info.url }}" />
-      {% endif %}
+      {% for link in pagination_info %}<link rel="{{ link.rel }}" href="{{ link.url }}" />{% endfor %}
 {% endif %}
 {# Schema.org JSON-LD structured data #}
 {% if schema_data %}<script type="application/ld+json">{{ schema_data|safe }}</script>{% endif %}

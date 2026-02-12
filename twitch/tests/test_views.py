@@ -938,13 +938,12 @@ class TestSEOHelperFunctions:
         paginator: Paginator[int] = Paginator(items, 10)
         page: Page[int] = paginator.get_page(1)
 
-        info: dict[str, str] | None = _build_pagination_info(request, page, "/campaigns/")
+        info: list[dict[str, str]] | None = _build_pagination_info(request, page, "/campaigns/")
 
         assert info is not None
-        assert "url" in info
-        assert "rel" in info
-        assert info["rel"] == "next"
-        assert "page=2" in info["url"]
+        assert len(info) == 1
+        assert info[0]["rel"] == "next"
+        assert "page=2" in info[0]["url"]
 
     def test_build_pagination_info_with_prev_page(self) -> None:
         """Test _build_pagination_info extracts prev page URL."""
@@ -955,13 +954,14 @@ class TestSEOHelperFunctions:
         paginator: Paginator[int] = Paginator(items, 10)
         page: Page[int] = paginator.get_page(2)
 
-        info: dict[str, str] | None = _build_pagination_info(request, page, "/campaigns/")
+        info: list[dict[str, str]] | None = _build_pagination_info(request, page, "/campaigns/")
 
         assert info is not None
-        assert "url" in info
-        assert "rel" in info
-        assert info["rel"] == "prev"
-        assert "page=1" in info["url"]
+        assert len(info) == 2
+        assert info[0]["rel"] == "prev"
+        assert "page=1" in info[0]["url"]
+        assert info[1]["rel"] == "next"
+        assert "page=3" in info[1]["url"]
 
 
 @pytest.mark.django_db

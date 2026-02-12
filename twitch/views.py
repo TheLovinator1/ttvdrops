@@ -98,7 +98,7 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     og_type: str = "website",
     schema_data: dict[str, Any] | None = None,
     breadcrumb_schema: dict[str, Any] | None = None,
-    pagination_info: dict[str, str] | None = None,
+    pagination_info: list[dict[str, str]] | None = None,
     published_date: str | None = None,
     modified_date: str | None = None,
     robots_directive: str = "index, follow",
@@ -112,7 +112,7 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
         og_type: OpenGraph type (e.g., "website", "article").
         schema_data: Dict representation of Schema.org JSON-LD data.
         breadcrumb_schema: Breadcrumb schema dict for navigation hierarchy.
-        pagination_info: Dict with "rel" (prev|next|first|last) and "url".
+        pagination_info: List of dicts with "rel" (prev|next|first|last) and "url".
         published_date: ISO 8601 published date (e.g., "2025-01-01T00:00:00Z").
         modified_date: ISO 8601 modified date.
         robots_directive: Robots meta content (e.g., "index, follow" or "noindex").
@@ -173,7 +173,7 @@ def _build_pagination_info(
     request: HttpRequest,
     page_obj: Page,
     base_url: str,
-) -> dict[str, str] | None:
+) -> list[dict[str, str]] | None:
     """Build pagination link info for rel="next"/"prev" tags.
 
     Args:
@@ -182,30 +182,30 @@ def _build_pagination_info(
         base_url: Base URL for pagination (e.g., "/campaigns/?status=active").
 
     Returns:
-        Dict with rel and url, or None if no prev/next.
+        List of dicts with rel and url, or None if no prev/next.
     """
-    pagination_info: dict[str, str] | None = None
+    pagination_links: list[dict[str, str]] = []
+
+    if page_obj.has_previous():
+        prev_url: str = f"{base_url}?page={page_obj.previous_page_number()}"
+        if "?" in base_url:
+            prev_url = f"{base_url}&page={page_obj.previous_page_number()}"
+        pagination_links.append({
+            "rel": "prev",
+            "url": request.build_absolute_uri(prev_url),
+        })
 
     if page_obj.has_next():
         next_url: str = f"{base_url}?page={page_obj.next_page_number()}"
         if "?" in base_url:
             # Preserve existing query params
             next_url = f"{base_url}&page={page_obj.next_page_number()}"
-        pagination_info = {
+        pagination_links.append({
             "rel": "next",
             "url": request.build_absolute_uri(next_url),
-        }
+        })
 
-    if page_obj.has_previous():
-        prev_url: str = f"{base_url}?page={page_obj.previous_page_number()}"
-        if "?" in base_url:
-            prev_url = f"{base_url}&page={page_obj.previous_page_number()}"
-        pagination_info = {
-            "rel": "prev",
-            "url": request.build_absolute_uri(prev_url),
-        }
-
-    return pagination_info
+    return pagination_links or None
 
 
 def emote_gallery_view(request: HttpRequest) -> HttpResponse:
@@ -522,7 +522,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     elif game_filter:
         base_url += f"?game={game_filter}"
 
-    pagination_info: dict[str, str] | None = _build_pagination_info(request, campaigns, base_url)
+    pagination_info: list[dict[str, str]] | None = _build_pagination_info(request, campaigns, base_url)
 
     # CollectionPage schema for campaign list
     collection_schema: dict[str, str] = {
@@ -1062,11 +1062,25 @@ class GameDetailView(DetailView):
             campaign__game=game,
         ).prefetch_related("benefits")
 
-        for drop in drops:
+        # Materialize drops so we can iterate multiple times without extra DB hits
+        drops_list: list[TimeBasedDrop] = list(drops)
+
+        # Collect all benefit names that award badges
+        benefit_badge_titles: set[str] = set()
+        for drop in drops_list:
+            for benefit in drop.benefits.all():
+                if benefit.distribution_type == "BADGE" and benefit.name:
+                    benefit_badge_titles.add(benefit.name)
+
+        # Bulk-load all matching ChatBadge instances to avoid N+1 queries
+        badges_by_title: dict[str, ChatBadge] = {
+            badge.title: badge for badge in ChatBadge.objects.filter(title__in=benefit_badge_titles)
+        }
+
+        for drop in drops_list:
             for benefit in drop.benefits.all():
                 if benefit.distribution_type == "BADGE":
-                    # Find badge by title
-                    badge: ChatBadge | None = ChatBadge.objects.filter(title=benefit.name).first()
+                    badge: ChatBadge | None = badges_by_title.get(benefit.name)
                     if badge:
                         drop_awarded_badges[drop.twitch_id] = badge
 
@@ -1360,7 +1374,7 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     elif game_filter:
         base_url += f"?game={game_filter}"
 
-    pagination_info: dict[str, str] | None = _build_pagination_info(request, reward_campaigns, base_url)
+    pagination_info: list[dict[str, str]] | None = _build_pagination_info(request, reward_campaigns, base_url)
 
     # CollectionPage schema for reward campaigns list
     collection_schema: dict[str, str | dict[str, str | dict[str, str]]] = {
@@ -1800,7 +1814,7 @@ class ChannelListView(ListView):
             base_url += f"?search={search_query}"
 
         page_obj: Page | None = context.get("page_obj")
-        pagination_info: dict[str, str] | None = (
+        pagination_info: list[dict[str, str]] | None = (
             _build_pagination_info(self.request, page_obj, base_url) if isinstance(page_obj, Page) else None
         )
 
