@@ -899,7 +899,7 @@ class TestSEOHelperFunctions:
             og_type="article",
             schema_data={},
             breadcrumb_schema=breadcrumb,  # pyright: ignore[reportArgumentType]
-            pagination_info={"rel": "next", "url": "/page/2/"},
+            pagination_info=[{"rel": "next", "url": "/page/2/"}],
             published_date=now.isoformat(),
             modified_date=now.isoformat(),
             robots_directive="noindex, follow",
@@ -907,7 +907,7 @@ class TestSEOHelperFunctions:
 
         # breadcrumb_schema is JSON-dumped, so parse it back
         assert json.loads(context["breadcrumb_schema"]) == breadcrumb
-        assert context["pagination_info"] == {"rel": "next", "url": "/page/2/"}
+        assert context["pagination_info"] == [{"rel": "next", "url": "/page/2/"}]
         assert context["published_date"] == now.isoformat()
         assert context["modified_date"] == now.isoformat()
         assert context["robots_directive"] == "noindex, follow"
