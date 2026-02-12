@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load image_tags %}
 {% block title %}
     {{ badge_set.set_id }} Badges - ttvdrops
 {% endblock title %}
@@ -31,14 +32,7 @@
                             <code>{{ badge.badge_id }}</code>
                         </td>
                         <td>
-                            <img src="{{ badge.image_url_4x }}"
-                                 height="72"
-                                 width="72"
-                                 alt="{{ badge.title }}"
-                                 title="{{ badge.description }}"
-                                 style="width: 72px !important;
-                                        height: 72px !important;
-                                        object-fit: contain" />
+                            {% picture badge.image_url_4x alt=badge.title width=72 height=72 style="width: 72px !important; height: 72px !important; object-fit: contain" %}
                         </td>
                         <td>{{ badge.title }}</td>
                         <td>{{ badge.description }}</td>

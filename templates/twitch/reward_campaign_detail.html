@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load image_tags %}
 {% block title %}
     {{ reward_campaign.name }}
 {% endblock title %}
@@ -16,10 +17,7 @@
     </p>
     <!-- Campaign image -->
     {% if reward_campaign.image_best_url %}
-        <img height="160"
-             width="160"
-             src="{{ reward_campaign.image_best_url }}"
-             alt="{{ reward_campaign.name }}" />
+        {% picture reward_campaign.image_best_url alt=reward_campaign.name width=160 height=160 %}
     {% endif %}
     <!-- RSS Feeds -->
     <div style="margin-bottom: 1rem;">

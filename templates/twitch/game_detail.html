@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load image_tags %}
 {% block title %}
     {{ game.display_name }}
 {% endblock title %}
@@ -23,11 +24,7 @@
     </div>
     <!-- Game image -->
     {% if game.box_art_best_url %}
-        <img id="game-image"
-             height="160"
-             width="160"
-             src="{{ game.box_art_best_url }}"
-             alt="{{ game.name }}" />
+        {% picture game.box_art_best_url alt=game.name width=160 height=160 %}
     {% endif %}
     <!-- Game owner -->
     {% if owners %}
@@ -53,13 +50,7 @@
                                     {% for benefit in campaign.sorted_benefits %}
                                         <span class="benefit-item" title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
-                                                <img src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
-                                                     alt="{{ benefit.name }}"
-                                                     width="24"
-                                                     height="24"
-                                                     style="display: inline-block;
-                                                            margin-right: 4px;
-                                                            vertical-align: middle" />
+                                                {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=24 height=24 style="display: inline-block; margin-right: 4px; vertical-align: middle" %}
                                             {% endif %}
                                             {{ benefit.name }}
                                         </span>
@@ -88,13 +79,7 @@
                                     {% for benefit in campaign.sorted_benefits %}
                                         <span class="benefit-item" title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
-                                                <img src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
-                                                     alt="{{ benefit.name }}"
-                                                     width="24"
-                                                     height="24"
-                                                     style="display: inline-block;
-                                                            margin-right: 4px;
-                                                            vertical-align: middle" />
+                                                {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=24 height=24 style="display: inline-block; margin-right: 4px; vertical-align: middle" %}
                                             {% endif %}
                                             {{ benefit.name }}
                                         </span>
@@ -124,13 +109,7 @@
                                     {% for benefit in campaign.sorted_benefits %}
                                         <span class="benefit-item" title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
-                                                <img src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
-                                                     alt="{{ benefit.name }}"
-                                                     width="24"
-                                                     height="24"
-                                                     style="display: inline-block;
-                                                            margin-right: 4px;
-                                                            vertical-align: middle" />
+                                                {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=24 height=24 style="display: inline-block; margin-right: 4px; vertical-align: middle" %}
                                             {% endif %}
                                             {{ benefit.name }}
                                         </span>

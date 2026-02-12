@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load image_tags %}
 {% block title %}
     Chat Badges - ttvdrops
 {% endblock title %}
@@ -14,11 +15,7 @@
                     <tr>
                         <td style="width: 40px;">
                             <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">
-                                <img src="{{ badge.image_url_4x }}"
-                                     height="36"
-                                     width="36"
-                                     alt="{{ badge.title }}"
-                                     title="{{ badge.description }}" />
+                                {% picture badge.image_url_4x alt=badge.title width=36 height=36 %}
                             </a>
                         </td>
                         <td>

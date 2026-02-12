@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load image_tags %}
 {% block title %}
     Twitch drops
 {% endblock title %}
@@ -35,11 +36,7 @@ Hover over the end time to see the exact date and time.
                     </header>
                     <div style="display: flex; gap: 1rem;">
                         <div style="flex-shrink: 0;">
-                            <img src="{{ game_data.box_art }}"
-                                 alt="Box art for {{ game_data.name }}"
-                                 width="200"
-                                 height="267"
-                                 style="border-radius: 8px" />
+                            {% picture game_data.box_art alt="Box art for "|add:game_data.name width=200 height=267 style="border-radius: 8px" %}
                         </div>
                         <div style="flex: 1; overflow-x: auto;">
                             <div style="display: flex; gap: 1rem; min-width: max-content;">
@@ -52,11 +49,7 @@ Hover over the end time to see the exact date and time.
                                                     flex-shrink: 0">
                                         <div>
                                             <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}">
-                                                <img src="{{ campaign_data.campaign.image_best_url|default:campaign_data.campaign.image_url }}"
-                                                     alt="Image for {{ campaign_data.campaign.name }}"
-                                                     width="120"
-                                                     height="120"
-                                                     style="border-radius: 4px" />
+                                                {% picture campaign_data.campaign.image_best_url|default:campaign_data.campaign.image_url alt="Image for "|add:campaign_data.campaign.name width=120 height=120 style="border-radius: 4px" %}
                                                 <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign_data.campaign.clean_name }}</h4>
                                             </a>
                                             <time datetime="{{ campaign_data.campaign.end_at|date:'c' }}"

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load image_tags %}
 {% block title %}
   Emotes
 {% endblock title %}
@@ -8,13 +9,7 @@
     <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"
        title="{{ emote.campaign.name }}"
        style="display: inline-block">
-      <img src="{{ emote.image_url }}"
-           height="96"
-           width="96"
-           alt="Emote"
-           style="max-width: 96px;
-                  max-height: 96px"
-           loading="lazy" />
+      {% picture emote.image_url alt="Emote" width=96 height=96 style="max-width: 96px; max-height: 96px" %}
     </a>
   {% empty %}
     <p>No drop campaigns with emotes found.</p>

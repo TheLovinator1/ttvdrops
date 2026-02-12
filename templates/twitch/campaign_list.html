@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
+{% load image_tags %}
+{% load image_tags %}
 {% block title %}
     Drop Campaigns - Twitch Drops Tracker
 {% endblock title %}
@@ -53,11 +55,7 @@
                     <div style="display: flex; gap: 1rem;">
                         <div>
                             {% if game_group.grouper.box_art_best_url %}
-                                <img src="{{ game_group.grouper.box_art_best_url }}"
-                                     loading="lazy"
-                                     alt="Box art for {{ game_group.grouper.display_name }}"
-                                     width="120"
-                                     height="160" />
+                                {% picture game_group.grouper.box_art_best_url alt="Box art for "|add:game_group.grouper.display_name width=120 height=160 %}
                             {% else %}
                                 <div style="width: 120px;
                                             height: 160px;
@@ -98,11 +96,7 @@
                                                 <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}"
                                                    style="text-decoration: none">
                                                     {% if campaign.image_best_url %}
-                                                        <img src="{{ campaign.image_best_url }}"
-                                                             alt="Campaign artwork for {{ campaign.name }}"
-                                                             width="120"
-                                                             height="120"
-                                                             style="border-radius: 4px" />
+                                                        {% picture campaign.image_best_url alt="Campaign artwork for "|add:campaign.name width=120 height=120 style="border-radius: 4px" %}
                                                     {% endif %}
                                                     <h4 style="margin: 0.5rem 0; text-align: left">{{ campaign.clean_name }}</h4>
                                                 </a>
