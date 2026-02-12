@@ -104,11 +104,25 @@ class Game(auto_prefetch.Model):
         verbose_name="Box art URL",
     )
 
-    box_art_file = models.FileField(
+    box_art_file = models.ImageField(
         upload_to="games/box_art/",
         blank=True,
         null=True,
+        width_field="box_art_width",
+        height_field="box_art_height",
         help_text="Locally cached box art image served from this site.",
+    )
+    box_art_width = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Width of cached box art image in pixels.",
+    )
+    box_art_height = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Height of cached box art image in pixels.",
     )
 
     owners = models.ManyToManyField(
@@ -332,11 +346,25 @@ class DropCampaign(auto_prefetch.Model):
         default="",
         help_text="URL to an image representing the campaign.",
     )
-    image_file = models.FileField(
+    image_file = models.ImageField(
         upload_to="campaigns/images/",
         blank=True,
         null=True,
+        width_field="image_width",
+        height_field="image_height",
         help_text="Locally cached campaign image served from this site.",
+    )
+    image_width = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Width of cached image in pixels.",
+    )
+    image_height = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Height of cached image in pixels.",
     )
     start_at = models.DateTimeField(
         null=True,
@@ -577,11 +605,25 @@ class DropBenefit(auto_prefetch.Model):
         default="",
         help_text="URL to the benefit's image asset.",
     )
-    image_file = models.FileField(
+    image_file = models.ImageField(
         upload_to="benefits/images/",
         blank=True,
         null=True,
+        width_field="image_width",
+        height_field="image_height",
         help_text="Locally cached benefit image served from this site.",
+    )
+    image_width = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Width of cached image in pixels.",
+    )
+    image_height = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Height of cached image in pixels.",
     )
     created_at = models.DateTimeField(
         null=True,
@@ -834,11 +876,25 @@ class RewardCampaign(auto_prefetch.Model):
         default="",
         help_text="URL to an image representing the reward campaign.",
     )
-    image_file = models.FileField(
+    image_file = models.ImageField(
         upload_to="reward_campaigns/images/",
         blank=True,
         null=True,
+        width_field="image_width",
+        height_field="image_height",
         help_text="Locally cached reward campaign image served from this site.",
+    )
+    image_width = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Width of cached image in pixels.",
+    )
+    image_height = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Height of cached image in pixels.",
     )
     is_sitewide = models.BooleanField(
         default=False,

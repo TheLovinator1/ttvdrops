@@ -13,7 +13,6 @@ from django.utils import timezone
 if TYPE_CHECKING:
     from datetime import datetime
 
-
 TWITCH_BOX_ART_HOST = "static-cdn.jtvnw.net"
 TWITCH_BOX_ART_PATH_PREFIX = "/ttv-boxart/"
 TWITCH_BOX_ART_SIZE_PATTERN: re.Pattern[str] = re.compile(r"-(\{width\}|\d+)x(\{height\}|\d+)(?=\.[A-Za-z0-9]+$)")

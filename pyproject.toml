@@ -8,6 +8,7 @@ dependencies = [
     "dateparser",
     "django",
     "json-repair",
+    "pillow",
     "platformdirs",
     "python-dotenv",
     "pygments",

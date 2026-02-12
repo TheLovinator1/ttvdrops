@@ -95,6 +95,8 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     page_title: str = "ttvdrops",
     page_description: str | None = None,
     page_image: str | None = None,
+    page_image_width: int | None = None,
+    page_image_height: int | None = None,
     og_type: str = "website",
     schema_data: dict[str, Any] | None = None,
     breadcrumb_schema: dict[str, Any] | None = None,
@@ -109,6 +111,8 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
         page_title: Page title (shown in browser tab, og:title).
         page_description: Page description (meta description, og:description).
         page_image: Image URL for og:image meta tag.
+        page_image_width: Width of the image in pixels.
+        page_image_height: Height of the image in pixels.
         og_type: OpenGraph type (e.g., "website", "article").
         schema_data: Dict representation of Schema.org JSON-LD data.
         breadcrumb_schema: Breadcrumb schema dict for navigation hierarchy.
@@ -128,6 +132,9 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     }
     if page_image:
         context["page_image"] = page_image
+        if page_image_width and page_image_height:
+            context["page_image_width"] = page_image_width
+            context["page_image_height"] = page_image_height
     if schema_data:
         context["schema_data"] = json.dumps(schema_data)
     if breadcrumb_schema:
@@ -858,6 +865,8 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         else f"Twitch drop campaign: {campaign_name}"
     )
     campaign_image: str | None = campaign.image_best_url
+    campaign_image_width: int | None = campaign.image_width if campaign.image_file else None
+    campaign_image_height: int | None = campaign.image_height if campaign.image_file else None
 
     campaign_schema: dict[str, str | dict[str, str]] = {
         "@context": "https://schema.org",
@@ -905,6 +914,8 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         page_title=campaign_name,
         page_description=campaign_description,
         page_image=campaign_image,
+        page_image_width=campaign_image_width,
+        page_image_height=campaign_image_height,
         schema_data=campaign_schema,
         breadcrumb_schema=breadcrumb_schema,
         modified_date=campaign.updated_at.isoformat() if campaign.updated_at else None,
@@ -1174,6 +1185,8 @@ class GameDetailView(DetailView):
             f"Twitch drop campaigns for {game_name}. View active, upcoming, and completed drop rewards."
         )
         game_image: str | None = game.box_art_best_url
+        game_image_width: int | None = game.box_art_width if game.box_art_file else None
+        game_image_height: int | None = game.box_art_height if game.box_art_file else None
 
         game_schema: dict[str, Any] = {
             "@context": "https://schema.org",
@@ -1204,6 +1217,8 @@ class GameDetailView(DetailView):
             page_title=game_name,
             page_description=game_description,
             page_image=game_image,
+            page_image_width=game_image_width,
+            page_image_height=game_image_height,
             schema_data=game_schema,
             breadcrumb_schema=breadcrumb_schema,
             modified_date=game.updated_at.isoformat() if game.updated_at else None,
