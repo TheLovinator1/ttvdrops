@@ -127,8 +127,18 @@ LOGGING: dict[str, Any] = {
     "loggers": {
         "": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": "INFO",
             "propagate": True,
+        },
+        "ttvdrops": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
         },
         "django.utils.autoreload": {
             "handlers": ["console"],
