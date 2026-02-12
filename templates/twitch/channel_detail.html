@@ -10,6 +10,14 @@
             Username: <code>{{ channel.name }}</code>
         </p>
     {% endif %}
+    <!-- Twitch Stream Embed -->
+    <iframe src="https://player.twitch.tv/?channel={{ channel.name }}&parent={{ request.get_host }}&muted=false"
+            height="480"
+            width="100%"
+            allowfullscreen
+            style="max-width: 854px;
+                   border: none">
+    </iframe>
     <!-- Channel Info -->
     <p>
         <strong>Channel ID:</strong> {{ channel.twitch_id }}
