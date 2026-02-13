@@ -1,4 +1,22 @@
 services:
+  ttvdrops_postgres:
+    container_name: ttvdrops_postgres
+    image: postgres:17
+    environment:
+      - POSTGRES_DB=ttvdrops
+      - POSTGRES_USER=ttvdrops
+      - POSTGRES_PASSWORD=changeme
+    volumes:
+      - /mnt/Docker/Data/ttvdrops/postgres:/var/lib/postgresql
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ttvdrops"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   ttvdrops:
     container_name: ttvdrops
     image: ghcr.io/thelovinator1/ttvdrops:latest
@@ -16,13 +34,24 @@ services:
       - EMAIL_HOST_PASSWORD=
       - EMAIL_USE_TLS=True
       - EMAIL_USE_SSL=False
+      - POSTGRES_DB=ttvdrops
+      - POSTGRES_USER=ttvdrops
+      - POSTGRES_PASSWORD=changeme
+      - POSTGRES_HOST=ttvdrops_postgres
+      - POSTGRES_PORT=5432
     volumes:
       # Data is stored in /root/.local/share/TTVDrops" inside the container
       - /mnt/Docker/Data/ttvdrops/data:/root/.local/share/TTVDrops
     restart: unless-stopped
     networks:
       - web
+      - internal
+    depends_on:
+      ttvdrops_postgres:
+        condition: service_healthy
 
 networks:
   web:
     external: true
+  internal:
+    driver: bridge

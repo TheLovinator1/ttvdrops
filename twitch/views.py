@@ -1617,7 +1617,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     campaigns_missing_dropcampaigndetails: QuerySet[DropCampaign] = (
         DropCampaign.objects
         .filter(
-            Q(operation_names__isnull=True) | ~Q(operation_names__icontains="DropCampaignDetails"),
+            Q(operation_names__isnull=True) | ~Q(operation_names__contains=["DropCampaignDetails"]),
         )
         .select_related("game")
         .order_by("game__display_name", "name")

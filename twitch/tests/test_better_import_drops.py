@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from django.test import TestCase
 
@@ -15,9 +14,6 @@ from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import TimeBasedDrop
 from twitch.schemas import DropBenefitSchema
-
-if TYPE_CHECKING:
-    from debug_toolbar.panels.templates.panel import QuerySet
 
 
 class GetOrUpdateBenefitTests(TestCase):
@@ -467,11 +463,9 @@ class OperationNameFilteringTests(TestCase):
         command.process_responses([viewer_drops_payload], Path("viewer.json"), {})
         command.process_responses([inventory_payload], Path("inventory.json"), {})
 
-        # Verify we can filter by operation_names
-        # SQLite doesn't support JSON contains, so we filter in Python
-        all_campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.all()
-        viewer_campaigns: list[DropCampaign] = [c for c in all_campaigns if "ViewerDropsDashboard" in c.operation_names]
-        inventory_campaigns: list[DropCampaign] = [c for c in all_campaigns if "Inventory" in c.operation_names]
+        # Verify we can filter by operation_names with JSON containment
+        viewer_campaigns = DropCampaign.objects.filter(operation_names__contains=["ViewerDropsDashboard"])
+        inventory_campaigns = DropCampaign.objects.filter(operation_names__contains=["Inventory"])
 
         assert len(viewer_campaigns) >= 1
         assert len(inventory_campaigns) >= 1

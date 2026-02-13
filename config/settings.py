@@ -53,7 +53,7 @@ def get_data_dir() -> Path:
             For example, on Windows, it might be:
             `C:\Users\lovinator\AppData\Roaming\TheLovinator\TTVDrops`
 
-            In this directory, the SQLite database file will be stored as `db.sqlite3`.
+            In this directory, application data such as media and static files will be stored.
     """
     data_dir: str = user_data_dir(
         appname="TTVDrops",
@@ -177,18 +177,16 @@ TEMPLATES: list[dict[str, Any]] = [
     },
 ]
 
-
-# https://blog.pecar.me/django-sqlite-benchmark
-DATABASES: dict[str, dict[str, str | Path | dict[str, str]]] = {
+DATABASES: dict[str, dict[str, Any]] = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": DATA_DIR / "ttvdrops.sqlite3",
-        "OPTIONS": {
-            "init_command": (
-                "PRAGMA foreign_keys = ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA mmap_size = 134217728; PRAGMA journal_size_limit = 27103364; PRAGMA cache_size=2000;"  # noqa: E501
-            ),
-            "transaction_mode": "IMMEDIATE",
-        },
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB", "ttvdrops"),
+        "USER": os.getenv("POSTGRES_USER", "ttvdrops"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": env_int("POSTGRES_PORT", 5432),
+        "CONN_MAX_AGE": env_int("CONN_MAX_AGE", 60),
+        "CONN_HEALTH_CHECKS": env_bool("CONN_HEALTH_CHECKS", default=True),
     },
 }
 

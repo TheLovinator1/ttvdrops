@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import auto_prefetch
 from django.contrib.humanize.templatetags.humanize import naturaltime
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
@@ -420,7 +421,7 @@ class DropCampaign(auto_prefetch.Model):
             models.Index(fields=["name"]),
             models.Index(fields=["description"]),
             models.Index(fields=["allow_is_enabled"]),
-            models.Index(fields=["operation_names"]),
+            GinIndex(fields=["operation_names"], name="twitch_drop_operati_gin_idx"),
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
             # Composite indexes for common queries
