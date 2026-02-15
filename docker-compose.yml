@@ -73,7 +73,7 @@ services:
       - POSTGRES_HOST=ttvdrops_postgres
       - POSTGRES_PORT=5432
     volumes:
-      - /mnt/Docker/Data/ttvdrops/data:/root/.local/share/TTVDrops
+      - /mnt/Docker/Data/ttvdrops/data:/home/ttvdrops/.local/share/TTVDrops
     restart: unless-stopped
     networks:
       - web

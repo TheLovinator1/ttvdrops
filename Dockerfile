@@ -15,10 +15,16 @@ RUN chmod +x /app/start.sh
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+RUN groupadd -g 1000 ttvdrops \
+ && useradd -m -u 1000 -g 1000 -d /home/ttvdrops -s /bin/sh ttvdrops \
+ && mkdir -p /home/ttvdrops/.local/share/TTVDrops \
+ && chown -R ttvdrops:ttvdrops /home/ttvdrops /app
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:8000/ || exit 1
 
-VOLUME ["/root/.local/share/TTVDrops"]
+VOLUME ["/home/ttvdrops/.local/share/TTVDrops"]
 EXPOSE 8000
+USER ttvdrops
 ENTRYPOINT [ "/app/start.sh" ]
 CMD ["uv", "run", "gunicorn", "config.wsgi:application", "--workers", "27", "--bind", "0.0.0.0:8000"]
