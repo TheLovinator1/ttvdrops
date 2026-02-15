@@ -39,7 +39,7 @@ def env_int(key: str, default: int) -> int:
 
 
 DEBUG: bool = env_bool(key="DEBUG", default=True)
-TESTING: bool = "test" in sys.argv or "PYTEST_VERSION" in os.environ
+TESTING: bool = env_bool(key="TESTING", default=False) or "test" in sys.argv or "PYTEST_VERSION" in os.environ
 
 
 def get_data_dir() -> Path:
@@ -178,18 +178,27 @@ TEMPLATES: list[dict[str, Any]] = [
     },
 ]
 
-DATABASES: dict[str, dict[str, Any]] = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "ttvdrops"),
-        "USER": os.getenv("POSTGRES_USER", "ttvdrops"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": env_int("POSTGRES_PORT", 5432),
-        "CONN_MAX_AGE": env_int("CONN_MAX_AGE", 60),
-        "CONN_HEALTH_CHECKS": env_bool("CONN_HEALTH_CHECKS", default=True),
-    },
-}
+DATABASES: dict[str, dict[str, Any]] = (
+    {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        },
+    }
+    if TESTING
+    else {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "ttvdrops"),
+            "USER": os.getenv("POSTGRES_USER", "ttvdrops"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+            "PORT": env_int("POSTGRES_PORT", 5432),
+            "CONN_MAX_AGE": env_int("CONN_MAX_AGE", 60),
+            "CONN_HEALTH_CHECKS": env_bool("CONN_HEALTH_CHECKS", default=True),
+        },
+    }
+)
 
 if not TESTING:
     INSTALLED_APPS = [

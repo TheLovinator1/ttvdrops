@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest import skipIf
 
+from django.db import connection
 from django.test import TestCase
 
 from twitch.management.commands.better_import_drops import Command
@@ -369,6 +371,7 @@ class CampaignStructureDetectionTests(TestCase):
 class OperationNameFilteringTests(TestCase):
     """Tests for filtering campaigns by operation_name field."""
 
+    @skipIf(connection.vendor == "sqlite", reason="SQLite doesn't support JSON contains lookup")
     def test_can_filter_campaigns_by_operation_name(self) -> None:
         """Ensure campaigns can be filtered by operation_name to separate data sources."""
         command = Command()

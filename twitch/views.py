@@ -18,6 +18,7 @@ from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
 from django.core.serializers import serialize
+from django.db import connection
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
@@ -1614,14 +1615,27 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         {"trimmed_op": op_name, "count": count} for op_name, count in sorted(operation_names_counter.items())
     ]
 
-    campaigns_missing_dropcampaigndetails: QuerySet[DropCampaign] = (
-        DropCampaign.objects
-        .filter(
-            Q(operation_names__isnull=True) | ~Q(operation_names__contains=["DropCampaignDetails"]),
+    # Campaigns missing DropCampaignDetails operation name
+    # SQLite doesn't support JSON contains lookup, so we handle it in Python for compatibility
+    if connection.vendor == "sqlite":
+        # For SQLite, fetch all campaigns and filter in Python
+        all_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.select_related("game").order_by(
+            "game__display_name",
+            "name",
         )
-        .select_related("game")
-        .order_by("game__display_name", "name")
-    )
+        campaigns_missing_dropcampaigndetails: list[DropCampaign] = [
+            c for c in all_campaigns if c.operation_names is None or "DropCampaignDetails" not in c.operation_names
+        ]
+    else:
+        # For PostgreSQL, use the efficient contains lookup
+        campaigns_missing_dropcampaigndetails: list[DropCampaign] = list(
+            DropCampaign.objects
+            .filter(
+                Q(operation_names__isnull=True) | ~Q(operation_names__contains=["DropCampaignDetails"]),
+            )
+            .select_related("game")
+            .order_by("game__display_name", "name"),
+        )
 
     context: dict[str, Any] = {
         "now": now,
