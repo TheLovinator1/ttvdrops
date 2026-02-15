@@ -5,33 +5,34 @@ description = "Get notified when a new drop is available on Twitch."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "colorama",
     "dateparser",
+    "django-auto-prefetch",
+    "django-debug-toolbar",
+    "django-silk",
     "django",
-    "psycopg[binary]",
+    "gunicorn",
+    "httpx",
     "json-repair",
     "pillow",
     "platformdirs",
-    "python-dotenv",
-    "pygments",
-    "httpx",
+    "psycopg[binary]",
     "pydantic",
+    "pygments",
+    "python-dotenv",
     "tqdm",
-    "colorama",
-    "gunicorn",
-    "django-silk",
-    "django-auto-prefetch",
-    "django-debug-toolbar",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest",
-    "pytest-django",
-    "djlint",
     "django-stubs",
-    "pytest-cov",
+    "djlint",
     "hypothesis[django]",
-    "pytest-xdist[psutil]>=3.8.0",
+    "pytest-cov",
+    "pytest-django",
+    "pytest-xdist[psutil]",
+    "pytest",
+    "pytest-randomly",
 ]
 
 [tool.pytest.ini_options]
