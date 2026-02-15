@@ -10,6 +10,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     env:
       DJANGO_DEBUG: False
       DJANGO_SECRET_KEY: 1234567890
@@ -41,7 +42,11 @@ jobs:
       - run: uv run pytest
 
       - run: uv run python manage.py makemigrations --check
+        env:
+          TESTING: True
       - run: uv run python manage.py migrate
+        env:
+          TESTING: True
       - run: uv run python manage.py collectstatic --noinput
       - id: meta
         uses: docker/metadata-action@v5

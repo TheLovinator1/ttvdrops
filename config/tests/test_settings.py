@@ -246,6 +246,8 @@ def test_database_settings_when_not_testing(
     monkeypatch.delenv("PYTEST_VERSION", raising=False)
 
     reloaded: ModuleType = reload_settings_module(
+        TESTING=None,
+        PYTEST_VERSION=None,
         POSTGRES_DB="prod_db",
         POSTGRES_USER="prod_user",
         POSTGRES_PASSWORD="secret",
@@ -275,7 +277,7 @@ def test_debug_tools_installed_only_when_not_testing(
     # Not testing -> tools should be present
     monkeypatch.setattr("sys.argv", ["manage.py", "runserver"])
     monkeypatch.delenv("PYTEST_VERSION", raising=False)
-    not_testing: ModuleType = reload_settings_module()
+    not_testing: ModuleType = reload_settings_module(TESTING=None, PYTEST_VERSION=None)
     assert "debug_toolbar" in not_testing.INSTALLED_APPS
     assert "silk" in not_testing.INSTALLED_APPS
 
