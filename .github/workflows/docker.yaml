@@ -13,6 +13,26 @@ jobs:
     env:
       DJANGO_SECRET_KEY: 1234567890
       DJANGO_DEBUG: False
+      POSTGRES_DB: ttvdrops_test
+      POSTGRES_USER: ttvdrops_test
+      POSTGRES_PASSWORD: testpass123
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ttvdrops_test
+          POSTGRES_USER: ttvdrops_test
+          POSTGRES_PASSWORD: testpass123
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - uses: docker/login-action@v3
