@@ -48,6 +48,7 @@
         "noopener",
         "noreferrer",
         "otherchannel",
+        "pgautoupgrade",
         "platformdirs",
         "prefetcher",
         "psutil",
