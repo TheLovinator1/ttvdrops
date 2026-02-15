@@ -31,11 +31,13 @@ dev = [
     "django-stubs",
     "pytest-cov",
     "hypothesis[django]",
+    "pytest-xdist[psutil]>=3.8.0",
 ]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]
+addopts = "-n 4"
 filterwarnings = [
     "ignore:Parsing dates involving a day of month without a year specified is ambiguous:DeprecationWarning",
 ]
