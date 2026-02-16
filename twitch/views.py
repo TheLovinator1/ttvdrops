@@ -25,7 +25,6 @@ from django.db.models import F
 from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import Q
-from django.db.models import Subquery
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
 from django.http import FileResponse
@@ -1815,15 +1814,7 @@ class ChannelListView(ListView):
         if search_query:
             queryset = queryset.filter(Q(name__icontains=search_query) | Q(display_name__icontains=search_query))
 
-        campaign_count_subquery: QuerySet[DropCampaign, DropCampaign] = (
-            DropCampaign.allow_channels.through.objects
-            .filter(channel_id=OuterRef("pk"))
-            .values("channel_id")
-            .annotate(count=Count("id"))
-            .values("count")
-        )
-
-        return queryset.annotate(campaign_count=Subquery(campaign_count_subquery)).order_by("-campaign_count", "name")
+        return queryset.annotate(campaign_count=Count("allowed_campaigns")).order_by("-campaign_count", "name")
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
