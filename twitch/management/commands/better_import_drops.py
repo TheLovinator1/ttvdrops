@@ -1021,14 +1021,16 @@ class Command(BaseCommand):
             campaign_obj.save(update_fields=["allow_is_enabled"])
 
         # Get or create all channels and collect them
+        # Only update the M2M relationship if we have channel data from the API.
+        # This prevents clearing existing channel associations when the API returns
+        # no channels (which can happen for disabled campaigns or incomplete responses).
         channel_objects: list[Channel] = []
         if allow_schema.channels:
             for channel_schema in allow_schema.channels:
                 channel_obj: Channel = self._get_or_create_channel(channel_info=channel_schema)
                 channel_objects.append(channel_obj)
-
-        # Update the M2M relationship with the allowed channels
-        campaign_obj.allow_channels.set(channel_objects)
+            # Only update the M2M relationship if we have channels
+            campaign_obj.allow_channels.set(channel_objects)
 
     def _process_reward_campaigns(
         self,
