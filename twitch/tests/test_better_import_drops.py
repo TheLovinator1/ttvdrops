@@ -49,7 +49,6 @@ class ExtractCampaignsTests(TestCase):
     def test_validates_top_level_response_with_nested_campaign(self) -> None:
         """Ensure validation handles full responses correctly."""
         command = Command()
-        command.pre_fill_cache()
 
         payload: dict[str, object] = {
             "data": {
@@ -102,7 +101,6 @@ class ExtractCampaignsTests(TestCase):
     def test_imports_inventory_response_and_sets_operation_name(self) -> None:
         """Ensure Inventory JSON imports work and operation_name is set correctly."""
         command = Command()
-        command.pre_fill_cache()
 
         # Inventory response with dropCampaignsInProgress
         payload: dict[str, object] = {
@@ -172,7 +170,6 @@ class ExtractCampaignsTests(TestCase):
     def test_handles_inventory_with_null_campaigns(self) -> None:
         """Ensure Inventory JSON with null dropCampaignsInProgress is handled correctly."""
         command = Command()
-        command.pre_fill_cache()
 
         # Inventory response with null dropCampaignsInProgress
         payload: dict[str, object] = {
@@ -207,7 +204,6 @@ class ExtractCampaignsTests(TestCase):
     def test_handles_inventory_with_allow_acl_url_and_missing_is_enabled(self) -> None:
         """Ensure ACL with url field and missing isEnabled is handled correctly."""
         command = Command()
-        command.pre_fill_cache()
 
         # Inventory response with allow ACL containing url field and no isEnabled
         payload: dict[str, object] = {
@@ -375,7 +371,6 @@ class OperationNameFilteringTests(TestCase):
     def test_can_filter_campaigns_by_operation_name(self) -> None:
         """Ensure campaigns can be filtered by operation_name to separate data sources."""
         command = Command()
-        command.pre_fill_cache()
 
         # Import a ViewerDropsDashboard campaign
         viewer_drops_payload = {
@@ -491,7 +486,6 @@ class GameImportTests(TestCase):
     def test_imports_game_slug_from_campaign(self) -> None:
         """Ensure Game.slug is imported from DropCampaign game data when provided."""
         command = Command()
-        command.pre_fill_cache()
 
         payload: dict[str, object] = {
             "data": {
@@ -549,7 +543,6 @@ class ExampleJsonImportTests(TestCase):
     def test_imports_drop_campaign_details_and_persists_urls(self) -> None:
         """Ensure `imageURL` and other URL-ish fields are persisted from DropCampaignDetails."""
         command = Command()
-        command.pre_fill_cache()
 
         repo_root: Path = Path(__file__).resolve().parents[2]
         example_path: Path = repo_root / "example.json"
@@ -637,7 +630,6 @@ class ImporterRobustnessTests(TestCase):
     def test_allows_null_image_url_and_persists_empty_string(self) -> None:
         """Ensure null imageURL doesn't fail validation and results in empty string in DB."""
         command = Command()
-        command.pre_fill_cache()
 
         payload: dict[str, object] = {
             "data": {

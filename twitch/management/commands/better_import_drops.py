@@ -19,7 +19,6 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from django.core.management.base import CommandParser
-from django.db import DatabaseError
 from json_repair import JSONReturnType
 from pydantic import ValidationError
 from tqdm import tqdm
@@ -427,14 +426,6 @@ class Command(BaseCommand):
     help = "Import Twitch drop campaign data from a JSON file or directory"
     requires_migrations_checks = True
 
-    # In-memory caches prevent repeated DB lookups during batch imports,
-    # cutting query volume and keeping runtime predictable.
-    game_cache: dict[str, Game] = {}
-    organization_cache: dict[str, Organization] = {}
-    drop_campaign_cache: dict[str, DropCampaign] = {}
-    channel_cache: dict[str, Channel] = {}
-    benefit_cache: dict[str, DropBenefit] = {}
-
     def add_arguments(self, parser: CommandParser) -> None:
         """Populate the command with arguments."""
         parser.add_argument(
@@ -467,52 +458,6 @@ class Command(BaseCommand):
                 " during testing to avoid unnecessary file moves"
             ),
         )
-
-    def pre_fill_cache(self) -> None:
-        """Load all existing IDs from DB into memory."""
-        self.game_cache = {}
-        self.organization_cache = {}
-        self.drop_campaign_cache = {}
-        self.channel_cache = {}
-        self.benefit_cache = {}
-
-        cache_operations: list[tuple[str, type, str]] = [
-            ("Games", Game, "game_cache"),
-            ("Organizations", Organization, "organization_cache"),
-            ("Drop Campaigns", DropCampaign, "drop_campaign_cache"),
-            ("Channels", Channel, "channel_cache"),
-            ("Benefits", DropBenefit, "benefit_cache"),
-        ]
-
-        try:
-            with tqdm(cache_operations, desc="Loading caches", unit="cache", colour="cyan") as progress_bar:
-                for name, model, cache_attr in progress_bar:
-                    self.load_cache_for_model(progress_bar, name, model, cache_attr)
-            tqdm.write("")
-        except DatabaseError, OSError, RuntimeError, ValueError, TypeError:
-            # If cache loading fails completely, just use empty caches
-            tqdm.write(f"{Fore.YELLOW}⚠{Style.RESET_ALL} Cache preload skipped (database error)\n")
-
-    def load_cache_for_model(self, progress_bar: tqdm, name: str, model: type, cache_attr: str) -> None:
-        """Load cache for a specific model and attach to the command instance.
-
-        Args:
-            progress_bar: TQDM progress bar instance.
-            name: Human-readable name of the model being cached.
-            model: Django model class to query.
-            cache_attr: Attribute name on the command instance to store the cache.
-        """
-        progress_bar.set_description(f"Loading {name}")
-        try:
-            cache: dict[str, Any] = {str(obj.twitch_id): obj for obj in model.objects.all()}
-            setattr(self, cache_attr, cache)
-            progress_bar.write(f"  {Fore.GREEN}✓{Style.RESET_ALL} {name}: {len(cache):,}")
-        except (DatabaseError, OSError, RuntimeError, ValueError, TypeError) as e:
-            # Database error - skip this cache
-            msg: str = f"  {Fore.YELLOW}⚠{Style.RESET_ALL} {name}: Could not load ({type(e).__name__})"
-            progress_bar.write(msg)
-
-            setattr(self, cache_attr, {})
 
     def _validate_responses(
         self,
@@ -570,7 +515,7 @@ class Command(BaseCommand):
         self,
         org_data: OrganizationSchema,
     ) -> Organization:
-        """Get or create an organization from cache or database.
+        """Get or create an organization.
 
         Args:
             org_data: Organization data from Pydantic model.
@@ -578,10 +523,6 @@ class Command(BaseCommand):
         Returns:
             Organization instance.
         """
-        # Prefer cache hits to avoid hitting the DB on every campaign item.
-        if org_data.twitch_id in self.organization_cache:
-            return self.organization_cache[org_data.twitch_id]
-
         org_obj, created = Organization.objects.update_or_create(
             twitch_id=org_data.twitch_id,
             defaults={
@@ -591,9 +532,6 @@ class Command(BaseCommand):
         if created:
             tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new organization: {org_data.name}")
 
-        # Cache the organization for future lookups.
-        self.organization_cache[org_data.twitch_id] = org_obj
-
         return org_obj
 
     def _get_or_create_game(
@@ -601,7 +539,7 @@ class Command(BaseCommand):
         game_data: GameSchema,
         campaign_org_obj: Organization | None,
     ) -> Game:
-        """Get or create a game from cache or database, using correct owner organization.
+        """Get or create a game using correct owner organization.
 
         Args:
             game_data: Game data from Pydantic model.
@@ -621,35 +559,6 @@ class Command(BaseCommand):
         if campaign_org_obj:
             owner_orgs.add(campaign_org_obj)
 
-        if game_data.twitch_id in self.game_cache:
-            game_obj: Game = self.game_cache[game_data.twitch_id]
-            update_fields: list[str] = []
-            # Update owners (ManyToMany)
-            current_owners = set(game_obj.owners.all())
-            new_owners = owner_orgs - current_owners
-            if new_owners:
-                game_obj.owners.add(*new_owners)
-            # Persist normalized display name when provided
-            if game_data.display_name and game_obj.display_name != game_data.display_name:
-                game_obj.display_name = game_data.display_name
-                update_fields.append("display_name")
-            # Persist canonical name when provided (Inventory format)
-            if game_data.name and game_obj.name != game_data.name:
-                game_obj.name = game_data.name
-                update_fields.append("name")
-            # Persist slug when provided by API (Inventory and DropCampaignDetails)
-            if game_data.slug is not None and game_obj.slug != (game_data.slug or ""):
-                game_obj.slug = game_data.slug or ""
-                update_fields.append("slug")
-            # Persist box art URL when provided
-            if game_data.box_art_url is not None and game_obj.box_art != (game_data.box_art_url or ""):
-                game_obj.box_art = game_data.box_art_url or ""
-                update_fields.append("box_art")
-            if update_fields:
-                game_obj.save(update_fields=update_fields)
-            self._download_game_box_art(game_obj, game_data.box_art_url or game_obj.box_art)
-            return game_obj
-
         game_obj, created = Game.objects.update_or_create(
             twitch_id=game_data.twitch_id,
             defaults={
@@ -664,7 +573,6 @@ class Command(BaseCommand):
             game_obj.owners.add(*owner_orgs)
         if created:
             tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}")
-        self.game_cache[game_data.twitch_id] = game_obj
         self._download_game_box_art(game_obj, game_obj.box_art)
         return game_obj
 
@@ -694,7 +602,7 @@ class Command(BaseCommand):
         game_obj.box_art_file.save(file_name, ContentFile(response.content), save=True)
 
     def _get_or_create_channel(self, channel_info: ChannelInfoSchema) -> Channel:
-        """Get or create a channel from cache or database.
+        """Get or create a channel.
 
         Args:
             channel_info: Channel info from Pydantic model.
@@ -702,10 +610,6 @@ class Command(BaseCommand):
         Returns:
             Channel instance.
         """
-        # Prefer cache hits to avoid hitting the DB on every campaign item.
-        if channel_info.twitch_id in self.channel_cache:
-            return self.channel_cache[channel_info.twitch_id]
-
         # Use name as display_name fallback if displayName is None
         display_name: str = channel_info.display_name or channel_info.name
 
@@ -719,58 +623,15 @@ class Command(BaseCommand):
         if created:
             tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {display_name}")
 
-        # Cache the channel for future lookups.
-        self.channel_cache[channel_info.twitch_id] = channel_obj
-
         return channel_obj
 
-    def _should_skip_campaign_update(
-        self,
-        cached_obj: DropCampaign,
-        defaults: dict[str, Any],
-        game_obj: Game,
-    ) -> bool:
-        """Check if campaign update can be skipped based on cache comparison.
-
-        Args:
-            cached_obj: Cached campaign object.
-            defaults: New campaign data.
-            game_obj: Associated game object.
-
-        Returns:
-            True if no update needed, False otherwise.
-        """
-        # Use game_id (Django's auto-generated FK field) to avoid
-        # triggering a query. Compare FK IDs to avoid ORM reads; keeps
-        # this a pure in-memory check.
-        cached_game_id: int | None = getattr(cached_obj, "game_id", None)
-
-        # Ensure game object has a primary key (should always be true
-        # at this point)
-        game_id: int | None = game_obj.pk
-
-        # Short-circuit updates when nothing changed; reduces write
-        # load and log noise while keeping caches accurate.
-        return bool(
-            cached_obj.name == defaults["name"]
-            and cached_obj.description == defaults["description"]
-            and getattr(cached_obj, "image_url", "") == defaults.get("image_url", "")
-            and cached_obj.start_at == defaults["start_at"]
-            and cached_obj.end_at == defaults["end_at"]
-            and cached_obj.details_url == defaults["details_url"]
-            and cached_obj.account_link_url == defaults["account_link_url"]
-            and cached_game_id == game_id,
-        )
-
-    def process_responses(  # noqa: PLR0914
+    def process_responses(
         self,
         responses: list[dict[str, Any]],
         file_path: Path,
         options: dict[str, Any],
     ) -> tuple[bool, Path | None]:
         """Process, validate, and import campaign data from GraphQL responses.
-
-        With dependency resolution and caching.
 
         Args:
             responses: List of raw GraphQL response dictionaries to process.
@@ -846,21 +707,12 @@ class Command(BaseCommand):
                     "account_link_url": drop_campaign.account_link_url,
                 }
 
-                if drop_campaign.twitch_id in self.drop_campaign_cache:
-                    cached_obj: DropCampaign = self.drop_campaign_cache[drop_campaign.twitch_id]
-                    if self._should_skip_campaign_update(cached_obj=cached_obj, defaults=defaults, game_obj=game_obj):
-                        if options.get("verbose"):
-                            tqdm.write(f"{Fore.YELLOW}→{Style.RESET_ALL} Skipped (No changes): {drop_campaign.name}")
-                        continue
-
                 campaign_obj, created = DropCampaign.objects.update_or_create(
                     twitch_id=drop_campaign.twitch_id,
                     defaults=defaults,
                 )
                 if created:
                     tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}")
-
-                self.drop_campaign_cache[drop_campaign.twitch_id] = campaign_obj
 
                 action: Literal["Imported new", "Updated"] = "Imported new" if created else "Updated"
                 tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {action} campaign: {drop_campaign.name}")
@@ -936,7 +788,7 @@ class Command(BaseCommand):
             )
 
     def _get_or_update_benefit(self, benefit_schema: DropBenefitSchema) -> DropBenefit:
-        """Return a DropBenefit, updating stale cached values when needed."""
+        """Return a DropBenefit, creating or updating as needed."""
         distribution_type: str = (benefit_schema.distribution_type or "").strip()
         benefit_defaults: dict[str, str | int | datetime | bool | None] = {
             "name": benefit_schema.name,
@@ -951,28 +803,13 @@ class Command(BaseCommand):
             if created_at_dt:
                 benefit_defaults["created_at"] = created_at_dt
 
-        cached_benefit: DropBenefit | None = self.benefit_cache.get(benefit_schema.twitch_id)
+        benefit_obj, created = DropBenefit.objects.update_or_create(
+            twitch_id=benefit_schema.twitch_id,
+            defaults=benefit_defaults,
+        )
+        if created:
+            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}")
 
-        if cached_benefit:
-            update_fields: list[str] = []
-            for field_name, value in benefit_defaults.items():
-                if getattr(cached_benefit, field_name) != value:
-                    setattr(cached_benefit, field_name, value)
-                    update_fields.append(field_name)
-
-            if update_fields:
-                cached_benefit.save(update_fields=update_fields)
-
-            benefit_obj: DropBenefit = cached_benefit
-        else:
-            benefit_obj, created = DropBenefit.objects.update_or_create(
-                twitch_id=benefit_schema.twitch_id,
-                defaults=benefit_defaults,
-            )
-            if created:
-                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}")
-
-        self.benefit_cache[benefit_schema.twitch_id] = benefit_obj
         return benefit_obj
 
     def _process_benefit_edges(
@@ -1109,8 +946,6 @@ class Command(BaseCommand):
         colorama_init(autoreset=True)
 
         input_path: Path = Path(options["path"]).resolve()
-
-        self.pre_fill_cache()
 
         try:
             if input_path.is_file():

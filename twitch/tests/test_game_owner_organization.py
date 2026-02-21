@@ -15,7 +15,6 @@ class GameOwnerOrganizationTests(TestCase):
     def test_game_owner_organization_precedence(self) -> None:
         """If both owner and ownerOrganization are present, game owner should be ownerOrganization."""
         command = Command()
-        command.pre_fill_cache()
 
         payload = {
             "data": {
