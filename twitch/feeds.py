@@ -187,59 +187,14 @@ def _build_channels_html(channels: list[Channel] | QuerySet[Channel], game: Game
     )
 
 
-def _get_channel_name_from_drops(drops: QuerySet[TimeBasedDrop]) -> str | None:
-    for d in drops:
-        campaign: DropCampaign | None = getattr(d, "campaign", None)
-        if campaign:
-            channels: list[Channel] | None = getattr(campaign, "channels_ordered", None)
-            if channels:
-                return channels[0].name
-    return None
-
-
-def get_channel_from_benefit(benefit: Model) -> str | None:
-    """Get the Twitch channel name associated with a drop benefit.
-
-    Args:
-        benefit (Model): The drop benefit model instance.
-
-    Returns:
-        str | None: The Twitch channel name if found, else None.
-    """
-    drop_obj: QuerySet[TimeBasedDrop] | None = getattr(benefit, "drops", None)
-    if drop_obj and hasattr(drop_obj, "all"):
-        try:
-            return _get_channel_name_from_drops(drop_obj.all())
-        except AttributeError:
-            logger.exception("Exception occurred while resolving channel name for benefit")
-    return None
-
-
-def _resolve_channel_name(drop: dict) -> str | None:
-    """Try to resolve the Twitch channel name for a drop dict's benefits or fallback keys.
-
-    Args:
-        drop (dict): The drop data dictionary.
-
-    Returns:
-        str | None: The Twitch channel name if found, else None.
-    """
-    benefits: list[Model] = drop.get("benefits", [])
-    benefit0: Model | None = benefits[0] if benefits else None
-    if benefit0 and hasattr(benefit0, "drops"):
-        channel_name: str | None = get_channel_from_benefit(benefit0)
-        if channel_name:
-            return channel_name
-    return None
-
-
-def _construct_drops_summary(drops_data: list[dict]) -> SafeText:
+def _construct_drops_summary(drops_data: list[dict], channel_name: str | None = None) -> SafeText:
     """Construct a safe HTML summary of drops and their benefits.
 
     If the requirements indicate a subscription is required, link the benefit names to the Twitch channel.
 
     Args:
         drops_data (list[dict]): List of drop data dicts.
+        channel_name (str | None): Optional channel name to link benefit names to on Twitch.
 
     Returns:
         SafeText: A single safe HTML line summarizing all drops, or empty SafeText if none.
@@ -271,7 +226,6 @@ def _construct_drops_summary(drops_data: list[dict]) -> SafeText:
     for drop in sorted_drops:
         requirements: str = drop.get("requirements", "")
         benefits: list[DropBenefit] = drop.get("benefits", [])
-        channel_name: str | None = _resolve_channel_name(drop)
         is_sub_required: bool = "sub required" in requirements or "subs required" in requirements
         benefit_names: list[tuple[str]] = []
         for b in benefits:
@@ -533,6 +487,8 @@ class DropCampaignFeed(Feed):
     def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
         drops_data: list[dict] = []
+        channels: list[Channel] | None = getattr(item, "channels_ordered", None)
+        channel_name: str | None = channels[0].name if channels else None
 
         drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
         if drops:
@@ -555,14 +511,12 @@ class DropCampaignFeed(Feed):
         insert_date_info(item, parts)
 
         if drops_data:
-            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data)))
+            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data, channel_name=channel_name)))
 
         # Only show channels if drop is not subscription only
-        if not getattr(item, "is_subscription_only", False):
-            channels: list[Channel] | None = getattr(item, "channels_ordered", None)
-            if channels is not None:
-                game: Game | None = getattr(item, "game", None)
-                parts.append(_build_channels_html(channels, game=game))
+        if not getattr(item, "is_subscription_only", False) and channels is not None:
+            game: Game | None = getattr(item, "game", None)
+            parts.append(_build_channels_html(channels, game=game))
 
         details_url: str | None = getattr(item, "details_url", None)
         if details_url:
@@ -678,6 +632,8 @@ class GameCampaignFeed(Feed):
     def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
         drops_data: list[dict] = []
+        channels: list[Channel] | None = getattr(item, "channels_ordered", None)
+        channel_name: str | None = channels[0].name if channels else None
 
         drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
         if drops:
@@ -700,14 +656,12 @@ class GameCampaignFeed(Feed):
         insert_date_info(item, parts)
 
         if drops_data:
-            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data)))
+            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data, channel_name=channel_name)))
 
         # Only show channels if drop is not subscription only
-        if not getattr(item, "is_subscription_only", False):
-            channels: list[Channel] | None = getattr(item, "channels_ordered", None)
-            if channels is not None:
-                game: Game | None = getattr(item, "game", None)
-                parts.append(_build_channels_html(channels, game=game))
+        if not getattr(item, "is_subscription_only", False) and channels is not None:
+            game: Game | None = getattr(item, "game", None)
+            parts.append(_build_channels_html(channels, game=game))
 
         details_url: str | None = getattr(item, "details_url", None)
         if details_url:
@@ -862,6 +816,8 @@ class OrganizationCampaignFeed(Feed):
     def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
         drops_data: list[dict] = []
+        channels: list[Channel] | None = getattr(item, "channels_ordered", None)
+        channel_name: str | None = channels[0].name if channels else None
 
         drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
         if drops:
@@ -884,14 +840,12 @@ class OrganizationCampaignFeed(Feed):
         insert_date_info(item, parts)
 
         if drops_data:
-            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data)))
+            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data, channel_name=channel_name)))
 
         # Only show channels if drop is not subscription only
-        if not getattr(item, "is_subscription_only", False):
-            channels: list[Channel] | None = getattr(item, "channels_ordered", None)
-            if channels is not None:
-                game: Game | None = getattr(item, "game", None)
-                parts.append(_build_channels_html(channels, game=game))
+        if not getattr(item, "is_subscription_only", False) and channels is not None:
+            game: Game | None = getattr(item, "game", None)
+            parts.append(_build_channels_html(channels, game=game))
 
         details_url: str | None = getattr(item, "details_url", None)
         if details_url:

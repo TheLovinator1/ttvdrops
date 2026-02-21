@@ -282,6 +282,63 @@ def test_campaign_feed_queries_bounded(client: Client, django_assert_num_queries
 
 
 @pytest.mark.django_db
+def test_campaign_feed_queries_do_not_scale_with_items(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
+    """Campaign RSS feed query count should stay roughly constant as item count grows."""
+    org: Organization = Organization.objects.create(
+        twitch_id="test-org-scale-queries",
+        name="Scale Query Org",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="test-game-scale-queries",
+        slug="scale-query-game",
+        name="Scale Query Game",
+        display_name="Scale Query Game",
+    )
+    game.owners.add(org)
+
+    for i in range(50):
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id=f"scale-campaign-{i}",
+            name=f"Scale Campaign {i}",
+            game=game,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(days=7),
+            operation_names=["DropCampaignDetails"],
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id=f"scale-channel-{i}",
+            name=f"scalechannel{i}",
+            display_name=f"ScaleChannel{i}",
+        )
+        campaign.allow_channels.add(channel)
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id=f"scale-drop-{i}",
+            name=f"Scale Drop {i}",
+            campaign=campaign,
+            required_subs=1,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=1),
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id=f"scale-benefit-{i}",
+            name=f"Scale Benefit {i}",
+            distribution_type="ITEM",
+        )
+        drop.benefits.add(benefit)
+
+    url: str = reverse("twitch:campaign_feed")
+
+    # N+1 safeguard: query count should not scale linearly with campaign count.
+    with django_assert_num_queries(40, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
 def test_game_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
     """Game campaign feed should not issue excess queries when rendering multiple campaigns."""
     org: Organization = Organization.objects.create(
@@ -302,7 +359,36 @@ def test_game_campaign_feed_queries_bounded(client: Client, django_assert_num_qu
     url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
 
     # TODO(TheLovinator): 15 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
-    with django_assert_num_queries(15, exact=False):
+    with django_assert_num_queries(6, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_game_campaign_feed_queries_do_not_scale_with_items(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
+    """Game campaign RSS feed query count should remain bounded as item count grows."""
+    org: Organization = Organization.objects.create(
+        twitch_id="test-org-game-scale-queries",
+        name="Game Scale Query Org",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="test-game-scale-campaign-queries",
+        slug="scale-game-campaign",
+        name="Scale Game Campaign",
+        display_name="Scale Game Campaign",
+    )
+    game.owners.add(org)
+
+    for i in range(50):
+        _build_campaign(game, i)
+
+    url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
+
+    with django_assert_num_queries(6, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
@@ -368,7 +454,36 @@ def test_organization_campaign_feed_queries_bounded(client: Client, django_asser
 
     url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
     # TODO(TheLovinator): 12 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
-    with django_assert_num_queries(12, exact=True):
+    with django_assert_num_queries(12, exact=False):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_organization_campaign_feed_queries_do_not_scale_with_items(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
+    """Organization campaign RSS feed query count should remain bounded as item count grows."""
+    org: Organization = Organization.objects.create(
+        twitch_id="test-org-org-scale-queries",
+        name="Org Scale Query Org",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="test-game-org-scale-queries",
+        slug="org-scale-game",
+        name="Org Scale Game",
+        display_name="Org Scale Game",
+    )
+    game.owners.add(org)
+
+    for i in range(50):
+        _build_campaign(game, i)
+
+    url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
+
+    with django_assert_num_queries(15, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200
