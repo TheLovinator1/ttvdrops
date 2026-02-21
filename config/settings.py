@@ -196,6 +196,9 @@ DATABASES: dict[str, dict[str, Any]] = (
             "PORT": env_int("POSTGRES_PORT", 5432),
             "CONN_MAX_AGE": env_int("CONN_MAX_AGE", 60),
             "CONN_HEALTH_CHECKS": env_bool("CONN_HEALTH_CHECKS", default=True),
+            "OPTIONS": {
+                "connect_timeout": env_int("DB_CONNECT_TIMEOUT", 10),
+            },
         },
     }
 )
