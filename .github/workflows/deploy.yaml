@@ -1,0 +1,32 @@
+name: Deploy to Server
+
+# EDITOR=nvim visudo
+# forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/git
+# forgejo-runner ALL=(root) NOPASSWD: /bin/systemctl restart ttvdrops
+# forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv run python /home/ttvdrops/ttvdrops/manage.py migrate
+# forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv sync -U
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    env:
+      DJANGO_DEBUG: False
+      DJANGO_SECRET_KEY: 1234567890
+
+    steps:
+      - uses: actions/checkout@v6
+      - run: uv sync --all-extras --dev
+      - run: uv run pytest
+      - name: Deploy to Server
+        if: ${{ success() }}
+        run: |
+          sudo -u ttvdrops git -C /home/ttvdrops/ttvdrops pull
+          sudo -u ttvdrops uv sync -U
+          sudo -u ttvdrops uv run python /home/ttvdrops/ttvdrops/manage.py migrate
+          sudo systemctl restart ttvdrops
