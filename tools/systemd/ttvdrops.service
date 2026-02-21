@@ -1,0 +1,32 @@
+[Unit]
+Description=TTVDrops
+Requires=ttvdrops.socket
+After=network.target
+
+[Service]
+Type=simple
+User=ttvdrops
+Group=ttvdrops
+WorkingDirectory=/home/ttvdrops/ttvdrops
+EnvironmentFile=/home/ttvdrops/ttvdrops/.env
+RuntimeDirectory=ttvdrops
+UMask=0077
+ExecStart=/usr/bin/uv run gunicorn config.wsgi:application --bind unix:/run/ttvdrops/ttvdrops.sock --workers 13 --name ttvdrops --max-requests-jitter 50 --max-requests 1200
+ExecReload=/bin/kill -s HUP $MAINPID
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=no
+ReadWritePaths=/home/ttvdrops/ttvdrops /run/ttvdrops /mnt/fourteen/Data/Responses
+PrivateDevices=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictRealtime=yes
+LockPersonality=yes
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

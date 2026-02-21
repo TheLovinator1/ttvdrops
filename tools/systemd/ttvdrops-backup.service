@@ -1,0 +1,10 @@
+[Unit]
+Description=TTVDrops database backup
+
+[Service]
+Type=oneshot
+User=ttvdrops
+Group=ttvdrops
+WorkingDirectory=/home/ttvdrops/ttvdrops
+EnvironmentFile=/home/ttvdrops/ttvdrops/.env
+ExecStart=/usr/bin/uv run python manage.py backup_db

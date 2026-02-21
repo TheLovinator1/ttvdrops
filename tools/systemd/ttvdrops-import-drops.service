@@ -1,0 +1,12 @@
+[Unit]
+Description=TTVDrops import drops from pending directory
+
+[Service]
+Type=oneshot
+User=ttvdrops
+Group=ttvdrops
+WorkingDirectory=/home/ttvdrops/ttvdrops
+EnvironmentFile=/home/ttvdrops/ttvdrops/.env
+ExecStart=/usr/bin/uv run python manage.py better_import_drops /mnt/fourteen/Data/Responses/pending
+-ExecStartPost=/usr/bin/uv run python manage.py download_box_art
+-ExecStartPost=/usr/bin/uv run python manage.py download_campaign_images

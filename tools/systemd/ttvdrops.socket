@@ -1,0 +1,11 @@
+[Unit]
+Description=TTVDrops Socket
+
+[Socket]
+ListenStream=/run/ttvdrops/ttvdrops.sock
+SocketUser=ttvdrops
+SocketGroup=ttvdrops
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

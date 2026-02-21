@@ -1,0 +1,10 @@
+[Unit]
+Description=Frequent TTVDrops import drops timer
+
+[Timer]
+OnBootSec=0
+OnUnitActiveSec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
