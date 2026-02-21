@@ -20,9 +20,8 @@ dependencies = [
     "pydantic",
     "pygments",
     "python-dotenv",
-    "systemd; sys_platform == 'linux'",
+    "setproctitle",
     "tqdm",
-    "setproctitle>=1.3.7",
 ]
 
 [dependency-groups]
