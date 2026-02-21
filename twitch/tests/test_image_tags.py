@@ -185,6 +185,59 @@ class TestPictureTag:
         assert "https://cdn.example.com/images/photo.webp" in result
         assert "https://cdn.example.com/images/photo.jpg" in result
 
+    def test_twitch_cdn_url_simple_img(self) -> None:
+        """Test that Twitch CDN URLs return simple img tag without picture element."""
+        result: SafeString = picture("https://static-cdn.jtvnw.net/ttv-boxart/1292861145.jpg")
+
+        # Should NOT have picture element
+        assert "<picture>" not in result
+        assert "</picture>" not in result
+
+        # Should NOT have source tags for format conversion
+        assert "<source" not in result
+
+        # Should have simple img tag
+        assert 'src="https://static-cdn.jtvnw.net/ttv-boxart/1292861145.jpg"' in result
+        assert 'loading="lazy"' in result
+
+    def test_twitch_cdn_url_with_attributes(self) -> None:
+        """Test Twitch CDN URL with optional attributes."""
+        result: SafeString = picture(
+            "https://static-cdn.jtvnw.net/ttv-boxart/1292861145.jpg",
+            alt="Game art",
+            width=300,
+            height=400,
+            loading="eager",
+            css_class="game-cover",
+            style="border-radius: 8px",
+        )
+
+        # Should still be simple img tag
+        assert "<picture>" not in result
+        assert "</picture>" not in result
+        assert "<source" not in result
+
+        # Should have all attributes
+        assert 'src="https://static-cdn.jtvnw.net/ttv-boxart/1292861145.jpg"' in result
+        assert 'alt="Game art"' in result
+        assert 'width="300"' in result
+        assert 'height="400"' in result
+        assert 'loading="eager"' in result
+        assert 'class="game-cover"' in result
+        assert 'style="border-radius: 8px"' in result
+
+    def test_twitch_cdn_url_with_png(self) -> None:
+        """Test Twitch CDN URL with PNG format."""
+        result: SafeString = picture("https://static-cdn.jtvnw.net/badges/v1/1234567.png")
+
+        # Should NOT have picture element or source tags
+        assert "<picture>" not in result
+        assert "</picture>" not in result
+        assert "<source" not in result
+
+        # Should have simple img tag
+        assert 'src="https://static-cdn.jtvnw.net/badges/v1/1234567.png"' in result
+
 
 class TestPictureTagTemplate:
     """Tests for the picture tag used in templates."""

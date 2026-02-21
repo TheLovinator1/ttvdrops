@@ -72,6 +72,19 @@ def picture(  # noqa: PLR0913, PLR0917
     if not src:
         return SafeString("")
 
+    # For Twitch CDN URLs, skip format conversion and use simple img tag
+    if "static-cdn.jtvnw.net" in src:
+        return format_html(
+            format_string='<img src="{src}"{width}{height}{loading}{css_class}{style}{alt} />',
+            src=src,
+            width=format_html(' width="{}"', width) if width else "",
+            height=format_html(' height="{}"', height) if height else "",
+            loading=format_html(' loading="{}"', loading) if loading else "",
+            css_class=format_html(' class="{}"', css_class) if css_class else "",
+            style=format_html(' style="{}"', style) if style else "",
+            alt=format_html(' alt="{}"', alt) if alt is not None else "",
+        )
+
     # Generate URLs for modern formats
     avif_url: str = get_format_url(src, "avif")
     webp_url: str = get_format_url(src, "webp")
