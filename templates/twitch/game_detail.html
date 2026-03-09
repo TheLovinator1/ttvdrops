@@ -13,8 +13,6 @@
     <div>
         <a href="{% url 'twitch:game_campaign_feed' game.twitch_id %}"
            title="RSS feed for {{ game.display_name }} campaigns">RSS feed for {{ game.display_name }} campaigns</a>
-        <a href="{% url 'twitch:campaign_feed' %}"
-           title="RSS feed for all campaigns">RSS feed for all campaigns</a>
     </div>
     <!-- Game image -->
     {% if game.box_art_best_url %}
