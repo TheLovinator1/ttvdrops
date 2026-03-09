@@ -1,12 +1,32 @@
 [Unit]
-Description=TTVDrops import drops from pending directory
+Description=TTVDrops watch and import drops from pending directory
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-Type=oneshot
+Type=simple
 User=ttvdrops
 Group=ttvdrops
 WorkingDirectory=/home/ttvdrops/ttvdrops
 EnvironmentFile=/home/ttvdrops/ttvdrops/.env
-ExecStart=/usr/bin/uv run python manage.py better_import_drops /mnt/fourteen/Data/Responses/pending
--ExecStartPost=/usr/bin/uv run python manage.py download_box_art
--ExecStartPost=/usr/bin/uv run python manage.py download_campaign_images
+ExecStart=/usr/bin/uv run python manage.py watch_imports /mnt/fourteen/Data/Responses/pending --verbose
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=50%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ttvdrops-watch
+
+[Install]
+WantedBy=multi-user.target
