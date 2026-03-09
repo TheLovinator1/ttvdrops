@@ -1216,7 +1216,7 @@ class GameDetailView(DetailView):
                 "name",
                 "display_name",
                 "box_art",
-                "owner",
+                "owners",
                 "added_at",
                 "updated_at",
             ),

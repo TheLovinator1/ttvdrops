@@ -931,6 +931,36 @@ class TestChannelListView:
         assert "game" in response.context
 
     @pytest.mark.django_db
+    def test_game_detail_view_serializes_owners_field(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Game detail JSON payload should use `owners` (M2M), not stale `owner`."""
+        org: Organization = Organization.objects.create(
+            twitch_id="org-game-detail",
+            name="Org Game Detail",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="g2-owners",
+            name="Game2 Owners",
+            display_name="Game2 Owners",
+        )
+        game.owners.add(org)
+
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+
+        game_data: dict[str, Any] = response.context["game_data"]
+        fields: dict[str, Any] = game_data["fields"]
+        assert "owners" in fields
+        assert fields["owners"] == [org.pk]
+        assert "owner" not in fields
+
+    @pytest.mark.django_db
     def test_org_list_view(self, client: Client) -> None:
         """Test org list view returns 200 and has orgs in context."""
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:org_list"))

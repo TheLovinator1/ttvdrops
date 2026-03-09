@@ -64,6 +64,14 @@ class RSSFeedTestCase(TestCase):
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "Test Game by Test Organization" in content
+
+        expected_rss_link: str = reverse(
+            "twitch:game_campaign_feed",
+            args=[self.game.twitch_id],
+        )
+        assert expected_rss_link in content
 
     def test_campaign_feed(self) -> None:
         """Test campaign feed returns 200."""
@@ -392,7 +400,8 @@ def test_game_feed_queries_bounded(
         game.owners.add(org)
 
     url: str = reverse("twitch:game_feed")
-    with django_assert_num_queries(1, exact=True):
+    # One query for games + one prefetch query for owners.
+    with django_assert_num_queries(2, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
     assert response.status_code == 200

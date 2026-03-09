@@ -409,12 +409,14 @@ class GameFeed(Feed):
         return super().__call__(request, *args, **kwargs)
 
     def items(self) -> list[Game]:
-        """Return the latest games (default 200, or limited by ?limit query param)."""
-        limit: int = self._limit if self._limit is not None else 200
-        return list(Game.objects.order_by("-added_at")[:limit])
+        """Return the latest games (default 20, or limited by ?limit query param)."""
+        limit: int = self._limit if self._limit is not None else 20
+        return list(
+            Game.objects.prefetch_related("owners").order_by("-added_at")[:limit],
+        )
 
     def item_title(self, item: Game) -> SafeText:
-        """Return the game name as the item title (SafeText for RSS)."""
+        """Return the game name as the item title."""
         return SafeText(item.get_game_name)
 
     def item_description(self, item: Game) -> SafeText:
@@ -424,7 +426,7 @@ class GameFeed(Feed):
         name: str = getattr(item, "name", "")
         display_name: str = getattr(item, "display_name", "")
         box_art: str = item.box_art_best_url
-        owner: Organization | None = getattr(item, "owner", None)
+        owner: Organization | None = item.owners.first()
 
         description_parts: list[SafeText] = []
 
@@ -438,17 +440,28 @@ class GameFeed(Feed):
                 ),
             )
 
+        # Get the full URL for TTVDrops game detail page
+        game_url: str = reverse("twitch:game_detail", args=[twitch_id])
+        rss_feed_url: str = reverse("twitch:game_campaign_feed", args=[twitch_id])
+        twitch_directory_url: str = getattr(item, "twitch_directory_url", "")
         if slug:
             description_parts.append(
                 SafeText(
-                    f"<p><a href='https://www.twitch.tv/directory/game/{slug}'>{game_name} by {game_owner}</a></p>",
+                    f"<p>New game has been added to ttvdrops.lovinator.space: {game_name} by {game_owner}\n"
+                    f"<a href='{game_url}'>Game Details</a>\n"
+                    f"<a href='{twitch_directory_url}'>Twitch</a>\n"
+                    f"<a href='{rss_feed_url}'>RSS feed</a>\n</p>",
                 ),
             )
         else:
-            description_parts.append(SafeText(f"<p>{game_name} by {game_owner}</p>"))
-
-        if twitch_id:
-            description_parts.append(SafeText(f"<small>Twitch ID: {twitch_id}</small>"))
+            description_parts.append(
+                SafeText(
+                    f"<p>A new game has been added to ttvdrops.lovinator.space: {game_name} by {game_owner}\n"
+                    f"<a href='{game_url}'>Game Details</a>\n"
+                    f"<a href='{twitch_directory_url}'>Twitch</a>\n"
+                    f"<a href='{rss_feed_url}'>RSS feed</a>\n</p>",
+                ),
+            )
 
         return SafeText("".join(str(part) for part in description_parts))
 
@@ -480,7 +493,7 @@ class GameFeed(Feed):
 
     def item_author_name(self, item: Game) -> str:
         """Return the author name for the game, typically the owner organization name."""
-        owner: Organization | None = getattr(item, "owner", None)
+        owner: Organization | None = item.owners.first()
         if owner and owner.name:
             return owner.name
 
