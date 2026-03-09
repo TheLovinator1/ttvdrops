@@ -6,10 +6,15 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pytest
+from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.urls import reverse
 from django.utils import timezone
 from hypothesis.extra.django import TestCase
 
+from twitch.feeds import DropCampaignFeed
+from twitch.feeds import GameCampaignFeed
+from twitch.feeds import GameFeed
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -51,6 +56,19 @@ class RSSFeedTestCase(TestCase):
             operation_names=["DropCampaignDetails"],
         )
 
+        # populate the new enclosure metadata fields so feeds can return them
+        self.game.box_art_size_bytes = 42
+        self.game.box_art_mime_type = "image/png"
+        # provide a URL so that the RSS enclosure element is emitted
+        self.game.box_art = "https://example.com/box.png"
+        self.game.save()
+
+        self.campaign.image_size_bytes = 314
+        self.campaign.image_mime_type = "image/gif"
+        # feed will only include an enclosure if there is some image URL/field
+        self.campaign.image_url = "https://example.com/campaign.png"
+        self.campaign.save()
+
     def test_organization_feed(self) -> None:
         """Test organization feed returns 200."""
         url: str = reverse("twitch:organization_feed")
@@ -73,12 +91,33 @@ class RSSFeedTestCase(TestCase):
         )
         assert expected_rss_link in content
 
+        # enclosure metadata from our new fields should be present
+        assert 'length="42"' in content
+        assert 'type="image/png"' in content
+
+    def test_game_feed_enclosure_helpers(self) -> None:
+        """Helper methods should return values from model fields."""
+        feed = GameFeed()
+        assert feed.item_enclosure_length(self.game) == 42
+        assert feed.item_enclosure_mime_type(self.game) == "image/png"
+
     def test_campaign_feed(self) -> None:
         """Test campaign feed returns 200."""
         url: str = reverse("twitch:campaign_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
+
+        content: str = response.content.decode("utf-8")
+        # verify enclosure meta
+        assert 'length="314"' in content
+        assert 'type="image/gif"' in content
+
+    def test_campaign_feed_enclosure_helpers(self) -> None:
+        """Helper methods for campaigns should respect new fields."""
+        feed = DropCampaignFeed()
+        assert feed.item_enclosure_length(self.campaign) == 314
+        assert feed.item_enclosure_mime_type(self.campaign) == "image/gif"
 
     def test_campaign_feed_includes_badge_description(self) -> None:
         """Badge benefit descriptions should be visible in the RSS drop summary."""
@@ -151,6 +190,60 @@ class RSSFeedTestCase(TestCase):
         assert "Test Campaign" in content
         # Should NOT contain other campaign
         assert "Other Campaign" not in content
+
+        # enclosure metadata also should appear here
+        assert 'length="314"' in content
+        assert 'type="image/gif"' in content
+
+    def test_game_campaign_feed_enclosure_helpers(self) -> None:
+        """GameCampaignFeed helper methods should pull from the model fields."""
+        feed = GameCampaignFeed()
+        assert feed.item_enclosure_length(self.campaign) == 314
+        assert feed.item_enclosure_mime_type(self.campaign) == "image/gif"
+
+    def test_backfill_command_sets_metadata(self) -> None:
+        """Running the backfill command should populate size and mime fields.
+
+        We create a fake file for both a game and a campaign and then execute the
+        management command.  Afterward, the corresponding metadata fields should
+        be filled in.
+        """
+        # create game with local file
+        game2: Game = Game.objects.create(
+            twitch_id="file-game",
+            slug="file-game",
+            name="File Game",
+            display_name="File Game",
+        )
+        game2.box_art_file.save("sample.png", ContentFile(b"hello"))
+        game2.save()
+
+        campaign2: DropCampaign = DropCampaign.objects.create(
+            twitch_id="file-camp",
+            name="File Campaign",
+            game=self.game,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(days=1),
+            operation_names=["DropCampaignDetails"],
+        )
+        campaign2.image_file.save("camp.jpg", ContentFile(b"world"))
+        campaign2.save()
+
+        # ensure fields are not populated initially
+        assert campaign2.image_size_bytes is None
+        assert not campaign2.image_mime_type
+        assert game2.box_art_size_bytes is None
+        assert not game2.box_art_mime_type
+
+        call_command("backfill_image_dimensions")
+
+        campaign2.refresh_from_db()
+        game2.refresh_from_db()
+
+        assert campaign2.image_size_bytes == len(b"world")
+        assert campaign2.image_mime_type == "image/jpeg"
+        assert game2.box_art_size_bytes == len(b"hello")
+        assert game2.box_art_mime_type == "image/png"
 
 
 QueryAsserter = Callable[..., AbstractContextManager[object]]

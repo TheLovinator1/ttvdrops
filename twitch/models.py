@@ -115,6 +115,19 @@ class Game(auto_prefetch.Model):
         editable=False,
         help_text="Height of cached box art image in pixels.",
     )
+    box_art_size_bytes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="File size of the cached box art image in bytes.",
+    )
+    box_art_mime_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        editable=False,
+        help_text="MIME type of the cached box art image (e.g., 'image/png').",
+    )
 
     owners = models.ManyToManyField(
         Organization,
@@ -356,6 +369,19 @@ class DropCampaign(auto_prefetch.Model):
         blank=True,
         editable=False,
         help_text="Height of cached image in pixels.",
+    )
+    image_size_bytes = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="File size of the cached campaign image in bytes.",
+    )
+    image_mime_type = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        editable=False,
+        help_text="MIME type of the cached campaign image (e.g., 'image/png').",
     )
     start_at = models.DateTimeField(
         null=True,

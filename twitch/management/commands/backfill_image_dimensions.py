@@ -1,4 +1,5 @@
-"""Management command to backfill image dimensions for existing cached images."""
+import contextlib
+import mimetypes
 
 from django.core.management.base import BaseCommand
 
@@ -24,6 +25,14 @@ class Command(BaseCommand):
                 try:
                     # Opening the file and saving triggers dimension calculation
                     game.box_art_file.open()
+
+                    # populate size and mime if available
+                    with contextlib.suppress(Exception):
+                        game.box_art_size_bytes = game.box_art_file.size
+                    mime, _ = mimetypes.guess_type(game.box_art_file.name or "")
+                    if mime:
+                        game.box_art_mime_type = mime
+
                     game.save()
                     total_updated += 1
                     self.stdout.write(self.style.SUCCESS(f"  Updated {game}"))
@@ -36,6 +45,13 @@ class Command(BaseCommand):
             if campaign.image_file and not campaign.image_width:
                 try:
                     campaign.image_file.open()
+
+                    with contextlib.suppress(Exception):
+                        campaign.image_size_bytes = campaign.image_file.size
+                    mime, _ = mimetypes.guess_type(campaign.image_file.name or "")
+                    if mime:
+                        campaign.image_mime_type = mime
+
                     campaign.save()
                     total_updated += 1
                     self.stdout.write(self.style.SUCCESS(f"  Updated {campaign}"))

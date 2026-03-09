@@ -497,16 +497,27 @@ class GameFeed(Feed):
             return box_art
         return ""
 
-    def item_enclosure_length(self, item: Game) -> int:  # noqa: ARG002
-        """Returns the length of the enclosure."""
-        # TODO(TheLovinator): Track image size for proper length  # noqa: TD003
+    def item_enclosure_length(self, item: Game) -> int:
+        """Returns the length of the enclosure.
 
-        return 0
+        Prefer the newly-added ``box_art_size_bytes`` field so that the RSS
+        feed can include an accurate ``length`` attribute.  Fall back to 0 if
+        the value is missing or ``None``.
+        """
+        try:
+            size = getattr(item, "box_art_size_bytes", None)
+            return int(size) if size is not None else 0
+        except TypeError, ValueError:
+            return 0
 
-    def item_enclosure_mime_type(self, item: Game) -> str:  # noqa: ARG002
-        """Returns the MIME type of the enclosure."""
-        # TODO(TheLovinator): Determine actual MIME type if needed  # noqa: TD003
-        return "image/jpeg"
+    def item_enclosure_mime_type(self, item: Game) -> str:
+        """Returns the MIME type of the enclosure.
+
+        Use the ``box_art_mime_type`` field when available, otherwise fall back
+        to a generic JPEG string (as was previously hard-coded).
+        """
+        mime: str = getattr(item, "box_art_mime_type", "")
+        return mime or "image/jpeg"
 
 
 # MARK: /rss/campaigns/
@@ -633,15 +644,26 @@ class DropCampaignFeed(Feed):
         """Returns the URL of the campaign image for enclosure."""
         return item.get_feed_enclosure_url()
 
-    def item_enclosure_length(self, item: DropCampaign) -> int:  # noqa: ARG002
-        """Returns the length of the enclosure."""
-        # TODO(TheLovinator): Track image size for proper length  # noqa: TD003
-        return 0
+    def item_enclosure_length(self, item: DropCampaign) -> int:
+        """Returns the length of the enclosure.
 
-    def item_enclosure_mime_type(self, item: DropCampaign) -> str:  # noqa: ARG002
-        """Returns the MIME type of the enclosure."""
-        # TODO(TheLovinator): Determine actual MIME type if needed  # noqa: TD003
-        return "image/jpeg"
+        Reads the `image_size_bytes` field added to the model.  If the field is
+        unset it returns `0` to match previous behavior.
+        """
+        try:
+            size = getattr(item, "image_size_bytes", None)
+            return int(size) if size is not None else 0
+        except TypeError, ValueError:
+            return 0
+
+    def item_enclosure_mime_type(self, item: DropCampaign) -> str:
+        """Returns the MIME type of the enclosure.
+
+        Uses `image_mime_type` on the campaign if set, falling back to the
+        previous hard-coded `image/jpeg`.
+        """
+        mime: str = getattr(item, "image_mime_type", "")
+        return mime or "image/jpeg"
 
 
 # MARK: /rss/games/<twitch_id>/campaigns/
@@ -801,16 +823,26 @@ class GameCampaignFeed(Feed):
         """Returns the URL of the campaign image for enclosure."""
         return item.get_feed_enclosure_url()
 
-    def item_enclosure_length(self, item: DropCampaign) -> int:  # noqa: ARG002
-        """Returns the length of the enclosure."""
-        # TODO(TheLovinator): Track image size for proper length  # noqa: TD003
+    def item_enclosure_length(self, item: DropCampaign) -> int:
+        """Returns the length of the enclosure.
 
-        return 0
+        Reads the ``image_size_bytes`` field added to the model when rendering a
+        game-specific campaign feed.
+        """
+        try:
+            size = getattr(item, "image_size_bytes", None)
+            return int(size) if size is not None else 0
+        except TypeError, ValueError:
+            return 0
 
-    def item_enclosure_mime_type(self, item: DropCampaign) -> str:  # noqa: ARG002
-        """Returns the MIME type of the enclosure."""
-        # TODO(TheLovinator): Determine actual MIME type if needed  # noqa: TD003
-        return "image/jpeg"
+    def item_enclosure_mime_type(self, item: DropCampaign) -> str:
+        """Returns the MIME type of the enclosure.
+
+        Prefers `image_mime_type` on the campaign object; falls back to
+        `image/jpeg` when not available.
+        """
+        mime: str = getattr(item, "image_mime_type", "")
+        return mime or "image/jpeg"
 
 
 # MARK: /rss/reward-campaigns/
