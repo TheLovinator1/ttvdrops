@@ -6,7 +6,6 @@ from twitch import views
 from twitch.feeds import DropCampaignFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
-from twitch.feeds import OrganizationCampaignFeed
 from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignFeed
 
@@ -83,18 +82,27 @@ urlpatterns: list[URLPattern] = [
         views.export_organizations_json,
         name="export_organizations_json",
     ),
+    # RSS feeds
+    # /rss/campaigns/ - all active campaigns
     path("rss/campaigns/", DropCampaignFeed(), name="campaign_feed"),
+    # /rss/games/ - newly added games
     path("rss/games/", GameFeed(), name="game_feed"),
+    # /rss/games/<twitch_id>/campaigns/ - active campaigns for a specific game
     path(
         "rss/games/<str:twitch_id>/campaigns/",
         GameCampaignFeed(),
         name="game_campaign_feed",
     ),
-    path("rss/organizations/", OrganizationRSSFeed(), name="organization_feed"),
+    # /rss/organizations/ - newly added organizations
     path(
-        "rss/organizations/<str:twitch_id>/campaigns/",
-        OrganizationCampaignFeed(),
-        name="organization_campaign_feed",
+        "rss/organizations/",
+        OrganizationRSSFeed(),
+        name="organization_feed",
     ),
-    path("rss/reward-campaigns/", RewardCampaignFeed(), name="reward_campaign_feed"),
+    # /rss/reward-campaigns/ - all active reward campaigns
+    path(
+        "rss/reward-campaigns/",
+        RewardCampaignFeed(),
+        name="reward_campaign_feed",
+    ),
 ]

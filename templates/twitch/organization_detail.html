@@ -4,12 +4,6 @@
 {% endblock title %}
 {% block content %}
     <h1 id="org-name">{{ organization.name }}</h1>
-    <!-- RSS Feeds -->
-    <div style="margin-bottom: 1rem;">
-        <a href="{% url 'twitch:organization_campaign_feed' organization.twitch_id %}"
-           style="margin-right: 1rem"
-           title="RSS feed for {{ organization.name }} campaigns">RSS feed for {{ organization.name }} campaigns</a>
-    </div>
     <theader>
     <h2 id="games-header">Games by {{ organization.name }}</h2>
     </theader>

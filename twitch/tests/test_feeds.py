@@ -115,19 +115,6 @@ class RSSFeedTestCase(TestCase):
         content: str = response.content.decode("utf-8")
         assert "Test Game" in content
 
-    def test_organization_campaign_feed(self) -> None:
-        """Test organization-specific campaign feed returns 200."""
-        url: str = reverse(
-            "twitch:organization_campaign_feed",
-            args=[self.org.twitch_id],
-        )
-        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
-        # Verify the organization name is in the feed
-        content: str = response.content.decode("utf-8")
-        assert "Test Organization" in content
-
     def test_game_campaign_feed_filters_correctly(self) -> None:
         """Test game campaign feed only shows campaigns for that game."""
         # Create another game with a campaign
@@ -156,42 +143,6 @@ class RSSFeedTestCase(TestCase):
         assert "Test Campaign" in content
         # Should NOT contain other campaign
         assert "Other Campaign" not in content
-
-    def test_organization_campaign_feed_filters_correctly(self) -> None:
-        """Test organization campaign feed only shows campaigns for that organization."""
-        # Create another organization with a game and campaign
-        other_org = Organization.objects.create(
-            twitch_id="other-org-123",
-            name="Other Organization",
-        )
-        other_game = Game.objects.create(
-            twitch_id="other-game-456",
-            slug="other-game-2",
-            name="Other Game 2",
-            display_name="Other Game 2",
-        )
-        other_game.owners.add(other_org)
-        DropCampaign.objects.create(
-            twitch_id="other-campaign-456",
-            name="Other Campaign 2",
-            game=other_game,
-            start_at=timezone.now(),
-            end_at=timezone.now() + timedelta(days=7),
-            operation_names=["DropCampaignDetails"],
-        )
-
-        # Get feed for first organization
-        url: str = reverse(
-            "twitch:organization_campaign_feed",
-            args=[self.org.twitch_id],
-        )
-        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
-        content: str = response.content.decode("utf-8")
-
-        # Should contain first campaign
-        assert "Test Campaign" in content
-        # Should NOT contain other campaign
-        assert "Other Campaign 2" not in content
 
 
 QueryAsserter = Callable[..., AbstractContextManager[object]]
@@ -448,64 +399,6 @@ def test_game_feed_queries_bounded(
 
 
 @pytest.mark.django_db
-def test_organization_campaign_feed_queries_bounded(
-    client: Client,
-    django_assert_num_queries: QueryAsserter,
-) -> None:
-    """Organization campaign feed should not regress in query count."""
-    org: Organization = Organization.objects.create(
-        twitch_id="org-campaign-feed",
-        name="Org Campaign Feed",
-    )
-    game: Game = Game.objects.create(
-        twitch_id="org-campaign-game",
-        slug="org-campaign-game",
-        name="Org Campaign Game",
-        display_name="Org Campaign Game",
-    )
-    game.owners.add(org)
-
-    for i in range(3):
-        _build_campaign(game, i)
-
-    url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
-    # TODO(TheLovinator): 12 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
-    with django_assert_num_queries(12, exact=False):
-        response: _MonkeyPatchedWSGIResponse = client.get(url)
-
-    assert response.status_code == 200
-
-
-@pytest.mark.django_db
-def test_organization_campaign_feed_queries_do_not_scale_with_items(
-    client: Client,
-    django_assert_num_queries: QueryAsserter,
-) -> None:
-    """Organization campaign RSS feed query count should remain bounded as item count grows."""
-    org: Organization = Organization.objects.create(
-        twitch_id="test-org-org-scale-queries",
-        name="Org Scale Query Org",
-    )
-    game: Game = Game.objects.create(
-        twitch_id="test-game-org-scale-queries",
-        slug="org-scale-game",
-        name="Org Scale Game",
-        display_name="Org Scale Game",
-    )
-    game.owners.add(org)
-
-    for i in range(50):
-        _build_campaign(game, i)
-
-    url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
-
-    with django_assert_num_queries(15, exact=False):
-        response: _MonkeyPatchedWSGIResponse = client.get(url)
-
-    assert response.status_code == 200
-
-
-@pytest.mark.django_db
 def test_reward_campaign_feed_queries_bounded(
     client: Client,
     django_assert_num_queries: QueryAsserter,
@@ -591,7 +484,6 @@ URL_NAMES: list[tuple[str, dict[str, str]]] = [
     ("twitch:game_feed", {}),
     ("twitch:game_campaign_feed", {"twitch_id": "test-game-123"}),
     ("twitch:organization_feed", {}),
-    ("twitch:organization_campaign_feed", {"twitch_id": "test-org-123"}),
     ("twitch:reward_campaign_feed", {}),
 ]
 

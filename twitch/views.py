@@ -41,7 +41,6 @@ from pygments.lexers.data import JsonLexer
 from twitch.feeds import DropCampaignFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
-from twitch.feeds import OrganizationCampaignFeed
 from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignFeed
 from twitch.models import Channel
@@ -1855,24 +1854,6 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "has_sample": bool(sample_game),
             "example_xml": render_feed(GameCampaignFeed(), sample_game.twitch_id)
             if sample_game
-            else "",
-        },
-        {
-            "title": "Campaigns for an Organization",
-            "description": "Drop campaigns across games owned by one organization.",
-            "url": (
-                absolute(
-                    reverse(
-                        "twitch:organization_campaign_feed",
-                        args=[sample_org.twitch_id],
-                    ),
-                )
-                if sample_org
-                else absolute("/rss/organizations/<org_id>/campaigns/")
-            ),
-            "has_sample": bool(sample_org),
-            "example_xml": render_feed(OrganizationCampaignFeed(), sample_org.twitch_id)
-            if sample_org
             else "",
         },
     ]
