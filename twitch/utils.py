@@ -1,9 +1,6 @@
-from __future__ import annotations
-
 import re
 from functools import lru_cache
 from typing import TYPE_CHECKING
-from urllib.parse import ParseResult
 from urllib.parse import urlparse
 from urllib.parse import urlunparse
 
@@ -12,10 +9,13 @@ from django.utils import timezone
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from urllib.parse import ParseResult
 
 TWITCH_BOX_ART_HOST = "static-cdn.jtvnw.net"
 TWITCH_BOX_ART_PATH_PREFIX = "/ttv-boxart/"
-TWITCH_BOX_ART_SIZE_PATTERN: re.Pattern[str] = re.compile(r"-(\{width\}|\d+)x(\{height\}|\d+)(?=\.[A-Za-z0-9]+$)")
+TWITCH_BOX_ART_SIZE_PATTERN: re.Pattern[str] = re.compile(
+    r"-(\{width\}|\d+)x(\{height\}|\d+)(?=\.[A-Za-z0-9]+$)",
+)
 
 
 def is_twitch_box_art_url(url: str) -> bool:
@@ -24,7 +24,9 @@ def is_twitch_box_art_url(url: str) -> bool:
         return False
 
     parsed: ParseResult = urlparse(url)
-    return parsed.netloc == TWITCH_BOX_ART_HOST and parsed.path.startswith(TWITCH_BOX_ART_PATH_PREFIX)
+    return parsed.netloc == TWITCH_BOX_ART_HOST and parsed.path.startswith(
+        TWITCH_BOX_ART_PATH_PREFIX,
+    )
 
 
 def normalize_twitch_box_art_url(url: str) -> str:
@@ -44,7 +46,10 @@ def normalize_twitch_box_art_url(url: str) -> str:
         return url
 
     parsed: ParseResult = urlparse(url)
-    if parsed.netloc != TWITCH_BOX_ART_HOST or not parsed.path.startswith(TWITCH_BOX_ART_PATH_PREFIX):
+    if parsed.netloc != TWITCH_BOX_ART_HOST:
+        return url
+
+    if not parsed.path.startswith(TWITCH_BOX_ART_PATH_PREFIX):
         return url
 
     normalized_path: str = TWITCH_BOX_ART_SIZE_PATTERN.sub("", parsed.path)

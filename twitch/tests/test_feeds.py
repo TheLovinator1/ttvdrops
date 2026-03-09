@@ -1,7 +1,5 @@
 """Test RSS feeds."""
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import timedelta
@@ -119,7 +117,10 @@ class RSSFeedTestCase(TestCase):
 
     def test_organization_campaign_feed(self) -> None:
         """Test organization-specific campaign feed returns 200."""
-        url: str = reverse("twitch:organization_campaign_feed", args=[self.org.twitch_id])
+        url: str = reverse(
+            "twitch:organization_campaign_feed",
+            args=[self.org.twitch_id],
+        )
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
@@ -180,7 +181,10 @@ class RSSFeedTestCase(TestCase):
         )
 
         # Get feed for first organization
-        url: str = reverse("twitch:organization_campaign_feed", args=[self.org.twitch_id])
+        url: str = reverse(
+            "twitch:organization_campaign_feed",
+            args=[self.org.twitch_id],
+        )
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         content: str = response.content.decode("utf-8")
 
@@ -256,7 +260,10 @@ def _build_reward_campaign(game: Game, idx: int) -> RewardCampaign:
 
 
 @pytest.mark.django_db
-def test_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+def test_campaign_feed_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
     """Campaign feed should stay within a small, fixed query budget."""
     org: Organization = Organization.objects.create(
         twitch_id="test-org-queries",
@@ -274,7 +281,7 @@ def test_campaign_feed_queries_bounded(client: Client, django_assert_num_queries
         _build_campaign(game, i)
 
     url: str = reverse("twitch:campaign_feed")
-    # TODO(TheLovinator): 14 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    # TODO(TheLovinator): 14 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
     with django_assert_num_queries(14, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -339,7 +346,10 @@ def test_campaign_feed_queries_do_not_scale_with_items(
 
 
 @pytest.mark.django_db
-def test_game_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+def test_game_campaign_feed_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
     """Game campaign feed should not issue excess queries when rendering multiple campaigns."""
     org: Organization = Organization.objects.create(
         twitch_id="test-org-game-queries",
@@ -358,7 +368,7 @@ def test_game_campaign_feed_queries_bounded(client: Client, django_assert_num_qu
 
     url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
 
-    # TODO(TheLovinator): 15 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    # TODO(TheLovinator): 15 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
     with django_assert_num_queries(6, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -395,13 +405,13 @@ def test_game_campaign_feed_queries_do_not_scale_with_items(
 
 
 @pytest.mark.django_db
-def test_organization_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+def test_organization_feed_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
     """Organization RSS feed should stay within a modest query budget."""
     for i in range(5):
-        Organization.objects.create(
-            twitch_id=f"org-feed-{i}",
-            name=f"Org Feed {i}",
-        )
+        Organization.objects.create(twitch_id=f"org-feed-{i}", name=f"Org Feed {i}")
 
     url: str = reverse("twitch:organization_feed")
     with django_assert_num_queries(1, exact=True):
@@ -411,7 +421,10 @@ def test_organization_feed_queries_bounded(client: Client, django_assert_num_que
 
 
 @pytest.mark.django_db
-def test_game_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+def test_game_feed_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
     """Game RSS feed should stay within a modest query budget with multiple games."""
     org: Organization = Organization.objects.create(
         twitch_id="game-feed-org",
@@ -435,7 +448,10 @@ def test_game_feed_queries_bounded(client: Client, django_assert_num_queries: Qu
 
 
 @pytest.mark.django_db
-def test_organization_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+def test_organization_campaign_feed_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
     """Organization campaign feed should not regress in query count."""
     org: Organization = Organization.objects.create(
         twitch_id="org-campaign-feed",
@@ -453,7 +469,7 @@ def test_organization_campaign_feed_queries_bounded(client: Client, django_asser
         _build_campaign(game, i)
 
     url: str = reverse("twitch:organization_campaign_feed", args=[org.twitch_id])
-    # TODO(TheLovinator): 12 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    # TODO(TheLovinator): 12 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
     with django_assert_num_queries(12, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -490,7 +506,10 @@ def test_organization_campaign_feed_queries_do_not_scale_with_items(
 
 
 @pytest.mark.django_db
-def test_reward_campaign_feed_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+def test_reward_campaign_feed_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
     """Reward campaign feed should stay within a modest query budget."""
     org: Organization = Organization.objects.create(
         twitch_id="reward-feed-org",
@@ -515,7 +534,10 @@ def test_reward_campaign_feed_queries_bounded(client: Client, django_assert_num_
 
 
 @pytest.mark.django_db
-def test_docs_rss_queries_bounded(client: Client, django_assert_num_queries: QueryAsserter) -> None:
+def test_docs_rss_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
     """Docs RSS page should stay within a reasonable query budget.
 
     With limit=1 for documentation examples, we should have dramatically fewer queries
@@ -539,7 +561,7 @@ def test_docs_rss_queries_bounded(client: Client, django_assert_num_queries: Que
 
     url: str = reverse("twitch:docs_rss")
 
-    # TODO(TheLovinator): 31 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: E501, TD003
+    # TODO(TheLovinator): 31 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
     with django_assert_num_queries(31, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -576,7 +598,11 @@ URL_NAMES: list[tuple[str, dict[str, str]]] = [
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(("url_name", "kwargs"), URL_NAMES)
-def test_rss_feeds_return_200(client: Client, url_name: str, kwargs: dict[str, str]) -> None:
+def test_rss_feeds_return_200(
+    client: Client,
+    url_name: str,
+    kwargs: dict[str, str],
+) -> None:
     """Test if feeds return HTTP 200.
 
     Args:
@@ -626,9 +652,7 @@ def test_rss_feeds_return_200(client: Client, url_name: str, kwargs: dict[str, s
         display_name="TestChannel",
     )
 
-    badge_set: ChatBadgeSet = ChatBadgeSet.objects.create(
-        set_id="test-set-123",
-    )
+    badge_set: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="test-set-123")
 
     _badge: ChatBadge = ChatBadge.objects.create(
         badge_set=badge_set,

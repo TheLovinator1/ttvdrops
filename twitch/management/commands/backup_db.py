@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import io
 import os
 import shutil
@@ -79,7 +77,10 @@ class Command(BaseCommand):
             msg = f"Unsupported database backend: {django_connection.vendor}"
             raise CommandError(msg)
 
-        created_at: datetime = datetime.fromtimestamp(output_path.stat().st_mtime, tz=timezone.get_current_timezone())
+        created_at: datetime = datetime.fromtimestamp(
+            output_path.stat().st_mtime,
+            tz=timezone.get_current_timezone(),
+        )
         self.stdout.write(
             self.style.SUCCESS(
                 f"Backup created: {output_path} (updated {created_at.isoformat()})",
@@ -111,7 +112,11 @@ def _get_allowed_tables(prefix: str) -> list[str]:
         return [row[0] for row in cursor.fetchall()]
 
 
-def _write_sqlite_dump(handle: io.TextIOBase, connection: sqlite3.Connection, tables: list[str]) -> None:
+def _write_sqlite_dump(
+    handle: io.TextIOBase,
+    connection: sqlite3.Connection,
+    tables: list[str],
+) -> None:
     """Write a SQL dump containing schema and data for the requested tables.
 
     Args:
@@ -154,7 +159,11 @@ def _get_table_schema(connection: sqlite3.Connection, table: str) -> str:
     return row[0] if row and row[0] else ""
 
 
-def _write_table_rows(handle: io.TextIOBase, connection: sqlite3.Connection, table: str) -> None:
+def _write_table_rows(
+    handle: io.TextIOBase,
+    connection: sqlite3.Connection,
+    table: str,
+) -> None:
     """Write INSERT statements for a table.
 
     Args:
@@ -169,7 +178,11 @@ def _write_table_rows(handle: io.TextIOBase, connection: sqlite3.Connection, tab
         handle.write(f'INSERT INTO "{table}" VALUES ({values});\n')  # noqa: S608
 
 
-def _write_indexes(handle: io.TextIOBase, connection: sqlite3.Connection, tables: list[str]) -> None:
+def _write_indexes(
+    handle: io.TextIOBase,
+    connection: sqlite3.Connection,
+    tables: list[str],
+) -> None:
     """Write CREATE INDEX statements for included tables.
 
     Args:
@@ -251,10 +264,7 @@ def _write_postgres_dump(output_path: Path, tables: list[str]) -> None:
         msg = "pg_dump process did not provide stdout or stderr."
         raise CommandError(msg)
 
-    with (
-        output_path.open("wb") as raw_handle,
-        zstd.open(raw_handle, "w") as compressed,
-    ):
+    with output_path.open("wb") as raw_handle, zstd.open(raw_handle, "w") as compressed:
         for chunk in iter(lambda: process.stdout.read(64 * 1024), b""):  # pyright: ignore[reportOptionalMemberAccess]
             compressed.write(chunk)
 

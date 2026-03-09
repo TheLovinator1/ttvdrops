@@ -1,7 +1,5 @@
 """Tests for chat badge models and functionality."""
 
-from __future__ import annotations
-
 import pytest
 from django.db import IntegrityError
 from pydantic import ValidationError

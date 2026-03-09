@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import io
 import math
 import os
@@ -142,7 +140,11 @@ class TestBackupCommand:
         assert output_dir.exists()
         assert len(list(output_dir.glob("test-*.sql.zst"))) == 1
 
-    def test_backup_uses_default_directory(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_backup_uses_default_directory(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """Test that backup uses DATA_DIR/datasets by default."""
         _skip_if_pg_dump_missing()
         # Create test data so tables exist
@@ -285,7 +287,9 @@ class TestDatasetBackupViews:
         """Test that dataset list view displays backup files."""
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dataset_backups"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:dataset_backups"),
+        )
 
         assert response.status_code == 200
         assert b"ttvdrops-20260210-120000.sql.zst" in response.content
@@ -300,7 +304,9 @@ class TestDatasetBackupViews:
         """Test dataset list view with empty directory."""
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dataset_backups"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:dataset_backups"),
+        )
 
         assert response.status_code == 200
         assert b"No dataset backups found" in response.content
@@ -332,7 +338,9 @@ class TestDatasetBackupViews:
         os.utime(older_backup, (older_time, older_time))
         os.utime(newer_backup, (newer_time, newer_time))
 
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dataset_backups"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:dataset_backups"),
+        )
 
         content = response.content.decode()
         newer_pos = content.find("20260210-140000")
@@ -352,7 +360,10 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backup_download", args=["ttvdrops-20260210-120000.sql.zst"]),
+            reverse(
+                "twitch:dataset_backup_download",
+                args=["ttvdrops-20260210-120000.sql.zst"],
+            ),
         )
 
         assert response.status_code == 200
@@ -370,7 +381,9 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         # Attempt path traversal
-        response = client.get(reverse("twitch:dataset_backup_download", args=["../../../etc/passwd"]))
+        response = client.get(
+            reverse("twitch:dataset_backup_download", args=["../../../etc/passwd"]),
+        )
         assert response.status_code == 404
 
     def test_dataset_download_rejects_invalid_extensions(
@@ -386,7 +399,9 @@ class TestDatasetBackupViews:
         invalid_file = datasets_dir / "malicious.exe"
         invalid_file.write_text("not a backup")
 
-        response = client.get(reverse("twitch:dataset_backup_download", args=["malicious.exe"]))
+        response = client.get(
+            reverse("twitch:dataset_backup_download", args=["malicious.exe"]),
+        )
         assert response.status_code == 404
 
     def test_dataset_download_file_not_found(
@@ -398,7 +413,9 @@ class TestDatasetBackupViews:
         """Test download returns 404 for non-existent file."""
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
-        response = client.get(reverse("twitch:dataset_backup_download", args=["nonexistent.sql.zst"]))
+        response = client.get(
+            reverse("twitch:dataset_backup_download", args=["nonexistent.sql.zst"]),
+        )
         assert response.status_code == 404
 
     def test_dataset_list_view_shows_file_sizes(
@@ -411,7 +428,9 @@ class TestDatasetBackupViews:
         """Test that file sizes are displayed in human-readable format."""
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dataset_backups"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:dataset_backups"),
+        )
 
         assert response.status_code == 200
         # Should contain size information (bytes, KB, MB, or GB)
@@ -432,7 +451,9 @@ class TestDatasetBackupViews:
         (datasets_dir / "readme.txt").write_text("should be ignored")
         (datasets_dir / "old_backup.gz").write_bytes(b"should be ignored")
 
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dataset_backups"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:dataset_backups"),
+        )
 
         content = response.content.decode()
         assert "backup.sql.zst" in content

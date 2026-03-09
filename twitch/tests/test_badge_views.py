@@ -1,7 +1,5 @@
 """Tests for chat badge views."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import pytest
@@ -73,7 +71,9 @@ class TestBadgeSetDetailView:
 
     def test_badge_set_detail_not_found(self, client: Client) -> None:
         """Test 404 when badge set doesn't exist."""
-        response = client.get(reverse("twitch:badge_set_detail", kwargs={"set_id": "nonexistent"}))
+        response = client.get(
+            reverse("twitch:badge_set_detail", kwargs={"set_id": "nonexistent"}),
+        )
         assert response.status_code == 404
 
     def test_badge_set_detail_displays_badges(self, client: Client) -> None:
@@ -91,7 +91,9 @@ class TestBadgeSetDetailView:
             click_url="https://help.twitch.tv",
         )
 
-        response = client.get(reverse("twitch:badge_set_detail", kwargs={"set_id": "moderator"}))
+        response = client.get(
+            reverse("twitch:badge_set_detail", kwargs={"set_id": "moderator"}),
+        )
         assert response.status_code == 200
         content = response.content.decode()
 
@@ -113,7 +115,9 @@ class TestBadgeSetDetailView:
             description="VIP Badge",
         )
 
-        response = client.get(reverse("twitch:badge_set_detail", kwargs={"set_id": "vip"}))
+        response = client.get(
+            reverse("twitch:badge_set_detail", kwargs={"set_id": "vip"}),
+        )
         assert response.status_code == 200
         content = response.content.decode()
 
@@ -133,7 +137,9 @@ class TestBadgeSetDetailView:
             description="Test Badge",
         )
 
-        response = client.get(reverse("twitch:badge_set_detail", kwargs={"set_id": "test_set"}))
+        response = client.get(
+            reverse("twitch:badge_set_detail", kwargs={"set_id": "test_set"}),
+        )
         assert response.status_code == 200
         content = response.content.decode()
 

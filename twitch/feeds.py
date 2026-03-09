@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import re
 from typing import TYPE_CHECKING
@@ -14,12 +12,10 @@ from django.utils import feedgenerator
 from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.html import format_html_join
-from django.utils.safestring import SafeString
 from django.utils.safestring import SafeText
 
 from twitch.models import Channel
 from twitch.models import ChatBadge
-from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
@@ -33,6 +29,9 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
     from django.http import HttpRequest
     from django.http import HttpResponse
+    from django.utils.safestring import SafeString
+
+    from twitch.models import DropBenefit
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
 
@@ -71,12 +70,20 @@ def insert_date_info(item: Model, parts: list[SafeText]) -> None:
 
     if start_at or end_at:
         start_part: SafeString = (
-            format_html("Starts: {} ({})", start_at.strftime("%Y-%m-%d %H:%M %Z"), naturaltime(start_at))
+            format_html(
+                "Starts: {} ({})",
+                start_at.strftime("%Y-%m-%d %H:%M %Z"),
+                naturaltime(start_at),
+            )
             if start_at
             else SafeText("")
         )
         end_part: SafeString = (
-            format_html("Ends: {} ({})", end_at.strftime("%Y-%m-%d %H:%M %Z"), naturaltime(end_at))
+            format_html(
+                "Ends: {} ({})",
+                end_at.strftime("%Y-%m-%d %H:%M %Z"),
+                naturaltime(end_at),
+            )
             if end_at
             else SafeText("")
         )
@@ -130,7 +137,10 @@ def _build_drops_data(drops_qs: QuerySet[TimeBasedDrop]) -> list[dict]:
     return drops_data
 
 
-def _build_channels_html(channels: list[Channel] | QuerySet[Channel], game: Game | None) -> SafeText:
+def _build_channels_html(
+    channels: list[Channel] | QuerySet[Channel],
+    game: Game | None,
+) -> SafeText:
     """Render up to max_links channel links as <li>, then a count of additional channels, or fallback to game category link.
 
     If only one channel and drop_requirements is '1 subscriptions required',
@@ -142,9 +152,11 @@ def _build_channels_html(channels: list[Channel] | QuerySet[Channel], game: Game
 
     Returns:
         SafeText: HTML <ul> with up to max_links channel links, count of more, or fallback link.
-    """  # noqa: E501
+    """
     max_links = 5
-    channels_all: list[Channel] = list(channels) if isinstance(channels, list) else list(channels.all())
+    channels_all: list[Channel] = (
+        list(channels) if isinstance(channels, list) else list(channels.all())
+    )
     total: int = len(channels_all)
 
     if channels_all:
@@ -166,18 +178,31 @@ def _build_channels_html(channels: list[Channel] | QuerySet[Channel], game: Game
         )
 
     if not game:
-        logger.warning("No game associated with drop campaign for channel fallback link")
-        return format_html("{}", "<ul><li>Drop has no game and no channels connected to the drop.</li></ul>")
+        logger.warning(
+            "No game associated with drop campaign for channel fallback link",
+        )
+        return format_html(
+            "{}",
+            "<ul><li>Drop has no game and no channels connected to the drop.</li></ul>",
+        )
 
     if not game.twitch_directory_url:
-        logger.warning("Game %s has no Twitch directory URL for channel fallback link", game)
-        if getattr(game, "details_url", "") == "https://help.twitch.tv/s/article/twitch-chat-badges-guide ":
+        logger.warning(
+            "Game %s has no Twitch directory URL for channel fallback link",
+            game,
+        )
+        if (
+            getattr(game, "details_url", "")
+            == "https://help.twitch.tv/s/article/twitch-chat-badges-guide "
+        ):
             # TODO(TheLovinator): Improve detection of global emotes  # noqa: TD003
             return format_html("{}", "<ul><li>Global Twitch Emote?</li></ul>")
 
-        return format_html("{}", "<ul><li>Failed to get Twitch category URL :(</li></ul>")
+        return format_html(
+            "{}",
+            "<ul><li>Failed to get Twitch category URL :(</li></ul>",
+        )
 
-    # If no channel is associated, the drop is category-wide; link to the game's Twitch directory
     display_name: str = getattr(game, "display_name", "this game")
     return format_html(
         '<ul><li><a href="{}" title="Browse {} category">Category-wide for {}</a></li></ul>',
@@ -187,10 +212,14 @@ def _build_channels_html(channels: list[Channel] | QuerySet[Channel], game: Game
     )
 
 
-def _construct_drops_summary(drops_data: list[dict], channel_name: str | None = None) -> SafeText:
+def _construct_drops_summary(
+    drops_data: list[dict],
+    channel_name: str | None = None,
+) -> SafeText:
     """Construct a safe HTML summary of drops and their benefits.
 
-    If the requirements indicate a subscription is required, link the benefit names to the Twitch channel.
+    If the requirements indicate a subscription is required, link the benefit
+    names to the Twitch channel.
 
     Args:
         drops_data (list[dict]): List of drop data dicts.
@@ -205,13 +234,20 @@ def _construct_drops_summary(drops_data: list[dict], channel_name: str | None = 
     badge_titles: set[str] = set()
     for drop in drops_data:
         for b in drop.get("benefits", []):
-            if getattr(b, "distribution_type", "") == "BADGE" and getattr(b, "name", ""):
+            if getattr(b, "distribution_type", "") == "BADGE" and getattr(
+                b,
+                "name",
+                "",
+            ):
                 badge_titles.add(b.name)
 
     badge_descriptions_by_title: dict[str, str] = {}
     if badge_titles:
         badge_descriptions_by_title = dict(
-            ChatBadge.objects.filter(title__in=badge_titles).values_list("title", "description"),
+            ChatBadge.objects.filter(title__in=badge_titles).values_list(
+                "title",
+                "description",
+            ),
         )
 
     def sort_key(drop: dict) -> tuple[bool, int]:
@@ -226,7 +262,9 @@ def _construct_drops_summary(drops_data: list[dict], channel_name: str | None = 
     for drop in sorted_drops:
         requirements: str = drop.get("requirements", "")
         benefits: list[DropBenefit] = drop.get("benefits", [])
-        is_sub_required: bool = "sub required" in requirements or "subs required" in requirements
+        is_sub_required: bool = (
+            "sub required" in requirements or "subs required" in requirements
+        )
         benefit_names: list[tuple[str]] = []
         for b in benefits:
             benefit_name: str = getattr(b, "name", str(b))
@@ -238,19 +276,30 @@ def _construct_drops_summary(drops_data: list[dict], channel_name: str | None = 
                     benefit_name,
                 )
                 if badge_desc:
-                    benefit_names.append((format_html("{} (<em>{}</em>)", linked_name, badge_desc),))
+                    benefit_names.append((
+                        format_html("{} (<em>{}</em>)", linked_name, badge_desc),
+                    ))
                 else:
                     benefit_names.append((linked_name,))
             elif badge_desc:
-                benefit_names.append((format_html("{} (<em>{}</em>)", benefit_name, badge_desc),))
+                benefit_names.append((
+                    format_html("{} (<em>{}</em>)", benefit_name, badge_desc),
+                ))
             else:
                 benefit_names.append((benefit_name,))
-        benefits_str: SafeString = format_html_join(", ", "{}", benefit_names) if benefit_names else SafeText("")
+        benefits_str: SafeString = (
+            format_html_join(", ", "{}", benefit_names)
+            if benefit_names
+            else SafeText("")
+        )
         if requirements:
             items.append(format_html("<li>{}: {}</li>", requirements, benefits_str))
         else:
             items.append(format_html("<li>{}</li>", benefits_str))
-    return format_html("<ul>{}</ul>", format_html_join("", "{}", [(item,) for item in items]))
+    return format_html(
+        "<ul>{}</ul>",
+        format_html_join("", "{}", [(item,) for item in items]),
+    )
 
 
 # MARK: /rss/organizations/
@@ -265,7 +314,12 @@ class OrganizationRSSFeed(Feed):
     feed_copyright: str = "Information wants to be free."
     _limit: int | None = None
 
-    def __call__(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+    def __call__(
+        self,
+        request: HttpRequest,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
         Args:
@@ -332,7 +386,12 @@ class GameFeed(Feed):
     feed_copyright: str = "Information wants to be free."
     _limit: int | None = None
 
-    def __call__(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+    def __call__(
+        self,
+        request: HttpRequest,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
         Args:
@@ -375,7 +434,9 @@ class GameFeed(Feed):
 
         if box_art:
             description_parts.append(
-                SafeText(f"<img src='{box_art}' alt='Box Art for {game_name}' width='600' height='800' />"),
+                SafeText(
+                    f"<img src='{box_art}' alt='Box Art for {game_name}' width='600' height='800' />",
+                ),
             )
 
         if slug:
@@ -456,7 +517,12 @@ class DropCampaignFeed(Feed):
     feed_copyright: str = "Information wants to be free."
     _limit: int | None = None
 
-    def __call__(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+    def __call__(
+        self,
+        request: HttpRequest,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
         Args:
@@ -475,7 +541,7 @@ class DropCampaignFeed(Feed):
         return super().__call__(request, *args, **kwargs)
 
     def items(self) -> list[DropCampaign]:
-        """Return the latest drop campaigns ordered by most recent start date (default 200, or limited by ?limit query param)."""  # noqa: E501
+        """Return the latest drop campaigns ordered by most recent start date (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
         queryset: QuerySet[DropCampaign] = DropCampaign.objects.order_by("-start_at")
         return list(_with_campaign_related(queryset)[:limit])
@@ -500,7 +566,11 @@ class DropCampaignFeed(Feed):
         if image_url:
             item_name: str = getattr(item, "name", str(object=item))
             parts.append(
-                format_html('<img src="{}" alt="{}" width="160" height="160" />', image_url, item_name),
+                format_html(
+                    '<img src="{}" alt="{}" width="160" height="160" />',
+                    image_url,
+                    item_name,
+                ),
             )
 
         desc_text: str | None = getattr(item, "description", None)
@@ -511,7 +581,12 @@ class DropCampaignFeed(Feed):
         insert_date_info(item, parts)
 
         if drops_data:
-            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data, channel_name=channel_name)))
+            parts.append(
+                format_html(
+                    "<p>{}</p>",
+                    _construct_drops_summary(drops_data, channel_name=channel_name),
+                ),
+            )
 
         # Only show channels if drop is not subscription only
         if not getattr(item, "is_subscription_only", False) and channels is not None:
@@ -573,7 +648,12 @@ class GameCampaignFeed(Feed):
     feed_copyright: str = "Information wants to be free."
     _limit: int | None = None
 
-    def __call__(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+    def __call__(
+        self,
+        request: HttpRequest,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
         Args:
@@ -620,9 +700,11 @@ class GameCampaignFeed(Feed):
         return reverse("twitch:game_campaign_feed", args=[obj.twitch_id])
 
     def items(self, obj: Game) -> list[DropCampaign]:
-        """Return the latest drop campaigns for this game, ordered by most recent start date (default 200, or limited by ?limit query param)."""  # noqa: E501
+        """Return the latest drop campaigns for this game, ordered by most recent start date (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
-        queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(game=obj).order_by("-start_at")
+        queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(
+            game=obj,
+        ).order_by("-start_at")
         return list(_with_campaign_related(queryset)[:limit])
 
     def item_title(self, item: DropCampaign) -> SafeText:
@@ -645,7 +727,11 @@ class GameCampaignFeed(Feed):
         if image_url:
             item_name: str = getattr(item, "name", str(object=item))
             parts.append(
-                format_html('<img src="{}" alt="{}" width="160" height="160" />', image_url, item_name),
+                format_html(
+                    '<img src="{}" alt="{}" width="160" height="160" />',
+                    image_url,
+                    item_name,
+                ),
             )
 
         desc_text: str | None = getattr(item, "description", None)
@@ -656,7 +742,12 @@ class GameCampaignFeed(Feed):
         insert_date_info(item, parts)
 
         if drops_data:
-            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data, channel_name=channel_name)))
+            parts.append(
+                format_html(
+                    "<p>{}</p>",
+                    _construct_drops_summary(drops_data, channel_name=channel_name),
+                ),
+            )
 
         # Only show channels if drop is not subscription only
         if not getattr(item, "is_subscription_only", False) and channels is not None:
@@ -669,7 +760,9 @@ class GameCampaignFeed(Feed):
 
         account_link_url: str | None = getattr(item, "account_link_url", None)
         if account_link_url:
-            parts.append(format_html(' | <a href="{}">Link Account</a>', account_link_url))
+            parts.append(
+                format_html(' | <a href="{}">Link Account</a>', account_link_url),
+            )
 
         return SafeText("".join(str(p) for p in parts))
 
@@ -723,7 +816,12 @@ class OrganizationCampaignFeed(Feed):
 
     _limit: int | None = None
 
-    def __call__(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+    def __call__(
+        self,
+        request: HttpRequest,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
         Args:
@@ -766,9 +864,11 @@ class OrganizationCampaignFeed(Feed):
         return f"Latest drop campaigns for organization {obj.name}"
 
     def items(self, obj: Organization) -> list[DropCampaign]:
-        """Return the latest drop campaigns for this organization, ordered by most recent start date (default 200, or limited by ?limit query param)."""  # noqa: E501
+        """Return the latest drop campaigns for this organization, ordered by most recent start date (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
-        queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(game__owners=obj).order_by("-start_at")
+        queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(
+            game__owners=obj,
+        ).order_by("-start_at")
         return list(_with_campaign_related(queryset)[:limit])
 
     def item_author_name(self, item: DropCampaign) -> str:
@@ -829,7 +929,11 @@ class OrganizationCampaignFeed(Feed):
         if image_url:
             item_name: str = getattr(item, "name", str(object=item))
             parts.append(
-                format_html('<img src="{}" alt="{}" width="160" height="160" />', image_url, item_name),
+                format_html(
+                    '<img src="{}" alt="{}" width="160" height="160" />',
+                    image_url,
+                    item_name,
+                ),
             )
 
         desc_text: str | None = getattr(item, "description", None)
@@ -840,7 +944,12 @@ class OrganizationCampaignFeed(Feed):
         insert_date_info(item, parts)
 
         if drops_data:
-            parts.append(format_html("<p>{}</p>", _construct_drops_summary(drops_data, channel_name=channel_name)))
+            parts.append(
+                format_html(
+                    "<p>{}</p>",
+                    _construct_drops_summary(drops_data, channel_name=channel_name),
+                ),
+            )
 
         # Only show channels if drop is not subscription only
         if not getattr(item, "is_subscription_only", False) and channels is not None:
@@ -865,7 +974,12 @@ class RewardCampaignFeed(Feed):
     feed_copyright: str = "Information wants to be free."
     _limit: int | None = None
 
-    def __call__(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+    def __call__(
+        self,
+        request: HttpRequest,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
         Args:

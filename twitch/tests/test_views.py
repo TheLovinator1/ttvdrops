@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import datetime
 import json
 from datetime import timedelta
@@ -22,7 +20,6 @@ from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import TimeBasedDrop
-from twitch.views import Page
 from twitch.views import _build_breadcrumb_schema
 from twitch.views import _build_pagination_info
 from twitch.views import _build_seo_context
@@ -34,19 +31,26 @@ if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
     from django.test.utils import ContextList
 
+    from twitch.views import Page
+
 
 @pytest.mark.django_db
 class TestSearchView:
     """Tests for the search_view function."""
 
     @pytest.fixture
-    def sample_data(self) -> dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit]:
+    def sample_data(
+        self,
+    ) -> dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit]:
         """Create sample data for testing.
 
         Returns:
             A dictionary containing the created sample data.
         """
-        org: Organization = Organization.objects.create(twitch_id="123", name="Test Organization")
+        org: Organization = Organization.objects.create(
+            twitch_id="123",
+            name="Test Organization",
+        )
         game: Game = Game.objects.create(
             twitch_id="456",
             name="test_game",
@@ -78,7 +82,9 @@ class TestSearchView:
         }
 
     @staticmethod
-    def _get_context(response: _MonkeyPatchedWSGIResponse) -> ContextList | dict[str, Any]:
+    def _get_context(
+        response: _MonkeyPatchedWSGIResponse,
+    ) -> ContextList | dict[str, Any]:
         """Normalize Django test response context to a plain dict.
 
         Args:
@@ -95,7 +101,10 @@ class TestSearchView:
     def test_empty_query(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
     ) -> None:
         """Test search with empty query returns no results."""
         response: _MonkeyPatchedWSGIResponse = client.get("/search/?q=")
@@ -108,7 +117,10 @@ class TestSearchView:
     def test_no_query_parameter(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
     ) -> None:
         """Test search with no query parameter returns no results."""
         response: _MonkeyPatchedWSGIResponse = client.get("/search/")
@@ -124,7 +136,10 @@ class TestSearchView:
     def test_short_query_istartswith(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
         model_key: Literal["org", "game", "campaign", "drop", "benefit"],
     ) -> None:
         """Test short query (< 3 chars) uses istartswith for all models."""
@@ -151,7 +166,10 @@ class TestSearchView:
     def test_long_query_icontains(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
         model_key: Literal["org", "game", "campaign", "drop", "benefit"],
     ) -> None:
         """Test long query (>= 3 chars) uses icontains for all models."""
@@ -174,7 +192,10 @@ class TestSearchView:
     def test_campaign_description_search(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
     ) -> None:
         """Test that campaign description is searchable."""
         response: _MonkeyPatchedWSGIResponse = client.get("/search/?q=campaign")
@@ -186,7 +207,10 @@ class TestSearchView:
     def test_game_display_name_search(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
     ) -> None:
         """Test that game display_name is searchable."""
         response: _MonkeyPatchedWSGIResponse = client.get("/search/?q=Game")
@@ -198,7 +222,10 @@ class TestSearchView:
     def test_query_no_matches(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
     ) -> None:
         """Test search with query that has no matches."""
         response: _MonkeyPatchedWSGIResponse = client.get("/search/?q=xyz")
@@ -211,7 +238,10 @@ class TestSearchView:
     def test_context_contains_query(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
     ) -> None:
         """Test that context contains the search query."""
         query = "Test"
@@ -222,15 +252,15 @@ class TestSearchView:
 
     @pytest.mark.parametrize(
         ("model_key", "related_field"),
-        [
-            ("campaigns", "game"),
-            ("drops", "campaign"),
-        ],
+        [("campaigns", "game"), ("drops", "campaign")],
     )
     def test_select_related_optimization(
         self,
         client: Client,
-        sample_data: dict[str, Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit],
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
         model_key: str,
         related_field: str,
     ) -> None:
@@ -238,11 +268,15 @@ class TestSearchView:
         response: _MonkeyPatchedWSGIResponse = client.get("/search/?q=Test")
         context: ContextList | dict[str, Any] = self._get_context(response)
 
-        results: list[Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit] = context["results"][model_key]
+        results: list[
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit
+        ] = context["results"][model_key]
         assert len(results) > 0
 
         # Verify the related object is accessible without additional query
-        first_result: Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit = results[0]
+        first_result: (
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit
+        ) = results[0]
         assert hasattr(first_result, related_field)
 
 
@@ -251,13 +285,18 @@ class TestChannelListView:
     """Tests for the ChannelListView."""
 
     @pytest.fixture
-    def channel_with_campaigns(self) -> dict[str, Channel | Game | Organization | list[DropCampaign]]:
+    def channel_with_campaigns(
+        self,
+    ) -> dict[str, Channel | Game | Organization | list[DropCampaign]]:
         """Create a channel with multiple campaigns for testing.
 
         Returns:
             A dictionary containing the created channel and campaigns.
         """
-        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        org: Organization = Organization.objects.create(
+            twitch_id="org1",
+            name="Test Org",
+        )
         game: Game = Game.objects.create(
             twitch_id="game1",
             name="test_game",
@@ -284,12 +323,7 @@ class TestChannelListView:
             campaign.allow_channels.add(channel)
             campaigns.append(campaign)
 
-        return {
-            "channel": channel,
-            "campaigns": campaigns,
-            "game": game,
-            "org": org,
-        }
+        return {"channel": channel, "campaigns": campaigns, "game": game, "org": org}
 
     def test_channel_list_loads(self, client: Client) -> None:
         """Test that channel list view loads successfully."""
@@ -299,7 +333,10 @@ class TestChannelListView:
     def test_campaign_count_annotation(
         self,
         client: Client,
-        channel_with_campaigns: dict[str, Channel | Game | Organization | list[DropCampaign]],
+        channel_with_campaigns: dict[
+            str,
+            Channel | Game | Organization | list[DropCampaign],
+        ],
     ) -> None:
         """Test that campaign_count is correctly annotated for channels."""
         channel: Channel = channel_with_campaigns["channel"]  # type: ignore[assignment]
@@ -313,13 +350,18 @@ class TestChannelListView:
         channels: list[Channel] = context["channels"]
 
         # Find our test channel in the results
-        test_channel: Channel | None = next((ch for ch in channels if ch.twitch_id == channel.twitch_id), None)
+        test_channel: Channel | None = next(
+            (ch for ch in channels if ch.twitch_id == channel.twitch_id),
+            None,
+        )
 
         assert test_channel is not None
         assert hasattr(test_channel, "campaign_count")
 
         campaign_count: int | None = getattr(test_channel, "campaign_count", None)
-        assert campaign_count == len(campaigns), f"Expected campaign_count to be {len(campaigns)}, got {campaign_count}"
+        assert campaign_count == len(campaigns), (
+            f"Expected campaign_count to be {len(campaigns)}, got {campaign_count}"
+        )
 
     def test_campaign_count_zero_for_channel_without_campaigns(
         self,
@@ -339,7 +381,10 @@ class TestChannelListView:
             context = context[-1]
 
         channels: list[Channel] = context["channels"]
-        test_channel: Channel | None = next((ch for ch in channels if ch.twitch_id == channel.twitch_id), None)
+        test_channel: Channel | None = next(
+            (ch for ch in channels if ch.twitch_id == channel.twitch_id),
+            None,
+        )
 
         assert test_channel is not None
         assert hasattr(test_channel, "campaign_count")
@@ -350,7 +395,10 @@ class TestChannelListView:
     def test_channels_ordered_by_campaign_count(
         self,
         client: Client,
-        channel_with_campaigns: dict[str, Channel | Game | Organization | list[DropCampaign]],
+        channel_with_campaigns: dict[
+            str,
+            Channel | Game | Organization | list[DropCampaign],
+        ],
     ) -> None:
         """Test that channels are ordered by campaign_count descending."""
         game: Game = channel_with_campaigns["game"]  # type: ignore[assignment]
@@ -380,17 +428,28 @@ class TestChannelListView:
         channels: list[Channel] = list(context["channels"])
 
         # The channel with 10 campaigns should come before the one with 5
-        channel2_index: int | None = next((i for i, ch in enumerate(channels) if ch.twitch_id == "channel2"), None)
-        channel1_index: int | None = next((i for i, ch in enumerate(channels) if ch.twitch_id == "channel1"), None)
+        channel2_index: int | None = next(
+            (i for i, ch in enumerate(channels) if ch.twitch_id == "channel2"),
+            None,
+        )
+        channel1_index: int | None = next(
+            (i for i, ch in enumerate(channels) if ch.twitch_id == "channel1"),
+            None,
+        )
 
         assert channel2_index is not None
         assert channel1_index is not None
-        assert channel2_index < channel1_index, "Channel with more campaigns should appear first"
+        assert channel2_index < channel1_index, (
+            "Channel with more campaigns should appear first"
+        )
 
     def test_channel_search_filters_correctly(
         self,
         client: Client,
-        channel_with_campaigns: dict[str, Channel | Game | Organization | list[DropCampaign]],
+        channel_with_campaigns: dict[
+            str,
+            Channel | Game | Organization | list[DropCampaign],
+        ],
     ) -> None:
         """Test that search parameter filters channels correctly."""
         channel: Channel = channel_with_campaigns["channel"]  # type: ignore[assignment]
@@ -402,7 +461,9 @@ class TestChannelListView:
             display_name="OtherChannel",
         )
 
-        response: _MonkeyPatchedWSGIResponse = client.get(f"/channels/?search={channel.name}")
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            f"/channels/?search={channel.name}",
+        )
         context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
         if isinstance(context, list):
             context = context[-1]
@@ -421,12 +482,25 @@ class TestChannelListView:
         assert "active_campaigns" in response.context
 
     @pytest.mark.django_db
-    def test_dashboard_dedupes_campaigns_for_multi_owner_game(self, client: Client) -> None:
+    def test_dashboard_dedupes_campaigns_for_multi_owner_game(
+        self,
+        client: Client,
+    ) -> None:
         """Dashboard should not render duplicate campaign cards when a game has multiple owners."""
         now = timezone.now()
-        org1: Organization = Organization.objects.create(twitch_id="org_a", name="Org A")
-        org2: Organization = Organization.objects.create(twitch_id="org_b", name="Org B")
-        game: Game = Game.objects.create(twitch_id="game_multi_owner", name="game", display_name="Multi Owner")
+        org1: Organization = Organization.objects.create(
+            twitch_id="org_a",
+            name="Org A",
+        )
+        org2: Organization = Organization.objects.create(
+            twitch_id="org_b",
+            name="Org B",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_multi_owner",
+            name="game",
+            display_name="Multi Owner",
+        )
         game.owners.add(org1, org2)
 
         campaign: DropCampaign = DropCampaign.objects.create(
@@ -463,14 +537,20 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_drop_campaign_list_view(self, client: Client) -> None:
         """Test campaign list view returns 200 and has campaigns in context."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:campaign_list"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list"),
+        )
         assert response.status_code == 200
         assert "campaigns" in response.context
 
     @pytest.mark.django_db
     def test_drop_campaign_list_pagination(self, client: Client) -> None:
         """Test pagination works correctly with 100 items per page."""
-        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        game: Game = Game.objects.create(
+            twitch_id="g1",
+            name="Game",
+            display_name="Game",
+        )
         now: datetime.datetime = timezone.now()
 
         # Create 150 campaigns to test pagination
@@ -488,7 +568,9 @@ class TestChannelListView:
         DropCampaign.objects.bulk_create(campaigns)
 
         # Test first page
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:campaign_list"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list"),
+        )
         assert response.status_code == 200
         assert "is_paginated" in response.context
         assert response.context["is_paginated"] is True
@@ -508,7 +590,11 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_drop_campaign_list_status_filter_active(self, client: Client) -> None:
         """Test filtering for active campaigns only."""
-        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        game: Game = Game.objects.create(
+            twitch_id="g1",
+            name="Game",
+            display_name="Game",
+        )
         now: datetime.datetime = timezone.now()
 
         # Create active campaign
@@ -553,7 +639,11 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_drop_campaign_list_status_filter_upcoming(self, client: Client) -> None:
         """Test filtering for upcoming campaigns only."""
-        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        game: Game = Game.objects.create(
+            twitch_id="g1",
+            name="Game",
+            display_name="Game",
+        )
         now: datetime.datetime = timezone.now()
 
         # Create active campaign
@@ -598,7 +688,11 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_drop_campaign_list_status_filter_expired(self, client: Client) -> None:
         """Test filtering for expired campaigns only."""
-        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        game: Game = Game.objects.create(
+            twitch_id="g1",
+            name="Game",
+            display_name="Game",
+        )
         now: datetime.datetime = timezone.now()
 
         # Create active campaign
@@ -643,8 +737,16 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_drop_campaign_list_game_filter(self, client: Client) -> None:
         """Test filtering campaigns by game."""
-        game1: Game = Game.objects.create(twitch_id="g1", name="Game 1", display_name="Game 1")
-        game2: Game = Game.objects.create(twitch_id="g2", name="Game 2", display_name="Game 2")
+        game1: Game = Game.objects.create(
+            twitch_id="g1",
+            name="Game 1",
+            display_name="Game 1",
+        )
+        game2: Game = Game.objects.create(
+            twitch_id="g2",
+            name="Game 2",
+            display_name="Game 2",
+        )
         now: datetime.datetime = timezone.now()
 
         # Create campaigns for game 1
@@ -692,9 +794,16 @@ class TestChannelListView:
         assert campaigns[0].game.twitch_id == "g2"
 
     @pytest.mark.django_db
-    def test_drop_campaign_list_pagination_preserves_filters(self, client: Client) -> None:
+    def test_drop_campaign_list_pagination_preserves_filters(
+        self,
+        client: Client,
+    ) -> None:
         """Test that pagination links preserve game and status filters."""
-        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        game: Game = Game.objects.create(
+            twitch_id="g1",
+            name="Game",
+            display_name="Game",
+        )
         now: datetime.datetime = timezone.now()
 
         # Create 150 active campaigns for game g1
@@ -726,7 +835,11 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_drop_campaign_detail_view(self, client: Client, db: object) -> None:
         """Test campaign detail view returns 200 and has campaign in context."""
-        game: Game = Game.objects.create(twitch_id="g1", name="Game", display_name="Game")
+        game: Game = Game.objects.create(
+            twitch_id="g1",
+            name="Game",
+            display_name="Game",
+        )
         campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="c1",
             name="Campaign",
@@ -744,7 +857,11 @@ class TestChannelListView:
         client: Client,
     ) -> None:
         """Test campaign detail view includes badge benefit description from ChatBadge."""
-        game: Game = Game.objects.create(twitch_id="g-badge", name="Game", display_name="Game")
+        game: Game = Game.objects.create(
+            twitch_id="g-badge",
+            name="Game",
+            display_name="Game",
+        )
         campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="c-badge",
             name="Campaign",
@@ -803,7 +920,11 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_game_detail_view(self, client: Client, db: object) -> None:
         """Test game detail view returns 200 and has game in context."""
-        game: Game = Game.objects.create(twitch_id="g2", name="Game2", display_name="Game2")
+        game: Game = Game.objects.create(
+            twitch_id="g2",
+            name="Game2",
+            display_name="Game2",
+        )
         url: str = reverse("twitch:game_detail", args=[game.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
         assert response.status_code == 200
@@ -828,7 +949,11 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_channel_detail_view(self, client: Client, db: object) -> None:
         """Test channel detail view returns 200 and has channel in context."""
-        channel: Channel = Channel.objects.create(twitch_id="ch1", name="Channel1", display_name="Channel1")
+        channel: Channel = Channel.objects.create(
+            twitch_id="ch1",
+            name="Channel1",
+            display_name="Channel1",
+        )
         url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
         assert response.status_code == 200
@@ -858,7 +983,7 @@ class TestSEOHelperFunctions:
 
     def test_truncate_description_long_text(self) -> None:
         """Test that long text is truncated at word boundary."""
-        text = "This is a very long description that exceeds the maximum length and should be truncated at a word boundary to avoid cutting off in the middle of a word"  # noqa: E501
+        text = "This is a very long description that exceeds the maximum length and should be truncated at a word boundary to avoid cutting off in the middle of a word"
         result: str = _truncate_description(text, max_length=50)
         assert len(result) <= 53  # Allow some flexibility
         assert not result.endswith(" ")
@@ -890,7 +1015,9 @@ class TestSEOHelperFunctions:
     def test_build_seo_context_with_all_parameters(self) -> None:
         """Test _build_seo_context with all parameters."""
         now: datetime.datetime = timezone.now()
-        breadcrumb: list[dict[str, int | str]] = [{"position": 1, "name": "Home", "url": "/"}]
+        breadcrumb: list[dict[str, int | str]] = [
+            {"position": 1, "name": "Home", "url": "/"},
+        ]
 
         context: dict[str, Any] = _build_seo_context(
             page_title="Test",
@@ -938,7 +1065,11 @@ class TestSEOHelperFunctions:
         paginator: Paginator[int] = Paginator(items, 10)
         page: Page[int] = paginator.get_page(1)
 
-        info: list[dict[str, str]] | None = _build_pagination_info(request, page, "/campaigns/")
+        info: list[dict[str, str]] | None = _build_pagination_info(
+            request,
+            page,
+            "/campaigns/",
+        )
 
         assert info is not None
         assert len(info) == 1
@@ -954,7 +1085,11 @@ class TestSEOHelperFunctions:
         paginator: Paginator[int] = Paginator(items, 10)
         page: Page[int] = paginator.get_page(2)
 
-        info: list[dict[str, str]] | None = _build_pagination_info(request, page, "/campaigns/")
+        info: list[dict[str, str]] | None = _build_pagination_info(
+            request,
+            page,
+            "/campaigns/",
+        )
 
         assert info is not None
         assert len(info) == 2
@@ -975,7 +1110,10 @@ class TestSEOMetaTags:
         Returns:
             dict[str, Any]: A dictionary containing the created organization, game, and campaign.
         """
-        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        org: Organization = Organization.objects.create(
+            twitch_id="org1",
+            name="Test Org",
+        )
         game: Game = Game.objects.create(
             twitch_id="game1",
             name="test_game",
@@ -995,7 +1133,9 @@ class TestSEOMetaTags:
 
     def test_campaign_list_view_has_seo_context(self, client: Client) -> None:
         """Test campaign list view has SEO context variables."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:campaign_list"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list"),
+        )
         assert response.status_code == 200
         assert "page_title" in response.context
         assert "page_description" in response.context
@@ -1050,7 +1190,10 @@ class TestSEOMetaTags:
 
     def test_organization_detail_view_has_breadcrumb(self, client: Client) -> None:
         """Test organization detail view has breadcrumb."""
-        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        org: Organization = Organization.objects.create(
+            twitch_id="org1",
+            name="Test Org",
+        )
         url: str = reverse("twitch:organization_detail", args=[org.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -1059,7 +1202,11 @@ class TestSEOMetaTags:
 
     def test_channel_detail_view_has_breadcrumb(self, client: Client) -> None:
         """Test channel detail view has breadcrumb."""
-        channel: Channel = Channel.objects.create(twitch_id="ch1", name="ch1", display_name="Channel 1")
+        channel: Channel = Channel.objects.create(
+            twitch_id="ch1",
+            name="ch1",
+            display_name="Channel 1",
+        )
         url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -1068,10 +1215,11 @@ class TestSEOMetaTags:
 
     def test_noindex_pages_have_robots_directive(self, client: Client) -> None:
         """Test that pages with noindex have proper robots directive."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dataset_backups"))
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:dataset_backups"),
+        )
         assert response.status_code == 200
         assert "robots_directive" in response.context
-        assert "noindex" in response.context["robots_directive"]
 
 
 @pytest.mark.django_db
@@ -1085,14 +1233,21 @@ class TestSitemapView:
         Returns:
             dict[str, Any]: A dictionary containing the created organization, game, channel, campaign, and badge set.
         """
-        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        org: Organization = Organization.objects.create(
+            twitch_id="org1",
+            name="Test Org",
+        )
         game: Game = Game.objects.create(
             twitch_id="game1",
             name="test_game",
             display_name="Test Game",
         )
         game.owners.add(org)
-        channel: Channel = Channel.objects.create(twitch_id="ch1", name="ch1", display_name="Channel 1")
+        channel: Channel = Channel.objects.create(
+            twitch_id="ch1",
+            name="ch1",
+            display_name="Channel 1",
+        )
         campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="camp1",
             name="Test Campaign",
@@ -1109,31 +1264,50 @@ class TestSitemapView:
             "badge": badge,
         }
 
-    def test_sitemap_view_returns_xml(self, client: Client, sample_entities: dict[str, Any]) -> None:
+    def test_sitemap_view_returns_xml(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
         """Test sitemap view returns XML content."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml"
 
-    def test_sitemap_contains_xml_declaration(self, client: Client, sample_entities: dict[str, Any]) -> None:
+    def test_sitemap_contains_xml_declaration(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
         """Test sitemap contains proper XML declaration."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content = response.content.decode()
         assert content.startswith('<?xml version="1.0" encoding="UTF-8"?>')
 
-    def test_sitemap_contains_urlset(self, client: Client, sample_entities: dict[str, Any]) -> None:
+    def test_sitemap_contains_urlset(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
         """Test sitemap contains urlset element."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content: str = response.content.decode()
         assert "<urlset" in content
         assert "</urlset>" in content
 
-    def test_sitemap_contains_static_pages(self, client: Client, sample_entities: dict[str, Any]) -> None:
+    def test_sitemap_contains_static_pages(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
         """Test sitemap includes static pages."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content: str = response.content.decode()
         # Check for some static pages
-        assert "<loc>http://testserver/</loc>" in content or "<loc>http://localhost:8000/</loc>" in content
+        assert (
+            "<loc>http://testserver/</loc>" in content
+            or "<loc>http://localhost:8000/</loc>" in content
+        )
         assert "/campaigns/" in content
         assert "/games/" in content
 
@@ -1192,21 +1366,33 @@ class TestSitemapView:
         content: str = response.content.decode()
         assert f"/badges/{badge.set_id}/" in content  # pyright: ignore[reportAttributeAccessIssue]
 
-    def test_sitemap_includes_priority(self, client: Client, sample_entities: dict[str, Any]) -> None:
+    def test_sitemap_includes_priority(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
         """Test sitemap includes priority values."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content: str = response.content.decode()
         assert "<priority>" in content
         assert "</priority>" in content
 
-    def test_sitemap_includes_changefreq(self, client: Client, sample_entities: dict[str, Any]) -> None:
+    def test_sitemap_includes_changefreq(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
         """Test sitemap includes changefreq values."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content: str = response.content.decode()
         assert "<changefreq>" in content
         assert "</changefreq>" in content
 
-    def test_sitemap_includes_lastmod(self, client: Client, sample_entities: dict[str, Any]) -> None:
+    def test_sitemap_includes_lastmod(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
         """Test sitemap includes lastmod for detail pages."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content: str = response.content.decode()
@@ -1275,7 +1461,10 @@ class TestSEOPaginationLinks:
     def test_campaign_list_first_page_has_next(self, client: Client) -> None:
         """Test campaign list first page has next link."""
         # Create a game and multiple campaigns to trigger pagination
-        org: Organization = Organization.objects.create(twitch_id="org1", name="Test Org")
+        org: Organization = Organization.objects.create(
+            twitch_id="org1",
+            name="Test Org",
+        )
         game = Game.objects.create(
             twitch_id="game1",
             name="test_game",

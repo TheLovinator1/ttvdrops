@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING
 
@@ -87,20 +85,12 @@ class Game(auto_prefetch.Model):
         verbose_name="Slug",
         help_text="Short unique identifier for the game.",
     )
-    name = models.TextField(
-        blank=True,
-        default="",
-        verbose_name="Name",
-    )
-    display_name = models.TextField(
-        blank=True,
-        default="",
-        verbose_name="Display name",
-    )
+    name = models.TextField(blank=True, default="", verbose_name="Name")
+    display_name = models.TextField(blank=True, default="", verbose_name="Display name")
     box_art = models.URLField(  # noqa: DJ001
         max_length=500,
         blank=True,
-        null=True,  # We allow null here to distinguish between no box art and empty string
+        null=True,
         default="",
         verbose_name="Box art URL",
     )
@@ -243,7 +233,9 @@ class TwitchGameData(auto_prefetch.Model):
         blank=True,
         default="",
         verbose_name="Box art URL",
-        help_text=("URL template with {width}x{height} placeholders for the box art image."),
+        help_text=(
+            "URL template with {width}x{height} placeholders for the box art image."
+        ),
     )
     igdb_id = models.TextField(blank=True, default="", verbose_name="IGDB ID")
 
@@ -322,9 +314,7 @@ class DropCampaign(auto_prefetch.Model):
         editable=False,
         help_text="The Twitch ID for this campaign.",
     )
-    name = models.TextField(
-        help_text="Name of the drop campaign.",
-    )
+    name = models.TextField(help_text="Name of the drop campaign.")
     description = models.TextField(
         blank=True,
         help_text="Detailed description of the campaign.",
@@ -399,7 +389,7 @@ class DropCampaign(auto_prefetch.Model):
     operation_names = models.JSONField(
         default=list,
         blank=True,
-        help_text="List of GraphQL operation names used to fetch this campaign data (e.g., ['ViewerDropsDashboard', 'Inventory']).",  # noqa: E501
+        help_text="List of GraphQL operation names used to fetch this campaign data (e.g., ['ViewerDropsDashboard', 'Inventory']).",
     )
 
     added_at = models.DateTimeField(
@@ -486,10 +476,7 @@ class DropCampaign(auto_prefetch.Model):
             if self.image_file and getattr(self.image_file, "url", None):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
-            logger.debug(
-                "Failed to resolve DropCampaign.image_file url: %s",
-                exc,
-            )
+            logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
 
         if self.image_url:
             return self.image_url
@@ -507,8 +494,9 @@ class DropCampaign(auto_prefetch.Model):
     def duration_iso(self) -> str:
         """Return the campaign duration in ISO 8601 format (e.g., 'P3DT4H30M').
 
-        This is used for the <time> element's datetime attribute to provide machine-readable duration.
-        If start_at or end_at is missing, returns an empty string.
+        This is used for the <time> element's datetime attribute to provide
+        machine-readable duration. If start_at or end_at is missing, returns
+        an empty string.
         """
         if not self.start_at or not self.end_at:
             return ""
@@ -628,7 +616,9 @@ class DropBenefit(auto_prefetch.Model):
     )
     created_at = models.DateTimeField(
         null=True,
-        help_text=("Timestamp when the benefit was created. This is from Twitch API and not auto-generated."),
+        help_text=(
+            "Timestamp when the benefit was created. This is from Twitch API and not auto-generated."
+        ),
     )
     entitlement_limit = models.PositiveIntegerField(
         default=1,
@@ -679,10 +669,7 @@ class DropBenefit(auto_prefetch.Model):
             if self.image_file and getattr(self.image_file, "url", None):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
-            logger.debug(
-                "Failed to resolve DropBenefit.image_file url: %s",
-                exc,
-            )
+            logger.debug("Failed to resolve DropBenefit.image_file url: %s", exc)
         return self.image_asset_url or ""
 
 
@@ -743,9 +730,7 @@ class TimeBasedDrop(auto_prefetch.Model):
         editable=False,
         help_text="The Twitch ID for this time-based drop.",
     )
-    name = models.TextField(
-        help_text="Name of the time-based drop.",
-    )
+    name = models.TextField(help_text="Name of the time-based drop.")
     required_minutes_watched = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -821,9 +806,7 @@ class RewardCampaign(auto_prefetch.Model):
         editable=False,
         help_text="The Twitch ID for this reward campaign.",
     )
-    name = models.TextField(
-        help_text="Name of the reward campaign.",
-    )
+    name = models.TextField(help_text="Name of the reward campaign.")
     brand = models.TextField(
         blank=True,
         default="",
@@ -956,10 +939,7 @@ class RewardCampaign(auto_prefetch.Model):
             if self.image_file and getattr(self.image_file, "url", None):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
-            logger.debug(
-                "Failed to resolve RewardCampaign.image_file url: %s",
-                exc,
-            )
+            logger.debug("Failed to resolve RewardCampaign.image_file url: %s", exc)
         return self.image_url or ""
 
     def get_feed_title(self) -> str:
@@ -1002,15 +982,26 @@ class RewardCampaign(auto_prefetch.Model):
                 parts.append(format_html("<p>{}</p>", end_part))
 
         if self.is_sitewide:
-            parts.append(SafeText("<p><strong>This is a sitewide reward campaign</strong></p>"))
+            parts.append(
+                SafeText("<p><strong>This is a sitewide reward campaign</strong></p>"),
+            )
         elif self.game:
-            parts.append(format_html("<p>Game: {}</p>", self.game.display_name or self.game.name))
+            parts.append(
+                format_html(
+                    "<p>Game: {}</p>",
+                    self.game.display_name or self.game.name,
+                ),
+            )
 
         if self.about_url:
-            parts.append(format_html('<p><a href="{}">Learn more</a></p>', self.about_url))
+            parts.append(
+                format_html('<p><a href="{}">Learn more</a></p>', self.about_url),
+            )
 
         if self.external_url:
-            parts.append(format_html('<p><a href="{}">Redeem reward</a></p>', self.external_url))
+            parts.append(
+                format_html('<p><a href="{}">Redeem reward</a></p>', self.external_url),
+            )
 
         return "".join(str(p) for p in parts)
 

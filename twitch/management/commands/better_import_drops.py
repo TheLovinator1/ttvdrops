@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 import json
 import os
 import sys
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 from urllib.parse import urlparse
@@ -18,8 +17,6 @@ from colorama import init as colorama_init
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
-from django.core.management.base import CommandParser
-from json_repair import JSONReturnType
 from pydantic import ValidationError
 from tqdm import tqdm
 
@@ -31,20 +28,25 @@ from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
-from twitch.schemas import ChannelInfoSchema
-from twitch.schemas import CurrentUserSchema
-from twitch.schemas import DropBenefitEdgeSchema
-from twitch.schemas import DropBenefitSchema
-from twitch.schemas import DropCampaignACLSchema
-from twitch.schemas import DropCampaignSchema
-from twitch.schemas import GameSchema
 from twitch.schemas import GraphQLResponse
 from twitch.schemas import OrganizationSchema
-from twitch.schemas import RewardCampaign as RewardCampaignSchema
-from twitch.schemas import TimeBasedDropSchema
 from twitch.utils import is_twitch_box_art_url
 from twitch.utils import normalize_twitch_box_art_url
 from twitch.utils import parse_date
+
+if TYPE_CHECKING:
+    from django.core.management.base import CommandParser
+    from json_repair import JSONReturnType
+
+    from twitch.schemas import ChannelInfoSchema
+    from twitch.schemas import CurrentUserSchema
+    from twitch.schemas import DropBenefitEdgeSchema
+    from twitch.schemas import DropBenefitSchema
+    from twitch.schemas import DropCampaignACLSchema
+    from twitch.schemas import DropCampaignSchema
+    from twitch.schemas import GameSchema
+    from twitch.schemas import RewardCampaign as RewardCampaignSchema
+    from twitch.schemas import TimeBasedDropSchema
 
 
 def get_broken_directory_root() -> Path:
@@ -83,10 +85,7 @@ def get_imported_directory_root() -> Path:
     return home / "ttvdrops" / "imported"
 
 
-def _build_broken_directory(
-    reason: str,
-    operation_name: str | None = None,
-) -> Path:
+def _build_broken_directory(reason: str, operation_name: str | None = None) -> Path:
     """Compute a deeply nested broken directory for triage.
 
     Directory pattern: <broken_root>/<reason>/<operation>/<YYYY>/<MM>/<DD>
@@ -104,16 +103,32 @@ def _build_broken_directory(
 
     # If operation_name matches reason, skip it to avoid duplicate directories
     if operation_name and operation_name.replace(" ", "_") == safe_reason:
-        broken_dir: Path = get_broken_directory_root() / safe_reason / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
+        broken_dir: Path = (
+            get_broken_directory_root()
+            / safe_reason
+            / f"{now:%Y}"
+            / f"{now:%m}"
+            / f"{now:%d}"
+        )
     else:
         op_segment: str = (operation_name or "unknown_op").replace(" ", "_")
-        broken_dir = get_broken_directory_root() / safe_reason / op_segment / f"{now:%Y}" / f"{now:%m}" / f"{now:%d}"
+        broken_dir = (
+            get_broken_directory_root()
+            / safe_reason
+            / op_segment
+            / f"{now:%Y}"
+            / f"{now:%m}"
+            / f"{now:%d}"
+        )
 
     broken_dir.mkdir(parents=True, exist_ok=True)
     return broken_dir
 
 
-def move_failed_validation_file(file_path: Path, operation_name: str | None = None) -> Path:
+def move_failed_validation_file(
+    file_path: Path,
+    operation_name: str | None = None,
+) -> Path:
     """Moves a file that failed validation to a 'broken' subdirectory.
 
     Args:
@@ -178,7 +193,12 @@ def move_completed_file(
     Returns:
         Path to the directory where the file was moved.
     """
-    safe_op: str = (operation_name or "unknown_op").replace(" ", "_").replace("/", "_").replace("\\", "_")
+    safe_op: str = (
+        (operation_name or "unknown_op")
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
     target_dir: Path = get_imported_directory_root() / safe_op
 
     if campaign_structure:
@@ -249,7 +269,12 @@ def detect_error_only_response(
                 errors: Any = item.get("errors")
                 data: Any = item.get("data")
                 # Data is missing if key doesn't exist or value is None
-                if errors and data is None and isinstance(errors, list) and len(errors) > 0:
+                if (
+                    errors
+                    and data is None
+                    and isinstance(errors, list)
+                    and len(errors) > 0
+                ):
                     first_error: dict[str, Any] = errors[0]
                     message: str = first_error.get("message", "unknown error")
                     return f"error_only: {message}"
@@ -327,7 +352,7 @@ def repair_partially_broken_json(raw_text: str) -> str:  # noqa: PLR0915
     """
     # Strategy 1: Direct repair attempt
     try:
-        fixed: str = json_repair.repair_json(raw_text)
+        fixed: str = json_repair.repair_json(raw_text, logging=False)
         # Validate it produces valid JSON
         parsed_data = json.loads(fixed)
 
@@ -335,7 +360,9 @@ def repair_partially_broken_json(raw_text: str) -> str:  # noqa: PLR0915
         if isinstance(parsed_data, list):
             # Filter to only keep GraphQL responses
             filtered = [
-                item for item in parsed_data if isinstance(item, dict) and ("data" in item or "extensions" in item)
+                item
+                for item in parsed_data
+                if isinstance(item, dict) and ("data" in item or "extensions" in item)
             ]
             if filtered:
                 # If we filtered anything out, return the filtered version
@@ -358,7 +385,10 @@ def repair_partially_broken_json(raw_text: str) -> str:  # noqa: PLR0915
         # Validate that all items look like GraphQL responses
         if isinstance(wrapped_data, list) and wrapped_data:  # noqa: SIM102
             # Check if all items have "data" or "extensions" (GraphQL response structure)
-            if all(isinstance(item, dict) and ("data" in item or "extensions" in item) for item in wrapped_data):
+            if all(
+                isinstance(item, dict) and ("data" in item or "extensions" in item)
+                for item in wrapped_data
+            ):
                 return wrapped
     except ValueError, json.JSONDecodeError:
         pass
@@ -405,7 +435,7 @@ def repair_partially_broken_json(raw_text: str) -> str:  # noqa: PLR0915
         line: str = line.strip()  # noqa: PLW2901
         if line and line.startswith("{"):
             try:
-                fixed_line: str = json_repair.repair_json(line)
+                fixed_line: str = json_repair.repair_json(line, logging=False)
                 obj = json.loads(fixed_line)
                 # Only keep objects that look like GraphQL responses
                 if "data" in obj or "extensions" in obj:
@@ -428,11 +458,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser) -> None:
         """Populate the command with arguments."""
-        parser.add_argument(
-            "path",
-            type=str,
-            help="Path to JSON file or directory",
-        )
+        parser.add_argument("path", type=str, help="Path to JSON file or directory")
         parser.add_argument(
             "--recursive",
             action="store_true",
@@ -487,7 +513,9 @@ class Command(BaseCommand):
             for response_data in responses:
                 if isinstance(response_data, dict):
                     try:
-                        response: GraphQLResponse = GraphQLResponse.model_validate(response_data)
+                        response: GraphQLResponse = GraphQLResponse.model_validate(
+                            response_data,
+                        )
                         valid_responses.append(response)
 
                     except ValidationError as e:
@@ -497,8 +525,13 @@ class Command(BaseCommand):
 
                         # Move invalid inputs out of the hot path so future runs can progress.
                         if not options.get("skip_broken_moves"):
-                            op_name: str | None = extract_operation_name_from_parsed(response_data)
-                            broken_dir = move_failed_validation_file(file_path, operation_name=op_name)
+                            op_name: str | None = extract_operation_name_from_parsed(
+                                response_data,
+                            )
+                            broken_dir = move_failed_validation_file(
+                                file_path,
+                                operation_name=op_name,
+                            )
 
                             # Once the file has been moved, bail out so we don't try to move it again later.
                             return [], broken_dir
@@ -511,10 +544,7 @@ class Command(BaseCommand):
 
         return valid_responses, broken_dir
 
-    def _get_or_create_organization(
-        self,
-        org_data: OrganizationSchema,
-    ) -> Organization:
+    def _get_or_create_organization(self, org_data: OrganizationSchema) -> Organization:
         """Get or create an organization.
 
         Args:
@@ -525,12 +555,12 @@ class Command(BaseCommand):
         """
         org_obj, created = Organization.objects.update_or_create(
             twitch_id=org_data.twitch_id,
-            defaults={
-                "name": org_data.name,
-            },
+            defaults={"name": org_data.name},
         )
         if created:
-            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new organization: {org_data.name}")
+            tqdm.write(
+                f"{Fore.GREEN}✓{Style.RESET_ALL} Created new organization: {org_data.name}",
+            )
 
         return org_obj
 
@@ -572,7 +602,9 @@ class Command(BaseCommand):
         if created or owner_orgs:
             game_obj.owners.add(*owner_orgs)
         if created:
-            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}")
+            tqdm.write(
+                f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}",
+            )
         self._download_game_box_art(game_obj, game_obj.box_art)
         return game_obj
 
@@ -615,13 +647,12 @@ class Command(BaseCommand):
 
         channel_obj, created = Channel.objects.update_or_create(
             twitch_id=channel_info.twitch_id,
-            defaults={
-                "name": channel_info.name,
-                "display_name": display_name,
-            },
+            defaults={"name": channel_info.name, "display_name": display_name},
         )
         if created:
-            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {display_name}")
+            tqdm.write(
+                f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {display_name}",
+            )
 
         return channel_obj
 
@@ -638,12 +669,13 @@ class Command(BaseCommand):
             file_path: Path to the file being processed.
             options: Command options dictionary.
 
-        Raises:
-            ValueError: If datetime parsing fails for campaign dates and
-                crash-on-error is enabled.
 
         Returns:
             Tuple of (success flag, broken directory path if moved).
+
+        Raises:
+            ValueError: If datetime parsing fails for campaign dates and
+                crash-on-error is enabled.
         """
         valid_responses, broken_dir = self._validate_responses(
             responses=responses,
@@ -659,7 +691,9 @@ class Command(BaseCommand):
             campaigns_to_process: list[DropCampaignSchema] = []
 
             # Source 1: User or CurrentUser field (handles plural, singular, inventory)
-            user_obj: CurrentUserSchema | None = response.data.current_user or response.data.user
+            user_obj: CurrentUserSchema | None = (
+                response.data.current_user or response.data.user
+            )
             if user_obj and user_obj.drop_campaigns:
                 campaigns_to_process.extend(user_obj.drop_campaigns)
 
@@ -676,7 +710,11 @@ class Command(BaseCommand):
 
             for drop_campaign in campaigns_to_process:
                 # Handle campaigns without owner (e.g., from Inventory operation)
-                owner_data: OrganizationSchema | None = getattr(drop_campaign, "owner", None)
+                owner_data: OrganizationSchema | None = getattr(
+                    drop_campaign,
+                    "owner",
+                    None,
+                )
                 org_obj: Organization | None = None
                 if owner_data:
                     org_obj = self._get_or_create_organization(org_data=owner_data)
@@ -690,7 +728,9 @@ class Command(BaseCommand):
                 end_at_dt: datetime | None = parse_date(drop_campaign.end_at)
 
                 if start_at_dt is None or end_at_dt is None:
-                    tqdm.write(f"{Fore.RED}✗{Style.RESET_ALL} Invalid datetime in campaign: {drop_campaign.name}")
+                    tqdm.write(
+                        f"{Fore.RED}✗{Style.RESET_ALL} Invalid datetime in campaign: {drop_campaign.name}",
+                    )
                     if options.get("crash_on_error"):
                         msg: str = f"Failed to parse datetime for campaign {drop_campaign.name}"
                         raise ValueError(msg)
@@ -712,17 +752,26 @@ class Command(BaseCommand):
                     defaults=defaults,
                 )
                 if created:
-                    tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}")
+                    tqdm.write(
+                        f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}",
+                    )
 
-                action: Literal["Imported new", "Updated"] = "Imported new" if created else "Updated"
-                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {action} campaign: {drop_campaign.name}")
+                action: Literal["Imported new", "Updated"] = (
+                    "Imported new" if created else "Updated"
+                )
+                tqdm.write(
+                    f"{Fore.GREEN}✓{Style.RESET_ALL} {action} campaign: {drop_campaign.name}",
+                )
 
                 if (
                     response.extensions
                     and response.extensions.operation_name
-                    and response.extensions.operation_name not in campaign_obj.operation_names
+                    and response.extensions.operation_name
+                    not in campaign_obj.operation_names
                 ):
-                    campaign_obj.operation_names.append(response.extensions.operation_name)
+                    campaign_obj.operation_names.append(
+                        response.extensions.operation_name,
+                    )
                     campaign_obj.save(update_fields=["operation_names"])
 
                 if drop_campaign.time_based_drops:
@@ -769,7 +818,9 @@ class Command(BaseCommand):
             }
 
             if drop_schema.required_minutes_watched is not None:
-                drop_defaults["required_minutes_watched"] = drop_schema.required_minutes_watched
+                drop_defaults["required_minutes_watched"] = (
+                    drop_schema.required_minutes_watched
+                )
             if start_at_dt is not None:
                 drop_defaults["start_at"] = start_at_dt
             if end_at_dt is not None:
@@ -780,7 +831,9 @@ class Command(BaseCommand):
                 defaults=drop_defaults,
             )
             if created:
-                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created TimeBasedDrop: {drop_schema.name}")
+                tqdm.write(
+                    f"{Fore.GREEN}✓{Style.RESET_ALL} Created TimeBasedDrop: {drop_schema.name}",
+                )
 
             self._process_benefit_edges(
                 benefit_edges_schema=drop_schema.benefit_edges,
@@ -808,7 +861,9 @@ class Command(BaseCommand):
             defaults=benefit_defaults,
         )
         if created:
-            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}")
+            tqdm.write(
+                f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}",
+            )
 
         return benefit_obj
 
@@ -826,7 +881,9 @@ class Command(BaseCommand):
         for edge_schema in benefit_edges_schema:
             benefit_schema: DropBenefitSchema = edge_schema.benefit
 
-            benefit_obj: DropBenefit = self._get_or_update_benefit(benefit_schema=benefit_schema)
+            benefit_obj: DropBenefit = self._get_or_update_benefit(
+                benefit_schema=benefit_schema,
+            )
 
             _edge_obj, created = DropBenefitEdge.objects.update_or_create(
                 drop=drop_obj,
@@ -834,7 +891,9 @@ class Command(BaseCommand):
                 defaults={"entitlement_limit": edge_schema.entitlement_limit},
             )
             if created:
-                tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} Linked benefit: {benefit_schema.name} → {drop_obj.name}")
+                tqdm.write(
+                    f"{Fore.GREEN}✓{Style.RESET_ALL} Linked benefit: {benefit_schema.name} → {drop_obj.name}",
+                )
 
     def _process_allowed_channels(
         self,
@@ -852,7 +911,9 @@ class Command(BaseCommand):
         """
         # Update the allow_is_enabled flag if changed
         # Default to True if is_enabled is None (API doesn't always provide this field)
-        is_enabled: bool = allow_schema.is_enabled if allow_schema.is_enabled is not None else True
+        is_enabled: bool = (
+            allow_schema.is_enabled if allow_schema.is_enabled is not None else True
+        )
         if campaign_obj.allow_is_enabled != is_enabled:
             campaign_obj.allow_is_enabled = is_enabled
             campaign_obj.save(update_fields=["allow_is_enabled"])
@@ -864,7 +925,9 @@ class Command(BaseCommand):
         channel_objects: list[Channel] = []
         if allow_schema.channels:
             for channel_schema in allow_schema.channels:
-                channel_obj: Channel = self._get_or_create_channel(channel_info=channel_schema)
+                channel_obj: Channel = self._get_or_create_channel(
+                    channel_info=channel_schema,
+                )
                 channel_objects.append(channel_obj)
             # Only update the M2M relationship if we have channels
             campaign_obj.allow_channels.set(channel_objects)
@@ -889,7 +952,9 @@ class Command(BaseCommand):
             ends_at_dt: datetime | None = parse_date(reward_campaign.ends_at)
 
             if starts_at_dt is None or ends_at_dt is None:
-                tqdm.write(f"{Fore.RED}✗{Style.RESET_ALL} Invalid datetime in reward campaign: {reward_campaign.name}")
+                tqdm.write(
+                    f"{Fore.RED}✗{Style.RESET_ALL} Invalid datetime in reward campaign: {reward_campaign.name}",
+                )
                 if options.get("crash_on_error"):
                     msg: str = f"Failed to parse datetime for reward campaign {reward_campaign.name}"
                     raise ValueError(msg)
@@ -923,7 +988,9 @@ class Command(BaseCommand):
                 "about_url": reward_campaign.about_url,
                 "is_sitewide": reward_campaign.is_sitewide,
                 "game": game_obj,
-                "image_url": reward_campaign.image.image1x_url if reward_campaign.image else "",
+                "image_url": reward_campaign.image.image1x_url
+                if reward_campaign.image
+                else "",
             }
 
             _reward_campaign_obj, created = RewardCampaign.objects.update_or_create(
@@ -931,11 +998,17 @@ class Command(BaseCommand):
                 defaults=defaults,
             )
 
-            action: Literal["Imported new", "Updated"] = "Imported new" if created else "Updated"
-            display_name = (
-                f"{reward_campaign.brand}: {reward_campaign.name}" if reward_campaign.brand else reward_campaign.name
+            action: Literal["Imported new", "Updated"] = (
+                "Imported new" if created else "Updated"
             )
-            tqdm.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: {display_name}")
+            display_name = (
+                f"{reward_campaign.brand}: {reward_campaign.name}"
+                if reward_campaign.brand
+                else reward_campaign.name
+            )
+            tqdm.write(
+                f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: {display_name}",
+            )
 
     def handle(self, *args, **options) -> None:  # noqa: ARG002
         """Main entry point for the command.
@@ -978,7 +1051,9 @@ class Command(BaseCommand):
             total=len(json_files),
             desc="Processing",
             unit="file",
-            bar_format=("{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"),
+            bar_format=(
+                "{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
+            ),
             colour="green",
             dynamic_ncols=True,
         ) as progress_bar:
@@ -991,10 +1066,14 @@ class Command(BaseCommand):
                     if result["success"]:
                         success_count += 1
                         if options.get("verbose"):
-                            progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")
+                            progress_bar.write(
+                                f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}",
+                            )
                     else:
                         failed_count += 1
-                        reason: bool | str | None = result.get("reason") if isinstance(result, dict) else None
+                        reason: bool | str | None = (
+                            result.get("reason") if isinstance(result, dict) else None
+                        )
                         if reason:
                             progress_bar.write(
                                 f"{Fore.RED}✗{Style.RESET_ALL} "
@@ -1009,10 +1088,15 @@ class Command(BaseCommand):
                             )
                 except (OSError, ValueError, KeyError) as e:
                     error_count += 1
-                    progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (error: {e})")
+                    progress_bar.write(
+                        f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (error: {e})",
+                    )
 
                 # Update postfix with statistics
-                progress_bar.set_postfix_str(f"✓ {success_count} | ✗ {failed_count + error_count}", refresh=True)
+                progress_bar.set_postfix_str(
+                    f"✓ {success_count} | ✗ {failed_count + error_count}",
+                    refresh=True,
+                )
                 progress_bar.update(1)
 
         self.print_processing_summary(
@@ -1093,7 +1177,10 @@ class Command(BaseCommand):
                 return "inventory_campaigns"
 
             # Structure: {"data": {"currentUser": {"dropCampaigns": [...]}}}
-            if "dropCampaigns" in current_user and isinstance(current_user["dropCampaigns"], list):
+            if "dropCampaigns" in current_user and isinstance(
+                current_user["dropCampaigns"],
+                list,
+            ):
                 return "current_user_drop_campaigns"
 
         # Structure: {"data": {"channel": {"viewerDropCampaigns": [...] or {...}}}}
@@ -1104,11 +1191,7 @@ class Command(BaseCommand):
 
         return None
 
-    def collect_json_files(
-        self,
-        options: dict,
-        input_path: Path,
-    ) -> list[Path]:
+    def collect_json_files(self, options: dict, input_path: Path) -> list[Path]:
         """Collect JSON files from the specified directory.
 
         Args:
@@ -1122,9 +1205,13 @@ class Command(BaseCommand):
         if options["recursive"]:
             for root, _dirs, files in os.walk(input_path):
                 root_path = Path(root)
-                json_files.extend(root_path / file for file in files if file.endswith(".json"))
+                json_files.extend(
+                    root_path / file for file in files if file.endswith(".json")
+                )
         else:
-            json_files = [f for f in input_path.iterdir() if f.is_file() and f.suffix == ".json"]
+            json_files = [
+                f for f in input_path.iterdir() if f.is_file() and f.suffix == ".json"
+            ]
         return json_files
 
     def _normalize_responses(
@@ -1147,8 +1234,13 @@ class Command(BaseCommand):
         """
         if isinstance(parsed_json, dict):
             # Check for batched format: {"responses": [...]}
-            if "responses" in parsed_json and isinstance(parsed_json["responses"], list):
-                return [item for item in parsed_json["responses"] if isinstance(item, dict)]
+            if "responses" in parsed_json and isinstance(
+                parsed_json["responses"],
+                list,
+            ):
+                return [
+                    item for item in parsed_json["responses"] if isinstance(item, dict)
+                ]
             # Single response: {"data": {...}}
             return [parsed_json]
         if isinstance(parsed_json, list):
@@ -1171,21 +1263,21 @@ class Command(BaseCommand):
             file_path: Path to the JSON file to process
             options: Command options
 
+        Returns:
+            Dict with success status and optional broken_dir path
+
         Raises:
             ValidationError: If the JSON file fails validation
             json.JSONDecodeError: If the JSON file cannot be parsed
-
-        Returns:
-            Dict with success status and optional broken_dir path
         """
         try:
             raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
 
             # Repair potentially broken JSON with multiple fallback strategies
             fixed_json_str: str = repair_partially_broken_json(raw_text)
-            parsed_json: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str = json.loads(
-                fixed_json_str,
-            )
+            parsed_json: (
+                JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str
+            ) = json.loads(fixed_json_str)
             operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
 
             # Check for error-only responses first
@@ -1197,8 +1289,16 @@ class Command(BaseCommand):
                         error_description,
                         operation_name=operation_name,
                     )
-                    return {"success": False, "broken_dir": str(broken_dir), "reason": error_description}
-                return {"success": False, "broken_dir": "(skipped)", "reason": error_description}
+                    return {
+                        "success": False,
+                        "broken_dir": str(broken_dir),
+                        "reason": error_description,
+                    }
+                return {
+                    "success": False,
+                    "broken_dir": "(skipped)",
+                    "reason": error_description,
+                }
 
             matched: str | None = detect_non_campaign_keyword(raw_text)
             if matched:
@@ -1208,8 +1308,16 @@ class Command(BaseCommand):
                         matched,
                         operation_name=operation_name,
                     )
-                    return {"success": False, "broken_dir": str(broken_dir), "reason": f"matched '{matched}'"}
-                return {"success": False, "broken_dir": "(skipped)", "reason": f"matched '{matched}'"}
+                    return {
+                        "success": False,
+                        "broken_dir": str(broken_dir),
+                        "reason": f"matched '{matched}'",
+                    }
+                return {
+                    "success": False,
+                    "broken_dir": "(skipped)",
+                    "reason": f"matched '{matched}'",
+                }
             if "dropCampaign" not in raw_text:
                 if not options.get("skip_broken_moves"):
                     broken_dir: Path | None = move_file_to_broken_subdir(
@@ -1217,8 +1325,16 @@ class Command(BaseCommand):
                         "no_dropCampaign",
                         operation_name=operation_name,
                     )
-                    return {"success": False, "broken_dir": str(broken_dir), "reason": "no dropCampaign present"}
-                return {"success": False, "broken_dir": "(skipped)", "reason": "no dropCampaign present"}
+                    return {
+                        "success": False,
+                        "broken_dir": str(broken_dir),
+                        "reason": "no dropCampaign present",
+                    }
+                return {
+                    "success": False,
+                    "broken_dir": "(skipped)",
+                    "reason": "no dropCampaign present",
+                }
 
             # Normalize and filter to dict responses only
             responses: list[dict[str, Any]] = self._normalize_responses(parsed_json)
@@ -1256,7 +1372,10 @@ class Command(BaseCommand):
                     if isinstance(parsed_json_local, (dict, list))
                     else None
                 )
-                broken_dir = move_failed_validation_file(file_path, operation_name=op_name)
+                broken_dir = move_failed_validation_file(
+                    file_path,
+                    operation_name=op_name,
+                )
                 return {"success": False, "broken_dir": str(broken_dir)}
             return {"success": False, "broken_dir": "(skipped)"}
         else:
@@ -1285,10 +1404,12 @@ class Command(BaseCommand):
 
                 # Repair potentially broken JSON with multiple fallback strategies
                 fixed_json_str: str = repair_partially_broken_json(raw_text)
-                parsed_json: JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str = json.loads(
-                    fixed_json_str,
+                parsed_json: (
+                    JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str
+                ) = json.loads(fixed_json_str)
+                operation_name: str | None = extract_operation_name_from_parsed(
+                    parsed_json,
                 )
-                operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
 
                 # Check for error-only responses first
                 error_description: str | None = detect_error_only_response(parsed_json)
@@ -1386,7 +1507,14 @@ class Command(BaseCommand):
                         if isinstance(parsed_json_local, (dict, list))
                         else None
                     )
-                    broken_dir = move_failed_validation_file(file_path, operation_name=op_name)
-                    progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {broken_dir}/{file_path.name}")
+                    broken_dir = move_failed_validation_file(
+                        file_path,
+                        operation_name=op_name,
+                    )
+                    progress_bar.write(
+                        f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → {broken_dir}/{file_path.name}",
+                    )
                 else:
-                    progress_bar.write(f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (move skipped)")
+                    progress_bar.write(
+                        f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (move skipped)",
+                    )

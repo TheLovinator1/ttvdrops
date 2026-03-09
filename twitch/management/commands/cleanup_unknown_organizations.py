@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -8,13 +6,13 @@ from colorama import Style
 from colorama import init as colorama_init
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
-from django.core.management.base import CommandParser
 
 from twitch.models import Game
 from twitch.models import Organization
 
 if TYPE_CHECKING:
     from debug_toolbar.panels.templates.panel import QuerySet
+    from django.core.management.base import CommandParser
 
 
 class Command(BaseCommand):
@@ -70,11 +68,15 @@ class Command(BaseCommand):
         try:
             org: Organization = Organization.objects.get(twitch_id=org_id)
         except Organization.DoesNotExist as exc:  # pragma: no cover - simple guard
-            msg: str = f"Organization with twitch_id='{org_id}' does not exist. Nothing to do."
+            msg: str = (
+                f"Organization with twitch_id='{org_id}' does not exist. Nothing to do."
+            )
             raise CommandError(msg) from exc
 
         # Compute the set of affected games via the through relation for accuracy and performance
-        affected_games_qs: QuerySet[Game, Game] = Game.objects.filter(owners=org).order_by("display_name")
+        affected_games_qs: QuerySet[Game, Game] = Game.objects.filter(
+            owners=org,
+        ).order_by("display_name")
         affected_count: int = affected_games_qs.count()
 
         if affected_count == 0:
@@ -83,7 +85,7 @@ class Command(BaseCommand):
             )
         else:
             self.stdout.write(
-                f"{Fore.CYAN}•{Style.RESET_ALL} Found {affected_count:,} game(s) linked to '{org.name}' ({org.twitch_id}).",  # noqa: E501
+                f"{Fore.CYAN}•{Style.RESET_ALL} Found {affected_count:,} game(s) linked to '{org.name}' ({org.twitch_id}).",
             )
 
         # Show a short preview list in dry-run mode
@@ -112,9 +114,9 @@ class Command(BaseCommand):
                 org_twid: str = org.twitch_id
                 org.delete()
                 self.stdout.write(
-                    f"{Fore.GREEN}✓{Style.RESET_ALL} Deleted organization '{org_name}' ({org_twid}) as it has no games.",  # noqa: E501
+                    f"{Fore.GREEN}✓{Style.RESET_ALL} Deleted organization '{org_name}' ({org_twid}) as it has no games.",
                 )
             else:
                 self.stdout.write(
-                    f"{Fore.YELLOW}→{Style.RESET_ALL} Organization '{org.name}' still has {remaining_games:,} game(s); not deleted.",  # noqa: E501
+                    f"{Fore.YELLOW}→{Style.RESET_ALL} Organization '{org.name}' still has {remaining_games:,} game(s); not deleted.",
                 )

@@ -1,7 +1,5 @@
 """Custom template tags for rendering responsive images with modern formats."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -94,11 +92,15 @@ def picture(  # noqa: PLR0913, PLR0917
 
     # AVIF first (best compression)
     if avif_url != src:
-        sources.append(format_html('<source srcset="{}" type="image/avif" />', avif_url))
+        sources.append(
+            format_html('<source srcset="{}" type="image/avif" />', avif_url),
+        )
 
     # WebP second (good compression, widely supported)
     if webp_url != src:
-        sources.append(format_html('<source srcset="{}" type="image/webp" />', webp_url))
+        sources.append(
+            format_html('<source srcset="{}" type="image/webp" />', webp_url),
+        )
 
     # Build img tag with format_html
     img_html: SafeString = format_html(
@@ -113,4 +115,8 @@ def picture(  # noqa: PLR0913, PLR0917
     )
 
     # Combine all parts safely
-    return format_html("<picture>{}{}</picture>", SafeString("".join(sources)), img_html)
+    return format_html(
+        "<picture>{}{}</picture>",
+        SafeString("".join(sources)),
+        img_html,
+    )

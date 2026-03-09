@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import csv
 import datetime
 import json
@@ -29,7 +27,6 @@ from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
 from django.http import FileResponse
 from django.http import Http404
-from django.http import HttpRequest
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.template.defaultfilters import filesizeformat
@@ -64,13 +61,14 @@ if TYPE_CHECKING:
 
     from debug_toolbar.utils import QueryDict
     from django.db.models.query import QuerySet
+    from django.http import HttpRequest
 
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
 MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
-DEFAULT_SITE_DESCRIPTION = "Twitch Drops Tracker - Track your Twitch drops and campaigns easily."
+DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and more."
 
 
 def _truncate_description(text: str, max_length: int = 160) -> str:
@@ -124,6 +122,12 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     Returns:
         Dict with SEO context variables to pass to render().
     """
+    # TODO(TheLovinator): Instead of having so many parameters,  # noqa: TD003
+    # consider having a single "seo_info" parameter that
+    # can contain all of these optional fields. This would make
+    # it easier to extend in the future without changing the
+    # function signature.
+
     context: dict[str, Any] = {
         "page_title": page_title,
         "page_description": page_description or DEFAULT_SITE_DESCRIPTION,
@@ -148,9 +152,7 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     return context
 
 
-def _build_breadcrumb_schema(
-    items: list[dict[str, str | int]],
-) -> dict[str, Any]:
+def _build_breadcrumb_schema(items: list[dict[str, str | int]]) -> dict[str, Any]:
     """Build a BreadcrumbList schema for structured data.
 
     Args:
@@ -160,6 +162,8 @@ def _build_breadcrumb_schema(
     Returns:
         BreadcrumbList schema dict.
     """
+    # TODO(TheLovinator): Replace dict with something more structured, like a dataclass or namedtuple, for better type safety and readability.  # noqa: TD003
+
     breadcrumb_items: list[dict[str, str | int]] = []
     for position, item in enumerate(items, start=1):
         breadcrumb_items.append({
@@ -216,7 +220,9 @@ def _build_pagination_info(
 
 
 def emote_gallery_view(request: HttpRequest) -> HttpResponse:
-    """View to display all emote images (distribution_type='EMOTE'), clickable to their campaign.
+    """View to display all emote images.
+
+    Emotes are associated with DropBenefits of type "EMOTE".
 
     Args:
         request: The HTTP request.
@@ -240,7 +246,10 @@ def emote_gallery_view(request: HttpRequest) -> HttpResponse:
     emotes: list[dict[str, str | DropCampaign]] = []
     for benefit in emote_benefits:
         # Find the first drop with a campaign for this benefit
-        drop: TimeBasedDrop | None = next((d for d in getattr(benefit, "_emote_drops", []) if d.campaign), None)
+        drop: TimeBasedDrop | None = next(
+            (d for d in getattr(benefit, "_emote_drops", []) if d.campaign),
+            None,
+        )
         if drop and drop.campaign:
             emotes.append({
                 "image_url": benefit.image_best_url,
@@ -248,13 +257,10 @@ def emote_gallery_view(request: HttpRequest) -> HttpResponse:
             })
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch Emotes Gallery",
-        page_description="Browse all Twitch drop emotes and find the campaigns that award them.",
+        page_title="Twitch Emotes",
+        page_description="List of all Twitch emotes available as rewards.",
     )
-    context: dict[str, Any] = {
-        "emotes": emotes,
-        **seo_context,
-    }
+    context: dict[str, Any] = {"emotes": emotes, **seo_context}
     return render(request, "twitch/emote_gallery.html", context)
 
 
@@ -273,19 +279,29 @@ def search_view(request: HttpRequest) -> HttpResponse:
 
     if query:
         if len(query) < MIN_QUERY_LENGTH_FOR_FTS:
-            results["organizations"] = Organization.objects.filter(name__istartswith=query)
-            results["games"] = Game.objects.filter(Q(name__istartswith=query) | Q(display_name__istartswith=query))
+            results["organizations"] = Organization.objects.filter(
+                name__istartswith=query,
+            )
+            results["games"] = Game.objects.filter(
+                Q(name__istartswith=query) | Q(display_name__istartswith=query),
+            )
             results["campaigns"] = DropCampaign.objects.filter(
                 Q(name__istartswith=query) | Q(description__icontains=query),
             ).select_related("game")
-            results["drops"] = TimeBasedDrop.objects.filter(name__istartswith=query).select_related("campaign")
-            results["benefits"] = DropBenefit.objects.filter(name__istartswith=query).prefetch_related(
-                "drops__campaign",
-            )
+            results["drops"] = TimeBasedDrop.objects.filter(
+                name__istartswith=query,
+            ).select_related("campaign")
+            results["benefits"] = DropBenefit.objects.filter(
+                name__istartswith=query,
+            ).prefetch_related("drops__campaign")
             results["reward_campaigns"] = RewardCampaign.objects.filter(
-                Q(name__istartswith=query) | Q(brand__istartswith=query) | Q(summary__icontains=query),
+                Q(name__istartswith=query)
+                | Q(brand__istartswith=query)
+                | Q(summary__icontains=query),
             ).select_related("game")
-            results["badge_sets"] = ChatBadgeSet.objects.filter(set_id__istartswith=query)
+            results["badge_sets"] = ChatBadgeSet.objects.filter(
+                set_id__istartswith=query,
+            )
             results["badges"] = ChatBadge.objects.filter(
                 Q(title__istartswith=query) | Q(description__icontains=query),
             ).select_related("badge_set")
@@ -306,18 +322,28 @@ def search_view(request: HttpRequest) -> HttpResponse:
                 name__icontains=query,
             ).prefetch_related("drops__campaign")
             results["reward_campaigns"] = RewardCampaign.objects.filter(
-                Q(name__icontains=query) | Q(brand__icontains=query) | Q(summary__icontains=query),
+                Q(name__icontains=query)
+                | Q(brand__icontains=query)
+                | Q(summary__icontains=query),
             ).select_related("game")
             results["badge_sets"] = ChatBadgeSet.objects.filter(set_id__icontains=query)
             results["badges"] = ChatBadge.objects.filter(
                 Q(title__icontains=query) | Q(description__icontains=query),
             ).select_related("badge_set")
 
+    total_results_count: int = sum(len(qs) for qs in results.values())
+
+    # TODO(TheLovinator): Make the description more informative by including counts of each result type, e.g. "Found 5 games, 3 campaigns, and 10 drops for 'rust'."   # noqa: TD003
+    if query:
+        page_title: str = f"Search Results for '{query}'"[:60]
+        page_description: str = f"Found {total_results_count} results for '{query}'."
+    else:
+        page_title = "Search"
+        page_description = "Search for drops, games, channels, and organizations."
+
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=f"Search Results for '{query}'" if query else "Search",
-        page_description=f"Search results for '{query}' across Twitch drops, campaigns, games, and more."
-        if query
-        else "Search for Twitch drops, campaigns, games, channels, and organizations.",
+        page_title=page_title,
+        page_description=page_description,
     )
     return render(
         request,
@@ -342,12 +368,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
     serialized_orgs: str = serialize(
         "json",
         orgs,
-        fields=(
-            "twitch_id",
-            "name",
-            "added_at",
-            "updated_at",
-        ),
+        fields=("twitch_id", "name", "added_at", "updated_at"),
     )
     orgs_data: list[dict] = json.loads(serialized_orgs)
 
@@ -356,13 +377,13 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
         "@context": "https://schema.org",
         "@type": "CollectionPage",
         "name": "Twitch Organizations",
-        "description": "Browse all Twitch organizations that offer drop campaigns and rewards.",
+        "description": "List of Twitch organizations.",
         "url": request.build_absolute_uri("/organizations/"),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch Organizations",
-        page_description="Browse all Twitch organizations that offer drop campaigns and rewards.",
+        page_description="List of Twitch organizations.",
         schema_data=collection_schema,
     )
     context: dict[str, Any] = {
@@ -375,7 +396,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /organizations/<twitch_id>/
-def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # noqa: PLR0914
     """Function-based view for organization detail.
 
     Args:
@@ -399,12 +420,7 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     serialized_org: str = serialize(
         "json",
         [organization],
-        fields=(
-            "twitch_id",
-            "name",
-            "added_at",
-            "updated_at",
-        ),
+        fields=("twitch_id", "name", "added_at", "updated_at"),
     )
     org_data: list[dict] = json.loads(serialized_org)
 
@@ -427,13 +443,17 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
 
     org_name: str = organization.name or organization.twitch_id
     games_count: int = games.count()
-    org_description: str = f"{org_name} offers {games_count} game(s) with Twitch drop campaigns and rewards."
+    s: Literal["", "s"] = "" if games_count == 1 else "s"
+    org_description: str = f"{org_name} has {games_count} game{s}."
 
+    url: str = request.build_absolute_uri(
+        reverse("twitch:organization_detail", args=[organization.twitch_id]),
+    )
     org_schema: dict[str, str | dict[str, str]] = {
         "@context": "https://schema.org",
         "@type": "Organization",
         "name": org_name,
-        "url": request.build_absolute_uri(reverse("twitch:organization_detail", args=[organization.twitch_id])),
+        "url": url,
         "description": org_description,
     }
 
@@ -443,7 +463,9 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
         {"name": "Organizations", "url": request.build_absolute_uri("/organizations/")},
         {
             "name": org_name,
-            "url": request.build_absolute_uri(reverse("twitch:organization_detail", args=[organization.twitch_id])),
+            "url": request.build_absolute_uri(
+                reverse("twitch:organization_detail", args=[organization.twitch_id]),
+            ),
         },
     ])
 
@@ -452,7 +474,7 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
         page_description=org_description,
         schema_data=org_schema,
         breadcrumb_schema=breadcrumb_schema,
-        modified_date=organization.updated_at.isoformat() if organization.updated_at else None,
+        modified_date=organization.updated_at.isoformat(),
     )
     context: dict[str, Any] = {
         "organization": organization,
@@ -512,9 +534,9 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
         except Game.DoesNotExist:
             pass
 
-    description = "Browse all Twitch drop campaigns with active drops, upcoming campaigns, and rewards."
+    description = "Browse Twitch drop campaigns"
     if status_filter == "active":
-        description = "Browse currently active Twitch drop campaigns with rewards available now."
+        description = "Browse active Twitch drop campaigns."
     elif status_filter == "upcoming":
         description = "View upcoming Twitch drop campaigns starting soon."
     elif status_filter == "expired":
@@ -529,7 +551,11 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     elif game_filter:
         base_url += f"?game={game_filter}"
 
-    pagination_info: list[dict[str, str]] | None = _build_pagination_info(request, campaigns, base_url)
+    pagination_info: list[dict[str, str]] | None = _build_pagination_info(
+        request,
+        campaigns,
+        base_url,
+    )
 
     # CollectionPage schema for campaign list
     collection_schema: dict[str, str] = {
@@ -587,6 +613,9 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered dataset backups page.
     """
+    # TODO(TheLovinator): Instead of only using sql we should also support other formats like parquet, csv, or json.  # noqa: TD003
+    # TODO(TheLovinator): Upload to s3 instead.  # noqa: TD003
+
     datasets_root: Path = settings.DATA_DIR / "datasets"
     search_dirs: list[Path] = [datasets_root]
     seen_paths: set[str] = set()
@@ -626,9 +655,8 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
     datasets.sort(key=operator.itemgetter("updated_at"), reverse=True)
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Database Backups - TTVDrops",
-        page_description="Download database backups and datasets containing Twitch drops, campaigns, and related data.",
-        robots_directive="noindex, follow",
+        page_title="Twitch Dataset",
+        page_description="Database backups and datasets available for download.",
     )
     context: dict[str, Any] = {
         "datasets": datasets,
@@ -639,7 +667,10 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
     return render(request, "twitch/dataset_backups.html", context)
 
 
-def dataset_backup_download_view(request: HttpRequest, relative_path: str) -> FileResponse:  # noqa: ARG001
+def dataset_backup_download_view(
+    request: HttpRequest,  # noqa: ARG001
+    relative_path: str,
+) -> FileResponse:
     """Download a dataset backup from the data directory.
 
     Args:
@@ -652,7 +683,8 @@ def dataset_backup_download_view(request: HttpRequest, relative_path: str) -> Fi
     Raises:
         Http404: When the file is not found or is outside the data directory.
     """
-    allowed_endings = (".zst",)
+    # TODO(TheLovinator): Use s3 instead of local disk.  # noqa: TD003
+
     datasets_root: Path = settings.DATA_DIR / "datasets"
     requested_path: Path = (datasets_root / relative_path).resolve()
     data_root: Path = datasets_root.resolve()
@@ -665,7 +697,7 @@ def dataset_backup_download_view(request: HttpRequest, relative_path: str) -> Fi
     if not requested_path.exists() or not requested_path.is_file():
         msg = "File not found"
         raise Http404(msg)
-    if not requested_path.name.endswith(allowed_endings):
+    if not requested_path.name.endswith(".zst"):
         msg = "File not found"
         raise Http404(msg)
 
@@ -676,7 +708,10 @@ def dataset_backup_download_view(request: HttpRequest, relative_path: str) -> Fi
     )
 
 
-def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.datetime) -> list[dict[str, Any]]:
+def _enhance_drops_with_context(
+    drops: QuerySet[TimeBasedDrop],
+    now: datetime.datetime,
+) -> list[dict[str, Any]]:
     """Helper to enhance drops with countdown and context.
 
     Args:
@@ -684,7 +719,7 @@ def _enhance_drops_with_context(drops: QuerySet[TimeBasedDrop], now: datetime.da
         now: Current datetime.
 
     Returns:
-        List of dicts with drop, local_start, local_end, timezone_name, and countdown_text.
+        List of dicts with drop and additional context for display.
     """
     enhanced: list[dict[str, Any]] = []
     for drop in drops:
@@ -737,9 +772,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
                 queryset=Channel.objects.order_by("display_name"),
                 to_attr="channels_ordered",
             ),
-        ).get(
-            twitch_id=twitch_id,
-        )
+        ).get(twitch_id=twitch_id)
     except DropCampaign.DoesNotExist as exc:
         msg = "No campaign found matching the query"
         raise Http404(msg) from exc
@@ -781,7 +814,10 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             if benefit.distribution_type == "BADGE" and benefit.name
         }
         badge_descriptions_by_title: dict[str, str] = dict(
-            ChatBadge.objects.filter(title__in=badge_benefit_names).values_list("title", "description"),
+            ChatBadge.objects.filter(title__in=badge_benefit_names).values_list(
+                "title",
+                "description",
+            ),
         )
 
         serialized_drops = serialize(
@@ -829,7 +865,9 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
                     if fields.get("description"):
                         continue
 
-                    badge_description: str | None = badge_descriptions_by_title.get(fields.get("name", ""))
+                    badge_description: str | None = badge_descriptions_by_title.get(
+                        fields.get("name", ""),
+                    )
                     if badge_description:
                         fields["description"] = badge_description
 
@@ -845,7 +883,9 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         awarded_badge = None
         for benefit in drop.benefits.all():
             if benefit.distribution_type == "BADGE":
-                awarded_badge: ChatBadge | None = ChatBadge.objects.filter(title=benefit.name).first()
+                awarded_badge: ChatBadge | None = ChatBadge.objects.filter(
+                    title=benefit.name,
+                ).first()
                 break
         enhanced_drop["awarded_badge"] = awarded_badge
 
@@ -865,20 +905,29 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         else f"Twitch drop campaign: {campaign_name}"
     )
     campaign_image: str | None = campaign.image_best_url
-    campaign_image_width: int | None = campaign.image_width if campaign.image_file else None
-    campaign_image_height: int | None = campaign.image_height if campaign.image_file else None
+    campaign_image_width: int | None = (
+        campaign.image_width if campaign.image_file else None
+    )
+    campaign_image_height: int | None = (
+        campaign.image_height if campaign.image_file else None
+    )
 
+    url: str = request.build_absolute_uri(
+        reverse("twitch:campaign_detail", args=[campaign.twitch_id]),
+    )
+
+    # TODO(TheLovinator): If the campaign has specific allowed channels, we could list those as potential locations instead of just linking to Twitch homepage.  # noqa: TD003
     campaign_schema: dict[str, str | dict[str, str]] = {
         "@context": "https://schema.org",
         "@type": "Event",
         "name": campaign_name,
         "description": campaign_description,
-        "url": request.build_absolute_uri(reverse("twitch:campaign_detail", args=[campaign.twitch_id])),
+        "url": url,
         "eventStatus": "https://schema.org/EventScheduled",
         "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
         "location": {
             "@type": "VirtualLocation",
-            "url": "https://www.twitch.tv",
+            "url": "https://www.twitch.tv/",
         },
     }
     if campaign.start_at:
@@ -896,17 +945,24 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             }
 
     # Breadcrumb schema for navigation
-    game_name: str = campaign.game.display_name or campaign.game.name or campaign.game.twitch_id
+    # TODO(TheLovinator): We should have a game.get_display_name() method that encapsulates the logic of choosing between display_name, name, and twitch_id.  # noqa: TD003
+    game_name: str = (
+        campaign.game.display_name or campaign.game.name or campaign.game.twitch_id
+    )
     breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
         {"name": "Home", "url": request.build_absolute_uri("/")},
         {"name": "Games", "url": request.build_absolute_uri("/games/")},
         {
             "name": game_name,
-            "url": request.build_absolute_uri(reverse("twitch:game_detail", args=[campaign.game.twitch_id])),
+            "url": request.build_absolute_uri(
+                reverse("twitch:game_detail", args=[campaign.game.twitch_id]),
+            ),
         },
         {
             "name": campaign_name,
-            "url": request.build_absolute_uri(reverse("twitch:campaign_detail", args=[campaign.twitch_id])),
+            "url": request.build_absolute_uri(
+                reverse("twitch:campaign_detail", args=[campaign.twitch_id]),
+            ),
         },
     ])
 
@@ -990,7 +1046,9 @@ class GamesGridView(ListView):
             .order_by("display_name")
         )
 
-        games_by_org: defaultdict[Organization, list[dict[str, Game]]] = defaultdict(list)
+        games_by_org: defaultdict[Organization, list[dict[str, Game]]] = defaultdict(
+            list,
+        )
         for game in games_with_campaigns:
             for org in game.owners.all():
                 games_by_org[org].append({"game": game})
@@ -1003,14 +1061,14 @@ class GamesGridView(ListView):
         collection_schema: dict[str, str] = {
             "@context": "https://schema.org",
             "@type": "CollectionPage",
-            "name": "Twitch Drop Games",
-            "description": "Browse all Twitch games with active drop campaigns and rewards.",
+            "name": "Twitch Games",
+            "description": "Twitch games that had or have Twitch drops.",
             "url": self.request.build_absolute_uri("/games/"),
         }
 
         seo_context: dict[str, Any] = _build_seo_context(
-            page_title="Twitch Drop Games",
-            page_description="Browse all Twitch games with active drop campaigns and rewards.",
+            page_title="Twitch Games",
+            page_description="Twitch games that had or have Twitch drops.",
             schema_data=collection_schema,
         )
         context.update(seo_context)
@@ -1085,7 +1143,8 @@ class GameDetailView(DetailView):
 
         # Bulk-load all matching ChatBadge instances to avoid N+1 queries
         badges_by_title: dict[str, ChatBadge] = {
-            badge.title: badge for badge in ChatBadge.objects.filter(title__in=benefit_badge_titles)
+            badge.title: badge
+            for badge in ChatBadge.objects.filter(title__in=benefit_badge_titles)
         }
 
         for drop in drops_list:
@@ -1122,19 +1181,31 @@ class GameDetailView(DetailView):
             and campaign.end_at >= now
         ]
         active_campaigns.sort(
-            key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+            key=lambda c: (
+                c.end_at
+                if c.end_at is not None
+                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
+            ),
         )
 
         upcoming_campaigns: list[DropCampaign] = [
-            campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now
+            campaign
+            for campaign in all_campaigns
+            if campaign.start_at is not None and campaign.start_at > now
         ]
 
         upcoming_campaigns.sort(
-            key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+            key=lambda c: (
+                c.start_at
+                if c.start_at is not None
+                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
+            ),
         )
 
         expired_campaigns: list[DropCampaign] = [
-            campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now
+            campaign
+            for campaign in all_campaigns
+            if campaign.end_at is not None and campaign.end_at < now
         ]
 
         serialized_game: str = serialize(
@@ -1173,27 +1244,27 @@ class GameDetailView(DetailView):
                     "updated_at",
                 ),
             )
-            campaigns_data: list[dict[str, Any]] = json.loads(
-                serialized_campaigns,
-            )
+            campaigns_data: list[dict[str, Any]] = json.loads(serialized_campaigns)
             game_data[0]["fields"]["campaigns"] = campaigns_data
 
         owners: list[Organization] = list(game.owners.all())
 
         game_name: str = game.display_name or game.name or game.twitch_id
-        game_description: str = (
-            f"Twitch drop campaigns for {game_name}. View active, upcoming, and completed drop rewards."
-        )
+        game_description: str = f"Twitch drop campaigns for {game_name}."
         game_image: str | None = game.box_art_best_url
         game_image_width: int | None = game.box_art_width if game.box_art_file else None
-        game_image_height: int | None = game.box_art_height if game.box_art_file else None
+        game_image_height: int | None = (
+            game.box_art_height if game.box_art_file else None
+        )
 
         game_schema: dict[str, Any] = {
             "@context": "https://schema.org",
             "@type": "VideoGame",
             "name": game_name,
             "description": game_description,
-            "url": self.request.build_absolute_uri(reverse("twitch:game_detail", args=[game.twitch_id])),
+            "url": self.request.build_absolute_uri(
+                reverse("twitch:game_detail", args=[game.twitch_id]),
+            ),
         }
         if game.box_art_best_url:
             game_schema["image"] = game.box_art_best_url
@@ -1209,7 +1280,9 @@ class GameDetailView(DetailView):
             {"name": "Games", "url": self.request.build_absolute_uri("/games/")},
             {
                 "name": game_name,
-                "url": self.request.build_absolute_uri(reverse("twitch:game_detail", args=[game.twitch_id])),
+                "url": self.request.build_absolute_uri(
+                    reverse("twitch:game_detail", args=[game.twitch_id]),
+                ),
             },
         ])
 
@@ -1223,19 +1296,17 @@ class GameDetailView(DetailView):
             breadcrumb_schema=breadcrumb_schema,
             modified_date=game.updated_at.isoformat() if game.updated_at else None,
         )
-        context.update(
-            {
-                "active_campaigns": active_campaigns,
-                "upcoming_campaigns": upcoming_campaigns,
-                "expired_campaigns": expired_campaigns,
-                "owner": owners[0] if owners else None,
-                "owners": owners,
-                "drop_awarded_badges": drop_awarded_badges,
-                "now": now,
-                "game_data": format_and_color_json(game_data[0]),
-                **seo_context,
-            },
-        )
+        context.update({
+            "active_campaigns": active_campaigns,
+            "upcoming_campaigns": upcoming_campaigns,
+            "expired_campaigns": expired_campaigns,
+            "owner": owners[0] if owners else None,
+            "owners": owners,
+            "drop_awarded_badges": drop_awarded_badges,
+            "now": now,
+            "game_data": format_and_color_json(game_data[0]),
+            **seo_context,
+        })
 
         return context
 
@@ -1266,8 +1337,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         .order_by("-start_at")
     )
 
-    # Preserve insertion order (newest campaigns first). Group by game so games with multiple owners
-    # don't render duplicate campaign cards.
+    # Preserve insertion order (newest campaigns first).
+    # Group by game so games with multiple owners don't render duplicate campaign cards.
     campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
     for campaign in active_campaigns:
@@ -1296,6 +1367,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     )
 
     # WebSite schema with SearchAction for sitelinks search box
+    # TODO(TheLovinator): Should this be on all pages instead of just the dashboard?  # noqa: TD003
     website_schema: dict[str, str | dict[str, str | dict[str, str]]] = {
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -1305,15 +1377,17 @@ def dashboard(request: HttpRequest) -> HttpResponse:
             "@type": "SearchAction",
             "target": {
                 "@type": "EntryPoint",
-                "urlTemplate": request.build_absolute_uri("/search/?q={search_term_string}"),
+                "urlTemplate": request.build_absolute_uri(
+                    "/search/?q={search_term_string}",
+                ),
             },
             "query-input": "required name=search_term_string",
         },
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="ttvdrops Dashboard",
-        page_description="Dashboard showing active Twitch drop campaigns, rewards, and quests. Track all current drops and campaigns.",  # noqa: E501
+        page_title="Twitch Drops",
+        page_description="Overview of active Twitch drop campaigns and rewards.",
         og_type="website",
         schema_data=website_schema,
     )
@@ -1372,11 +1446,11 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     if status_filter:
         title += f" ({status_filter.capitalize()})"
 
-    description = "Browse all Twitch reward campaigns with active quests and rewards."
+    description = "Twitch rewards."
     if status_filter == "active":
-        description = "Browse currently active Twitch reward campaigns with quests and rewards available now."
+        description = "Browse active Twitch reward campaigns."
     elif status_filter == "upcoming":
-        description = "View upcoming Twitch reward campaigns starting soon."
+        description = "Browse upcoming Twitch reward campaigns."
     elif status_filter == "expired":
         description = "Browse expired Twitch reward campaigns."
 
@@ -1389,7 +1463,11 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     elif game_filter:
         base_url += f"?game={game_filter}"
 
-    pagination_info: list[dict[str, str]] | None = _build_pagination_info(request, reward_campaigns, base_url)
+    pagination_info: list[dict[str, str]] | None = _build_pagination_info(
+        request,
+        reward_campaigns,
+        base_url,
+    )
 
     # CollectionPage schema for reward campaigns list
     collection_schema: dict[str, str | dict[str, str | dict[str, str]]] = {
@@ -1434,9 +1512,9 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         Http404: If the reward campaign is not found.
     """
     try:
-        reward_campaign: RewardCampaign = RewardCampaign.objects.select_related("game").get(
-            twitch_id=twitch_id,
-        )
+        reward_campaign: RewardCampaign = RewardCampaign.objects.select_related(
+            "game",
+        ).get(twitch_id=twitch_id)
     except RewardCampaign.DoesNotExist as exc:
         msg = "No reward campaign found matching the query"
         raise Http404(msg) from exc
@@ -1469,7 +1547,7 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
     campaign_description: str = (
         _truncate_description(reward_campaign.summary)
         if reward_campaign.summary
-        else f"Twitch reward campaign: {campaign_name}"
+        else f"{campaign_name}"
     )
 
     campaign_schema: dict[str, str | dict[str, str]] = {
@@ -1477,13 +1555,12 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         "@type": "Event",
         "name": campaign_name,
         "description": campaign_description,
-        "url": request.build_absolute_uri(reverse("twitch:reward_campaign_detail", args=[reward_campaign.twitch_id])),
+        "url": request.build_absolute_uri(
+            reverse("twitch:reward_campaign_detail", args=[reward_campaign.twitch_id]),
+        ),
         "eventStatus": "https://schema.org/EventScheduled",
         "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
-        "location": {
-            "@type": "VirtualLocation",
-            "url": "https://www.twitch.tv",
-        },
+        "location": {"@type": "VirtualLocation", "url": "https://www.twitch.tv"},
     }
     if reward_campaign.starts_at:
         campaign_schema["startDate"] = reward_campaign.starts_at.isoformat()
@@ -1499,11 +1576,17 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
         {"name": "Home", "url": request.build_absolute_uri("/")},
-        {"name": "Reward Campaigns", "url": request.build_absolute_uri("/reward-campaigns/")},
+        {
+            "name": "Reward Campaigns",
+            "url": request.build_absolute_uri("/reward-campaigns/"),
+        },
         {
             "name": campaign_name,
             "url": request.build_absolute_uri(
-                reverse("twitch:reward_campaign_detail", args=[reward_campaign.twitch_id]),
+                reverse(
+                    "twitch:reward_campaign_detail",
+                    args=[reward_campaign.twitch_id],
+                ),
             ),
         },
     ])
@@ -1513,7 +1596,7 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         page_description=campaign_description,
         schema_data=campaign_schema,
         breadcrumb_schema=breadcrumb_schema,
-        modified_date=reward_campaign.updated_at.isoformat() if reward_campaign.updated_at else None,
+        modified_date=reward_campaign.updated_at.isoformat(),
     )
     context: dict[str, Any] = {
         "reward_campaign": reward_campaign,
@@ -1544,7 +1627,9 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     broken_image_campaigns: QuerySet[DropCampaign] = (
         DropCampaign.objects
         .filter(
-            Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
+            Q(image_url__isnull=True)
+            | Q(image_url__exact="")
+            | ~Q(image_url__startswith="http"),
         )
         .exclude(
             Exists(
@@ -1560,15 +1645,15 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     broken_benefit_images: QuerySet[DropBenefit] = DropBenefit.objects.annotate(
         trimmed_url=Trim("image_asset_url"),
     ).filter(
-        Q(image_asset_url__isnull=True) | Q(trimmed_url__exact="") | ~Q(image_asset_url__startswith="http"),
+        Q(image_asset_url__isnull=True)
+        | Q(trimmed_url__exact="")
+        | ~Q(image_asset_url__startswith="http"),
     )
 
     # Time-based drops without any benefits
     drops_without_benefits: QuerySet[TimeBasedDrop] = TimeBasedDrop.objects.filter(
         benefits__isnull=True,
-    ).select_related(
-        "campaign__game",
-    )
+    ).select_related("campaign__game")
 
     # Campaigns with invalid dates (start after end or missing either)
     invalid_date_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
@@ -1585,12 +1670,14 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         .order_by("game__display_name", "name")
     )
 
-    # Active campaigns with no images at all (no direct URL and no benefit image fallbacks)
+    # Active campaigns with no images at all
     active_missing_image: QuerySet[DropCampaign] = (
         DropCampaign.objects
         .filter(start_at__lte=now, end_at__gte=now)
         .filter(
-            Q(image_url__isnull=True) | Q(image_url__exact="") | ~Q(image_url__startswith="http"),
+            Q(image_url__isnull=True)
+            | Q(image_url__exact="")
+            | ~Q(image_url__startswith="http"),
         )
         .exclude(
             Exists(
@@ -1608,29 +1695,34 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     for campaign in DropCampaign.objects.only("operation_names"):
         for op_name in campaign.operation_names:
             if op_name and op_name.strip():
-                operation_names_counter[op_name.strip()] = operation_names_counter.get(op_name.strip(), 0) + 1
+                operation_names_counter[op_name.strip()] = (
+                    operation_names_counter.get(op_name.strip(), 0) + 1
+                )
 
     operation_names_with_counts: list[dict[str, Any]] = [
-        {"trimmed_op": op_name, "count": count} for op_name, count in sorted(operation_names_counter.items())
+        {"trimmed_op": op_name, "count": count}
+        for op_name, count in sorted(operation_names_counter.items())
     ]
 
     # Campaigns missing DropCampaignDetails operation name
-    # SQLite doesn't support JSON contains lookup, so we handle it in Python for compatibility
+    # Need to handle SQLite separately since it doesn't support JSONField lookups
+    # Sqlite is used when testing
     if connection.vendor == "sqlite":
-        # For SQLite, fetch all campaigns and filter in Python
-        all_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.select_related("game").order_by(
-            "game__display_name",
-            "name",
-        )
+        all_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.select_related(
+            "game",
+        ).order_by("game__display_name", "name")
         campaigns_missing_dropcampaigndetails: list[DropCampaign] = [
-            c for c in all_campaigns if c.operation_names is None or "DropCampaignDetails" not in c.operation_names
+            c
+            for c in all_campaigns
+            if c.operation_names is None
+            or "DropCampaignDetails" not in c.operation_names
         ]
     else:
-        # For PostgreSQL, use the efficient contains lookup
         campaigns_missing_dropcampaigndetails: list[DropCampaign] = list(
             DropCampaign.objects
             .filter(
-                Q(operation_names__isnull=True) | ~Q(operation_names__contains=["DropCampaignDetails"]),
+                Q(operation_names__isnull=True)
+                | ~Q(operation_names__contains=["DropCampaignDetails"]),
             )
             .select_related("game")
             .order_by("game__display_name", "name"),
@@ -1650,17 +1742,13 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Debug - TTVDrops",
-        page_description="Debug page showing data inconsistencies and potential issues in the TTVDrops database.",
+        page_title="Debug",
+        page_description="Debug view showing potentially broken or inconsistent data.",
         robots_directive="noindex, nofollow",
     )
     context.update(seo_context)
 
-    return render(
-        request,
-        "twitch/debug.html",
-        context,
-    )
+    return render(request, "twitch/debug.html", context)
 
 
 # MARK: /games/list/
@@ -1684,7 +1772,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     def absolute(path: str) -> str:
         try:
             return request.build_absolute_uri(path)
-        except Exception:  # pragma: no cover - defensive logging for docs only
+        except Exception:
             logger.exception("Failed to build absolute URL for %s", path)
         return path
 
@@ -1700,7 +1788,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
                         trimmed = trimmed[:second_item] + trimmed[end_channel:]
             formatted: str = trimmed.replace("><", ">\n<")
             return "\n".join(line for line in formatted.splitlines() if line.strip())
-        except Exception:  # pragma: no cover - defensive formatting for docs only
+        except Exception:
             logger.exception("Failed to pretty-print RSS example")
             return xml_str
 
@@ -1714,8 +1802,11 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
 
             response: HttpResponse = feed_view(limited_request, *args)
             return _pretty_example(response.content.decode("utf-8"))
-        except Exception:  # pragma: no cover - defensive logging for docs only
-            logger.exception("Failed to render %s for RSS docs", feed_view.__class__.__name__)
+        except Exception:
+            logger.exception(
+                "Failed to render %s for RSS docs",
+                feed_view.__class__.__name__,
+            )
         return ""
 
     feeds: list[dict[str, str]] = [
@@ -1755,30 +1846,40 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "title": "Campaigns for a Single Game",
             "description": "Latest drop campaigns for one game.",
             "url": (
-                absolute(reverse("twitch:game_campaign_feed", args=[sample_game.twitch_id]))
+                absolute(
+                    reverse("twitch:game_campaign_feed", args=[sample_game.twitch_id]),
+                )
                 if sample_game
                 else absolute("/rss/games/<game_id>/campaigns/")
             ),
             "has_sample": bool(sample_game),
-            "example_xml": render_feed(GameCampaignFeed(), sample_game.twitch_id) if sample_game else "",
+            "example_xml": render_feed(GameCampaignFeed(), sample_game.twitch_id)
+            if sample_game
+            else "",
         },
         {
             "title": "Campaigns for an Organization",
             "description": "Drop campaigns across games owned by one organization.",
             "url": (
-                absolute(reverse("twitch:organization_campaign_feed", args=[sample_org.twitch_id]))
+                absolute(
+                    reverse(
+                        "twitch:organization_campaign_feed",
+                        args=[sample_org.twitch_id],
+                    ),
+                )
                 if sample_org
                 else absolute("/rss/organizations/<org_id>/campaigns/")
             ),
             "has_sample": bool(sample_org),
-            "example_xml": render_feed(OrganizationCampaignFeed(), sample_org.twitch_id) if sample_org else "",
+            "example_xml": render_feed(OrganizationCampaignFeed(), sample_org.twitch_id)
+            if sample_org
+            else "",
         },
     ]
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="RSS Feeds - TTVDrops",
-        page_description="Available RSS feeds for Twitch drops, campaigns, games, organizations, and rewards.",
-        robots_directive="noindex, follow",
+        page_title="Twitch RSS Feeds",
+        page_description="RSS feeds for Twitch drops.",
     )
     return render(
         request,
@@ -1812,9 +1913,15 @@ class ChannelListView(ListView):
         search_query: str | None = self.request.GET.get("search")
 
         if search_query:
-            queryset = queryset.filter(Q(name__icontains=search_query) | Q(display_name__icontains=search_query))
+            queryset = queryset.filter(
+                Q(name__icontains=search_query)
+                | Q(display_name__icontains=search_query),
+            )
 
-        return queryset.annotate(campaign_count=Count("allowed_campaigns")).order_by("-campaign_count", "name")
+        return queryset.annotate(campaign_count=Count("allowed_campaigns")).order_by(
+            "-campaign_count",
+            "name",
+        )
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
@@ -1835,7 +1942,9 @@ class ChannelListView(ListView):
 
         page_obj: Page | None = context.get("page_obj")
         pagination_info: list[dict[str, str]] | None = (
-            _build_pagination_info(self.request, page_obj, base_url) if isinstance(page_obj, Page) else None
+            _build_pagination_info(self.request, page_obj, base_url)
+            if isinstance(page_obj, Page)
+            else None
         )
 
         # CollectionPage schema for channels list
@@ -1843,13 +1952,13 @@ class ChannelListView(ListView):
             "@context": "https://schema.org",
             "@type": "CollectionPage",
             "name": "Twitch Channels",
-            "description": "Browse Twitch channels participating in drop campaigns and find their available rewards.",
+            "description": "List of Twitch channels participating in drop campaigns.",
             "url": self.request.build_absolute_uri("/channels/"),
         }
 
         seo_context: dict[str, Any] = _build_seo_context(
             page_title="Twitch Channels",
-            page_description="Browse Twitch channels participating in drop campaigns and find their available rewards.",
+            page_description="List of Twitch channels participating in drop campaigns.",
             pagination_info=pagination_info,
             schema_data=collection_schema,
         )
@@ -1931,30 +2040,36 @@ class ChannelDetailView(DetailView):
             and campaign.end_at >= now
         ]
         active_campaigns.sort(
-            key=lambda c: c.end_at if c.end_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+            key=lambda c: (
+                c.end_at
+                if c.end_at is not None
+                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
+            ),
         )
 
         upcoming_campaigns: list[DropCampaign] = [
-            campaign for campaign in all_campaigns if campaign.start_at is not None and campaign.start_at > now
+            campaign
+            for campaign in all_campaigns
+            if campaign.start_at is not None and campaign.start_at > now
         ]
         upcoming_campaigns.sort(
-            key=lambda c: c.start_at if c.start_at is not None else datetime.datetime.max.replace(tzinfo=datetime.UTC),
+            key=lambda c: (
+                c.start_at
+                if c.start_at is not None
+                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
+            ),
         )
 
         expired_campaigns: list[DropCampaign] = [
-            campaign for campaign in all_campaigns if campaign.end_at is not None and campaign.end_at < now
+            campaign
+            for campaign in all_campaigns
+            if campaign.end_at is not None and campaign.end_at < now
         ]
 
         serialized_channel: str = serialize(
             "json",
             [channel],
-            fields=(
-                "twitch_id",
-                "name",
-                "display_name",
-                "added_at",
-                "updated_at",
-            ),
+            fields=("twitch_id", "name", "display_name", "added_at", "updated_at"),
         )
         channel_data: list[dict[str, Any]] = json.loads(serialized_channel)
 
@@ -1978,15 +2093,20 @@ class ChannelDetailView(DetailView):
             campaigns_data: list[dict[str, Any]] = json.loads(serialized_campaigns)
             channel_data[0]["fields"]["campaigns"] = campaigns_data
 
-        channel_name: str = channel.display_name or channel.name or channel.twitch_id
-        channel_description: str = f"Twitch channel {channel_name} participating in drop campaigns. View active, upcoming, and expired campaign rewards."  # noqa: E501
+        name: str = channel.display_name or channel.name or channel.twitch_id
+        total_campaigns: int = len(all_campaigns)
+        description: str = f"{name} participates in {total_campaigns} drop campaign"
+        if total_campaigns > 1:
+            description += "s"
 
         channel_schema: dict[str, Any] = {
             "@context": "https://schema.org",
             "@type": "BroadcastChannel",
-            "name": channel_name,
-            "description": channel_description,
-            "url": self.request.build_absolute_uri(reverse("twitch:channel_detail", args=[channel.twitch_id])),
+            "name": name,
+            "description": description,
+            "url": self.request.build_absolute_uri(
+                reverse("twitch:channel_detail", args=[channel.twitch_id]),
+            ),
             "broadcastChannelId": channel.twitch_id,
             "providerName": "Twitch",
         }
@@ -1996,28 +2116,30 @@ class ChannelDetailView(DetailView):
             {"name": "Home", "url": self.request.build_absolute_uri("/")},
             {"name": "Channels", "url": self.request.build_absolute_uri("/channels/")},
             {
-                "name": channel_name,
-                "url": self.request.build_absolute_uri(reverse("twitch:channel_detail", args=[channel.twitch_id])),
+                "name": name,
+                "url": self.request.build_absolute_uri(
+                    reverse("twitch:channel_detail", args=[channel.twitch_id]),
+                ),
             },
         ])
 
         seo_context: dict[str, Any] = _build_seo_context(
-            page_title=channel_name,
-            page_description=channel_description,
+            page_title=name,
+            page_description=description,
             schema_data=channel_schema,
             breadcrumb_schema=breadcrumb_schema,
-            modified_date=channel.updated_at.isoformat() if channel.updated_at else None,
+            modified_date=channel.updated_at.isoformat()
+            if channel.updated_at
+            else None,
         )
-        context.update(
-            {
-                "active_campaigns": active_campaigns,
-                "upcoming_campaigns": upcoming_campaigns,
-                "expired_campaigns": expired_campaigns,
-                "now": now,
-                "channel_data": format_and_color_json(channel_data[0]),
-                **seo_context,
-            },
-        )
+        context.update({
+            "active_campaigns": active_campaigns,
+            "upcoming_campaigns": upcoming_campaigns,
+            "expired_campaigns": expired_campaigns,
+            "now": now,
+            "channel_data": format_and_color_json(channel_data[0]),
+            **seo_context,
+        })
 
         return context
 
@@ -2036,10 +2158,7 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
         ChatBadgeSet.objects
         .all()
         .prefetch_related(
-            Prefetch(
-                "badges",
-                queryset=ChatBadge.objects.order_by("badge_id"),
-            ),
+            Prefetch("badges", queryset=ChatBadge.objects.order_by("badge_id")),
         )
         .order_by("set_id")
     )
@@ -2057,14 +2176,14 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
     collection_schema: dict[str, str] = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        "name": "Twitch Chat Badges",
-        "description": "Browse all Twitch chat badges awarded through drop campaigns and their associated rewards.",
+        "name": "Twitch chat badges",
+        "description": "List of Twitch chat badges awarded through drop campaigns.",
         "url": request.build_absolute_uri("/badges/"),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch Chat Badges",
-        page_description="Browse all Twitch chat badges awarded through drop campaigns and their associated rewards.",
+        page_description="List of Twitch chat badges awarded through drop campaigns.",
         schema_data=collection_schema,
     )
     context: dict[str, Any] = {
@@ -2092,10 +2211,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     """
     try:
         badge_set: ChatBadgeSet = ChatBadgeSet.objects.prefetch_related(
-            Prefetch(
-                "badges",
-                queryset=ChatBadge.objects.order_by("badge_id"),
-            ),
+            Prefetch("badges", queryset=ChatBadge.objects.order_by("badge_id")),
         ).get(set_id=set_id)
     except ChatBadgeSet.DoesNotExist as exc:
         msg = "No badge set found matching the query"
@@ -2118,11 +2234,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     serialized_set: str = serialize(
         "json",
         [badge_set],
-        fields=(
-            "set_id",
-            "added_at",
-            "updated_at",
-        ),
+        fields=("set_id", "added_at", "updated_at"),
     )
     set_data: list[dict[str, Any]] = json.loads(serialized_set)
 
@@ -2147,16 +2259,16 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         set_data[0]["fields"]["badges"] = badges_data
 
     badge_set_name: str = badge_set.set_id
-    badge_set_description: str = (
-        f"Twitch chat badge set {badge_set_name} with {badges.count()} badge(s) awarded through drop campaigns."
-    )
+    badge_set_description: str = f"Twitch chat badge set {badge_set_name} with {badges.count()} badge{'s' if badges.count() != 1 else ''} awarded through drop campaigns."
 
     badge_schema: dict[str, Any] = {
         "@context": "https://schema.org",
         "@type": "ItemList",
         "name": badge_set_name,
         "description": badge_set_description,
-        "url": request.build_absolute_uri(reverse("twitch:badge_set_detail", args=[badge_set.set_id])),
+        "url": request.build_absolute_uri(
+            reverse("twitch:badge_set_detail", args=[badge_set.set_id]),
+        ),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
@@ -2303,7 +2415,7 @@ def export_campaigns_json(request: HttpRequest) -> HttpResponse:
             "details_url": campaign.details_url,
             "account_link_url": campaign.account_link_url,
             "added_at": campaign.added_at.isoformat() if campaign.added_at else None,
-            "updated_at": campaign.updated_at.isoformat() if campaign.updated_at else None,
+            "updated_at": campaign.updated_at.isoformat(),
         })
 
     # Create JSON response
@@ -2407,12 +2519,7 @@ def export_organizations_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG
     response["Content-Disposition"] = "attachment; filename=organizations.csv"
 
     writer = csv.writer(response)
-    writer.writerow([
-        "Twitch ID",
-        "Name",
-        "Added At",
-        "Updated At",
-    ])
+    writer.writerow(["Twitch ID", "Name", "Added At", "Updated At"])
 
     for org in queryset:
         writer.writerow([
@@ -2458,7 +2565,7 @@ def export_organizations_json(request: HttpRequest) -> HttpResponse:  # noqa: AR
 
 
 # MARK: /sitemap.xml
-def sitemap_view(request: HttpRequest) -> HttpResponse:
+def sitemap_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0915
     """Generate a dynamic XML sitemap for search engines.
 
     Args:
@@ -2476,9 +2583,17 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
     sitemap_urls.extend([
         {"url": f"{base_url}/", "priority": "1.0", "changefreq": "daily"},
         {"url": f"{base_url}/campaigns/", "priority": "0.9", "changefreq": "daily"},
-        {"url": f"{base_url}/reward-campaigns/", "priority": "0.9", "changefreq": "daily"},
+        {
+            "url": f"{base_url}/reward-campaigns/",
+            "priority": "0.9",
+            "changefreq": "daily",
+        },
         {"url": f"{base_url}/games/", "priority": "0.9", "changefreq": "weekly"},
-        {"url": f"{base_url}/organizations/", "priority": "0.8", "changefreq": "weekly"},
+        {
+            "url": f"{base_url}/organizations/",
+            "priority": "0.8",
+            "changefreq": "weekly",
+        },
         {"url": f"{base_url}/channels/", "priority": "0.8", "changefreq": "weekly"},
         {"url": f"{base_url}/badges/", "priority": "0.7", "changefreq": "monthly"},
         {"url": f"{base_url}/emotes/", "priority": "0.7", "changefreq": "monthly"},
@@ -2500,8 +2615,10 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
     # Dynamic detail pages - Campaigns
     campaigns: QuerySet[DropCampaign] = DropCampaign.objects.all()
     for campaign in campaigns:
+        resource_url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        full_url: str = f"{base_url}{resource_url}"
         entry: dict[str, str | dict[str, str]] = {
-            "url": f"{base_url}{reverse('twitch:campaign_detail', args=[campaign.twitch_id])}",
+            "url": full_url,
             "priority": "0.7",
             "changefreq": "weekly",
         }
@@ -2512,8 +2629,10 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
     # Dynamic detail pages - Organizations
     orgs: QuerySet[Organization] = Organization.objects.all()
     for org in orgs:
+        resource_url = reverse("twitch:organization_detail", args=[org.twitch_id])
+        full_url: str = f"{base_url}{resource_url}"
         entry: dict[str, str | dict[str, str]] = {
-            "url": f"{base_url}{reverse('twitch:organization_detail', args=[org.twitch_id])}",
+            "url": full_url,
             "priority": "0.7",
             "changefreq": "weekly",
         }
@@ -2524,8 +2643,10 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
     # Dynamic detail pages - Channels
     channels: QuerySet[Channel] = Channel.objects.all()
     for channel in channels:
+        resource_url = reverse("twitch:channel_detail", args=[channel.twitch_id])
+        full_url: str = f"{base_url}{resource_url}"
         entry: dict[str, str | dict[str, str]] = {
-            "url": f"{base_url}{reverse('twitch:channel_detail', args=[channel.twitch_id])}",
+            "url": full_url,
             "priority": "0.6",
             "changefreq": "weekly",
         }
@@ -2535,20 +2656,27 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
 
     # Dynamic detail pages - Badges
     badge_sets: QuerySet[ChatBadgeSet] = ChatBadgeSet.objects.all()
-    sitemap_urls.extend(
-        {
-            "url": f"{base_url}{reverse('twitch:badge_set_detail', args=[badge_set.set_id])}",
+    for badge_set in badge_sets:
+        resource_url = reverse("twitch:badge_set_detail", args=[badge_set.set_id])
+        full_url: str = f"{base_url}{resource_url}"
+        sitemap_urls.append({
+            "url": full_url,
             "priority": "0.5",
             "changefreq": "monthly",
-        }
-        for badge_set in badge_sets
-    )
+        })
 
     # Dynamic detail pages - Reward Campaigns
     reward_campaigns: QuerySet[RewardCampaign] = RewardCampaign.objects.all()
     for reward_campaign in reward_campaigns:
+        resource_url = reverse(
+            "twitch:reward_campaign_detail",
+            args=[
+                reward_campaign.twitch_id,
+            ],
+        )
+        full_url: str = f"{base_url}{resource_url}"
         entry: dict[str, str | dict[str, str]] = {
-            "url": f"{base_url}{reverse('twitch:reward_campaign_detail', args=[reward_campaign.twitch_id])}",
+            "url": full_url,
             "priority": "0.6",
             "changefreq": "weekly",
         }
@@ -2565,7 +2693,9 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
         xml_content += f"    <loc>{url_entry['url']}</loc>\n"
         if url_entry.get("lastmod"):
             xml_content += f"    <lastmod>{url_entry['lastmod']}</lastmod>\n"
-        xml_content += f"    <changefreq>{url_entry.get('changefreq', 'monthly')}</changefreq>\n"
+        xml_content += (
+            f"    <changefreq>{url_entry.get('changefreq', 'monthly')}</changefreq>\n"
+        )
         xml_content += f"    <priority>{url_entry.get('priority', '0.5')}</priority>\n"
         xml_content += "  </url>\n"
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from pathlib import Path
 
 from django.test import TestCase
@@ -30,7 +28,10 @@ class GameOwnerOrganizationTests(TestCase):
                         "detailsURL": "https://help.twitch.tv/s/article/twitch-chat-badges-guide",
                         "imageURL": "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/495ebb6b-8134-4e51-b9d0-1f4a221b4f8d.png",
                         "status": "ACTIVE",
-                        "self": {"isAccountConnected": True, "__typename": "DropCampaignSelfEdge"},
+                        "self": {
+                            "isAccountConnected": True,
+                            "__typename": "DropCampaignSelfEdge",
+                        },
                         "game": {
                             "id": "263490",
                             "slug": "rust",
@@ -42,10 +43,18 @@ class GameOwnerOrganizationTests(TestCase):
                                 "__typename": "Organization",
                             },
                         },
-                        "owner": {"id": "other-org-id", "name": "Other Org", "__typename": "Organization"},
+                        "owner": {
+                            "id": "other-org-id",
+                            "name": "Other Org",
+                            "__typename": "Organization",
+                        },
                         "timeBasedDrops": [],
                         "eventBasedDrops": [],
-                        "allow": {"channels": None, "isEnabled": False, "__typename": "DropCampaignACL"},
+                        "allow": {
+                            "channels": None,
+                            "isEnabled": False,
+                            "__typename": "DropCampaignACL",
+                        },
                         "__typename": "DropCampaign",
                     },
                     "__typename": "User",
@@ -65,7 +74,9 @@ class GameOwnerOrganizationTests(TestCase):
 
         # Check game owners include Twitch Gaming and Other Org
         game: Game = Game.objects.get(twitch_id="263490")
-        org1: Organization = Organization.objects.get(twitch_id="d32de13d-937e-4196-8198-1a7f875f295a")
+        org1: Organization = Organization.objects.get(
+            twitch_id="d32de13d-937e-4196-8198-1a7f875f295a",
+        )
         org2: Organization = Organization.objects.get(twitch_id="other-org-id")
         owners = list(game.owners.all())
         assert org1 in owners

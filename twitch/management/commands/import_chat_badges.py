@@ -1,7 +1,5 @@
 """Management command to import Twitch global chat badges."""
 
-from __future__ import annotations
-
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -13,15 +11,16 @@ from colorama import Style
 from colorama import init as colorama_init
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
-from django.core.management.base import CommandParser
 from pydantic import ValidationError
 
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
-from twitch.schemas import ChatBadgeSetSchema
 from twitch.schemas import GlobalChatBadgesResponse
 
 if TYPE_CHECKING:
+    from django.core.management.base import CommandParser
+
+    from twitch.schemas import ChatBadgeSetSchema
     from twitch.schemas import ChatBadgeVersionSchema
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
@@ -60,9 +59,15 @@ class Command(BaseCommand):
         colorama_init(autoreset=True)
 
         # Get credentials from arguments or environment
-        client_id: str | None = options.get("client_id") or os.getenv("TWITCH_CLIENT_ID")
-        client_secret: str | None = options.get("client_secret") or os.getenv("TWITCH_CLIENT_SECRET")
-        access_token: str | None = options.get("access_token") or os.getenv("TWITCH_ACCESS_TOKEN")
+        client_id: str | None = options.get("client_id") or os.getenv(
+            "TWITCH_CLIENT_ID",
+        )
+        client_secret: str | None = options.get("client_secret") or os.getenv(
+            "TWITCH_CLIENT_SECRET",
+        )
+        access_token: str | None = options.get("access_token") or os.getenv(
+            "TWITCH_ACCESS_TOKEN",
+        )
 
         if not client_id:
             msg = (
@@ -84,7 +89,9 @@ class Command(BaseCommand):
             self.stdout.write("Obtaining access token from Twitch...")
             try:
                 access_token = self._get_app_access_token(client_id, client_secret)
-                self.stdout.write(self.style.SUCCESS("✓ Access token obtained successfully"))
+                self.stdout.write(
+                    self.style.SUCCESS("✓ Access token obtained successfully"),
+                )
             except httpx.HTTPError as e:
                 msg = f"Failed to obtain access token: {e}"
                 raise CommandError(msg) from e

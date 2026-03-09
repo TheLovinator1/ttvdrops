@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import os
 import sys
@@ -39,7 +37,11 @@ def env_int(key: str, default: int) -> int:
 
 
 DEBUG: bool = env_bool(key="DEBUG", default=True)
-TESTING: bool = env_bool(key="TESTING", default=False) or "test" in sys.argv or "PYTEST_VERSION" in os.environ
+TESTING: bool = (
+    env_bool(key="TESTING", default=False)
+    or "test" in sys.argv
+    or "PYTEST_VERSION" in os.environ
+)
 
 
 def get_data_dir() -> Path:
@@ -118,28 +120,11 @@ if not DEBUG:
 LOGGING: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "level": "DEBUG",
-            "class": "logging.StreamHandler",
-        },
-    },
+    "handlers": {"console": {"level": "DEBUG", "class": "logging.StreamHandler"}},
     "loggers": {
-        "": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": True,
-        },
-        "ttvdrops": {
-            "handlers": ["console"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
-        "django": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
+        "": {"handlers": ["console"], "level": "INFO", "propagate": True},
+        "ttvdrops": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "django.utils.autoreload": {
             "handlers": ["console"],
             "level": "INFO",
@@ -179,12 +164,7 @@ TEMPLATES: list[dict[str, Any]] = [
 ]
 
 DATABASES: dict[str, dict[str, Any]] = (
-    {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": ":memory:",
-        },
-    }
+    {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
     if TESTING
     else {
         "default": {
@@ -196,19 +176,13 @@ DATABASES: dict[str, dict[str, Any]] = (
             "PORT": env_int("POSTGRES_PORT", 5432),
             "CONN_MAX_AGE": env_int("CONN_MAX_AGE", 60),
             "CONN_HEALTH_CHECKS": env_bool("CONN_HEALTH_CHECKS", default=True),
-            "OPTIONS": {
-                "connect_timeout": env_int("DB_CONNECT_TIMEOUT", 10),
-            },
+            "OPTIONS": {"connect_timeout": env_int("DB_CONNECT_TIMEOUT", 10)},
         },
     }
 )
 
 if not TESTING:
-    INSTALLED_APPS = [
-        *INSTALLED_APPS,
-        "debug_toolbar",
-        "silk",
-    ]
+    INSTALLED_APPS = [*INSTALLED_APPS, "debug_toolbar", "silk"]
     MIDDLEWARE = [
         "debug_toolbar.middleware.DebugToolbarMiddleware",
         "silk.middleware.SilkyMiddleware",

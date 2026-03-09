@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from django.conf import settings
@@ -21,10 +19,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
 
 # Serve media in development
 if settings.DEBUG:
-    urlpatterns += static(
-        settings.MEDIA_URL,
-        document_root=settings.MEDIA_ROOT,
-    )
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if not settings.TESTING:
     from debug_toolbar.toolbar import debug_toolbar_urls

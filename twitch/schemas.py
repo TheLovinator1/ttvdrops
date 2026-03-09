@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Literal
 
 from pydantic import BaseModel
@@ -31,12 +29,24 @@ class GameSchema(BaseModel):
     Handles both ViewerDropsDashboard and Inventory operation formats.
     """
 
-    twitch_id: str = Field(alias="id")  # Present in both ViewerDropsDashboard and Inventory formats
-    display_name: str | None = Field(default=None, alias="displayName")  # Present in both formats
-    box_art_url: str | None = Field(default=None, alias="boxArtURL")  # Present in both formats, made optional
-    slug: str | None = None  # Present in Inventory format
-    name: str | None = None  # Present in Inventory format (alternative to displayName)
-    type_name: Literal["Game"] = Field(alias="__typename")  # Present in both formats
+    # Present in both ViewerDropsDashboard and Inventory formats
+    twitch_id: str = Field(alias="id")
+
+    # Present in both formats
+    display_name: str | None = Field(default=None, alias="displayName")
+
+    # Present in both formats, made optional
+    box_art_url: str | None = Field(default=None, alias="boxArtURL")
+
+    # Present in Inventory format
+    slug: str | None = None
+
+    # Present in Inventory format (alternative to displayName)
+    name: str | None = None
+
+    # Present in both formats
+    type_name: Literal["Game"] = Field(alias="__typename")
+
     owner_organization: dict | None = Field(default=None, alias="ownerOrganization")
 
     model_config = {
@@ -51,8 +61,9 @@ class GameSchema(BaseModel):
     def normalize_box_art_url(cls, v: str | None) -> str | None:
         """Normalize Twitch box art URLs to higher quality variants.
 
-        Twitch's box art URLs often include size suffixes (e.g. -120x160) that point to lower quality images.
-        This validator removes those suffixes to get the original higher quality image.
+        Twitch's box art URLs often include size suffixes (e.g. -120x160)
+        that point to lower quality images. This validator removes those
+        suffixes to get the original higher quality image.
 
         Args:
             v: The raw box_art_url value (str or None).
@@ -146,8 +157,11 @@ class DropBenefitSchema(BaseModel):
     created_at: str | None = Field(default=None, alias="createdAt")
     entitlement_limit: int = Field(default=1, alias="entitlementLimit")
     is_ios_available: bool = Field(default=False, alias="isIosAvailable")
-    distribution_type: str | None = Field(default=None, alias="distributionType")  # Optional in some API responses
+
+    # Optional in some API responses
+    distribution_type: str | None = Field(default=None, alias="distributionType")
     type_name: Literal["Benefit", "DropBenefit"] = Field(alias="__typename")
+
     # API response fields that should be ignored
     game: dict | None = None
     owner_organization: dict | None = Field(default=None, alias="ownerOrganization")
@@ -169,7 +183,10 @@ class DropBenefitEdgeSchema(BaseModel):
     benefit: DropBenefitSchema
     entitlement_limit: int = Field(alias="entitlementLimit")
     claim_count: int | None = Field(default=None, alias="claimCount")
-    type_name: Literal["DropBenefitEdge"] | None = Field(default=None, alias="__typename")
+    type_name: Literal["DropBenefitEdge"] | None = Field(
+        default=None,
+        alias="__typename",
+    )
 
     model_config = {
         "extra": "forbid",
@@ -193,6 +210,7 @@ class TimeBasedDropSchema(BaseModel):
     end_at: str | None = Field(alias="endAt")
     benefit_edges: list[DropBenefitEdgeSchema] = Field(default=[], alias="benefitEdges")
     type_name: Literal["TimeBasedDrop"] = Field(alias="__typename")
+
     # Inventory-specific fields
     precondition_drops: None = Field(default=None, alias="preconditionDrops")
     self_edge: dict | None = Field(default=None, alias="self")
@@ -237,11 +255,16 @@ class DropCampaignSchema(BaseModel):
     self: DropCampaignSelfEdgeSchema
     start_at: str = Field(alias="startAt")
     status: Literal["ACTIVE", "EXPIRED", "UPCOMING"]
-    time_based_drops: list[TimeBasedDropSchema] = Field(default=[], alias="timeBasedDrops")
+    time_based_drops: list[TimeBasedDropSchema] = Field(
+        default=[],
+        alias="timeBasedDrops",
+    )
     twitch_id: str = Field(alias="id")
     type_name: Literal["DropCampaign"] = Field(alias="__typename")
+
     # Campaign access control list - defines which channels can participate
     allow: DropCampaignACLSchema | None = None
+
     # Inventory-specific fields
     event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
 
@@ -272,8 +295,12 @@ class DropCampaignSchema(BaseModel):
 class InventorySchema(BaseModel):
     """Schema for the inventory field in Inventory operation responses."""
 
-    drop_campaigns_in_progress: list[DropCampaignSchema] = Field(default=[], alias="dropCampaignsInProgress")
+    drop_campaigns_in_progress: list[DropCampaignSchema] = Field(
+        default=[],
+        alias="dropCampaignsInProgress",
+    )
     type_name: Literal["Inventory"] = Field(alias="__typename")
+
     # gameEventDrops field is present in Inventory but we don't process it yet
     game_event_drops: list | None = Field(default=None, alias="gameEventDrops")
 
@@ -307,7 +334,10 @@ class CurrentUserSchema(BaseModel):
 
     twitch_id: str = Field(alias="id")
     login: str | None = None
-    drop_campaigns: list[DropCampaignSchema] | None = Field(default=None, alias="dropCampaigns")
+    drop_campaigns: list[DropCampaignSchema] | None = Field(
+        default=None,
+        alias="dropCampaigns",
+    )
     drop_campaign: DropCampaignSchema | None = Field(default=None, alias="dropCampaign")
     inventory: InventorySchema | None = None
     type_name: Literal["User"] = Field(alias="__typename")
@@ -467,8 +497,14 @@ class Reward(BaseModel):
 
     twitch_id: str = Field(alias="id")
     name: str
-    banner_image: RewardCampaignImageSet | None = Field(default=None, alias="bannerImage")
-    thumbnail_image: RewardCampaignImageSet | None = Field(default=None, alias="thumbnailImage")
+    banner_image: RewardCampaignImageSet | None = Field(
+        default=None,
+        alias="bannerImage",
+    )
+    thumbnail_image: RewardCampaignImageSet | None = Field(
+        default=None,
+        alias="thumbnailImage",
+    )
     earnable_until: str | None = Field(default=None, alias="earnableUntil")
     redemption_instructions: str = Field(default="", alias="redemptionInstructions")
     redemption_url: str = Field(default="", alias="redemptionURL")
@@ -498,7 +534,10 @@ class RewardCampaign(BaseModel):
     about_url: str = Field(default="", alias="aboutURL")
     is_sitewide: bool = Field(default=False, alias="isSitewide")
     game: dict | None = None
-    unlock_requirements: QuestRewardUnlockRequirements | None = Field(default=None, alias="unlockRequirements")
+    unlock_requirements: QuestRewardUnlockRequirements | None = Field(
+        default=None,
+        alias="unlockRequirements",
+    )
     image: RewardCampaignImageSet | None = None
     rewards: list[Reward] = Field(default=[])
     type_name: Literal["RewardCampaign"] = Field(alias="__typename")

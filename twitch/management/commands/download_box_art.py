@@ -1,15 +1,11 @@
-from __future__ import annotations
-
 from pathlib import Path
 from typing import TYPE_CHECKING
-from urllib.parse import ParseResult
 from urllib.parse import urlparse
 
 import httpx
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
-from django.core.management.base import CommandParser
 from PIL import Image
 
 from twitch.models import Game
@@ -17,6 +13,9 @@ from twitch.utils import is_twitch_box_art_url
 from twitch.utils import normalize_twitch_box_art_url
 
 if TYPE_CHECKING:
+    from urllib.parse import ParseResult
+
+    from django.core.management.base import CommandParser
     from django.db.models import QuerySet
 
 
@@ -63,7 +62,11 @@ class Command(BaseCommand):
                 if not is_twitch_box_art_url(game.box_art):
                     skipped += 1
                     continue
-                if game.box_art_file and getattr(game.box_art_file, "name", "") and not force:
+                if (
+                    game.box_art_file
+                    and getattr(game.box_art_file, "name", "")
+                    and not force
+                ):
                     skipped += 1
                     continue
 
@@ -89,7 +92,11 @@ class Command(BaseCommand):
                     skipped += 1
                     continue
 
-                game.box_art_file.save(file_name, ContentFile(response.content), save=True)
+                game.box_art_file.save(
+                    file_name,
+                    ContentFile(response.content),
+                    save=True,
+                )
 
                 # Auto-convert to WebP and AVIF
                 self._convert_to_modern_formats(game.box_art_file.path)
@@ -113,7 +120,11 @@ class Command(BaseCommand):
         """
         try:
             source_path = Path(image_path)
-            if not source_path.exists() or source_path.suffix.lower() not in {".jpg", ".jpeg", ".png"}:
+            if not source_path.exists() or source_path.suffix.lower() not in {
+                ".jpg",
+                ".jpeg",
+                ".png",
+            }:
                 return
 
             base_path = source_path.with_suffix("")
@@ -122,10 +133,17 @@ class Command(BaseCommand):
 
             with Image.open(source_path) as img:
                 # Convert to RGB if needed
-                if img.mode in {"RGBA", "LA"} or (img.mode == "P" and "transparency" in img.info):
+                if img.mode in {"RGBA", "LA"} or (
+                    img.mode == "P" and "transparency" in img.info
+                ):
                     background = Image.new("RGB", img.size, (255, 255, 255))
                     rgba_img = img.convert("RGBA") if img.mode == "P" else img
-                    background.paste(rgba_img, mask=rgba_img.split()[-1] if rgba_img.mode in {"RGBA", "LA"} else None)
+                    background.paste(
+                        rgba_img,
+                        mask=rgba_img.split()[-1]
+                        if rgba_img.mode in {"RGBA", "LA"}
+                        else None,
+                    )
                     rgb_img = background
                 elif img.mode != "RGB":
                     rgb_img = img.convert("RGB")
@@ -140,4 +158,6 @@ class Command(BaseCommand):
 
         except (OSError, ValueError) as e:
             # Don't fail the download if conversion fails
-            self.stdout.write(self.style.WARNING(f"Failed to convert {image_path}: {e}"))
+            self.stdout.write(
+                self.style.WARNING(f"Failed to convert {image_path}: {e}"),
+            )

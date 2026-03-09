@@ -1,7 +1,5 @@
 """Management command to convert existing images to WebP and AVIF formats."""
 
-from __future__ import annotations
-
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -48,12 +46,18 @@ class Command(BaseCommand):
 
         media_root = Path(settings.MEDIA_ROOT)
         if not media_root.exists():
-            self.stdout.write(self.style.WARNING(f"MEDIA_ROOT does not exist: {media_root}"))
+            self.stdout.write(
+                self.style.WARNING(f"MEDIA_ROOT does not exist: {media_root}"),
+            )
             return
 
         # Find all JPG and PNG files
         image_extensions = {".jpg", ".jpeg", ".png"}
-        image_files = [f for f in media_root.rglob("*") if f.is_file() and f.suffix.lower() in image_extensions]
+        image_files = [
+            f
+            for f in media_root.rglob("*")
+            if f.is_file() and f.suffix.lower() in image_extensions
+        ]
 
         if not image_files:
             self.stdout.write(self.style.SUCCESS("No images found to convert"))
@@ -80,7 +84,9 @@ class Command(BaseCommand):
                 continue
 
             if dry_run:
-                self.stdout.write(f"Would convert: {image_path.relative_to(media_root)}")
+                self.stdout.write(
+                    f"Would convert: {image_path.relative_to(media_root)}",
+                )
                 if needs_webp:
                     self.stdout.write(f"  → {webp_path.relative_to(media_root)}")
                 if needs_avif:
@@ -104,14 +110,20 @@ class Command(BaseCommand):
             except Exception as e:
                 error_count += 1
                 self.stdout.write(
-                    self.style.ERROR(f"✗ Error converting {image_path.relative_to(media_root)}: {e}"),
+                    self.style.ERROR(
+                        f"✗ Error converting {image_path.relative_to(media_root)}: {e}",
+                    ),
                 )
                 logger.exception("Failed to convert image: %s", image_path)
 
         # Summary
         self.stdout.write("\n" + "=" * 50)
         if dry_run:
-            self.stdout.write(self.style.SUCCESS(f"Dry run complete. Would convert {converted_count} images"))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Dry run complete. Would convert {converted_count} images",
+                ),
+            )
         else:
             self.stdout.write(self.style.SUCCESS(f"Converted: {converted_count}"))
         self.stdout.write(f"Skipped (already exist): {skipped_count}")
@@ -177,11 +189,16 @@ class Command(BaseCommand):
         Returns:
             RGB PIL Image ready for encoding
         """
-        if img.mode in {"RGBA", "LA"} or (img.mode == "P" and "transparency" in img.info):
+        if img.mode in {"RGBA", "LA"} or (
+            img.mode == "P" and "transparency" in img.info
+        ):
             # Create white background for transparency
             background = Image.new("RGB", img.size, (255, 255, 255))
             rgba_img = img.convert("RGBA") if img.mode == "P" else img
-            background.paste(rgba_img, mask=rgba_img.split()[-1] if rgba_img.mode in {"RGBA", "LA"} else None)
+            background.paste(
+                rgba_img,
+                mask=rgba_img.split()[-1] if rgba_img.mode in {"RGBA", "LA"} else None,
+            )
             return background
         if img.mode != "RGB":
             return img.convert("RGB")

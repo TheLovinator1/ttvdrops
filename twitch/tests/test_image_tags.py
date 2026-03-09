@@ -1,7 +1,5 @@
 """Tests for custom image template tags."""
 
-from __future__ import annotations
-
 from django.template import Context
 from django.template import Template
 from django.utils.safestring import SafeString
@@ -19,11 +17,16 @@ class TestGetFormatUrl:
 
     def test_jpg_to_webp(self) -> None:
         """Test converting JPG to WebP."""
-        assert get_format_url("/static/img/banner.jpg", "webp") == "/static/img/banner.webp"
+        assert (
+            get_format_url("/static/img/banner.jpg", "webp")
+            == "/static/img/banner.webp"
+        )
 
     def test_jpeg_to_avif(self) -> None:
         """Test converting JPEG to AVIF."""
-        assert get_format_url("/static/img/photo.jpeg", "avif") == "/static/img/photo.avif"
+        assert (
+            get_format_url("/static/img/photo.jpeg", "avif") == "/static/img/photo.avif"
+        )
 
     def test_png_to_webp(self) -> None:
         """Test converting PNG to WebP."""
@@ -31,7 +34,9 @@ class TestGetFormatUrl:
 
     def test_uppercase_extension(self) -> None:
         """Test converting uppercase extensions."""
-        assert get_format_url("/static/img/photo.JPG", "webp") == "/static/img/photo.webp"
+        assert (
+            get_format_url("/static/img/photo.JPG", "webp") == "/static/img/photo.webp"
+        )
 
     def test_non_convertible_format(self) -> None:
         """Test that non-convertible formats return unchanged."""
@@ -187,7 +192,9 @@ class TestPictureTag:
 
     def test_twitch_cdn_url_simple_img(self) -> None:
         """Test that Twitch CDN URLs return simple img tag without picture element."""
-        result: SafeString = picture("https://static-cdn.jtvnw.net/ttv-boxart/1292861145.jpg")
+        result: SafeString = picture(
+            "https://static-cdn.jtvnw.net/ttv-boxart/1292861145.jpg",
+        )
 
         # Should NOT have picture element
         assert "<picture>" not in result
@@ -228,7 +235,9 @@ class TestPictureTag:
 
     def test_twitch_cdn_url_with_png(self) -> None:
         """Test Twitch CDN URL with PNG format."""
-        result: SafeString = picture("https://static-cdn.jtvnw.net/badges/v1/1234567.png")
+        result: SafeString = picture(
+            "https://static-cdn.jtvnw.net/badges/v1/1234567.png",
+        )
 
         # Should NOT have picture element or source tags
         assert "<picture>" not in result
@@ -244,7 +253,9 @@ class TestPictureTagTemplate:
 
     def test_picture_tag_in_template(self) -> None:
         """Test that the picture tag works when called from a template."""
-        template = Template('{% load image_tags %}{% picture src="/img/photo.jpg" alt="Test" %}')
+        template = Template(
+            '{% load image_tags %}{% picture src="/img/photo.jpg" alt="Test" %}',
+        )
         context = Context({})
         result: SafeString = template.render(context)
 
@@ -257,7 +268,9 @@ class TestPictureTagTemplate:
 
     def test_picture_tag_with_context_variables(self) -> None:
         """Test using context variables in the picture tag."""
-        template = Template("{% load image_tags %}{% picture src=image_url alt=image_alt width=image_width %}")
+        template = Template(
+            "{% load image_tags %}{% picture src=image_url alt=image_alt width=image_width %}",
+        )
         context = Context({
             "image_url": "/img/banner.png",
             "image_alt": "Banner image",

@@ -1,12 +1,14 @@
 """Tests for Pydantic schemas used in the import process."""
 
-from __future__ import annotations
+from typing import TYPE_CHECKING
 
-from twitch.schemas import DropBenefitSchema
-from twitch.schemas import DropCampaignSchema
 from twitch.schemas import GameSchema
 from twitch.schemas import GraphQLResponse
-from twitch.schemas import TimeBasedDropSchema
+
+if TYPE_CHECKING:
+    from twitch.schemas import DropBenefitSchema
+    from twitch.schemas import DropCampaignSchema
+    from twitch.schemas import TimeBasedDropSchema
 
 
 def test_inventory_operation_validation() -> None:
@@ -88,9 +90,7 @@ def test_inventory_operation_validation() -> None:
                 "__typename": "User",
             },
         },
-        "extensions": {
-            "operationName": "Inventory",
-        },
+        "extensions": {"operationName": "Inventory"},
     }
 
     # This should not raise ValidationError
@@ -121,16 +121,16 @@ def test_inventory_operation_validation() -> None:
 
 def test_game_schema_normalizes_twitch_box_art_url() -> None:
     """Ensure Twitch box art URLs are normalized for higher quality."""
-    schema: GameSchema = GameSchema.model_validate(
-        {
-            "id": "65654",
-            "displayName": "Test Game",
-            "boxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/65654_IGDB-120x160.jpg",
-            "__typename": "Game",
-        },
-    )
+    schema: GameSchema = GameSchema.model_validate({
+        "id": "65654",
+        "displayName": "Test Game",
+        "boxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/65654_IGDB-120x160.jpg",
+        "__typename": "Game",
+    })
 
-    assert schema.box_art_url == "https://static-cdn.jtvnw.net/ttv-boxart/65654_IGDB.jpg"
+    assert (
+        schema.box_art_url == "https://static-cdn.jtvnw.net/ttv-boxart/65654_IGDB.jpg"
+    )
 
 
 def test_viewer_drops_dashboard_operation_still_works() -> None:
@@ -175,9 +175,7 @@ def test_viewer_drops_dashboard_operation_still_works() -> None:
                 "__typename": "User",
             },
         },
-        "extensions": {
-            "operationName": "ViewerDropsDashboard",
-        },
+        "extensions": {"operationName": "ViewerDropsDashboard"},
     }
 
     # This should not raise ValidationError
@@ -201,11 +199,25 @@ def test_graphql_response_with_errors() -> None:
         "errors": [
             {
                 "message": "service timeout",
-                "path": ["currentUser", "inventory", "dropCampaignsInProgress", 7, "allow", "channels"],
+                "path": [
+                    "currentUser",
+                    "inventory",
+                    "dropCampaignsInProgress",
+                    7,
+                    "allow",
+                    "channels",
+                ],
             },
             {
                 "message": "service timeout",
-                "path": ["currentUser", "inventory", "dropCampaignsInProgress", 10, "allow", "channels"],
+                "path": [
+                    "currentUser",
+                    "inventory",
+                    "dropCampaignsInProgress",
+                    10,
+                    "allow",
+                    "channels",
+                ],
             },
         ],
         "data": {
@@ -244,9 +256,7 @@ def test_graphql_response_with_errors() -> None:
                 "__typename": "User",
             },
         },
-        "extensions": {
-            "operationName": "Inventory",
-        },
+        "extensions": {"operationName": "Inventory"},
     }
 
     # This should not raise ValidationError even with errors field present
@@ -256,7 +266,14 @@ def test_graphql_response_with_errors() -> None:
     assert response.errors is not None
     assert len(response.errors) == 2
     assert response.errors[0].message == "service timeout"
-    assert response.errors[0].path == ["currentUser", "inventory", "dropCampaignsInProgress", 7, "allow", "channels"]
+    assert response.errors[0].path == [
+        "currentUser",
+        "inventory",
+        "dropCampaignsInProgress",
+        7,
+        "allow",
+        "channels",
+    ]
 
     # Verify the data is still accessible and valid
     assert response.data.current_user is not None
@@ -323,7 +340,7 @@ def test_drop_campaign_details_missing_distribution_type() -> None:
                             "benefitEdges": [
                                 {
                                     "benefit": {
-                                        "id": "6948a129-2c6d-4d88-9444-6b96918a19f8_CUSTOM_ID_WOWS_TwitchDrops_1307_250ct",  # noqa: E501
+                                        "id": "6948a129-2c6d-4d88-9444-6b96918a19f8_CUSTOM_ID_WOWS_TwitchDrops_1307_250ct",
                                         "createdAt": "2024-08-06T16:03:15.89Z",
                                         "entitlementLimit": 1,
                                         "game": {
@@ -390,7 +407,9 @@ def test_drop_campaign_details_missing_distribution_type() -> None:
     assert len(first_drop.benefit_edges) == 1
     benefit: DropBenefitSchema = first_drop.benefit_edges[0].benefit
     assert benefit.name == "13.7 Update: 250 CT"
-    assert benefit.distribution_type is None  # This field was missing in the API response
+    assert (
+        benefit.distribution_type is None
+    )  # This field was missing in the API response
 
 
 def test_reward_campaigns_available_to_user() -> None:
@@ -454,9 +473,7 @@ def test_reward_campaigns_available_to_user() -> None:
                 },
             ],
         },
-        "extensions": {
-            "operationName": "ViewerDropsDashboard",
-        },
+        "extensions": {"operationName": "ViewerDropsDashboard"},
     }
 
     # This should not raise ValidationError

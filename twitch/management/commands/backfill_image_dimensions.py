@@ -1,7 +1,5 @@
 """Management command to backfill image dimensions for existing cached images."""
 
-from __future__ import annotations
-
 from django.core.management.base import BaseCommand
 
 from twitch.models import DropBenefit

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from django.core.management.base import BaseCommand
@@ -54,21 +52,31 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("No orphaned channels found."))
             return
 
-        self.stdout.write(f"Found {count} orphaned channels with no associated campaigns:")
+        self.stdout.write(
+            f"Found {count} orphaned channels with no associated campaigns:",
+        )
 
         # Show sample of channels to be deleted
         for channel in orphaned_channels[:SAMPLE_PREVIEW_COUNT]:
-            self.stdout.write(f"  - {channel.display_name} (Twitch ID: {channel.twitch_id})")
+            self.stdout.write(
+                f"  - {channel.display_name} (Twitch ID: {channel.twitch_id})",
+            )
 
         if count > SAMPLE_PREVIEW_COUNT:
             self.stdout.write(f"  ... and {count - SAMPLE_PREVIEW_COUNT} more")
 
         if dry_run:
-            self.stdout.write(self.style.WARNING(f"\n[DRY RUN] Would delete {count} orphaned channels."))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"\n[DRY RUN] Would delete {count} orphaned channels.",
+                ),
+            )
             return
 
         if not force:
-            response: str = input(f"\nAre you sure you want to delete {count} orphaned channels? (yes/no): ")
+            response: str = input(
+                f"\nAre you sure you want to delete {count} orphaned channels? (yes/no): ",
+            )
             if response.lower() != "yes":
                 self.stdout.write(self.style.WARNING("Cancelled."))
                 return
@@ -76,4 +84,8 @@ class Command(BaseCommand):
         # Delete the orphaned channels
         deleted_count, _ = orphaned_channels.delete()
 
-        self.stdout.write(self.style.SUCCESS(f"\nSuccessfully deleted {deleted_count} orphaned channels."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\nSuccessfully deleted {deleted_count} orphaned channels.",
+            ),
+        )

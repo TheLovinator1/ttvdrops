@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import importlib
 import os
 import sys
@@ -42,7 +40,10 @@ def reload_settings_module() -> Generator[Callable[..., ModuleType]]:
 
     def _reload(**env_overrides: str | None) -> ModuleType:
         env: dict[str, str] = os.environ.copy()
-        env.setdefault("DJANGO_SECRET_KEY", original_env.get("DJANGO_SECRET_KEY", "test-secret-key"))
+        env.setdefault(
+            "DJANGO_SECRET_KEY",
+            original_env.get("DJANGO_SECRET_KEY", "test-secret-key"),
+        )
 
         for key, value in env_overrides.items():
             if value is None:
@@ -95,7 +96,10 @@ def test_env_int_returns_default(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.env_int("MAX_COUNT", 3) == 3
 
 
-def test_get_data_dir_uses_platformdirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_get_data_dir_uses_platformdirs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     """get_data_dir should use platformdirs and create the directory."""
     fake_dir: Path = tmp_path / "data_dir"
 
@@ -112,7 +116,9 @@ def test_get_data_dir_uses_platformdirs(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert path.is_dir() is True
 
 
-def test_allowed_hosts_when_debug_false(reload_settings_module: Callable[..., ModuleType]) -> None:
+def test_allowed_hosts_when_debug_false(
+    reload_settings_module: Callable[..., ModuleType],
+) -> None:
     """When DEBUG is false, ALLOWED_HOSTS should use the production host."""
     reloaded: ModuleType = reload_settings_module(DEBUG="false")
 
@@ -120,7 +126,9 @@ def test_allowed_hosts_when_debug_false(reload_settings_module: Callable[..., Mo
     assert reloaded.ALLOWED_HOSTS == ["ttvdrops.lovinator.space"]
 
 
-def test_allowed_hosts_when_debug_true(reload_settings_module: Callable[..., ModuleType]) -> None:
+def test_allowed_hosts_when_debug_true(
+    reload_settings_module: Callable[..., ModuleType],
+) -> None:
     """When DEBUG is true, development hostnames should be allowed."""
     reloaded: ModuleType = reload_settings_module(DEBUG="1")
 
@@ -128,7 +136,9 @@ def test_allowed_hosts_when_debug_true(reload_settings_module: Callable[..., Mod
     assert reloaded.ALLOWED_HOSTS == [".localhost", "127.0.0.1", "[::1]", "testserver"]
 
 
-def test_debug_defaults_true_when_missing(reload_settings_module: Callable[..., ModuleType]) -> None:
+def test_debug_defaults_true_when_missing(
+    reload_settings_module: Callable[..., ModuleType],
+) -> None:
     """DEBUG should default to True when the environment variable is missing."""
     reloaded: ModuleType = reload_settings_module(DEBUG=None)
 
@@ -172,7 +182,9 @@ def test_testing_true_when_sys_argv_contains_test(
     assert reloaded.TESTING is True
 
 
-def test_testing_true_when_pytest_version_set(reload_settings_module: Callable[..., ModuleType]) -> None:
+def test_testing_true_when_pytest_version_set(
+    reload_settings_module: Callable[..., ModuleType],
+) -> None:
     """TESTING should be true when PYTEST_VERSION is set in the env."""
     reloaded: ModuleType = reload_settings_module(PYTEST_VERSION="7.0.0")
 
@@ -212,7 +224,9 @@ def test_missing_secret_key_causes_system_exit(monkeypatch: pytest.MonkeyPatch) 
         __import__("config.settings")
 
 
-def test_email_settings_from_env(reload_settings_module: Callable[..., ModuleType]) -> None:
+def test_email_settings_from_env(
+    reload_settings_module: Callable[..., ModuleType],
+) -> None:
     """EMAIL_* values should be read from the environment and cast correctly."""
     reloaded: ModuleType = reload_settings_module(
         EMAIL_HOST="smtp.example.com",

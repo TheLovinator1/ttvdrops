@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import skipIf
 
 from django.db import connection
@@ -9,7 +8,6 @@ from django.test import TestCase
 
 from twitch.management.commands.better_import_drops import Command
 from twitch.management.commands.better_import_drops import detect_error_only_response
-from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
@@ -17,25 +15,24 @@ from twitch.models import Organization
 from twitch.models import TimeBasedDrop
 from twitch.schemas import DropBenefitSchema
 
+if TYPE_CHECKING:
+    from twitch.models import Channel
+
 
 class GetOrUpdateBenefitTests(TestCase):
     """Tests for the _get_or_update_benefit method in better_import_drops.Command."""
 
     def test_defaults_distribution_type_when_missing(self) -> None:
         """Ensure importer sets distribution_type to empty string when absent."""
-        command = Command()
-        command.benefit_cache = {}
-
-        benefit_schema: DropBenefitSchema = DropBenefitSchema.model_validate(
-            {
-                "id": "benefit-missing-distribution-type",
-                "name": "Test Benefit",
-                "imageAssetURL": "https://example.com/benefit.png",
-                "entitlementLimit": 1,
-                "isIosAvailable": False,
-                "__typename": "DropBenefit",
-            },
-        )
+        command: Command = Command()
+        benefit_schema: DropBenefitSchema = DropBenefitSchema.model_validate({
+            "id": "benefit-missing-distribution-type",
+            "name": "Test Benefit",
+            "imageAssetURL": "https://example.com/benefit.png",
+            "entitlementLimit": 1,
+            "isIosAvailable": False,
+            "__typename": "DropBenefit",
+        })
 
         benefit: DropBenefit = command._get_or_update_benefit(benefit_schema)
 
@@ -64,7 +61,10 @@ class ExtractCampaignsTests(TestCase):
                         "detailsURL": "http://example.com",
                         "imageURL": "",
                         "status": "ACTIVE",
-                        "self": {"isAccountConnected": False, "__typename": "DropCampaignSelfEdge"},
+                        "self": {
+                            "isAccountConnected": False,
+                            "__typename": "DropCampaignSelfEdge",
+                        },
                         "game": {
                             "id": "g1",
                             "displayName": "Test Game",
@@ -82,9 +82,7 @@ class ExtractCampaignsTests(TestCase):
                     "__typename": "User",
                 },
             },
-            "extensions": {
-                "operationName": "TestOp",
-            },
+            "extensions": {"operationName": "TestOp"},
         }
 
         # Validate response
@@ -147,9 +145,7 @@ class ExtractCampaignsTests(TestCase):
                     "__typename": "User",
                 },
             },
-            "extensions": {
-                "operationName": "Inventory",
-            },
+            "extensions": {"operationName": "Inventory"},
         }
 
         # Validate and process response
@@ -163,7 +159,9 @@ class ExtractCampaignsTests(TestCase):
         assert broken_dir is None
 
         # Check that campaign was created with operation_name
-        campaign: DropCampaign = DropCampaign.objects.get(twitch_id="inventory-campaign-1")
+        campaign: DropCampaign = DropCampaign.objects.get(
+            twitch_id="inventory-campaign-1",
+        )
         assert campaign.name == "Test Inventory Campaign"
         assert campaign.operation_names == ["Inventory"]
 
@@ -184,9 +182,7 @@ class ExtractCampaignsTests(TestCase):
                     "__typename": "User",
                 },
             },
-            "extensions": {
-                "operationName": "Inventory",
-            },
+            "extensions": {"operationName": "Inventory"},
         }
 
         # Should validate successfully even with null campaigns
@@ -261,9 +257,7 @@ class ExtractCampaignsTests(TestCase):
                     "__typename": "User",
                 },
             },
-            "extensions": {
-                "operationName": "Inventory",
-            },
+            "extensions": {"operationName": "Inventory"},
         }
 
         # Validate and process response
@@ -277,7 +271,9 @@ class ExtractCampaignsTests(TestCase):
         assert broken_dir is None
 
         # Check that campaign was created and allow_is_enabled defaults to True
-        campaign: DropCampaign = DropCampaign.objects.get(twitch_id="inventory-campaign-2")
+        campaign: DropCampaign = DropCampaign.objects.get(
+            twitch_id="inventory-campaign-2",
+        )
         assert campaign.name == "Test ACL Campaign"
         assert campaign.allow_is_enabled is True  # Should default to True
 
@@ -304,10 +300,7 @@ class CampaignStructureDetectionTests(TestCase):
                     "id": "123",
                     "inventory": {
                         "dropCampaignsInProgress": [
-                            {
-                                "id": "c1",
-                                "name": "Test Campaign",
-                            },
+                            {"id": "c1", "name": "Test Campaign"},
                         ],
                         "__typename": "Inventory",
                     },
@@ -349,12 +342,7 @@ class CampaignStructureDetectionTests(TestCase):
             "data": {
                 "currentUser": {
                     "id": "123",
-                    "dropCampaigns": [
-                        {
-                            "id": "c1",
-                            "name": "Test Campaign",
-                        },
-                    ],
+                    "dropCampaigns": [{"id": "c1", "name": "Test Campaign"}],
                     "__typename": "User",
                 },
             },
@@ -367,7 +355,10 @@ class CampaignStructureDetectionTests(TestCase):
 class OperationNameFilteringTests(TestCase):
     """Tests for filtering campaigns by operation_name field."""
 
-    @skipIf(connection.vendor == "sqlite", reason="SQLite doesn't support JSON contains lookup")
+    @skipIf(
+        connection.vendor == "sqlite",
+        reason="SQLite doesn't support JSON contains lookup",
+    )
     def test_can_filter_campaigns_by_operation_name(self) -> None:
         """Ensure campaigns can be filtered by operation_name to separate data sources."""
         command = Command()
@@ -388,7 +379,10 @@ class OperationNameFilteringTests(TestCase):
                             "detailsURL": "https://example.com",
                             "imageURL": "",
                             "status": "ACTIVE",
-                            "self": {"isAccountConnected": False, "__typename": "DropCampaignSelfEdge"},
+                            "self": {
+                                "isAccountConnected": False,
+                                "__typename": "DropCampaignSelfEdge",
+                            },
                             "game": {
                                 "id": "game-1",
                                 "displayName": "Game 1",
@@ -407,9 +401,7 @@ class OperationNameFilteringTests(TestCase):
                     "__typename": "User",
                 },
             },
-            "extensions": {
-                "operationName": "ViewerDropsDashboard",
-            },
+            "extensions": {"operationName": "ViewerDropsDashboard"},
         }
 
         # Import an Inventory campaign
@@ -429,7 +421,10 @@ class OperationNameFilteringTests(TestCase):
                                 "detailsURL": "https://example.com",
                                 "imageURL": "",
                                 "status": "ACTIVE",
-                                "self": {"isAccountConnected": True, "__typename": "DropCampaignSelfEdge"},
+                                "self": {
+                                    "isAccountConnected": True,
+                                    "__typename": "DropCampaignSelfEdge",
+                                },
                                 "game": {
                                     "id": "game-2",
                                     "displayName": "Game 2",
@@ -452,9 +447,7 @@ class OperationNameFilteringTests(TestCase):
                     "__typename": "User",
                 },
             },
-            "extensions": {
-                "operationName": "Inventory",
-            },
+            "extensions": {"operationName": "Inventory"},
         }
 
         # Process both payloads
@@ -462,8 +455,12 @@ class OperationNameFilteringTests(TestCase):
         command.process_responses([inventory_payload], Path("inventory.json"), {})
 
         # Verify we can filter by operation_names with JSON containment
-        viewer_campaigns = DropCampaign.objects.filter(operation_names__contains=["ViewerDropsDashboard"])
-        inventory_campaigns = DropCampaign.objects.filter(operation_names__contains=["Inventory"])
+        viewer_campaigns = DropCampaign.objects.filter(
+            operation_names__contains=["ViewerDropsDashboard"],
+        )
+        inventory_campaigns = DropCampaign.objects.filter(
+            operation_names__contains=["Inventory"],
+        )
 
         assert len(viewer_campaigns) >= 1
         assert len(inventory_campaigns) >= 1
@@ -501,7 +498,10 @@ class GameImportTests(TestCase):
                         "detailsURL": "https://example.com/details",
                         "imageURL": "",
                         "status": "ACTIVE",
-                        "self": {"isAccountConnected": True, "__typename": "DropCampaignSelfEdge"},
+                        "self": {
+                            "isAccountConnected": True,
+                            "__typename": "DropCampaignSelfEdge",
+                        },
                         "game": {
                             "id": "497057",
                             "slug": "destiny-2",
@@ -558,12 +558,17 @@ class ExampleJsonImportTests(TestCase):
         assert success is True
         assert broken_dir is None
 
-        campaign: DropCampaign = DropCampaign.objects.get(twitch_id="3b965979-ecd2-11f0-876e-0a58a9feac02")
+        campaign: DropCampaign = DropCampaign.objects.get(
+            twitch_id="3b965979-ecd2-11f0-876e-0a58a9feac02",
+        )
 
         # Core campaign fields
         assert campaign.name == "Jan Drops Week 2"
         assert "Viewers will receive 50 Wandering Market Coins" in campaign.description
-        assert campaign.details_url == "https://www.smite2.com/news/closed-alpha-twitch-drops/"
+        assert (
+            campaign.details_url
+            == "https://www.smite2.com/news/closed-alpha-twitch-drops/"
+        )
         assert campaign.account_link_url == "https://link.smite2.com/"
 
         # The regression: ensure imageURL makes it into DropCampaign.image_url
@@ -584,17 +589,23 @@ class ExampleJsonImportTests(TestCase):
         assert game.display_name == "SMITE 2"
         assert game.slug == "smite-2"
 
-        org: Organization = Organization.objects.get(twitch_id="51a157a0-674a-4863-b120-7bb6ee2466a8")
+        org: Organization = Organization.objects.get(
+            twitch_id="51a157a0-674a-4863-b120-7bb6ee2466a8",
+        )
         assert org.name == "Hi-Rez Studios"
         assert game.owners.filter(pk=org.pk).exists()
 
         # Drops + benefits
         assert TimeBasedDrop.objects.filter(campaign=campaign).count() == 6
-        first_drop: TimeBasedDrop = TimeBasedDrop.objects.get(twitch_id="933c8f91-ecd2-11f0-b3fd-0a58a9feac02")
+        first_drop: TimeBasedDrop = TimeBasedDrop.objects.get(
+            twitch_id="933c8f91-ecd2-11f0-b3fd-0a58a9feac02",
+        )
         assert first_drop.name == "Market Coins Bundle 1"
         assert first_drop.required_minutes_watched == 120
         assert DropBenefit.objects.count() == 1
-        benefit: DropBenefit = DropBenefit.objects.get(twitch_id="ccb3fb7f-e59b-11ef-aef0-0a58a9feac02")
+        benefit: DropBenefit = DropBenefit.objects.get(
+            twitch_id="ccb3fb7f-e59b-11ef-aef0-0a58a9feac02",
+        )
         assert (
             benefit.image_asset_url
             == "https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/903496ad-de97-41ff-ad97-12f099e20ea8.jpeg"
@@ -645,7 +656,10 @@ class ImporterRobustnessTests(TestCase):
                         "detailsURL": "https://example.com/details",
                         "imageURL": None,
                         "status": "ACTIVE",
-                        "self": {"isAccountConnected": False, "__typename": "DropCampaignSelfEdge"},
+                        "self": {
+                            "isAccountConnected": False,
+                            "__typename": "DropCampaignSelfEdge",
+                        },
                         "game": {
                             "id": "g-null-image",
                             "displayName": "Test Game",
@@ -694,12 +708,7 @@ class ErrorOnlyResponseDetectionTests(TestCase):
     def test_detects_error_only_response_with_null_data(self) -> None:
         """Ensure error-only response with null data field is detected."""
         parsed_json = {
-            "errors": [
-                {
-                    "message": "internal server error",
-                    "path": ["data"],
-                },
-            ],
+            "errors": [{"message": "internal server error", "path": ["data"]}],
             "data": None,
         }
 
@@ -708,14 +717,7 @@ class ErrorOnlyResponseDetectionTests(TestCase):
 
     def test_detects_error_only_response_with_empty_data(self) -> None:
         """Ensure error-only response with empty data dict is allowed through."""
-        parsed_json = {
-            "errors": [
-                {
-                    "message": "unauthorized",
-                },
-            ],
-            "data": {},
-        }
+        parsed_json = {"errors": [{"message": "unauthorized"}], "data": {}}
 
         result = detect_error_only_response(parsed_json)
         # Empty dict {} is considered "data exists" so this should pass
@@ -723,13 +725,7 @@ class ErrorOnlyResponseDetectionTests(TestCase):
 
     def test_detects_error_only_response_without_data_key(self) -> None:
         """Ensure error-only response without data key is detected."""
-        parsed_json = {
-            "errors": [
-                {
-                    "message": "missing data",
-                },
-            ],
-        }
+        parsed_json = {"errors": [{"message": "missing data"}]}
 
         result = detect_error_only_response(parsed_json)
         assert result == "error_only: missing data"
@@ -737,16 +733,8 @@ class ErrorOnlyResponseDetectionTests(TestCase):
     def test_allows_response_with_both_errors_and_data(self) -> None:
         """Ensure responses with both errors and valid data are not flagged."""
         parsed_json = {
-            "errors": [
-                {
-                    "message": "partial failure",
-                },
-            ],
-            "data": {
-                "currentUser": {
-                    "dropCampaigns": [],
-                },
-            },
+            "errors": [{"message": "partial failure"}],
+            "data": {"currentUser": {"dropCampaigns": []}},
         }
 
         result = detect_error_only_response(parsed_json)
@@ -754,28 +742,14 @@ class ErrorOnlyResponseDetectionTests(TestCase):
 
     def test_allows_response_with_no_errors(self) -> None:
         """Ensure normal responses without errors are not flagged."""
-        parsed_json = {
-            "data": {
-                "currentUser": {
-                    "dropCampaigns": [],
-                },
-            },
-        }
+        parsed_json = {"data": {"currentUser": {"dropCampaigns": []}}}
 
         result = detect_error_only_response(parsed_json)
         assert result is None
 
     def test_detects_error_only_in_list_of_responses(self) -> None:
         """Ensure error-only detection works with list of responses."""
-        parsed_json = [
-            {
-                "errors": [
-                    {
-                        "message": "rate limit exceeded",
-                    },
-                ],
-            },
-        ]
+        parsed_json = [{"errors": [{"message": "rate limit exceeded"}]}]
 
         result = detect_error_only_response(parsed_json)
         assert result == "error_only: rate limit exceeded"
@@ -804,22 +778,14 @@ class ErrorOnlyResponseDetectionTests(TestCase):
 
     def test_returns_none_for_empty_errors_list(self) -> None:
         """Ensure empty errors list is not flagged as error-only."""
-        parsed_json = {
-            "errors": [],
-        }
+        parsed_json = {"errors": []}
 
         result = detect_error_only_response(parsed_json)
         assert result is None
 
     def test_handles_error_without_message_field(self) -> None:
         """Ensure errors without message field use default text."""
-        parsed_json = {
-            "errors": [
-                {
-                    "path": ["data"],
-                },
-            ],
-        }
+        parsed_json = {"errors": [{"path": ["data"]}]}
 
         result = detect_error_only_response(parsed_json)
         assert result == "error_only: unknown error"
