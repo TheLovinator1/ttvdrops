@@ -244,6 +244,34 @@ class RSSFeedTestCase(TestCase):
         assert campaign2.image_mime_type == "image/jpeg"
         assert game2.box_art_size_bytes == len(b"hello")
         assert game2.box_art_mime_type == "image/png"
+        # run again; nothing should error and metadata should still be present
+        call_command("backfill_image_dimensions")
+        campaign2.refresh_from_db()
+        game2.refresh_from_db()
+        assert campaign2.image_size_bytes == len(b"world")
+        assert campaign2.image_mime_type == "image/jpeg"
+        assert game2.box_art_size_bytes == len(b"hello")
+        assert game2.box_art_mime_type == "image/png"
+
+        # simulate a case where width is already set but mime/size empty; the
+        # command should still fill size/mime even if width gets cleared by the
+        # model on save (invalid image data may reset the dimensions).
+        game2.box_art_width = 999
+        game2.box_art_size_bytes = None
+        game2.box_art_mime_type = ""
+        game2.save()
+        campaign2.image_width = 888
+        campaign2.image_size_bytes = None
+        campaign2.image_mime_type = ""
+        campaign2.save()
+
+        call_command("backfill_image_dimensions")
+        campaign2.refresh_from_db()
+        game2.refresh_from_db()
+        assert campaign2.image_size_bytes == len(b"world")
+        assert campaign2.image_mime_type == "image/jpeg"
+        assert game2.box_art_size_bytes == len(b"hello")
+        assert game2.box_art_mime_type == "image/png"
 
 
 QueryAsserter = Callable[..., AbstractContextManager[object]]
