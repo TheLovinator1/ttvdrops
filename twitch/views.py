@@ -614,7 +614,7 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
     """
     # TODO(TheLovinator): Instead of only using sql we should also support other formats like parquet, csv, or json.  # noqa: TD003
     # TODO(TheLovinator): Upload to s3 instead.  # noqa: TD003
-
+    # TODO(TheLovinator): https://developers.google.com/search/docs/appearance/structured-data/dataset#json-ld
     datasets_root: Path = settings.DATA_DIR / "datasets"
     search_dirs: list[Path] = [datasets_root]
     seen_paths: set[str] = set()
