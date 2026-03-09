@@ -65,7 +65,7 @@ class RSSFeedTestCase(TestCase):
         assert response.status_code == 200
         assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
         content: str = response.content.decode("utf-8")
-        assert "Test Game by Test Organization" in content
+        assert "Owned by Test Organization." in content
 
         expected_rss_link: str = reverse(
             "twitch:game_campaign_feed",

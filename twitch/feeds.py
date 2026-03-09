@@ -447,7 +447,7 @@ class GameFeed(Feed):
 
         description_parts.append(
             SafeText(
-                f"<p>New game has been added to ttvdrops.lovinator.space: {game_name} by {game_owner}\n\n"
+                f"<p>{game_name} has been added to ttvdrops.lovinator.space!\nOwned by {game_owner}.\n\n"
                 f"<a href='{game_url}'>[Details]</a> "
                 f"<a href='{twitch_directory_url}'>[Twitch]</a> "
                 f"<a href='{rss_feed_url}'>[RSS feed]</a>\n</p>",
