@@ -931,6 +931,31 @@ class TestChannelListView:
         assert "game" in response.context
 
     @pytest.mark.django_db
+    def test_game_detail_image_aspect_ratio(self, client: Client, db: object) -> None:
+        """Box art should render with a width attribute only, preserving aspect ratio."""
+        game: Game = Game.objects.create(
+            twitch_id="g3",
+            name="Game3",
+            display_name="Game3",
+        )
+        # property is derived; write to underlying field
+        game.box_art = "https://example.com/boxart.png"
+        game.save()
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        html: str = response.content.decode("utf-8")
+        # the picture tag should include the width but not an explicit height
+        assert 'width="160"' in html
+        # ensure the height attribute is not part of the same img element
+        assert (
+            "height="
+            not in html.split("https://example.com/boxart.png")[1].split(
+                ">",
+                maxsplit=1,
+            )[0]
+        )
+
+    @pytest.mark.django_db
     def test_game_detail_view_serializes_owners_field(
         self,
         client: Client,
