@@ -444,24 +444,15 @@ class GameFeed(Feed):
         game_url: str = reverse("twitch:game_detail", args=[twitch_id])
         rss_feed_url: str = reverse("twitch:game_campaign_feed", args=[twitch_id])
         twitch_directory_url: str = getattr(item, "twitch_directory_url", "")
-        if slug:
-            description_parts.append(
-                SafeText(
-                    f"<p>New game has been added to ttvdrops.lovinator.space: {game_name} by {game_owner}\n"
-                    f"<a href='{game_url}'>Game Details</a>\n"
-                    f"<a href='{twitch_directory_url}'>Twitch</a>\n"
-                    f"<a href='{rss_feed_url}'>RSS feed</a>\n</p>",
-                ),
-            )
-        else:
-            description_parts.append(
-                SafeText(
-                    f"<p>A new game has been added to ttvdrops.lovinator.space: {game_name} by {game_owner}\n"
-                    f"<a href='{game_url}'>Game Details</a>\n"
-                    f"<a href='{twitch_directory_url}'>Twitch</a>\n"
-                    f"<a href='{rss_feed_url}'>RSS feed</a>\n</p>",
-                ),
-            )
+
+        description_parts.append(
+            SafeText(
+                f"<p>New game has been added to ttvdrops.lovinator.space: {game_name} by {game_owner}\n\n"
+                f"<a href='{game_url}'>[Details]</a> "
+                f"<a href='{twitch_directory_url}'>[Twitch]</a> "
+                f"<a href='{rss_feed_url}'>[RSS feed]</a>\n</p>",
+            ),
+        )
 
         return SafeText("".join(str(part) for part in description_parts))
 
