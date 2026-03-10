@@ -4,6 +4,18 @@
 {% block title %}
     {{ campaign.clean_name }}
 {% endblock title %}
+{% block extra_head %}
+    {% if campaign and campaign.game %}
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="{{ campaign.game.display_name }} campaigns (RSS)"
+              href="{% url 'twitch:game_campaign_feed' campaign.game.twitch_id %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="{{ campaign.game.display_name }} campaigns (Atom)"
+              href="{% url 'twitch:game_campaign_feed_atom' campaign.game.twitch_id %}" />
+    {% endif %}
+{% endblock extra_head %}
 {% block content %}
     <!-- Campaign Title -->
     <h1>
@@ -71,6 +83,8 @@
         {% if campaign.game %}
             <a href="{% url 'twitch:game_campaign_feed' campaign.game.twitch_id %}"
                title="RSS feed for {{ campaign.game.display_name }} campaigns">[rss]</a>
+            <a href="{% url 'twitch:game_campaign_feed_atom' campaign.game.twitch_id %}"
+               title="Atom feed for {{ campaign.game.display_name }} campaigns">[atom]</a>
         {% endif %}
     </div>
     {% if allowed_channels %}

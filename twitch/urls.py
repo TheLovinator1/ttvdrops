@@ -3,10 +3,15 @@ from typing import TYPE_CHECKING
 from django.urls import path
 
 from twitch import views
+from twitch.feeds import DropCampaignAtomFeed
 from twitch.feeds import DropCampaignFeed
+from twitch.feeds import GameAtomFeed
+from twitch.feeds import GameCampaignAtomFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
+from twitch.feeds import OrganizationAtomFeed
 from twitch.feeds import OrganizationRSSFeed
+from twitch.feeds import RewardCampaignAtomFeed
 from twitch.feeds import RewardCampaignFeed
 
 if TYPE_CHECKING:
@@ -104,5 +109,23 @@ urlpatterns: list[URLPattern] = [
         "rss/reward-campaigns/",
         RewardCampaignFeed(),
         name="reward_campaign_feed",
+    ),
+    # Atom feeds (added alongside RSS to preserve backward compatibility)
+    path("atom/campaigns/", DropCampaignAtomFeed(), name="campaign_feed_atom"),
+    path("atom/games/", GameAtomFeed(), name="game_feed_atom"),
+    path(
+        "atom/games/<str:twitch_id>/campaigns/",
+        GameCampaignAtomFeed(),
+        name="game_campaign_feed_atom",
+    ),
+    path(
+        "atom/organizations/",
+        OrganizationAtomFeed(),
+        name="organization_feed_atom",
+    ),
+    path(
+        "atom/reward-campaigns/",
+        RewardCampaignAtomFeed(),
+        name="reward_campaign_feed_atom",
     ),
 ]

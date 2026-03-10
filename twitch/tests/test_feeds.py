@@ -95,6 +95,32 @@ class RSSFeedTestCase(TestCase):
         assert 'length="42"' in content
         assert 'type="image/png"' in content
 
+    def test_organization_atom_feed(self) -> None:
+        """Test organization Atom feed returns 200 and Atom XML."""
+        url: str = reverse("twitch:organization_feed_atom")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/atom+xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "<feed" in content
+        assert "<entry" in content or "<entry" in content
+
+    def test_game_atom_feed(self) -> None:
+        """Test game Atom feed returns 200 and contains expected content."""
+        url: str = reverse("twitch:game_feed_atom")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/atom+xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "Owned by Test Organization." in content
+        expected_atom_link: str = reverse(
+            "twitch:game_campaign_feed",
+            args=[self.game.twitch_id],
+        )
+        assert expected_atom_link in content
+        # Atom should include box art URL somewhere in content
+        assert "https://example.com/box.png" in content
+
     def test_game_feed_enclosure_helpers(self) -> None:
         """Helper methods should return values from model fields."""
         feed = GameFeed()

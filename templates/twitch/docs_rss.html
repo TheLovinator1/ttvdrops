@@ -7,6 +7,11 @@
     <main>
         <h1>RSS Feeds Documentation</h1>
         <p>This page lists all available RSS feeds for TTVDrops.</p>
+        <p>
+            Note: Atom feeds are also available for the same resources under the
+            <code>/atom/</code> endpoints (links labeled "Atom" are shown next to RSS links).
+            Both RSS and Atom formats are supported and served in parallel for backward compatibility.
+        </p>
         <section>
             <h2>Global RSS Feeds</h2>
             <p>These feeds contain all items across the entire site:</p>
@@ -17,8 +22,16 @@
                         <p>{{ feed.description }}</p>
                         <p>
                             <a href="{{ feed.url }}">Subscribe to {{ feed.title }} RSS Feed</a>
+                            {% if feed.atom_url %}
+                                &nbsp;|&nbsp;
+                                <a href="{{ feed.atom_url }}">Subscribe to {{ feed.title }} Atom Feed</a>
+                            {% endif %}
                         </p>
                         <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
+                        {% if feed.example_xml_atom %}
+                            <h4>Atom example</h4>
+                            <pre><code class="language-xml">{{ feed.example_xml_atom|escape }}</code></pre>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -35,13 +48,22 @@
                         <p>{{ feed.description }}</p>
                         <p>
                             Endpoint: <code>{{ feed.url }}</code>
+                            {% if feed.atom_url %}&nbsp;|&nbsp; Atom: <code>{{ feed.atom_url }}</code>{% endif %}
                         </p>
                         {% if feed.has_sample %}
                             <p>
                                 <a href="{{ feed.url }}">View a live example</a>
+                                {% if feed.atom_url %}
+                                    &nbsp;|&nbsp;
+                                    <a href="{{ feed.atom_url }}">View Atom example</a>
+                                {% endif %}
                             </p>
                         {% endif %}
                         <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
+                        {% if feed.example_xml_atom %}
+                            <h4>Atom example</h4>
+                            <pre><code class="language-xml">{{ feed.example_xml_atom|escape }}</code></pre>
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>

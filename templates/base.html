@@ -23,6 +23,43 @@
             {% endblock title %}
         </title>
         {% include "includes/meta_tags.html" %}
+        <!-- Feed discovery links -->
+        <!-- Read {% url 'twitch:docs_rss' %} for more details on available feeds -->
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="All campaigns (RSS)"
+              href="{% url 'twitch:campaign_feed' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="All campaigns (Atom)"
+              href="{% url 'twitch:campaign_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="Newly added games (RSS)"
+              href="{% url 'twitch:game_feed' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="Newly added games (Atom)"
+              href="{% url 'twitch:game_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="Newly added organizations (RSS)"
+              href="{% url 'twitch:organization_feed' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="Newly added organizations (Atom)"
+              href="{% url 'twitch:organization_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="Newly added reward campaigns (RSS)"
+              href="{% url 'twitch:reward_campaign_feed' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="Newly added reward campaigns (Atom)"
+              href="{% url 'twitch:reward_campaign_feed_atom' %}" />
+        {# Allow child templates to inject page-specific alternates into the head #}
+        {% block extra_head %}
+        {% endblock extra_head %}
         <style>
             html {
                 color-scheme: light dark;

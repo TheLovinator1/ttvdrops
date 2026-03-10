@@ -2,6 +2,20 @@
 {% block title %}
     {{ organization.name }}
 {% endblock title %}
+{% block extra_head %}
+    {% if games %}
+        {% for game in games %}
+            <link rel="alternate"
+                  type="application/rss+xml"
+                  title="{{ game.display_name|default:game.name|default:game.twitch_id }} campaigns (RSS)"
+                  href="{% url 'twitch:game_campaign_feed' game.twitch_id %}" />
+            <link rel="alternate"
+                  type="application/atom+xml"
+                  title="{{ game.display_name|default:game.name|default:game.twitch_id }} campaigns (Atom)"
+                  href="{% url 'twitch:game_campaign_feed_atom' game.twitch_id %}" />
+        {% endfor %}
+    {% endif %}
+{% endblock extra_head %}
 {% block content %}
     <h1 id="org-name">{{ organization.name }}</h1>
     <theader>

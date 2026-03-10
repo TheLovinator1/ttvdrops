@@ -920,3 +920,34 @@ class RewardCampaignFeed(Feed):
     def item_author_name(self, item: RewardCampaign) -> str:
         """Return the author name for the reward campaign."""
         return item.get_feed_author_name()
+
+
+# Atom feed variants: reuse existing logic but switch the feed generator to Atom
+class OrganizationAtomFeed(OrganizationRSSFeed):
+    """Atom feed for latest organizations (reuses OrganizationRSSFeed)."""
+
+    feed_type = feedgenerator.Atom1Feed
+
+
+class GameAtomFeed(GameFeed):
+    """Atom feed for newly added games (reuses GameFeed)."""
+
+    feed_type = feedgenerator.Atom1Feed
+
+
+class DropCampaignAtomFeed(DropCampaignFeed):
+    """Atom feed for latest drop campaigns (reuses DropCampaignFeed)."""
+
+    feed_type = feedgenerator.Atom1Feed
+
+
+class GameCampaignAtomFeed(GameCampaignFeed):
+    """Atom feed for latest drop campaigns for a specific game (reuses GameCampaignFeed)."""
+
+    feed_type = feedgenerator.Atom1Feed
+
+
+class RewardCampaignAtomFeed(RewardCampaignFeed):
+    """Atom feed for latest reward campaigns (reuses RewardCampaignFeed)."""
+
+    feed_type = feedgenerator.Atom1Feed

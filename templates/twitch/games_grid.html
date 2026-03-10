@@ -3,6 +3,16 @@
 {% block title %}
     Games - Grid View
 {% endblock title %}
+{% block extra_head %}
+    <link rel="alternate"
+          type="application/rss+xml"
+          title="Newly added games (RSS)"
+          href="{% url 'twitch:game_feed' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="Newly added games (Atom)"
+          href="{% url 'twitch:game_feed_atom' %}" />
+{% endblock extra_head %}
 {% block content %}
     <main>
         <header>
@@ -10,6 +20,8 @@
             <div>
                 <a href="{% url 'twitch:games_list' %}" title="View games as list">[list]</a>
                 <a href="{% url 'twitch:game_feed' %}" title="RSS feed for all games">[rss]</a>
+                <a href="{% url 'twitch:game_feed_atom' %}"
+                   title="Atom feed for all games">[atom]</a>
                 <a href="{% url 'twitch:export_games_csv' %}"
                    title="Export all games as CSV">[csv]</a>
                 <a href="{% url 'twitch:export_games_json' %}"
