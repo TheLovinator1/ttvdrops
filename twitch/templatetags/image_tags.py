@@ -1,9 +1,10 @@
-"""Custom template tags for rendering responsive images with modern formats."""
-
+import logging
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from django import template
+from django.conf import settings
+from django.core.files.storage import default_storage
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
 
@@ -11,6 +12,7 @@ if TYPE_CHECKING:
     from django.utils.safestring import SafeText
 
 register = template.Library()
+logger = logging.getLogger("ttvdrops.image_tags")
 
 
 def get_format_url(image_url: str, fmt: str) -> str:
@@ -69,6 +71,18 @@ def picture(  # noqa: PLR0913, PLR0917
     """
     if not src:
         return SafeString("")
+
+    # If the src points to a local MEDIA file but the underlying file is
+    # missing on disk, replace with a small static fallback to avoid
+    # raising FileNotFoundError during template rendering.
+    try:
+        media_url: str = settings.MEDIA_URL or "/media/"
+        if src.startswith(media_url):
+            name: str = src[len(media_url) :].lstrip("/")
+            if not default_storage.exists(name):
+                src = "/static/404.svg"
+    except (ValueError, OSError) as exc:
+        logger.debug("Error while resolving media file %s: %s", src, exc)
 
     # For Twitch CDN URLs, skip format conversion and use simple img tag
     if "static-cdn.jtvnw.net" in src:

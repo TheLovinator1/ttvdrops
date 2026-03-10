@@ -1,11 +1,41 @@
-"""Tests for custom image template tags."""
-
 from django.template import Context
 from django.template import Template
+from django.test import SimpleTestCase
+from django.test import override_settings
 from django.utils.safestring import SafeString
 
+from twitch.models import Game
 from twitch.templatetags.image_tags import get_format_url
 from twitch.templatetags.image_tags import picture
+
+
+@override_settings(MEDIA_URL="/media/", STATIC_URL="/static/")
+class ImageTagsTests(SimpleTestCase):
+    """Tests for image template tags and related functionality."""
+
+    def test_picture_empty_src_returns_empty(self) -> None:
+        """Test that picture tag with empty src returns empty string."""
+        result = picture("")
+        assert not str(result)
+
+    def test_picture_keeps_external_url(self) -> None:
+        """Test that picture tag does not modify external URLs and does not attempt format conversion."""
+        src = "https://example.com/images/sample.png"
+        result: SafeString = picture(src, alt="alt", width=16, height=16)
+        rendered = str(result)
+
+        # Should still contain the original external URL
+        assert src in rendered
+
+    def test_model_init_with_missing_image_does_not_raise(self) -> None:
+        """Test that initializing a model with a missing image file does not raise an error."""
+        # Simulate a Game instance with a missing local image file. The
+        # AppConfig.ready() wrapper should prevent FileNotFoundError during
+        # model initialization.
+        g = Game(twitch_id="test-game", box_art_file="campaigns/images/missing.png")
+        # If initialization reached this point without raising, we consider
+        # the protection successful.
+        assert g.twitch_id == "test-game"
 
 
 class TestGetFormatUrl:

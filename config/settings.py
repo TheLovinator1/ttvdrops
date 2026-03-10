@@ -103,7 +103,7 @@ MEDIA_URL = "/media/"
 
 STATIC_ROOT: Path = DATA_DIR / "staticfiles"
 STATIC_ROOT.mkdir(exist_ok=True)
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 
 TIME_ZONE = "UTC"
