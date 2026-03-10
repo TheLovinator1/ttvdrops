@@ -16,19 +16,13 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
-        <h1>Twitch Drops</h1>
-        <pre>
-Latest drops are shown first within each game. Click on a campaign or game title to see more details.
-Hover over the end time to see the exact date and time.
-</pre>
+        <h1>Active Twitch Drops Campaigns</h1>
         <!-- RSS Feeds -->
-        <div style="margin-bottom: 1rem;">
+        <div>
             <a href="{% url 'twitch:campaign_feed' %}"
-               style="margin-right: 1rem"
-               title="RSS feed for all campaigns">RSS feed for campaigns</a>
-            &nbsp;|&nbsp;
+               title="RSS feed for all campaigns">[rss - all campaigns]</a>
             <a href="{% url 'twitch:campaign_feed_atom' %}"
-               title="Atom feed for campaigns">Atom feed for campaigns</a>
+               title="Atom feed for campaigns">[atom - all campaigns]</a>
         </div>
         {% if campaigns_by_game %}
             {% for game_id, game_data in campaigns_by_game.items %}

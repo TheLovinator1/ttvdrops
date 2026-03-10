@@ -21,14 +21,6 @@
         {{ game.display_name }}
         {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
     </h1>
-    <!-- RSS Feeds -->
-    <div>
-        <a href="{% url 'twitch:game_campaign_feed' game.twitch_id %}"
-           title="RSS feed for {{ game.display_name }} campaigns">RSS feed for {{ game.display_name }} campaigns</a>
-        &nbsp;|&nbsp;
-        <a href="{% url 'twitch:game_campaign_feed_atom' game.twitch_id %}"
-           title="Atom feed for {{ game.display_name }} campaigns">Atom feed for {{ game.display_name }} campaigns</a>
-    </div>
     <!-- Game image -->
     {% if game.box_art_best_url %}
         {% picture game.box_art_best_url alt=game.name width=160 %}
@@ -43,6 +35,13 @@
             {% endfor %}
         </small>
     {% endif %}
+    <!-- RSS Feeds -->
+    <div>
+        <a href="{% url 'twitch:game_campaign_feed' game.twitch_id %}"
+           title="RSS feed for {{ game.display_name }} campaigns">[rss - {{ game.display_name|default:game.name|lower }}]</a>
+        <a href="{% url 'twitch:game_campaign_feed_atom' game.twitch_id %}"
+           title="Atom feed for {{ game.display_name }} campaigns">[atom - {{ game.display_name|default:game.name|lower }}]</a>
+    </div>
     {% if active_campaigns %}
         <h5 id="active-campaigns-header">Active Campaigns</h5>
         <table id="active-campaigns-table">

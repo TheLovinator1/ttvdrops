@@ -3,26 +3,21 @@
     Organizations
 {% endblock title %}
 {% block content %}
-    <h1 id="page-title">Organizations</h1>
-    <!-- RSS Feeds -->
-    <div style="margin-bottom: 1rem;">
+    <h1>Organizations</h1>
+    <div>
         <a href="{% url 'twitch:organization_feed' %}"
-           style="margin-right: 1rem"
-           title="RSS feed for all organizations">RSS feed for organizations</a>
+           title="RSS feed for all organizations">[rss]</a>
         <a href="{% url 'twitch:organization_feed_atom' %}"
            title="Atom feed for all organizations">[atom]</a>
-    </div>
-    <!-- Export Options -->
-    <div style="margin-bottom: 1rem; display: flex; gap: 1rem;">
         <a href="{% url 'twitch:export_organizations_csv' %}"
            title="Export all organizations as CSV">[csv]</a>
         <a href="{% url 'twitch:export_organizations_json' %}"
            title="Export all organizations as JSON">[json]</a>
     </div>
     {% if orgs %}
-        <ul id="org-list">
+        <ul>
             {% for organization in orgs %}
-                <li id="org-{{ organization.twitch_id }}">
+                <li>
                     <a href="{% url 'twitch:organization_detail' organization.twitch_id %}">{{ organization.name }}</a>
                 </li>
             {% endfor %}

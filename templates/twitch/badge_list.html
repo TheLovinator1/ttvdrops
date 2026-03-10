@@ -8,26 +8,26 @@
     {% if badge_sets %}
         {% for data in badge_data %}
             <h2>
-                <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">[{{ data.set.set_id }}]</a>
+                <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">{{ data.set.set_id }}</a>
             </h2>
-            {% for badge in data.badges %}
-                <table>
+            <table>
+                {% for badge in data.badges %}
                     <tr>
                         <td style="width: 40px;">
                             <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">
-                                {% picture badge.image_url_4x alt=badge.title width=36 height=36 %}
+                                {% picture badge.image_url_4x alt=badge.title width=36 %}
                             </a>
                         </td>
                         <td>
                             <strong>{{ badge.title }}</strong>
                             {% if badge.description != badge.title %}
-                                <br>
+                                <br />
                                 {{ badge.description }}
                             {% endif %}
                         </td>
                     </tr>
-                </table>
-            {% endfor %}
+                {% endfor %}
+            </table>
             <br />
             {% if data.badges|length > 1 %}<small>versions: {{ data.badges|length }}</small>{% endif %}
         {% endfor %}

@@ -6,25 +6,7 @@
 {% block content %}
     <h1>{{ badge_set.set_id }}</h1>
     {% if badges %}
-        <h2>
-            {{ badges.count }}
-            {% if badges.count == 1 %}
-                version
-            {% else %}
-                versions
-            {% endif %}
-        </h2>
         <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th></th>
-                    <th>Title</th>
-                    <th>Description</th>
-                    <th>Images</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
             <tbody>
                 {% for badge in badges %}
                     <tr>
@@ -32,7 +14,7 @@
                             <code>{{ badge.badge_id }}</code>
                         </td>
                         <td>
-                            {% picture badge.image_url_4x alt=badge.title width=72 height=72 style="width: 72px !important; height: 72px !important; object-fit: contain" %}
+                            {% picture badge.image_url_4x alt=badge.title width=72 style="width: 72px !important; height: 72px !important; object-fit: contain" %}
                         </td>
                         <td>{{ badge.title }}</td>
                         <td>{{ badge.description }}</td>
