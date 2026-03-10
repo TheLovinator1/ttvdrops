@@ -17,12 +17,14 @@ from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
 from django.core.serializers import serialize
 from django.db import connection
+from django.db.models import Case
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
 from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import Q
+from django.db.models import When
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
 from django.http import FileResponse
@@ -64,9 +66,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from debug_toolbar.utils import QueryDict
-    from django.db.models.query import QuerySet
+    from django.db.models import QuerySet
     from django.http import HttpRequest
-
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
@@ -2234,7 +2235,31 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         msg = "No badge set found matching the query"
         raise Http404(msg) from exc
 
-    badges: QuerySet[ChatBadge] = badge_set.badges.all()  # pyright: ignore[reportAttributeAccessIssue]
+    def get_sorted_badges(badge_set: ChatBadgeSet) -> QuerySet[ChatBadge]:
+        badges = badge_set.badges.all()  # pyright: ignore[reportAttributeAccessIssue]
+
+        def sort_badges(badge: ChatBadge) -> tuple:
+            """Sort badges by badge_id, treating numeric IDs as integers.
+
+            Args:
+                badge: The ChatBadge to sort.
+
+            Returns:
+                A tuple used for sorting, where numeric badge_ids are sorted as integers.
+            """
+            try:
+                return (int(badge.badge_id),)
+            except ValueError:
+                return (badge.badge_id,)
+
+        sorted_badges: list[ChatBadge] = sorted(badges, key=sort_badges)
+        badge_ids: list[int] = [badge.pk for badge in sorted_badges]
+        preserved_order = Case(
+            *[When(pk=pk, then=pos) for pos, pk in enumerate(badge_ids)],
+        )
+        return ChatBadge.objects.filter(pk__in=badge_ids).order_by(preserved_order)
+
+    badges = get_sorted_badges(badge_set)
 
     # Attach award_campaigns attribute to each badge for template use
     for badge in badges:
@@ -2255,7 +2280,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     )
     set_data: list[dict[str, Any]] = json.loads(serialized_set)
 
-    if badges.exists():
+    if badges:
         serialized_badges: str = serialize(
             "json",
             badges,
@@ -2276,7 +2301,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         set_data[0]["fields"]["badges"] = badges_data
 
     badge_set_name: str = badge_set.set_id
-    badge_set_description: str = f"Twitch chat badge set {badge_set_name} with {badges.count()} badge{'s' if badges.count() != 1 else ''} awarded through drop campaigns."
+    badge_set_description: str = f"Twitch chat badge set {badge_set_name} with {len(badges)} badge{'s' if len(badges) != 1 else ''} awarded through drop campaigns."
 
     badge_schema: dict[str, Any] = {
         "@context": "https://schema.org",
