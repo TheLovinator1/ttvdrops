@@ -162,12 +162,11 @@ def _build_channels_html(
     if channels_all:
         items: list[SafeString] = [
             format_html(
-                '<li><a href="https://twitch.tv/{}" title="Watch {} on Twitch">{}</a></li>',
-                ch.name,
-                ch.display_name,
-                ch.display_name,
+                '<li><a href="https://twitch.tv/{}">{}</a></li>',
+                channel.name,
+                channel.display_name,
             )
-            for ch in channels_all[:max_links]
+            for channel in channels_all[:max_links]
         ]
         if total > max_links:
             items.append(format_html("<li>... and {} more</li>", total - max_links))
@@ -191,10 +190,8 @@ def _build_channels_html(
             "Game %s has no Twitch directory URL for channel fallback link",
             game,
         )
-        if (
-            getattr(game, "details_url", "")
-            == "https://help.twitch.tv/s/article/twitch-chat-badges-guide "
-        ):
+
+        if "twitch-chat-badges-guide" in getattr(game, "details_url", ""):
             # TODO(TheLovinator): Improve detection of global emotes  # noqa: TD003
             return format_html("{}", "<ul><li>Global Twitch Emote?</li></ul>")
 
@@ -273,7 +270,7 @@ def _construct_drops_summary(
                 linked_name: SafeString = format_html(
                     '<a href="https://twitch.tv/{}" >{}</a>',
                     channel_name,
-                    benefit_name,
+                    channel_name,
                 )
                 if badge_desc:
                     benefit_names.append((
@@ -759,10 +756,6 @@ class GameCampaignFeed(Feed):
                 ),
             )
 
-        desc_text: str | None = getattr(item, "description", None)
-        if desc_text:
-            parts.append(format_html("<p>{}</p>", desc_text))
-
         # Insert start and end date info
         insert_date_info(item, parts)
 
@@ -782,12 +775,6 @@ class GameCampaignFeed(Feed):
         details_url: str | None = getattr(item, "details_url", None)
         if details_url:
             parts.append(format_html('<a href="{}">About</a>', details_url))
-
-        account_link_url: str | None = getattr(item, "account_link_url", None)
-        if account_link_url:
-            parts.append(
-                format_html(' | <a href="{}">Link Account</a>', account_link_url),
-            )
 
         return SafeText("".join(str(p) for p in parts))
 
