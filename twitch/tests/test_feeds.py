@@ -1,5 +1,6 @@
 """Test RSS feeds."""
 
+import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import timedelta
@@ -25,6 +26,8 @@ from twitch.models import Organization
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
+logger: logging.Logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
 
@@ -40,6 +43,8 @@ class RSSFeedTestCase(TestCase):
             twitch_id="test-org-123",
             name="Test Organization",
         )
+        self.org.save()
+
         self.game: Game = Game.objects.create(
             twitch_id="test-game-123",
             slug="test-game",
@@ -59,12 +64,14 @@ class RSSFeedTestCase(TestCase):
         # populate the new enclosure metadata fields so feeds can return them
         self.game.box_art_size_bytes = 42
         self.game.box_art_mime_type = "image/png"
+
         # provide a URL so that the RSS enclosure element is emitted
         self.game.box_art = "https://example.com/box.png"
         self.game.save()
 
         self.campaign.image_size_bytes = 314
         self.campaign.image_mime_type = "image/gif"
+
         # feed will only include an enclosure if there is some image URL/field
         self.campaign.image_url = "https://example.com/campaign.png"
         self.campaign.save()
