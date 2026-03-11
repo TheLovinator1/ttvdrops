@@ -29,6 +29,8 @@ from twitch.models import TimeBasedDrop
 logger: logging.Logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    import datetime
+
     from django.test.client import _MonkeyPatchedWSGIResponse
 
     from twitch.tests.test_badge_views import Client
@@ -146,6 +148,35 @@ class RSSFeedTestCase(TestCase):
         assert 'length="314"' in content
         assert 'type="image/gif"' in content
 
+    def test_campaign_feed_only_includes_active_campaigns(self) -> None:
+        """Campaign feed should exclude past and upcoming campaigns."""
+        now: datetime.datetime = timezone.now()
+        DropCampaign.objects.create(
+            twitch_id="past-campaign-123",
+            name="Past Campaign",
+            game=self.game,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=1),
+            operation_names=["DropCampaignDetails"],
+        )
+        DropCampaign.objects.create(
+            twitch_id="upcoming-campaign-123",
+            name="Upcoming Campaign",
+            game=self.game,
+            start_at=now + timedelta(days=1),
+            end_at=now + timedelta(days=10),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        url: str = reverse("twitch:campaign_feed")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        assert "Test Campaign" in content
+        assert "Past Campaign" not in content
+        assert "Upcoming Campaign" not in content
+
     def test_campaign_feed_enclosure_helpers(self) -> None:
         """Helper methods for campaigns should respect new fields."""
         feed = DropCampaignFeed()
@@ -227,6 +258,90 @@ class RSSFeedTestCase(TestCase):
         # enclosure metadata also should appear here
         assert 'length="314"' in content
         assert 'type="image/gif"' in content
+
+    def test_game_campaign_feed_only_includes_active_campaigns(self) -> None:
+        """Game campaign feed should exclude old and upcoming campaigns."""
+        now: datetime.datetime = timezone.now()
+        DropCampaign.objects.create(
+            twitch_id="game-past-campaign-123",
+            name="Game Past Campaign",
+            game=self.game,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=1),
+            operation_names=["DropCampaignDetails"],
+        )
+        DropCampaign.objects.create(
+            twitch_id="game-upcoming-campaign-123",
+            name="Game Upcoming Campaign",
+            game=self.game,
+            start_at=now + timedelta(days=1),
+            end_at=now + timedelta(days=10),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        url: str = reverse("twitch:game_campaign_feed", args=[self.game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        assert "Test Campaign" in content
+        assert "Game Past Campaign" not in content
+        assert "Game Upcoming Campaign" not in content
+
+    def test_reward_campaign_feed_only_includes_active_campaigns(self) -> None:
+        """Reward campaign feed should exclude old and upcoming campaigns."""
+        now: datetime.datetime = timezone.now()
+        RewardCampaign.objects.create(
+            twitch_id="active-reward-123",
+            name="Active Reward Campaign",
+            brand="Test Brand",
+            starts_at=now - timedelta(days=1),
+            ends_at=now + timedelta(days=1),
+            status="ACTIVE",
+            summary="Active reward",
+            instructions="Do things",
+            external_url="https://example.com/active-reward",
+            about_url="https://example.com/about-active-reward",
+            is_sitewide=False,
+            game=self.game,
+        )
+        RewardCampaign.objects.create(
+            twitch_id="past-reward-123",
+            name="Past Reward Campaign",
+            brand="Test Brand",
+            starts_at=now - timedelta(days=10),
+            ends_at=now - timedelta(days=1),
+            status="EXPIRED",
+            summary="Past reward",
+            instructions="Was active",
+            external_url="https://example.com/past-reward",
+            about_url="https://example.com/about-past-reward",
+            is_sitewide=False,
+            game=self.game,
+        )
+        RewardCampaign.objects.create(
+            twitch_id="upcoming-reward-123",
+            name="Upcoming Reward Campaign",
+            brand="Test Brand",
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=10),
+            status="UPCOMING",
+            summary="Upcoming reward",
+            instructions="Wait",
+            external_url="https://example.com/upcoming-reward",
+            about_url="https://example.com/about-upcoming-reward",
+            is_sitewide=False,
+            game=self.game,
+        )
+
+        url: str = reverse("twitch:reward_campaign_feed")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        assert "Active Reward Campaign" in content
+        assert "Past Reward Campaign" not in content
+        assert "Upcoming Reward Campaign" not in content
 
     def test_game_campaign_feed_enclosure_helpers(self) -> None:
         """GameCampaignFeed helper methods should pull from the model fields."""

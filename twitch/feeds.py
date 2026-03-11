@@ -58,6 +58,28 @@ def _with_campaign_related(queryset: QuerySet[DropCampaign]) -> QuerySet[DropCam
     )
 
 
+def _active_drop_campaigns(queryset: QuerySet[DropCampaign]) -> QuerySet[DropCampaign]:
+    """Filter a campaign queryset down to campaigns active right now.
+
+    Returns:
+        QuerySet[DropCampaign]: Queryset with only active drop campaigns.
+    """
+    now: datetime.datetime = timezone.now()
+    return queryset.filter(start_at__lte=now, end_at__gte=now)
+
+
+def _active_reward_campaigns(
+    queryset: QuerySet[RewardCampaign],
+) -> QuerySet[RewardCampaign]:
+    """Filter a reward campaign queryset down to campaigns active right now.
+
+    Returns:
+        QuerySet[RewardCampaign]: Queryset with only active reward campaigns.
+    """
+    now: datetime.datetime = timezone.now()
+    return queryset.filter(starts_at__lte=now, ends_at__gte=now)
+
+
 def genereate_details_link_html(item: DropCampaign) -> list[SafeText]:
     """Helper method to append a details link to the description if available.
 
@@ -733,7 +755,9 @@ class DropCampaignFeed(Feed):
     def items(self) -> list[DropCampaign]:
         """Return the latest drop campaigns ordered by most recent start date (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
-        queryset: QuerySet[DropCampaign] = DropCampaign.objects.order_by("-start_at")
+        queryset: QuerySet[DropCampaign] = _active_drop_campaigns(
+            DropCampaign.objects.order_by("-start_at"),
+        )
         return list(_with_campaign_related(queryset)[:limit])
 
     def item_title(self, item: DropCampaign) -> SafeText:
@@ -859,9 +883,11 @@ class GameCampaignFeed(Feed):
     def items(self, obj: Game) -> list[DropCampaign]:
         """Return the latest drop campaigns for this game, ordered by most recent start date (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
-        queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(
-            game=obj,
-        ).order_by("-start_at")
+        queryset: QuerySet[DropCampaign] = _active_drop_campaigns(
+            DropCampaign.objects.filter(
+                game=obj,
+            ).order_by("-start_at"),
+        )
         return list(_with_campaign_related(queryset)[:limit])
 
     def item_title(self, item: DropCampaign) -> SafeText:
@@ -963,8 +989,11 @@ class RewardCampaignFeed(Feed):
     def items(self) -> list[RewardCampaign]:
         """Return the latest reward campaigns (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
+        queryset: QuerySet[RewardCampaign] = _active_reward_campaigns(
+            RewardCampaign.objects.select_related("game").order_by("-added_at"),
+        )
         return list(
-            RewardCampaign.objects.select_related("game").order_by("-added_at")[:limit],
+            queryset[:limit],
         )
 
     def item_title(self, item: RewardCampaign) -> SafeText:
