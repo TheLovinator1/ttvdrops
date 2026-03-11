@@ -599,6 +599,14 @@ class DropCampaign(auto_prefetch.Model):
         """Return the campaign image URL for RSS enclosures."""
         return self.image_best_url
 
+    @property
+    def sorted_benefits(self) -> list[DropBenefit]:
+        """Return a sorted list of benefits for the campaign."""
+        benefits: list[DropBenefit] = []
+        for drop in self.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
+            benefits.extend(drop.benefits.all())  # pyright: ignore[reportAttributeAccessIssue]
+        return sorted(benefits, key=lambda benefit: benefit.name)
+
 
 # MARK: DropBenefit
 class DropBenefit(auto_prefetch.Model):

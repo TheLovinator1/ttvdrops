@@ -290,23 +290,29 @@ def search_view(request: HttpRequest) -> HttpResponse:
             results["games"] = Game.objects.filter(
                 Q(name__istartswith=query) | Q(display_name__istartswith=query),
             )
+
             results["campaigns"] = DropCampaign.objects.filter(
                 Q(name__istartswith=query) | Q(description__icontains=query),
             ).select_related("game")
+
             results["drops"] = TimeBasedDrop.objects.filter(
                 name__istartswith=query,
             ).select_related("campaign")
+
             results["benefits"] = DropBenefit.objects.filter(
                 name__istartswith=query,
             ).prefetch_related("drops__campaign")
+
             results["reward_campaigns"] = RewardCampaign.objects.filter(
                 Q(name__istartswith=query)
                 | Q(brand__istartswith=query)
                 | Q(summary__icontains=query),
             ).select_related("game")
+
             results["badge_sets"] = ChatBadgeSet.objects.filter(
                 set_id__istartswith=query,
             )
+
             results["badges"] = ChatBadge.objects.filter(
                 Q(title__istartswith=query) | Q(description__icontains=query),
             ).select_related("badge_set")
@@ -317,20 +323,25 @@ def search_view(request: HttpRequest) -> HttpResponse:
             results["games"] = Game.objects.filter(
                 Q(name__icontains=query) | Q(display_name__icontains=query),
             )
+
             results["campaigns"] = DropCampaign.objects.filter(
                 Q(name__icontains=query) | Q(description__icontains=query),
             ).select_related("game")
+
             results["drops"] = TimeBasedDrop.objects.filter(
                 name__icontains=query,
             ).select_related("campaign")
+
             results["benefits"] = DropBenefit.objects.filter(
                 name__icontains=query,
             ).prefetch_related("drops__campaign")
+
             results["reward_campaigns"] = RewardCampaign.objects.filter(
                 Q(name__icontains=query)
                 | Q(brand__icontains=query)
                 | Q(summary__icontains=query),
             ).select_related("game")
+
             results["badge_sets"] = ChatBadgeSet.objects.filter(set_id__icontains=query)
             results["badges"] = ChatBadge.objects.filter(
                 Q(title__icontains=query) | Q(description__icontains=query),
@@ -1127,42 +1138,13 @@ class GameDetailView(DetailView):
                 either end date or status.
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
-        game: Game = self.get_object()  # pyright: ignore[reportAssignmentType]
+        game: Game = self.object  # pyright: ignore[reportAssignmentType]
 
         now: datetime.datetime = timezone.now()
-        # For each drop, find awarded badge (distribution_type BADGE)
-        drop_awarded_badges: dict[str, ChatBadge] = {}
-        drops: QuerySet[TimeBasedDrop, TimeBasedDrop] = TimeBasedDrop.objects.filter(
-            campaign__game=game,
-        ).prefetch_related("benefits")
-
-        # Materialize drops so we can iterate multiple times without extra DB hits
-        drops_list: list[TimeBasedDrop] = list(drops)
-
-        # Collect all benefit names that award badges
-        benefit_badge_titles: set[str] = set()
-        for drop in drops_list:
-            for benefit in drop.benefits.all():
-                if benefit.distribution_type == "BADGE" and benefit.name:
-                    benefit_badge_titles.add(benefit.name)
-
-        # Bulk-load all matching ChatBadge instances to avoid N+1 queries
-        badges_by_title: dict[str, ChatBadge] = {
-            badge.title: badge
-            for badge in ChatBadge.objects.filter(title__in=benefit_badge_titles)
-        }
-
-        for drop in drops_list:
-            for benefit in drop.benefits.all():
-                if benefit.distribution_type == "BADGE":
-                    badge: ChatBadge | None = badges_by_title.get(benefit.name)
-                    if badge:
-                        drop_awarded_badges[drop.twitch_id] = badge
-
         all_campaigns: QuerySet[DropCampaign] = (
             DropCampaign.objects
             .filter(game=game)
-            .prefetch_related("game__owners")
+            .select_related("game")
             .prefetch_related(
                 Prefetch(
                     "time_based_drops",
@@ -1177,9 +1159,34 @@ class GameDetailView(DetailView):
             .order_by("-end_at")
         )
 
+        campaigns_list: list[DropCampaign] = list(all_campaigns)
+
+        # For each drop, find awarded badge (distribution_type BADGE)
+        drop_awarded_badges: dict[str, ChatBadge] = {}
+        benefit_badge_titles: set[str] = set()
+        for campaign in campaigns_list:
+            for drop in campaign.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
+                for benefit in drop.benefits.all():
+                    if benefit.distribution_type == "BADGE" and benefit.name:
+                        benefit_badge_titles.add(benefit.name)
+
+        # Bulk-load all matching ChatBadge instances to avoid N+1 queries
+        badges_by_title: dict[str, ChatBadge] = {
+            badge.title: badge
+            for badge in ChatBadge.objects.filter(title__in=benefit_badge_titles)
+        }
+
+        for campaign in campaigns_list:
+            for drop in campaign.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
+                for benefit in drop.benefits.all():
+                    if benefit.distribution_type == "BADGE":
+                        badge: ChatBadge | None = badges_by_title.get(benefit.name)
+                        if badge:
+                            drop_awarded_badges[drop.twitch_id] = badge
+
         active_campaigns: list[DropCampaign] = [
             campaign
-            for campaign in all_campaigns
+            for campaign in campaigns_list
             if campaign.start_at is not None
             and campaign.start_at <= now
             and campaign.end_at is not None
@@ -1195,7 +1202,7 @@ class GameDetailView(DetailView):
 
         upcoming_campaigns: list[DropCampaign] = [
             campaign
-            for campaign in all_campaigns
+            for campaign in campaigns_list
             if campaign.start_at is not None and campaign.start_at > now
         ]
 
@@ -1209,7 +1216,7 @@ class GameDetailView(DetailView):
 
         expired_campaigns: list[DropCampaign] = [
             campaign
-            for campaign in all_campaigns
+            for campaign in campaigns_list
             if campaign.end_at is not None and campaign.end_at < now
         ]
 
@@ -1229,10 +1236,10 @@ class GameDetailView(DetailView):
         )
         game_data: list[dict[str, Any]] = json.loads(serialized_game)
 
-        if all_campaigns.exists():
+        if campaigns_list:
             serialized_campaigns = serialize(
                 "json",
-                all_campaigns,
+                campaigns_list,
                 fields=(
                     "twitch_id",
                     "name",
@@ -2028,13 +2035,13 @@ class ChannelDetailView(DetailView):
             dict: Context data with active, upcoming, and expired campaigns.
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
-        channel: Channel = self.get_object()  # pyright: ignore[reportAssignmentType]
+        channel: Channel = self.object  # pyright: ignore[reportAssignmentType]
 
         now: datetime.datetime = timezone.now()
         all_campaigns: QuerySet[DropCampaign] = (
             DropCampaign.objects
             .filter(allow_channels=channel)
-            .prefetch_related("game__owners")
+            .select_related("game")
             .prefetch_related(
                 Prefetch(
                     "time_based_drops",
@@ -2049,9 +2056,11 @@ class ChannelDetailView(DetailView):
             .order_by("-start_at")
         )
 
+        campaigns_list: list[DropCampaign] = list(all_campaigns)
+
         active_campaigns: list[DropCampaign] = [
             campaign
-            for campaign in all_campaigns
+            for campaign in campaigns_list
             if campaign.start_at is not None
             and campaign.start_at <= now
             and campaign.end_at is not None
@@ -2067,7 +2076,7 @@ class ChannelDetailView(DetailView):
 
         upcoming_campaigns: list[DropCampaign] = [
             campaign
-            for campaign in all_campaigns
+            for campaign in campaigns_list
             if campaign.start_at is not None and campaign.start_at > now
         ]
         upcoming_campaigns.sort(
@@ -2080,7 +2089,7 @@ class ChannelDetailView(DetailView):
 
         expired_campaigns: list[DropCampaign] = [
             campaign
-            for campaign in all_campaigns
+            for campaign in campaigns_list
             if campaign.end_at is not None and campaign.end_at < now
         ]
 
@@ -2091,10 +2100,10 @@ class ChannelDetailView(DetailView):
         )
         channel_data: list[dict[str, Any]] = json.loads(serialized_channel)
 
-        if all_campaigns.exists():
+        if campaigns_list:
             serialized_campaigns: str = serialize(
                 "json",
-                all_campaigns,
+                campaigns_list,
                 fields=(
                     "twitch_id",
                     "name",
@@ -2112,7 +2121,7 @@ class ChannelDetailView(DetailView):
             channel_data[0]["fields"]["campaigns"] = campaigns_data
 
         name: str = channel.display_name or channel.name or channel.twitch_id
-        total_campaigns: int = len(all_campaigns)
+        total_campaigns: int = len(campaigns_list)
         description: str = f"{name} participates in {total_campaigns} drop campaign"
         if total_campaigns > 1:
             description += "s"

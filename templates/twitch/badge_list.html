@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 {% load image_tags %}
 {% block title %}
-    Chat Badges - ttvdrops
+    Chat Badges
 {% endblock title %}
 {% block content %}
     <h1>{{ badge_sets.count }} Twitch Chat Badges</h1>
     {% if badge_sets %}
         {% for data in badge_data %}
+            <!-- {{ data.set.set_id }} - {{ data.badges|length }} version{% if data.badges|length > 1 %}s{% endif %} -->
             <h2>
                 <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">{{ data.set.set_id }}</a>
             </h2>
             <table>
                 {% for badge in data.badges %}
+                    <!-- {{ badge.title }} {% if badge.description != badge.title %}- {{ badge.description }}{% else %}{% endif %} -->
                     <tr>
                         <td style="width: 40px;">
                             <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">

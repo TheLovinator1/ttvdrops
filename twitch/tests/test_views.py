@@ -503,7 +503,7 @@ class TestChannelListView:
         )
         game.owners.add(org1, org2)
 
-        campaign: DropCampaign = DropCampaign.objects.create(
+        _campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="camp1",
             name="Campaign",
             game=game,
@@ -519,13 +519,10 @@ class TestChannelListView:
         if isinstance(context, list):
             context = context[-1]
 
+        # campaigns_by_game should include one deduplicated campaign entry for the game.
         assert "campaigns_by_game" in context
         assert game.twitch_id in context["campaigns_by_game"]
         assert len(context["campaigns_by_game"][game.twitch_id]["campaigns"]) == 1
-
-        # Template renders each campaign with a stable id, so we can assert it appears once.
-        html = response.content.decode("utf-8")
-        assert html.count(f"campaign-article-{campaign.twitch_id}") == 1
 
     @pytest.mark.django_db
     def test_debug_view(self, client: Client) -> None:

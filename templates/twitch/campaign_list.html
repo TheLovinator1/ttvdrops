@@ -3,7 +3,7 @@
 {% load image_tags %}
 {% load image_tags %}
 {% block title %}
-    Drop Campaigns - Twitch Drops Tracker
+    Drop Campaigns
 {% endblock title %}
 {% block extra_head %}
     <link rel="alternate"
@@ -41,6 +41,7 @@
                     <select name="game">
                         <option value="">All Games</option>
                         {% for game in games %}
+                            <!-- Game option with Twitch ID {{ game.twitch_id }} and display name "{{ game.display_name }}" -->
                             <option value="{{ game.twitch_id }}"
                                     {% if selected_game == game.twitch_id %}selected{% endif %}>
                                 {{ game.display_name|default:game.name|default:game.slug|default:game.twitch_id }}
@@ -51,6 +52,7 @@
                     <select id="status" name="status">
                         <option value="">All Statuses</option>
                         {% for status in status_options %}
+                            <!-- Status option "{{ status }}" -->
                             <option value="{{ status }}"
                                     {% if selected_status == status %}selected{% endif %}>{{ status|title }}</option>
                         {% endfor %}
@@ -63,6 +65,7 @@
         {% if campaigns %}
             {% regroup campaigns by game as campaigns_by_game %}
             {% for game_group in campaigns_by_game %}
+                <!-- Game group for game "{{ game_group.grouper.display_name }}" with {{ game_group.list|length }} campaigns -->
                 <section>
                     <div style="display: flex; gap: 1rem;">
                         <div>
@@ -99,6 +102,9 @@
                             <div style="overflow-x: auto;">
                                 <div style="display: flex; gap: 1rem; min-width: max-content;">
                                     {% for campaign in game_group.list %}
+                                        <!-- Campaign "{{ campaign.clean_name }}" with Twitch ID {{ campaign.twitch_id }} -->
+                                        <!-- https://ttvdrops.lovinator.space{% url 'twitch:campaign_detail' campaign.twitch_id %} -->
+                                        <!-- https://ttvdrops.lovinator.space{{ campaign.image_best_url }} -->
                                         <article style="display: flex;
                                                         flex-direction: column;
                                                         align-items: flex-start;
@@ -108,7 +114,7 @@
                                                 <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}"
                                                    style="text-decoration: none">
                                                     {% if campaign.image_best_url %}
-                                                        {% picture campaign.image_best_url alt="Campaign artwork for "|add:campaign.name width=120 height=120 style="border-radius: 4px" %}
+                                                        {% picture campaign.image_best_url alt="Campaign artwork for "|add:campaign.name width=120 %}
                                                     {% endif %}
                                                     <h4 style="margin: 0.5rem 0; text-align: left">{{ campaign.clean_name }}</h4>
                                                 </a>
@@ -153,61 +159,34 @@
         {% endif %}
         <!-- Pagination -->
         {% if is_paginated %}
-            <nav style="margin-top: 3rem; text-align: center;">
-                <div style="display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            gap: 0.5rem;
-                            flex-wrap: wrap">
+            <!-- {{ page_obj.paginator.count }} total campaigns, showing {{ page_obj.start_index }} to {{ page_obj.end_index }} on page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} -->
+            <nav style="text-align: center;">
+                <div>
                     {% if page_obj.has_previous %}
-                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page=1"
-                           style="padding: 0.5rem 1rem;
-                                  border: 1px solid;
-                                  border-radius: 4px;
-                                  text-decoration: none">[first]</a>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page=1">[first]</a>
                         <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                           style="padding: 0.5rem 1rem;
-                                  border: 1px solid;
-                                  border-radius: 4px;
-                                  text-decoration: none"
                            aria-label="Previous">[previous]</a>
                     {% else %}
-                        <span style="padding: 0.5rem 1rem;">[first]</span>
-                        <span style="padding: 0.5rem 1rem;">[previous]</span>
+                        <span>[first]</span>
+                        <span>[previous]</span>
                     {% endif %}
                     {% for num in page_obj.paginator.page_range %}
                         {% if page_obj.number == num %}
-                            <span style="padding: 0.5rem 1rem; border-radius: 4px; font-weight: 600">{{ num }}</span>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}"
-                               style="padding: 0.5rem 1rem;
-                                      border: 1px solid;
-                                      border-radius: 4px;
-                                      text-decoration: none">{{ num }}</a>
+                            <span>{{ num }}</span>
+                        {% elif num > page_obj.number|add:'-10' and num < page_obj.number|add:'10' %}
+                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
                         {% elif num == 1 or num == page_obj.paginator.num_pages %}
-                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}"
-                               style="padding: 0.5rem 1rem;
-                                      border: 1px solid;
-                                      border-radius: 4px;
-                                      text-decoration: none">{{ num }}</a>
-                        {% elif num == page_obj.number|add:'-4' or num == page_obj.number|add:'4' %}
-                            <span style="padding: 0.5rem 1rem;">...</span>
+                            <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ num }}">{{ num }}</a>
+                        {% elif num == page_obj.number|add:'-10' or num == page_obj.number|add:'10' %}
+                            <span>...</span>
                         {% endif %}
                     {% endfor %}
                     {% if page_obj.has_next %}
-                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.next_page_number }}"
-                           style="padding: 0.5rem 1rem;
-                                  border: 1px solid;
-                                  border-radius: 4px;
-                                  text-decoration: none">[next]</a>
-                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
-                           style="padding: 0.5rem 1rem;
-                                  border: 1px solid;
-                                  border-radius: 4px;
-                                  text-decoration: none">[last]</a>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.next_page_number }}">[next]</a>
+                        <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_per_page != 100 %}per_page={{ selected_per_page }}&{% endif %}page={{ page_obj.paginator.num_pages }}">[last]</a>
                     {% else %}
-                        <span style="padding: 0.5rem 1rem;">[next]</span>
-                        <span style="padding: 0.5rem 1rem;">[last]</span>
+                        <span>[next]</span>
+                        <span>[last]</span>
                     {% endif %}
                 </div>
                 <small style="display: block; margin-top: 1rem;">

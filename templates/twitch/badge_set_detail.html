@@ -9,6 +9,7 @@
         <table>
             <tbody>
                 {% for badge in badges %}
+                    <!-- {{ badge.title }} {% if badge.description != badge.title %}- {{ badge.description }}{% else %}{% endif %} -->
                     <tr>
                         <td>
                             <code>{{ badge.badge_id }}</code>
@@ -24,18 +25,16 @@
                             <a href="{{ badge.image_url_4x }}" rel="nofollow ugc">[72px]</a>
                         </td>
                         <td>
-                            {% if badge.click_url %}
-                                <a href="{{ badge.click_url }}" rel="nofollow ugc">{{ badge.click_action }}</a>
-                            {% else %}
-                                -
-                            {% endif %}
+                            {% if badge.click_url %}<a href="{{ badge.click_url }}" rel="nofollow ugc">{{ badge.click_action }}</a>{% endif %}
                         </td>
                     </tr>
                     {% if badge.award_campaigns %}
+                        <!-- If there are campaigns awarding this badge, show them in a nested row -->
                         <div>
                             The following campaigns have the same name as this badge and may be awarding it:
                             <ul>
                                 {% for campaign in badge.award_campaigns %}
+                                    <!-- Note: We can't be sure if these campaigns are actually awarding this badge, but it's likely given the name match. -->
                                     <li>
                                         <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                                     </li>
