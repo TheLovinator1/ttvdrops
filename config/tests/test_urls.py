@@ -34,7 +34,6 @@ def _reload_urls_with(**overrides) -> ModuleType:
 def test_top_level_named_routes_available() -> None:
     """Top-level routes defined in `config.urls` are reversible."""
     assert reverse("sitemap") == "/sitemap.xml"
-    assert reverse("robots") == "/robots.txt"
     # ensure the included `twitch` namespace is present
     assert reverse("twitch:dashboard") == "/"
 

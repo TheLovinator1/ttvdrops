@@ -12,8 +12,7 @@ if TYPE_CHECKING:
     from django.urls.resolvers import URLResolver
 
 urlpatterns: list[URLPattern | URLResolver] = [
-    path("sitemap.xml", twitch_views.sitemap_view, name="sitemap"),
-    path("robots.txt", twitch_views.robots_txt_view, name="robots"),
+    path(route="sitemap.xml", view=twitch_views.sitemap_view, name="sitemap"),
     path(route="", view=include("twitch.urls", namespace="twitch")),
 ]
 

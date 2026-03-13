@@ -2753,30 +2753,3 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0915
     xml_content += "</urlset>"
 
     return HttpResponse(xml_content, content_type="application/xml")
-
-
-# MARK: /robots.txt
-def robots_txt_view(request: HttpRequest) -> HttpResponse:
-    """Generate robots.txt for search engine crawlers.
-
-    Args:
-        request: The HTTP request.
-
-    Returns:
-        HttpResponse: robots.txt content.
-    """
-    base_url: str = f"{request.scheme}://{request.get_host()}"
-
-    robots_content: str = f"""User-agent: *
-Allow: /
-Disallow: /admin/
-Disallow: /debug/
-Disallow: /datasets/
-Disallow: /docs/rss/
-Disallow: /export/
-
-# Sitemap location
-Sitemap: {base_url}/sitemap.xml
-"""
-
-    return HttpResponse(robots_content, content_type="text/plain")

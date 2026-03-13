@@ -1453,60 +1453,6 @@ class TestSitemapView:
 
 
 @pytest.mark.django_db
-class TestRobotsTxtView:
-    """Tests for the robots.txt view."""
-
-    def test_robots_txt_returns_text(self, client: Client) -> None:
-        """Test robots.txt view returns text content."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        assert response.status_code == 200
-        assert response["Content-Type"] in {"text/plain", "text/plain; charset=utf-8"}
-
-    def test_robots_txt_user_agent(self, client: Client) -> None:
-        """Test robots.txt contains user-agent."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        content: str = response.content.decode()
-        assert "User-agent: *" in content
-
-    def test_robots_txt_allow_root(self, client: Client) -> None:
-        """Test robots.txt allows root path."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        content: str = response.content.decode()
-        assert "Allow: /" in content
-
-    def test_robots_txt_disallow_admin(self, client: Client) -> None:
-        """Test robots.txt disallows /admin/."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        content: str = response.content.decode()
-        assert "Disallow: /admin/" in content
-
-    def test_robots_txt_disallow_debug(self, client: Client) -> None:
-        """Test robots.txt disallows /debug/."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        content: str = response.content.decode()
-        assert "Disallow: /debug/" in content
-
-    def test_robots_txt_disallow_datasets(self, client: Client) -> None:
-        """Test robots.txt disallows /datasets/."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        content: str = response.content.decode()
-        assert "Disallow: /datasets/" in content
-
-    def test_robots_txt_sitemap_reference(self, client: Client) -> None:
-        """Test robots.txt references sitemap."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        content: str = response.content.decode()
-        assert "Sitemap:" in content
-        assert "/sitemap.xml" in content
-
-    def test_robots_txt_disallow_export(self, client: Client) -> None:
-        """Test robots.txt disallows /export/."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/robots.txt")
-        content: str = response.content.decode()
-        assert "Disallow: /export/" in content
-
-
-@pytest.mark.django_db
 class TestSEOPaginationLinks:
     """Tests for SEO pagination links in views."""
 
