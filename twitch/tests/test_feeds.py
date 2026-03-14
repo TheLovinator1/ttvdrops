@@ -4,6 +4,7 @@ import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -13,9 +14,13 @@ from django.urls import reverse
 from django.utils import timezone
 from hypothesis.extra.django import TestCase
 
+from twitch.feeds import RSS_STYLESHEETS
 from twitch.feeds import DropCampaignFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
+from twitch.feeds import OrganizationRSSFeed
+from twitch.feeds import RewardCampaignFeed
+from twitch.feeds import TTVDropsBaseFeed
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -27,11 +32,15 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
 logger: logging.Logger = logging.getLogger(__name__)
+STYLESHEET_PATH: Path = (
+    Path(__file__).resolve().parents[2] / "static" / "rss_styles.xslt"
+)
 
 if TYPE_CHECKING:
     import datetime
 
     from django.test.client import _MonkeyPatchedWSGIResponse
+    from django.utils.feedgenerator import Enclosure
 
     from twitch.tests.test_badge_views import Client
 
@@ -78,19 +87,36 @@ class RSSFeedTestCase(TestCase):
         self.campaign.image_url = "https://example.com/campaign.png"
         self.campaign.save()
 
+        self.reward_campaign: RewardCampaign = RewardCampaign.objects.create(
+            twitch_id="test-reward-123",
+            name="Test Reward Campaign",
+            brand="Test Brand",
+            starts_at=timezone.now() - timedelta(days=1),
+            ends_at=timezone.now() + timedelta(days=7),
+            status="ACTIVE",
+            summary="Test reward summary",
+            instructions="Watch and complete objectives",
+            external_url="https://example.com/reward",
+            about_url="https://example.com/about",
+            is_sitewide=False,
+            game=self.game,
+        )
+
     def test_organization_feed(self) -> None:
         """Test organization feed returns 200."""
         url: str = reverse("twitch:organization_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
-        assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        assert response["Content-Disposition"] == "inline"
 
     def test_game_feed(self) -> None:
         """Test game feed returns 200."""
         url: str = reverse("twitch:game_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
-        assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        assert response["Content-Disposition"] == "inline"
         content: str = response.content.decode("utf-8")
         assert "Owned by Test Organization." in content
 
@@ -101,25 +127,32 @@ class RSSFeedTestCase(TestCase):
         assert expected_rss_link in content
 
         # enclosure metadata from our new fields should be present
-        assert 'length="42"' in content
-        assert 'type="image/png"' in content
+        msg: str = f"Expected enclosure length from image_size_bytes, got: {content}"
+        assert 'length="42"' in content, msg
+
+        msg = f"Expected enclosure type from image_mime_type, got: {content}"
+        assert 'type="image/png"' in content, msg
 
     def test_organization_atom_feed(self) -> None:
         """Test organization Atom feed returns 200 and Atom XML."""
         url: str = reverse("twitch:organization_feed_atom")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
-        assert response.status_code == 200
-        assert response["Content-Type"] == "application/atom+xml; charset=utf-8"
+
+        msg: str = f"Expected 200 OK, got {response.status_code} with content: {response.content.decode('utf-8')}"
+        assert response.status_code == 200, msg
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
         content: str = response.content.decode("utf-8")
-        assert "<feed" in content
-        assert "<entry" in content or "<entry" in content
+        assert "<feed" in content, f"Expected Atom feed XML, got: {content}"
+
+        msg = f"Expected entry element in Atom feed, got: {content}"
+        assert "<entry" in content or "<entry" in content, msg
 
     def test_game_atom_feed(self) -> None:
         """Test game Atom feed returns 200 and contains expected content."""
         url: str = reverse("twitch:game_feed_atom")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
-        assert response["Content-Type"] == "application/atom+xml; charset=utf-8"
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
         content: str = response.content.decode("utf-8")
         assert "Owned by Test Organization." in content
         expected_atom_link: str = reverse(
@@ -130,23 +163,221 @@ class RSSFeedTestCase(TestCase):
         # Atom should include box art URL somewhere in content
         assert "https://example.com/box.png" in content
 
+    def test_campaign_atom_feed_uses_url_ids_and_correct_self_link(self) -> None:
+        """Atom campaign feed should use URL ids and a matching self link."""
+        url: str = reverse("twitch:campaign_feed_atom")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        msg: str = f"Expected self link in Atom feed, got: {content}"
+        assert 'rel="self"' in content, msg
+
+        msg: str = f"Expected self link to point to campaign feed URL, got: {content}"
+        assert 'href="http://testserver/atom/campaigns/"' in content, msg
+
+        msg: str = f"Expected entry ID to be the campaign URL, got: {content}"
+        assert "<id>http://testserver/campaigns/test-campaign-123/</id>" in content, msg
+
+    def test_all_atom_feeds_use_url_ids_and_correct_self_links(self) -> None:
+        """All Atom feeds should use absolute URL entry IDs and matching self links."""
+        atom_feed_cases: list[tuple[str, dict[str, str], str]] = [
+            (
+                "twitch:campaign_feed_atom",
+                {},
+                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+            ),
+            (
+                "twitch:game_feed_atom",
+                {},
+                f"http://testserver{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
+            ),
+            (
+                "twitch:game_campaign_feed_atom",
+                {"twitch_id": self.game.twitch_id},
+                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+            ),
+            (
+                "twitch:organization_feed_atom",
+                {},
+                f"http://testserver{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
+            ),
+            (
+                "twitch:reward_campaign_feed_atom",
+                {},
+                f"http://testserver{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
+            ),
+        ]
+
+        for url_name, kwargs, expected_entry_id in atom_feed_cases:
+            url: str = reverse(url_name, kwargs=kwargs)
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+
+            assert response.status_code == 200
+            content: str = response.content.decode("utf-8")
+
+            expected_self_link: str = f'href="http://testserver{url}"'
+            msg: str = f"Expected self link in Atom feed {url_name}, got: {content}"
+            assert 'rel="self"' in content, msg
+
+            msg = f"Expected self link to match feed URL for {url_name}, got: {content}"
+            assert expected_self_link in content, msg
+
+            msg = f"Expected entry ID to be absolute URL for {url_name}, got: {content}"
+            assert f"<id>{expected_entry_id}</id>" in content, msg
+
+    def test_campaign_atom_feed_summary_does_not_wrap_list_in_paragraph(self) -> None:
+        """Atom summary HTML should not include invalid <p><ul> nesting."""
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="atom-drop-1",
+            name="Atom Drop",
+            campaign=self.campaign,
+            required_minutes_watched=15,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=1),
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="atom-benefit-1",
+            name="Atom Benefit",
+            distribution_type="ITEM",
+        )
+        drop.benefits.add(benefit)
+
+        url: str = reverse("twitch:campaign_feed_atom")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+        assert "&lt;ul&gt;" in content
+        assert "&lt;p&gt;&lt;ul&gt;" not in content
+
+    def test_atom_feeds_include_stylesheet_processing_instruction(self) -> None:
+        """Atom feeds should include an xml-stylesheet processing instruction."""
+        feed_urls: list[str] = [
+            reverse("twitch:campaign_feed_atom"),
+            reverse("twitch:game_feed_atom"),
+            reverse("twitch:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("twitch:organization_feed_atom"),
+            reverse("twitch:reward_campaign_feed_atom"),
+        ]
+
+        for url in feed_urls:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+            assert response.status_code == 200
+
+            content: str = response.content.decode("utf-8")
+            assert "<?xml-stylesheet" in content
+            assert "rss_styles.xslt" in content
+            assert 'type="text/xsl"' in content
+            assert 'media="screen"' in content
+
     def test_game_feed_enclosure_helpers(self) -> None:
         """Helper methods should return values from model fields."""
         feed = GameFeed()
-        assert feed.item_enclosure_length(self.game) == 42
-        assert feed.item_enclosure_mime_type(self.game) == "image/png"
+        feed_item_enclosures: list[Enclosure] = feed.item_enclosures(self.game)
+
+        assert feed_item_enclosures, (
+            "Expected at least one enclosure for game feed item, got none"
+        )
+
+        msg: str = (
+            f"Expected one enclosure for game feed item, got: {feed_item_enclosures}"
+        )
+        assert len(feed_item_enclosures) == 1, msg
+        enclosure: Enclosure = feed_item_enclosures[0]
+
+        msg = f"Expected enclosure URL from box_art, got: {enclosure.url}"
+        assert enclosure.url == "https://example.com/box.png", msg
+
+        msg = (
+            f"Expected enclosure length from image_size_bytes, got: {enclosure.length}"
+        )
+        assert enclosure.length == str(42), msg
 
     def test_campaign_feed(self) -> None:
         """Test campaign feed returns 200."""
         url: str = reverse("twitch:campaign_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
-        assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        assert response["Content-Disposition"] == "inline"
 
         content: str = response.content.decode("utf-8")
         # verify enclosure meta
         assert 'length="314"' in content
         assert 'type="image/gif"' in content
+
+    def test_rss_feeds_include_stylesheet_processing_instruction(self) -> None:
+        """RSS feeds should include an xml-stylesheet processing instruction."""
+        feed_urls: list[str] = [
+            reverse("twitch:campaign_feed"),
+            reverse("twitch:game_feed"),
+            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("twitch:organization_feed"),
+            reverse("twitch:reward_campaign_feed"),
+        ]
+
+        for url in feed_urls:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+            assert response.status_code == 200
+
+            content: str = response.content.decode("utf-8")
+            assert "<?xml-stylesheet" in content
+            assert "rss_styles.xslt" in content
+            assert 'type="text/xsl"' in content
+            assert 'media="screen"' in content
+
+    def test_base_feed_default_metadata_is_inherited(self) -> None:
+        """RSS feed classes should inherit shared defaults from TTVDropsBaseFeed."""
+        msg: str = f"Expected TTVDropsBaseFeed.feed_copyright to be 'CC0; Information wants to be free.', got: {TTVDropsBaseFeed.feed_copyright}"
+        assert (
+            TTVDropsBaseFeed.feed_copyright == "CC0; Information wants to be free."
+        ), msg
+
+        msg = f"Expected TTVDropsBaseFeed.stylesheets to be {RSS_STYLESHEETS}, got: {TTVDropsBaseFeed.stylesheets}"
+        assert TTVDropsBaseFeed.stylesheets == RSS_STYLESHEETS, msg
+
+        msg = f"Expected TTVDropsBaseFeed.ttl to be 1, got: {TTVDropsBaseFeed.ttl}"
+        assert TTVDropsBaseFeed.ttl == 1, msg
+
+        for feed_class in (
+            OrganizationRSSFeed,
+            GameFeed,
+            DropCampaignFeed,
+            GameCampaignFeed,
+            RewardCampaignFeed,
+        ):
+            feed: (
+                DropCampaignFeed
+                | GameCampaignFeed
+                | GameFeed
+                | OrganizationRSSFeed
+                | RewardCampaignFeed
+            ) = feed_class()
+            assert feed.feed_copyright == "CC0; Information wants to be free."
+            assert feed.stylesheets == RSS_STYLESHEETS
+            assert feed.ttl == 1
+
+    def test_rss_feeds_include_shared_metadata_fields(self) -> None:
+        """RSS output should contain base feed metadata fields."""
+        feed_urls: list[str] = [
+            reverse("twitch:campaign_feed"),
+            reverse("twitch:game_feed"),
+            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("twitch:organization_feed"),
+            reverse("twitch:reward_campaign_feed"),
+        ]
+
+        for url in feed_urls:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+            assert response.status_code == 200
+
+            content: str = response.content.decode("utf-8")
+            assert (
+                "<copyright>CC0; Information wants to be free.</copyright>" in content
+            )
+            assert "<ttl>1</ttl>" in content
 
     def test_campaign_feed_only_includes_active_campaigns(self) -> None:
         """Campaign feed should exclude past and upcoming campaigns."""
@@ -180,8 +411,25 @@ class RSSFeedTestCase(TestCase):
     def test_campaign_feed_enclosure_helpers(self) -> None:
         """Helper methods for campaigns should respect new fields."""
         feed = DropCampaignFeed()
-        assert feed.item_enclosure_length(self.campaign) == 314
-        assert feed.item_enclosure_mime_type(self.campaign) == "image/gif"
+
+        item_enclosures: list[Enclosure] = feed.item_enclosures(self.campaign)
+        assert item_enclosures, (
+            "Expected at least one enclosure for campaign feed item, got none"
+        )
+
+        msg: str = (
+            f"Expected one enclosure for campaign feed item, got: {item_enclosures}"
+        )
+        assert len(item_enclosures) == 1, msg
+
+        msg = f"Expected enclosure URL from campaign image_url, got: {item_enclosures[0].url}"
+        assert item_enclosures[0].url == "https://example.com/campaign.png", msg
+
+        msg = f"Expected enclosure length from image_size_bytes, got: {item_enclosures[0].length}"
+        assert item_enclosures[0].length == str(314), msg
+
+        msg = f"Expected enclosure type from image_mime_type, got: {item_enclosures[0].mime_type}"
+        assert item_enclosures[0].mime_type == "image/gif", msg
 
     def test_campaign_feed_includes_badge_description(self) -> None:
         """Badge benefit descriptions should be visible in the RSS drop summary."""
@@ -221,7 +469,8 @@ class RSSFeedTestCase(TestCase):
         url: str = reverse("twitch:game_campaign_feed", args=[self.game.twitch_id])
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
-        assert response["Content-Type"] == "application/rss+xml; charset=utf-8"
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        assert response["Content-Disposition"] == "inline"
         # Verify the game name is in the feed
         content: str = response.content.decode("utf-8")
         assert "Test Game" in content
@@ -346,8 +595,25 @@ class RSSFeedTestCase(TestCase):
     def test_game_campaign_feed_enclosure_helpers(self) -> None:
         """GameCampaignFeed helper methods should pull from the model fields."""
         feed = GameCampaignFeed()
-        assert feed.item_enclosure_length(self.campaign) == 314
-        assert feed.item_enclosure_mime_type(self.campaign) == "image/gif"
+
+        item_enclosures: list[Enclosure] = feed.item_enclosures(self.campaign)
+        assert item_enclosures, (
+            "Expected at least one enclosure for campaign feed item, got none"
+        )
+
+        msg: str = (
+            f"Expected one enclosure for campaign feed item, got: {item_enclosures}"
+        )
+        assert len(item_enclosures) == 1, msg
+
+        msg = f"Expected enclosure URL from campaign image_url, got: {item_enclosures[0].url}"
+        assert item_enclosures[0].url == "https://example.com/campaign.png", msg
+
+        msg = f"Expected enclosure length from image_size_bytes, got: {item_enclosures[0].length}"
+        assert item_enclosures[0].length == str(314), msg
+
+        msg = f"Expected enclosure type from image_mime_type, got: {item_enclosures[0].mime_type}"
+        assert item_enclosures[0].mime_type == "image/gif", msg
 
     def test_backfill_command_sets_metadata(self) -> None:
         """Running the backfill command should populate size and mime fields.
@@ -596,7 +862,6 @@ def test_game_campaign_feed_queries_bounded(
 
     url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
 
-    # TODO(TheLovinator): 15 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
     with django_assert_num_queries(6, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 

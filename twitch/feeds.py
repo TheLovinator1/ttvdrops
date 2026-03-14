@@ -7,6 +7,8 @@ from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.contrib.syndication.views import Feed
 from django.db.models import Prefetch
 from django.db.models.query import QuerySet
+from django.http.request import HttpRequest
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import feedgenerator
 from django.utils import timezone
@@ -34,6 +36,125 @@ if TYPE_CHECKING:
     from twitch.models import DropBenefit
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
+RSS_STYLESHEETS: list[str] = [static("rss_styles.xslt")]
+
+
+class BrowserFriendlyRss201rev2Feed(feedgenerator.Rss201rev2Feed):
+    """RSS 2.0 feed generator with a browser-renderable XML content type."""
+
+    content_type = "application/xml; charset=utf-8"
+
+
+class BrowserFriendlyAtom1Feed(feedgenerator.Atom1Feed):
+    """Atom 1.0 feed generator with an explicit browser-friendly content type."""
+
+    content_type = "application/xml; charset=utf-8"
+
+
+class TTVDropsBaseFeed(Feed):
+    """Base feed class that keeps XML feeds browser-friendly.
+
+    By default, Django's syndication feed framework serves feeds with a
+    content type of "application/rss+xml", which causes browsers to
+    download the feed as a file instead of displaying it. By overriding
+    the __call__ method to set the Content-Disposition header to "inline",
+    we can make browsers display the feed content directly, improving the
+    user experience when visiting feed URLs in a browser.
+    """
+
+    feed_type = BrowserFriendlyRss201rev2Feed
+    feed_copyright: str = "CC0; Information wants to be free."
+    stylesheets: list[str] = RSS_STYLESHEETS
+    ttl: int = 1
+    _request: HttpRequest | None = None
+
+    def _absolute_url(self, url: str) -> str:
+        """Build an absolute URL for feed identifiers when request context exists.
+
+        Args:
+            url (str): Relative or absolute URL to normalize for feed metadata.
+
+        Returns:
+            str: Absolute URL when request context exists, otherwise the original URL.
+        """
+        if self._request is None:
+            return url
+        return self._request.build_absolute_uri(url)
+
+    def _absolute_stylesheet_urls(self, request: HttpRequest) -> list[str]:
+        """Return stylesheet URLs as absolute HTTP URLs for browser/file compatibility."""
+        return [
+            href
+            if href.startswith(("http://", "https://"))
+            else request.build_absolute_uri(href)
+            for href in self.stylesheets
+        ]
+
+    def _inject_atom_stylesheets(self, response: HttpResponse) -> None:
+        """Inject xml-stylesheet processing instructions for Atom feeds.
+
+        Django emits stylesheet processing instructions for RSS feeds, but not for
+        Atom feeds. Browsers then show Atom summaries as escaped HTML text. By
+        injecting stylesheet PIs into Atom XML responses, we can transform Atom in
+        the browser with the same XSLT used for RSS.
+        """
+        if not self.stylesheets:
+            return
+
+        encoding: str = response.charset or "utf-8"
+        content: str = response.content.decode(encoding)
+
+        # Detect Atom payload by XML structure/namespace so this still works even
+        # when served as application/xml for browser-friendliness.
+        if "<feed" not in content or "http://www.w3.org/2005/Atom" not in content:
+            return
+
+        if "<?xml-stylesheet" in content:
+            return
+
+        stylesheet_pis: str = "".join(
+            f'<?xml-stylesheet href="{href}" type="text/xsl" media="screen"?>'
+            for href in self.stylesheets
+        )
+
+        if content.startswith("<?xml"):
+            xml_decl_end: int = content.find("?>")
+            if xml_decl_end != -1:
+                content = (
+                    f"{content[: xml_decl_end + 2]}{stylesheet_pis}"
+                    f"{content[xml_decl_end + 2 :]}"
+                )
+            else:
+                content = f"{stylesheet_pis}{content}"
+        else:
+            content = f"{stylesheet_pis}{content}"
+
+        response.content = content.encode(encoding)
+
+    def __call__(
+        self,
+        request: HttpRequest,
+        *args: object,
+        **kwargs: object,
+    ) -> HttpResponse:
+        """Return feed response with inline content disposition for browser display."""
+        original_stylesheets: list[str] = self.stylesheets
+        self.stylesheets = self._absolute_stylesheet_urls(request)
+        self._request = request
+        try:
+            response: HttpResponse = super().__call__(request, *args, **kwargs)
+            self._inject_atom_stylesheets(response)
+        finally:
+            self.stylesheets = original_stylesheets
+            self._request = None
+        response["Content-Disposition"] = "inline"
+        return response
+
+
+class TTVDropsAtomBaseFeed(TTVDropsBaseFeed):
+    """Base class for Atom feeds with shared browser-friendly behavior."""
+
+    feed_type = BrowserFriendlyAtom1Feed
 
 
 def _with_campaign_related(queryset: QuerySet[DropCampaign]) -> QuerySet[DropCampaign]:
@@ -241,7 +362,7 @@ def generate_drops_summary_html(item: DropCampaign) -> list[SafeString]:
     if drops_data:
         parts.append(
             format_html(
-                "<p>{}</p>",
+                "{}",
                 _construct_drops_summary(drops_data, channel_name=channel_name),
             ),
         )
@@ -500,14 +621,15 @@ def _construct_drops_summary(
 
 
 # MARK: /rss/organizations/
-class OrganizationRSSFeed(Feed):
+class OrganizationRSSFeed(TTVDropsBaseFeed):
     """RSS feed for latest organizations."""
 
-    feed_type = feedgenerator.Rss201rev2Feed
+    feed_type = BrowserFriendlyRss201rev2Feed
+
     title: str = "TTVDrops Twitch Organizations"
     link: str = "/organizations/"
     description: str = "Latest organizations on TTVDrops"
-    feed_copyright: str = "Information wants to be free."
+
     _limit: int | None = None
 
     def __call__(
@@ -572,15 +694,19 @@ class OrganizationRSSFeed(Feed):
         """Return the author name for the organization."""
         return getattr(item, "name", "Twitch")
 
+    def feed_url(self) -> str:
+        """Return the absolute URL for this feed."""
+        return reverse("twitch:organization_feed")
+
 
 # MARK: /rss/games/
-class GameFeed(Feed):
+class GameFeed(TTVDropsBaseFeed):
     """RSS feed for newly added games."""
 
-    title: str = "Games - TTVDrops"
+    title: str = "TTVDrops Twitch Games"
     link: str = "/games/"
     description: str = "Newly added games on TTVDrops"
-    feed_copyright: str = "Information wants to be free."
+
     _limit: int | None = None
 
     def __call__(
@@ -676,9 +802,9 @@ class GameFeed(Feed):
         return timezone.now()
 
     def item_guid(self, item: Game) -> str:
-        """Return a unique identifier for each game."""
+        """Return a unique identifier for each game. Use the URL to the game detail page as the GUID."""
         twitch_id: str = getattr(item, "twitch_id", "unknown")
-        return twitch_id + "@ttvdrops.com"
+        return self._absolute_url(reverse("twitch:game_detail", args=[twitch_id]))
 
     def item_author_name(self, item: Game) -> str:
         """Return the author name for the game, typically the owner organization name."""
@@ -695,38 +821,36 @@ class GameFeed(Feed):
             return box_art
         return ""
 
-    def item_enclosure_length(self, item: Game) -> int:
-        """Returns the length of the enclosure.
+    def item_enclosures(self, item: Game) -> list[feedgenerator.Enclosure]:
+        """Return a list of enclosures for the game, including the box art if available."""
+        image_url: str = getattr(item, "box_art_best_url", "")
+        if image_url:
+            try:
+                size: int | None = getattr(item, "box_art_size_bytes", None)
+                length: int = int(size) if size is not None else 0
+            except TypeError, ValueError:
+                length = 0
 
-        Prefer the newly-added ``box_art_size_bytes`` field so that the RSS
-        feed can include an accurate ``length`` attribute.  Fall back to 0 if
-        the value is missing or ``None``.
-        """
-        try:
-            size = getattr(item, "box_art_size_bytes", None)
-            return int(size) if size is not None else 0
-        except TypeError, ValueError:
-            return 0
+            mime: str = getattr(item, "box_art_mime_type", "")
+            mime_type: str = mime or "image/jpeg"
 
-    def item_enclosure_mime_type(self, item: Game) -> str:
-        """Returns the MIME type of the enclosure.
+            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+        return []
 
-        Use the ``box_art_mime_type`` field when available, otherwise fall back
-        to a generic JPEG string (as was previously hard-coded).
-        """
-        mime: str = getattr(item, "box_art_mime_type", "")
-        return mime or "image/jpeg"
+    def feed_url(self) -> str:
+        """Return the URL to the RSS feed itself."""
+        return reverse("twitch:game_feed")
 
 
 # MARK: /rss/campaigns/
-class DropCampaignFeed(Feed):
+class DropCampaignFeed(TTVDropsBaseFeed):
     """RSS feed for latest drop campaigns."""
 
     title: str = "Twitch Drop Campaigns"
     link: str = "/campaigns/"
     description: str = "Latest Twitch drop campaigns on TTVDrops"
-    feed_url: str = "/rss/campaigns/"
-    feed_copyright: str = "Information wants to be free."
+    item_guid_is_permalink = True
+
     _limit: int | None = None
 
     def __call__(
@@ -762,7 +886,8 @@ class DropCampaignFeed(Feed):
 
     def item_title(self, item: DropCampaign) -> SafeText:
         """Return the campaign name as the item title (SafeText for RSS)."""
-        return SafeText(item.get_feed_title())
+        game_name: str = item.game.display_name if item.game else ""
+        return SafeText(f"{game_name}: {item.clean_name}")
 
     def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
@@ -779,14 +904,22 @@ class DropCampaignFeed(Feed):
 
     def item_link(self, item: DropCampaign) -> str:
         """Return the link to the campaign detail."""
-        return item.get_feed_link()
+        return reverse("twitch:campaign_detail", args=[item.twitch_id])
+
+    def item_guid(self, item: DropCampaign) -> str:
+        """Return a unique identifier for each campaign. Use the URL to the campaign detail page as the GUID."""
+        return self._absolute_url(
+            reverse("twitch:campaign_detail", args=[item.twitch_id]),
+        )
 
     def item_pubdate(self, item: DropCampaign) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Fallback to updated_at or now if missing.
         """
-        return item.get_feed_pubdate()
+        if item.added_at:
+            return item.added_at
+        return timezone.now()
 
     def item_updateddate(self, item: DropCampaign) -> datetime.datetime:
         """Returns the campaign's last update time."""
@@ -794,39 +927,60 @@ class DropCampaignFeed(Feed):
 
     def item_categories(self, item: DropCampaign) -> tuple[str, ...]:
         """Returns the associated game's name as a category."""
-        return item.get_feed_categories()
+        categories: list[str] = ["twitch", "drops"]
 
-    def item_guid(self, item: DropCampaign) -> str:
-        """Return a unique identifier for each campaign."""
-        return item.get_feed_guid()
+        game: Game | None = item.game
+        if game:
+            categories.append(game.get_game_name)
+
+            # Prefer direct game owners, which can be prefetched in feed querysets.
+            categories.extend(org.name for org in game.owners.all() if org.name)
+
+        return tuple(categories)
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""
-        return item.get_feed_author_name()
+        game: Game | None = item.game
+        if game and game.display_name:
+            return game.display_name
 
-    def item_enclosure_url(self, item: DropCampaign) -> str:
-        """Returns the URL of the campaign image for enclosure."""
-        return item.get_feed_enclosure_url()
+        return "Twitch"
 
-    def item_enclosure_length(self, item: DropCampaign) -> int:
-        """Returns the length of the enclosure."""
-        try:
-            size: int | None = getattr(item, "image_size_bytes", None)
-            return int(size) if size is not None else 0
-        except TypeError, ValueError:
-            return 0
+    # Enclose
+    def item_enclosures(self, item: DropCampaign) -> list[feedgenerator.Enclosure]:
+        """Return a list of enclosures for the drop campaign, if available.
 
-    def item_enclosure_mime_type(self, item: DropCampaign) -> str:
-        """Returns the MIME type of the enclosure."""
-        mime: str = getattr(item, "image_mime_type", "")
-        return mime or "image/jpeg"
+        Args:
+            item (DropCampaign): The drop campaign item.
+
+        Returns:
+            list[feedgenerator.Enclosure]: A list of Enclosure objects if an image URL is
+            available, otherwise an empty list.
+        """
+        image_url: str = getattr(item, "image_best_url", "")
+        if image_url:
+            try:
+                size: int | None = getattr(item, "image_size_bytes", None)
+                length: int = int(size) if size is not None else 0
+            except TypeError, ValueError:
+                length = 0
+
+            mime: str = getattr(item, "image_mime_type", "")
+            mime_type: str = mime or "image/jpeg"
+
+            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+        return []
+
+    def feed_url(self) -> str:
+        """Return the URL to the RSS feed itself."""
+        return reverse("twitch:campaign_feed")
 
 
 # MARK: /rss/games/<twitch_id>/campaigns/
-class GameCampaignFeed(Feed):
+class GameCampaignFeed(TTVDropsBaseFeed):
     """RSS feed for the latest drop campaigns of a specific game."""
 
-    feed_copyright: str = "Information wants to be free."
+    item_guid_is_permalink = True
     _limit: int | None = None
 
     def __call__(
@@ -876,10 +1030,6 @@ class GameCampaignFeed(Feed):
         """Return a description for the feed."""
         return f"Latest drop campaigns for {obj.display_name}"
 
-    def feed_url(self, obj: Game) -> str:
-        """Return the URL to the RSS feed itself."""
-        return reverse("twitch:game_campaign_feed", args=[obj.twitch_id])
-
     def items(self, obj: Game) -> list[DropCampaign]:
         """Return the latest drop campaigns for this game, ordered by most recent start date (default 200, or limited by ?limit query param)."""
         limit: int = self._limit if self._limit is not None else 200
@@ -892,7 +1042,8 @@ class GameCampaignFeed(Feed):
 
     def item_title(self, item: DropCampaign) -> SafeText:
         """Return the campaign name as the item title (SafeText for RSS)."""
-        return SafeText(item.get_feed_title())
+        game_name: str = item.game.display_name if item.game else ""
+        return SafeText(f"{game_name}: {item.clean_name}")
 
     def item_description(self, item: DropCampaign) -> SafeText:
         """Return a description of the campaign."""
@@ -924,43 +1075,82 @@ class GameCampaignFeed(Feed):
 
     def item_categories(self, item: DropCampaign) -> tuple[str, ...]:
         """Returns the associated game's name as a category."""
-        return item.get_feed_categories()
+        categories: list[str] = ["twitch", "drops"]
+
+        game: Game | None = item.game
+        if game:
+            categories.append(game.get_game_name)
+
+            # Prefer direct game owners, which can be prefetched in feed querysets.
+            categories.extend(org.name for org in game.owners.all() if org.name)
+
+        return tuple(categories)
 
     def item_guid(self, item: DropCampaign) -> str:
         """Return a unique identifier for each campaign."""
-        return item.get_feed_guid()
+        return self._absolute_url(
+            reverse("twitch:campaign_detail", args=[item.twitch_id]),
+        )
 
     def item_author_name(self, item: DropCampaign) -> str:
         """Return the author name for the campaign, typically the game name."""
-        return item.get_feed_author_name()
+        game: Game | None = item.game
+        if game and game.display_name:
+            return game.display_name
 
-    def item_enclosure_url(self, item: DropCampaign) -> str:
-        """Returns the URL of the campaign image for enclosure."""
-        return item.get_feed_enclosure_url()
+        return "Twitch"
 
-    def item_enclosure_length(self, item: DropCampaign) -> int:
-        """Returns the length of the enclosure."""
-        try:
-            size: int | None = getattr(item, "image_size_bytes", None)
-            return int(size) if size is not None else 0
-        except TypeError, ValueError:
-            return 0
+    def author_name(self, obj: Game) -> str:
+        """Return the author name for the game, typically the owner organization name."""
+        owners_cache: list[Organization] | None = getattr(
+            obj,
+            "_prefetched_objects_cache",
+            {},
+        ).get("owners")
+        if owners_cache:
+            owner: Organization = owners_cache[0]
+            if owner.name:
+                return owner.name
 
-    def item_enclosure_mime_type(self, item: DropCampaign) -> str:
-        """Returns the MIME type of the enclosure."""
-        mime: str = getattr(item, "image_mime_type", "")
-        return mime or "image/jpeg"
+        return "Twitch"
+
+    def item_enclosures(self, item: DropCampaign) -> list[feedgenerator.Enclosure]:
+        """Return a list of enclosures for the drop campaign, if available.
+
+        Args:
+            item (DropCampaign): The drop campaign item.
+
+        Returns:
+            list[feedgenerator.Enclosure]: A list of Enclosure objects if an image URL is available, otherwise an empty list.
+        """
+        # Use image_best_url as enclosure if available
+        image_url: str = getattr(item, "image_best_url", "")
+        if image_url:
+            try:
+                size: int | None = getattr(item, "image_size_bytes", None)
+                length: int = int(size) if size is not None else 0
+            except TypeError, ValueError:
+                length = 0
+
+            mime: str = getattr(item, "image_mime_type", "")
+            mime_type: str = mime or "image/jpeg"
+
+            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+        return []
+
+    def feed_url(self, obj: Game) -> str:
+        """Return the URL to the RSS feed itself."""
+        return reverse("twitch:game_campaign_feed", args=[obj.twitch_id])
 
 
 # MARK: /rss/reward-campaigns/
-class RewardCampaignFeed(Feed):
-    """RSS feed for latest reward campaigns (Quest rewards)."""
+class RewardCampaignFeed(TTVDropsBaseFeed):
+    """RSS feed for latest reward campaigns."""
 
-    title: str = "Twitch Reward Campaigns (Quest Rewards)"
+    title: str = "Twitch Reward Campaigns"
     link: str = "/campaigns/"
-    description: str = "Latest Twitch reward campaigns (Quest rewards) on TTVDrops"
-    feed_url: str = "/rss/reward-campaigns/"
-    feed_copyright: str = "Information wants to be free."
+    description: str = "Latest Twitch reward campaigns on TTVDrops"
+
     _limit: int | None = None
 
     def __call__(
@@ -998,22 +1188,83 @@ class RewardCampaignFeed(Feed):
 
     def item_title(self, item: RewardCampaign) -> SafeText:
         """Return the reward campaign name as the item title."""
-        return SafeText(item.get_feed_title())
+        if item.brand:
+            return SafeText(f"{item.brand}: {item.name}")
+        return SafeText(item.name)
 
     def item_description(self, item: RewardCampaign) -> SafeText:
         """Return a description of the reward campaign."""
-        return SafeText(item.get_feed_description())
+        parts: list = []
+
+        if item.summary:
+            parts.append(format_html("<p>{}</p>", item.summary))
+
+        if item.starts_at or item.ends_at:
+            start_part = (
+                format_html(
+                    "Starts: {} ({})",
+                    item.starts_at.strftime("%Y-%m-%d %H:%M %Z"),
+                    naturaltime(item.starts_at),
+                )
+                if item.starts_at
+                else ""
+            )
+            end_part = (
+                format_html(
+                    "Ends: {} ({})",
+                    item.ends_at.strftime("%Y-%m-%d %H:%M %Z"),
+                    naturaltime(item.ends_at),
+                )
+                if item.ends_at
+                else ""
+            )
+            if start_part and end_part:
+                parts.append(format_html("<p>{}<br />{}</p>", start_part, end_part))
+            elif start_part:
+                parts.append(format_html("<p>{}</p>", start_part))
+            elif end_part:
+                parts.append(format_html("<p>{}</p>", end_part))
+
+        if item.is_sitewide:
+            parts.append(
+                SafeText("<p><strong>This is a sitewide reward campaign</strong></p>"),
+            )
+        elif item.game:
+            parts.append(
+                format_html(
+                    "<p>Game: {}</p>",
+                    item.game.display_name or item.game.name,
+                ),
+            )
+
+        if item.about_url:
+            parts.append(
+                format_html('<p><a href="{}">Learn more</a></p>', item.about_url),
+            )
+
+        if item.external_url:
+            parts.append(
+                format_html('<p><a href="{}">Redeem reward</a></p>', item.external_url),
+            )
+
+        return SafeText("".join(str(p) for p in parts))
 
     def item_link(self, item: RewardCampaign) -> str:
         """Return the link to the reward campaign (external URL or dashboard)."""
-        return item.get_feed_link()
+        if item.external_url:
+            return item.external_url
+        return reverse("twitch:dashboard")
 
     def item_pubdate(self, item: RewardCampaign) -> datetime.datetime:
         """Returns the publication date to the feed item.
 
         Uses starts_at (when the reward starts). Fallback to added_at or now if missing.
         """
-        return item.get_feed_pubdate()
+        if item.starts_at:
+            return item.starts_at
+        if item.added_at:
+            return item.added_at
+        return timezone.now()
 
     def item_updateddate(self, item: RewardCampaign) -> datetime.datetime:
         """Returns the reward campaign's last update time."""
@@ -1021,43 +1272,105 @@ class RewardCampaignFeed(Feed):
 
     def item_categories(self, item: RewardCampaign) -> tuple[str, ...]:
         """Returns the associated game's name and brand as categories."""
-        return item.get_feed_categories()
+        categories: list[str] = ["twitch", "rewards", "quests"]
+
+        if item.brand:
+            categories.append(item.brand)
+
+        if item.game:
+            categories.append(item.game.get_game_name)
+
+        return tuple(categories)
 
     def item_guid(self, item: RewardCampaign) -> str:
         """Return a unique identifier for each reward campaign."""
-        return item.get_feed_guid()
+        return self._absolute_url(
+            reverse("twitch:reward_campaign_detail", args=[item.twitch_id]),
+        )
 
     def item_author_name(self, item: RewardCampaign) -> str:
         """Return the author name for the reward campaign."""
-        return item.get_feed_author_name()
+        if item.brand:
+            return item.brand
+
+        if item.game and item.game.display_name:
+            return item.game.display_name
+
+        return "Twitch"
+
+    def item_enclosures(self, item: RewardCampaign) -> list[feedgenerator.Enclosure]:
+        """Return a list of enclosures for the reward campaign, if available.
+
+        Args:
+            item (RewardCampaign): The reward campaign item.
+
+        Returns:
+            list[feedgenerator.Enclosure]: A list of Enclosure objects if an image URL is available, otherwise an empty list.
+        """
+        # Use image_url as enclosure if available
+        image_url: str = getattr(item, "image_url", "")
+        if image_url:
+            try:
+                size: int | None = getattr(item, "image_size_bytes", None)
+                length: int = int(size) if size is not None else 0
+            except TypeError, ValueError:
+                length = 0
+
+            mime: str = getattr(item, "image_mime_type", "")
+            mime_type: str = mime or "image/jpeg"
+
+            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+        return []
+
+    def feed_url(self) -> str:
+        """Return the URL to the RSS feed itself."""
+        return reverse("twitch:reward_campaign_feed")
 
 
 # Atom feed variants: reuse existing logic but switch the feed generator to Atom
-class OrganizationAtomFeed(OrganizationRSSFeed):
+class OrganizationAtomFeed(TTVDropsAtomBaseFeed, OrganizationRSSFeed):
     """Atom feed for latest organizations (reuses OrganizationRSSFeed)."""
 
-    feed_type = feedgenerator.Atom1Feed
+    subtitle: str = OrganizationRSSFeed.description
+
+    def feed_url(self) -> str:
+        """Return the URL to the Atom feed itself."""
+        return reverse("twitch:organization_feed_atom")
 
 
-class GameAtomFeed(GameFeed):
+class GameAtomFeed(TTVDropsAtomBaseFeed, GameFeed):
     """Atom feed for newly added games (reuses GameFeed)."""
 
-    feed_type = feedgenerator.Atom1Feed
+    subtitle: str = GameFeed.description
+
+    def feed_url(self) -> str:
+        """Return the URL to the Atom feed itself."""
+        return reverse("twitch:game_feed_atom")
 
 
-class DropCampaignAtomFeed(DropCampaignFeed):
+class DropCampaignAtomFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
     """Atom feed for latest drop campaigns (reuses DropCampaignFeed)."""
 
-    feed_type = feedgenerator.Atom1Feed
+    subtitle: str = DropCampaignFeed.description
+
+    def feed_url(self) -> str:
+        """Return the URL to the Atom feed itself."""
+        return reverse("twitch:campaign_feed_atom")
 
 
-class GameCampaignAtomFeed(GameCampaignFeed):
+class GameCampaignAtomFeed(TTVDropsAtomBaseFeed, GameCampaignFeed):
     """Atom feed for latest drop campaigns for a specific game (reuses GameCampaignFeed)."""
 
-    feed_type = feedgenerator.Atom1Feed
+    def feed_url(self, obj: Game) -> str:
+        """Return the URL to the Atom feed itself."""
+        return reverse("twitch:game_campaign_feed_atom", args=[obj.twitch_id])
 
 
-class RewardCampaignAtomFeed(RewardCampaignFeed):
+class RewardCampaignAtomFeed(TTVDropsAtomBaseFeed, RewardCampaignFeed):
     """Atom feed for latest reward campaigns (reuses RewardCampaignFeed)."""
 
-    feed_type = feedgenerator.Atom1Feed
+    subtitle: str = RewardCampaignFeed.description
+
+    def feed_url(self) -> str:
+        """Return the URL to the Atom feed itself."""
+        return reverse("twitch:reward_campaign_feed_atom")
