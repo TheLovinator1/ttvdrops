@@ -831,10 +831,19 @@ class GameFeed(TTVDropsBaseFeed):
             except TypeError, ValueError:
                 length = 0
 
+            if not length:
+                return []
+
             mime: str = getattr(item, "box_art_mime_type", "")
             mime_type: str = mime or "image/jpeg"
 
-            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+            return [
+                feedgenerator.Enclosure(
+                    self._absolute_url(image_url),
+                    str(length),
+                    mime_type,
+                ),
+            ]
         return []
 
     def feed_url(self) -> str:
@@ -965,10 +974,19 @@ class DropCampaignFeed(TTVDropsBaseFeed):
             except TypeError, ValueError:
                 length = 0
 
+            if not length:
+                return []
+
             mime: str = getattr(item, "image_mime_type", "")
             mime_type: str = mime or "image/jpeg"
 
-            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+            return [
+                feedgenerator.Enclosure(
+                    self._absolute_url(image_url),
+                    str(length),
+                    mime_type,
+                ),
+            ]
         return []
 
     def feed_url(self) -> str:
@@ -1132,10 +1150,19 @@ class GameCampaignFeed(TTVDropsBaseFeed):
             except TypeError, ValueError:
                 length = 0
 
+            if not length:
+                return []
+
             mime: str = getattr(item, "image_mime_type", "")
             mime_type: str = mime or "image/jpeg"
 
-            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+            return [
+                feedgenerator.Enclosure(
+                    self._absolute_url(image_url),
+                    str(length),
+                    mime_type,
+                ),
+            ]
         return []
 
     def feed_url(self, obj: Game) -> str:
@@ -1307,8 +1334,7 @@ class RewardCampaignFeed(TTVDropsBaseFeed):
         Returns:
             list[feedgenerator.Enclosure]: A list of Enclosure objects if an image URL is available, otherwise an empty list.
         """
-        # Use image_url as enclosure if available
-        image_url: str = getattr(item, "image_url", "")
+        image_url: str = getattr(item, "image_best_url", "")
         if image_url:
             try:
                 size: int | None = getattr(item, "image_size_bytes", None)
@@ -1316,10 +1342,19 @@ class RewardCampaignFeed(TTVDropsBaseFeed):
             except TypeError, ValueError:
                 length = 0
 
+            if not length:
+                return []
+
             mime: str = getattr(item, "image_mime_type", "")
             mime_type: str = mime or "image/jpeg"
 
-            return [feedgenerator.Enclosure(image_url, str(length), mime_type)]
+            return [
+                feedgenerator.Enclosure(
+                    self._absolute_url(image_url),
+                    str(length),
+                    mime_type,
+                ),
+            ]
         return []
 
     def feed_url(self) -> str:

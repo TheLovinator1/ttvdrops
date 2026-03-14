@@ -272,6 +272,85 @@ class RSSFeedTestCase(TestCase):
             assert 'type="text/xsl"' in content
             assert 'media="screen"' in content
 
+    def test_campaign_and_game_feeds_use_absolute_media_enclosure_urls(self) -> None:
+        """Campaign/game RSS+Atom enclosures should use absolute URLs for local media files."""
+        self.game.box_art = ""
+        self.game.box_art_file.save(
+            "box.png",
+            ContentFile(b"game-image-bytes"),
+            save=False,
+        )
+        self.game.box_art_size_bytes = len(b"game-image-bytes")
+        self.game.box_art_mime_type = "image/png"
+        self.game.save()
+
+        self.campaign.image_url = ""
+        self.campaign.image_file.save(
+            "campaign.png",
+            ContentFile(b"campaign-image-bytes"),
+            save=False,
+        )
+        self.campaign.image_size_bytes = len(b"campaign-image-bytes")
+        self.campaign.image_mime_type = "image/png"
+        self.campaign.save()
+
+        feed_urls: list[str] = [
+            reverse("twitch:game_feed"),
+            reverse("twitch:campaign_feed"),
+            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("twitch:game_feed_atom"),
+            reverse("twitch:campaign_feed_atom"),
+            reverse("twitch:game_campaign_feed_atom", args=[self.game.twitch_id]),
+        ]
+
+        for url in feed_urls:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+            assert response.status_code == 200
+            content: str = response.content.decode("utf-8")
+
+            msg: str = (
+                f"Expected absolute media enclosure URLs for {url}, got: {content}"
+            )
+            assert "http://testserver/media/" in content, msg
+            assert 'url="/media/' not in content, msg
+            assert 'href="/media/' not in content, msg
+
+    def test_all_campaign_game_reward_feeds_skip_enclosures_when_length_unknown(
+        self,
+    ) -> None:
+        """RSS/Atom feeds should not emit enclosure elements with length=0."""
+        self.game.box_art = "https://example.com/box.png"
+        self.game.box_art_size_bytes = None
+        self.game.save()
+
+        self.campaign.image_url = "https://example.com/campaign.png"
+        self.campaign.image_size_bytes = None
+        self.campaign.save()
+
+        self.reward_campaign.image_url = "https://example.com/reward.png"
+        self.reward_campaign.save()
+
+        feed_urls: list[str] = [
+            reverse("twitch:game_feed"),
+            reverse("twitch:campaign_feed"),
+            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("twitch:reward_campaign_feed"),
+            reverse("twitch:game_feed_atom"),
+            reverse("twitch:campaign_feed_atom"),
+            reverse("twitch:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("twitch:reward_campaign_feed_atom"),
+        ]
+
+        for url in feed_urls:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+            assert response.status_code == 200
+            content: str = response.content.decode("utf-8")
+
+            msg: str = (
+                f"Feed {url} unexpectedly emitted a zero-length enclosure: {content}"
+            )
+            assert 'length="0"' not in content, msg
+
     def test_game_feed_enclosure_helpers(self) -> None:
         """Helper methods should return values from model fields."""
         feed = GameFeed()
