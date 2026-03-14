@@ -39,6 +39,26 @@ logger: logging.Logger = logging.getLogger("ttvdrops")
 RSS_STYLESHEETS: list[str] = [static("rss_styles.xslt")]
 
 
+def discord_timestamp(dt: datetime.datetime | None) -> SafeText:
+    """Convert a datetime to a Discord relative timestamp format.
+
+    Discord timestamps use the format <t:UNIX_TIMESTAMP:R> where R means relative time.
+    Example: <t:1773450272:R> displays as "2 hours ago" in Discord.
+
+    Args:
+        dt: The datetime to convert. If None, returns an empty string.
+
+    Returns:
+        SafeText: Escaped Discord timestamp token (e.g. &lt;t:1773450272:R&gt;) marked
+        safe for HTML insertion, or empty string if dt is None.
+    """
+    if dt is None:
+        return SafeText("")
+    unix_timestamp: int = int(dt.timestamp())
+    # Keep this escaped so Atom/RSS HTML renderers don't treat <t:...:R> as an HTML tag.
+    return SafeText(f"&lt;t:{unix_timestamp}:R&gt;")
+
+
 class BrowserFriendlyRss201rev2Feed(feedgenerator.Rss201rev2Feed):
     """RSS 2.0 feed generator with a browser-renderable XML content type."""
 
@@ -325,6 +345,49 @@ def generate_date_html(item: Model) -> list[SafeText]:
                 "Ends: {} ({})",
                 end_at.strftime("%Y-%m-%d %H:%M %Z"),
                 naturaltime(end_at),
+            )
+            if end_at
+            else SafeText("")
+        )
+        # Start date and end date separated by a line break if both present
+        if start_part and end_part:
+            parts.append(format_html("<p>{}<br />{}</p>", start_part, end_part))
+        elif start_part:
+            parts.append(format_html("<p>{}</p>", start_part))
+        elif end_part:
+            parts.append(format_html("<p>{}</p>", end_part))
+
+    return parts
+
+
+def generate_discord_date_html(item: Model) -> list[SafeText]:
+    """Generate HTML snippets for dates using Discord relative timestamp format.
+
+    Args:
+        item (Model): The campaign item containing start_at and end_at.
+
+    Returns:
+        list[SafeText]: A list of SafeText elements with Discord timestamp formatted dates.
+    """
+    parts: list[SafeText] = []
+    end_at: datetime.datetime | None = getattr(item, "end_at", None)
+    start_at: datetime.datetime | None = getattr(item, "start_at", None)
+
+    if start_at or end_at:
+        start_part: SafeString = (
+            format_html(
+                "Starts: {} ({})",
+                start_at.strftime("%Y-%m-%d %H:%M %Z"),
+                discord_timestamp(start_at),
+            )
+            if start_at
+            else SafeText("")
+        )
+        end_part: SafeString = (
+            format_html(
+                "Ends: {} ({})",
+                end_at.strftime("%Y-%m-%d %H:%M %Z"),
+                discord_timestamp(end_at),
             )
             if end_at
             else SafeText("")
@@ -1409,3 +1472,134 @@ class RewardCampaignAtomFeed(TTVDropsAtomBaseFeed, RewardCampaignFeed):
     def feed_url(self) -> str:
         """Return the URL to the Atom feed itself."""
         return reverse("twitch:reward_campaign_feed_atom")
+
+
+# Discord feed variants: Atom feeds with Discord relative timestamps
+class OrganizationDiscordFeed(TTVDropsAtomBaseFeed, OrganizationRSSFeed):
+    """Discord feed for latest organizations with Discord relative timestamps."""
+
+    subtitle: str = OrganizationRSSFeed.description
+
+    def feed_url(self) -> str:
+        """Return the URL to the Discord feed itself."""
+        return reverse("twitch:organization_feed_discord")
+
+
+class GameDiscordFeed(TTVDropsAtomBaseFeed, GameFeed):
+    """Discord feed for newly added games with Discord relative timestamps."""
+
+    subtitle: str = GameFeed.description
+
+    def feed_url(self) -> str:
+        """Return the URL to the Discord feed itself."""
+        return reverse("twitch:game_feed_discord")
+
+
+class DropCampaignDiscordFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
+    """Discord feed for latest drop campaigns with Discord relative timestamps."""
+
+    subtitle: str = DropCampaignFeed.description
+
+    def item_description(self, item: DropCampaign) -> SafeText:
+        """Return a description of the campaign with Discord timestamps."""
+        parts: list[SafeText] = []
+
+        parts.extend(generate_item_image(item))
+        parts.extend(generate_description_html(item=item))
+        parts.extend(generate_discord_date_html(item=item))
+        parts.extend(generate_drops_summary_html(item=item))
+        parts.extend(generate_channels_html(item))
+        parts.extend(genereate_details_link_html(item))
+
+        return SafeText("".join(str(p) for p in parts))
+
+    def feed_url(self) -> str:
+        """Return the URL to the Discord feed itself."""
+        return reverse("twitch:campaign_feed_discord")
+
+
+class GameCampaignDiscordFeed(TTVDropsAtomBaseFeed, GameCampaignFeed):
+    """Discord feed for latest drop campaigns for a specific game with Discord relative timestamps."""
+
+    def item_description(self, item: DropCampaign) -> SafeText:
+        """Return a description of the campaign with Discord timestamps."""
+        parts: list[SafeText] = []
+
+        parts.extend(generate_item_image_tag(item))
+        parts.extend(generate_details_link(item))
+        parts.extend(generate_discord_date_html(item))
+        parts.extend(generate_drops_summary_html(item))
+        parts.extend(generate_channels_html(item))
+
+        return SafeText("".join(str(p) for p in parts))
+
+    def feed_url(self, obj: Game) -> str:
+        """Return the URL to the Discord feed itself."""
+        return reverse("twitch:game_campaign_feed_discord", args=[obj.twitch_id])
+
+
+class RewardCampaignDiscordFeed(TTVDropsAtomBaseFeed, RewardCampaignFeed):
+    """Discord feed for latest reward campaigns with Discord relative timestamps."""
+
+    subtitle: str = RewardCampaignFeed.description
+
+    def item_description(self, item: RewardCampaign) -> SafeText:
+        """Return a description of the reward campaign with Discord timestamps."""
+        parts: list = []
+
+        if item.summary:
+            parts.append(format_html("<p>{}</p>", item.summary))
+
+        if item.starts_at or item.ends_at:
+            start_part = (
+                format_html(
+                    "Starts: {} ({})",
+                    item.starts_at.strftime("%Y-%m-%d %H:%M %Z"),
+                    discord_timestamp(item.starts_at),
+                )
+                if item.starts_at
+                else ""
+            )
+            end_part = (
+                format_html(
+                    "Ends: {} ({})",
+                    item.ends_at.strftime("%Y-%m-%d %H:%M %Z"),
+                    discord_timestamp(item.ends_at),
+                )
+                if item.ends_at
+                else ""
+            )
+            if start_part and end_part:
+                parts.append(format_html("<p>{}<br />{}</p>", start_part, end_part))
+            elif start_part:
+                parts.append(format_html("<p>{}</p>", start_part))
+            elif end_part:
+                parts.append(format_html("<p>{}</p>", end_part))
+
+        if item.is_sitewide:
+            parts.append(
+                SafeText("<p><strong>This is a sitewide reward campaign</strong></p>"),
+            )
+        elif item.game:
+            parts.append(
+                format_html(
+                    "<p>Game: {}</p>",
+                    item.game.display_name or item.game.name,
+                ),
+            )
+
+        if item.about_url:
+            parts.append(
+                format_html('<p><a href="{}">Learn more</a></p>', item.about_url),
+            )
+
+        if item.external_url:
+            parts.append(
+                format_html('<p><a href="{}">Redeem reward</a></p>', item.external_url),
+            )
+
+        return SafeText("".join(str(p) for p in parts))
+
+    def feed_url(self) -> str:
+        """Return the URL to the Discord feed itself."""
+        return reverse("twitch:reward_campaign_feed_discord")

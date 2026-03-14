@@ -41,14 +41,19 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers.data import JsonLexer
 
 from twitch.feeds import DropCampaignAtomFeed
+from twitch.feeds import DropCampaignDiscordFeed
 from twitch.feeds import DropCampaignFeed
 from twitch.feeds import GameAtomFeed
 from twitch.feeds import GameCampaignAtomFeed
+from twitch.feeds import GameCampaignDiscordFeed
 from twitch.feeds import GameCampaignFeed
+from twitch.feeds import GameDiscordFeed
 from twitch.feeds import GameFeed
 from twitch.feeds import OrganizationAtomFeed
+from twitch.feeds import OrganizationDiscordFeed
 from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignAtomFeed
+from twitch.feeds import RewardCampaignDiscordFeed
 from twitch.feeds import RewardCampaignFeed
 from twitch.models import Channel
 from twitch.models import ChatBadge
@@ -1829,8 +1834,12 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "description": "Latest organizations added to TTVDrops",
             "url": absolute(reverse("twitch:organization_feed")),
             "atom_url": absolute(reverse("twitch:organization_feed_atom")),
+            "discord_url": absolute(reverse("twitch:organization_feed_discord")),
             "example_xml": render_feed(OrganizationRSSFeed()),
             "example_xml_atom": render_feed(OrganizationAtomFeed())
+            if show_atom
+            else "",
+            "example_xml_discord": render_feed(OrganizationDiscordFeed())
             if show_atom
             else "",
         },
@@ -1839,16 +1848,22 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "description": "Latest games added to TTVDrops",
             "url": absolute(reverse("twitch:game_feed")),
             "atom_url": absolute(reverse("twitch:game_feed_atom")),
+            "discord_url": absolute(reverse("twitch:game_feed_discord")),
             "example_xml": render_feed(GameFeed()),
             "example_xml_atom": render_feed(GameAtomFeed()) if show_atom else "",
+            "example_xml_discord": render_feed(GameDiscordFeed()) if show_atom else "",
         },
         {
             "title": "All Drop Campaigns",
             "description": "Latest drop campaigns across all games",
             "url": absolute(reverse("twitch:campaign_feed")),
             "atom_url": absolute(reverse("twitch:campaign_feed_atom")),
+            "discord_url": absolute(reverse("twitch:campaign_feed_discord")),
             "example_xml": render_feed(DropCampaignFeed()),
             "example_xml_atom": render_feed(DropCampaignAtomFeed())
+            if show_atom
+            else "",
+            "example_xml_discord": render_feed(DropCampaignDiscordFeed())
             if show_atom
             else "",
         },
@@ -1857,8 +1872,12 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             "description": "Latest reward campaigns (Quest rewards) on Twitch",
             "url": absolute(reverse("twitch:reward_campaign_feed")),
             "atom_url": absolute(reverse("twitch:reward_campaign_feed_atom")),
+            "discord_url": absolute(reverse("twitch:reward_campaign_feed_discord")),
             "example_xml": render_feed(RewardCampaignFeed()),
             "example_xml_atom": render_feed(RewardCampaignAtomFeed())
+            if show_atom
+            else "",
+            "example_xml_discord": render_feed(RewardCampaignDiscordFeed())
             if show_atom
             else "",
         },
@@ -1890,12 +1909,27 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
                 if sample_game
                 else absolute("/atom/games/<game_id>/campaigns/")
             ),
+            "discord_url": (
+                absolute(
+                    reverse(
+                        "twitch:game_campaign_feed_discord",
+                        args=[sample_game.twitch_id],
+                    ),
+                )
+                if sample_game
+                else absolute("/discord/games/<game_id>/campaigns/")
+            ),
             "has_sample": bool(sample_game),
             "example_xml": render_feed(GameCampaignFeed(), sample_game.twitch_id)
             if sample_game
             else "",
             "example_xml_atom": (
                 render_feed(GameCampaignAtomFeed(), sample_game.twitch_id)
+                if sample_game and show_atom
+                else ""
+            ),
+            "example_xml_discord": (
+                render_feed(GameCampaignDiscordFeed(), sample_game.twitch_id)
                 if sample_game and show_atom
                 else ""
             ),

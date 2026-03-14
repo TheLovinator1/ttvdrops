@@ -13,6 +13,10 @@
               type="application/atom+xml"
               title="{{ game.display_name }} campaigns (Atom)"
               href="{% url 'twitch:game_campaign_feed_atom' game.twitch_id %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="{{ game.display_name }} campaigns (Discord)"
+              href="{% url 'twitch:game_campaign_feed_discord' game.twitch_id %}" />
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
@@ -49,6 +53,8 @@
                    title="RSS feed for {{ game.display_name }} campaigns">[rss]</a>
                 <a href="{% url 'twitch:game_campaign_feed_atom' game.twitch_id %}"
                    title="Atom feed for {{ game.display_name }} campaigns">[atom]</a>
+                <a href="{% url 'twitch:game_campaign_feed_discord' game.twitch_id %}"
+                   title="Discord feed for {{ game.display_name }} campaigns">[discord]</a>
             </div>
         </div>
     </div>

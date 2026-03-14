@@ -12,6 +12,10 @@
           type="application/atom+xml"
           title="Reward campaigns (Atom)"
           href="{% url 'twitch:reward_campaign_feed_atom' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="Reward campaigns (Discord)"
+          href="{% url 'twitch:reward_campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
     <h1>Reward Campaigns</h1>
@@ -21,6 +25,8 @@
            title="RSS feed for all reward campaigns">[rss]</a>
         <a href="{% url 'twitch:reward_campaign_feed_atom' %}"
            title="Atom feed for all reward campaigns">[atom]</a>
+        <a href="{% url 'twitch:reward_campaign_feed_discord' %}"
+           title="Discord feed for all reward campaigns">[discord]</a>
     </div>
     <p>This is an archive of old Twitch reward campaigns because we do not monitor them.</p>
     <p>

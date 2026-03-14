@@ -1,8 +1,11 @@
 """Test RSS feeds."""
 
+import datetime
 import logging
+import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from datetime import UTC
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -21,6 +24,7 @@ from twitch.feeds import GameFeed
 from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignFeed
 from twitch.feeds import TTVDropsBaseFeed
+from twitch.feeds import discord_timestamp
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -37,8 +41,6 @@ STYLESHEET_PATH: Path = (
 )
 
 if TYPE_CHECKING:
-    import datetime
-
     from django.test.client import _MonkeyPatchedWSGIResponse
     from django.utils.feedgenerator import Enclosure
 
@@ -1183,3 +1185,221 @@ def test_rss_feeds_return_200(
     url: str = reverse(viewname=url_name, kwargs=kwargs)
     response: _MonkeyPatchedWSGIResponse = client.get(url)
     assert response.status_code == 200
+
+
+class DiscordFeedTestCase(TestCase):
+    """Test Discord feeds with relative timestamps."""
+
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        self.org: Organization = Organization.objects.create(
+            twitch_id="test-org-discord",
+            name="Test Organization Discord",
+        )
+        self.org.save()
+
+        self.game: Game = Game.objects.create(
+            twitch_id="test-game-discord",
+            slug="test-game-discord",
+            name="Test Game Discord",
+            display_name="Test Game Discord",
+        )
+        self.game.owners.add(self.org)
+        self.campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="test-campaign-discord",
+            name="Test Campaign Discord",
+            game=self.game,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(days=7),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        self.game.box_art_size_bytes = 42
+        self.game.box_art_mime_type = "image/png"
+        self.game.box_art = "https://example.com/box.png"
+        self.game.save()
+
+        self.campaign.image_size_bytes = 314
+        self.campaign.image_mime_type = "image/gif"
+        self.campaign.image_url = "https://example.com/campaign.png"
+        self.campaign.save()
+
+        self.reward_campaign: RewardCampaign = RewardCampaign.objects.create(
+            twitch_id="test-reward-discord",
+            name="Test Reward Campaign Discord",
+            brand="Test Brand",
+            starts_at=timezone.now() - timedelta(days=1),
+            ends_at=timezone.now() + timedelta(days=7),
+            status="ACTIVE",
+            summary="Test reward summary",
+            instructions="Watch and complete objectives",
+            external_url="https://example.com/reward",
+            about_url="https://example.com/about",
+            is_sitewide=False,
+            game=self.game,
+        )
+
+    def test_discord_timestamp_helper(self) -> None:
+        """Test discord_timestamp helper function."""
+        dt: datetime.datetime = datetime.datetime(2026, 3, 14, 12, 0, 0, tzinfo=UTC)
+        result: str = str(discord_timestamp(dt))
+        assert result.startswith("&lt;t:")
+        assert result.endswith(":R&gt;")
+
+        # Test None input
+        assert not str(discord_timestamp(None))
+
+    def test_organization_discord_feed(self) -> None:
+        """Test organization Discord feed returns 200."""
+        url: str = reverse("twitch:organization_feed_discord")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        assert response["Content-Disposition"] == "inline"
+        content: str = response.content.decode("utf-8")
+        assert "<feed" in content
+        assert "http://www.w3.org/2005/Atom" in content
+
+    def test_game_discord_feed(self) -> None:
+        """Test game Discord feed returns 200."""
+        url: str = reverse("twitch:game_feed_discord")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "<feed" in content
+        assert "Owned by Test Organization Discord." in content
+
+    def test_campaign_discord_feed(self) -> None:
+        """Test campaign Discord feed returns 200 with Discord timestamps."""
+        url: str = reverse("twitch:campaign_feed_discord")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "<feed" in content
+        # Should contain Discord timestamp format (double-escaped in XML payload)
+        assert "&amp;lt;t:" in content
+        assert ":R&amp;gt;" in content
+        assert "()" not in content
+
+    def test_game_campaign_discord_feed(self) -> None:
+        """Test game-specific campaign Discord feed returns 200."""
+        url: str = reverse(
+            "twitch:game_campaign_feed_discord",
+            args=[self.game.twitch_id],
+        )
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "<feed" in content
+        assert "Test Game Discord" in content
+
+    def test_reward_campaign_discord_feed(self) -> None:
+        """Test reward campaign Discord feed returns 200."""
+        url: str = reverse("twitch:reward_campaign_feed_discord")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "<feed" in content
+        # Should contain Discord timestamp format (double-escaped in XML payload)
+        assert "&amp;lt;t:" in content
+        assert ":R&amp;gt;" in content
+        assert "()" not in content
+
+    def test_discord_feeds_use_url_ids_and_correct_self_links(self) -> None:
+        """All Discord feeds should use absolute URL entry IDs and matching self links."""
+        discord_feed_cases: list[tuple[str, dict[str, str], str]] = [
+            (
+                "twitch:campaign_feed_discord",
+                {},
+                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+            ),
+            (
+                "twitch:game_feed_discord",
+                {},
+                f"http://testserver{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
+            ),
+            (
+                "twitch:game_campaign_feed_discord",
+                {"twitch_id": self.game.twitch_id},
+                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+            ),
+            (
+                "twitch:organization_feed_discord",
+                {},
+                f"http://testserver{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
+            ),
+            (
+                "twitch:reward_campaign_feed_discord",
+                {},
+                f"http://testserver{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
+            ),
+        ]
+
+        for url_name, kwargs, expected_entry_id in discord_feed_cases:
+            url: str = reverse(url_name, kwargs=kwargs)
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+
+            assert response.status_code == 200
+            content: str = response.content.decode("utf-8")
+
+            expected_self_link: str = f'href="http://testserver{url}"'
+            msg: str = f"Expected self link in Discord feed {url_name}, got: {content}"
+            assert 'rel="self"' in content, msg
+
+            msg = f"Expected self link to match feed URL for {url_name}, got: {content}"
+            assert expected_self_link in content, msg
+
+            msg = f"Expected entry ID to be absolute URL for {url_name}, got: {content}"
+            assert f"<id>{expected_entry_id}</id>" in content, msg
+
+    def test_discord_feeds_include_stylesheet_processing_instruction(self) -> None:
+        """Discord feeds should include an xml-stylesheet processing instruction."""
+        feed_urls: list[str] = [
+            reverse("twitch:campaign_feed_discord"),
+            reverse("twitch:game_feed_discord"),
+            reverse("twitch:game_campaign_feed_discord", args=[self.game.twitch_id]),
+            reverse("twitch:organization_feed_discord"),
+            reverse("twitch:reward_campaign_feed_discord"),
+        ]
+
+        for url in feed_urls:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+            assert response.status_code == 200
+
+            content: str = response.content.decode("utf-8")
+            assert "<?xml-stylesheet" in content
+            assert "rss_styles.xslt" in content
+            assert 'type="text/xsl"' in content
+            assert 'media="screen"' in content
+
+    def test_discord_campaign_feed_contains_discord_timestamps(self) -> None:
+        """Discord campaign feed should contain Discord relative timestamps."""
+        url: str = reverse("twitch:campaign_feed_discord")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        # Should contain Discord timestamp format (double-escaped in XML payload)
+        discord_pattern: re.Pattern[str] = re.compile(r"&amp;lt;t:\d+:R&amp;gt;")
+        assert discord_pattern.search(content), (
+            f"Expected Discord timestamp format &amp;lt;t:UNIX_TIMESTAMP:R&amp;gt; in content, got: {content}"
+        )
+        assert "()" not in content
+
+    def test_discord_reward_campaign_feed_contains_discord_timestamps(self) -> None:
+        """Discord reward campaign feed should contain Discord relative timestamps."""
+        url: str = reverse("twitch:reward_campaign_feed_discord")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        # Should contain Discord timestamp format (double-escaped in XML payload)
+        discord_pattern: re.Pattern[str] = re.compile(r"&amp;lt;t:\d+:R&amp;gt;")
+        assert discord_pattern.search(content), (
+            f"Expected Discord timestamp format &amp;lt;t:UNIX_TIMESTAMP:R&amp;gt; in content, got: {content}"
+        )
+        assert "()" not in content

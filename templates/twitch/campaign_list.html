@@ -14,6 +14,10 @@
           type="application/atom+xml"
           title="All campaigns (Atom)"
           href="{% url 'twitch:campaign_feed_atom' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="All campaigns (Discord)"
+          href="{% url 'twitch:campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
     <main>
@@ -25,6 +29,8 @@
                    title="RSS feed for all campaigns">[rss]</a>
                 <a href="{% url 'twitch:campaign_feed_atom' %}"
                    title="Atom feed for all campaigns">[atom]</a>
+                <a href="{% url 'twitch:campaign_feed_discord' %}"
+                   title="Discord feed for all campaigns">[discord]</a>
                 <a href="{% url 'twitch:export_campaigns_csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
                    title="Export campaigns as CSV">[csv]</a>
                 <a href="{% url 'twitch:export_campaigns_json' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"

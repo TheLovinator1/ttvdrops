@@ -8,9 +8,13 @@
         <h1>RSS Feeds Documentation</h1>
         <p>This page lists all available RSS feeds for TTVDrops.</p>
         <p>
-            Note: Atom feeds are also available for the same resources under the
-            <code>/atom/</code> endpoints (links labeled "Atom" are shown next to RSS links).
-            Both RSS and Atom formats are supported and served in parallel for backward compatibility.
+            Atom feeds are also available for the same resources under the
+            <code>/atom/</code> endpoints.
+        </p>
+        <p>
+            Discord feeds are available under the <code>/discord/</code> endpoints. These are Atom feeds
+            that include Discord relative timestamps (e.g., <code>&lt;t:1773450272:R&gt;</code>) for dates,
+            making them ideal for Discord bots and integrations.
         </p>
         <section>
             <h2>Global RSS Feeds</h2>
@@ -26,11 +30,19 @@
                                 &nbsp;|&nbsp;
                                 <a href="{{ feed.atom_url }}">Subscribe to {{ feed.title }} Atom Feed</a>
                             {% endif %}
+                            {% if feed.discord_url %}
+                                &nbsp;|&nbsp;
+                                <a href="{{ feed.discord_url }}">Subscribe to {{ feed.title }} Discord Feed</a>
+                            {% endif %}
                         </p>
                         <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
                         {% if feed.example_xml_atom %}
                             <h4>Atom example</h4>
                             <pre><code class="language-xml">{{ feed.example_xml_atom|escape }}</code></pre>
+                        {% endif %}
+                        {% if feed.example_xml_discord %}
+                            <h4>Discord example</h4>
+                            <pre><code class="language-xml">{{ feed.example_xml_discord|escape }}</code></pre>
                         {% endif %}
                     </li>
                 {% endfor %}
@@ -49,6 +61,7 @@
                         <p>
                             Endpoint: <code>{{ feed.url }}</code>
                             {% if feed.atom_url %}&nbsp;|&nbsp; Atom: <code>{{ feed.atom_url }}</code>{% endif %}
+                            {% if feed.discord_url %}&nbsp;|&nbsp; Discord: <code>{{ feed.discord_url }}</code>{% endif %}
                         </p>
                         {% if feed.has_sample %}
                             <p>
@@ -57,12 +70,20 @@
                                     &nbsp;|&nbsp;
                                     <a href="{{ feed.atom_url }}">View Atom example</a>
                                 {% endif %}
+                                {% if feed.discord_url %}
+                                    &nbsp;|&nbsp;
+                                    <a href="{{ feed.discord_url }}">View Discord example</a>
+                                {% endif %}
                             </p>
                         {% endif %}
                         <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
                         {% if feed.example_xml_atom %}
                             <h4>Atom example</h4>
                             <pre><code class="language-xml">{{ feed.example_xml_atom|escape }}</code></pre>
+                        {% endif %}
+                        {% if feed.example_xml_discord %}
+                            <h4>Discord example</h4>
+                            <pre><code class="language-xml">{{ feed.example_xml_discord|escape }}</code></pre>
                         {% endif %}
                     </li>
                 {% endfor %}

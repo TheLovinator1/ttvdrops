@@ -34,6 +34,10 @@
               title="All campaigns (Atom)"
               href="{% url 'twitch:campaign_feed_atom' %}" />
         <link rel="alternate"
+              type="application/atom+xml"
+              title="All campaigns (Discord)"
+              href="{% url 'twitch:campaign_feed_discord' %}" />
+        <link rel="alternate"
               type="application/rss+xml"
               title="Newly added games (RSS)"
               href="{% url 'twitch:game_feed' %}" />
@@ -41,6 +45,10 @@
               type="application/atom+xml"
               title="Newly added games (Atom)"
               href="{% url 'twitch:game_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="Newly added games (Discord)"
+              href="{% url 'twitch:game_feed_discord' %}" />
         <link rel="alternate"
               type="application/rss+xml"
               title="Newly added organizations (RSS)"
@@ -50,6 +58,10 @@
               title="Newly added organizations (Atom)"
               href="{% url 'twitch:organization_feed_atom' %}" />
         <link rel="alternate"
+              type="application/atom+xml"
+              title="Newly added organizations (Discord)"
+              href="{% url 'twitch:organization_feed_discord' %}" />
+        <link rel="alternate"
               type="application/rss+xml"
               title="Newly added reward campaigns (RSS)"
               href="{% url 'twitch:reward_campaign_feed' %}" />
@@ -57,6 +69,10 @@
               type="application/atom+xml"
               title="Newly added reward campaigns (Atom)"
               href="{% url 'twitch:reward_campaign_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="Newly added reward campaigns (Discord)"
+              href="{% url 'twitch:reward_campaign_feed_discord' %}" />
         {# Allow child templates to inject page-specific alternates into the head #}
         {% block extra_head %}
         {% endblock extra_head %}

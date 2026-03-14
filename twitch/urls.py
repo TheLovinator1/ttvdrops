@@ -4,23 +4,29 @@ from django.urls import path
 
 from twitch import views
 from twitch.feeds import DropCampaignAtomFeed
+from twitch.feeds import DropCampaignDiscordFeed
 from twitch.feeds import DropCampaignFeed
 from twitch.feeds import GameAtomFeed
 from twitch.feeds import GameCampaignAtomFeed
+from twitch.feeds import GameCampaignDiscordFeed
 from twitch.feeds import GameCampaignFeed
+from twitch.feeds import GameDiscordFeed
 from twitch.feeds import GameFeed
 from twitch.feeds import OrganizationAtomFeed
+from twitch.feeds import OrganizationDiscordFeed
 from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignAtomFeed
+from twitch.feeds import RewardCampaignDiscordFeed
 from twitch.feeds import RewardCampaignFeed
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
+    from django.urls.resolvers import URLResolver
 
 app_name = "twitch"
 
 
-urlpatterns: list[URLPattern] = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("", views.dashboard, name="dashboard"),
     path("badges/", views.badge_list_view, name="badge_list"),
     path("badges/<str:set_id>/", views.badge_set_detail_view, name="badge_set_detail"),
@@ -127,5 +133,23 @@ urlpatterns: list[URLPattern] = [
         "atom/reward-campaigns/",
         RewardCampaignAtomFeed(),
         name="reward_campaign_feed_atom",
+    ),
+    # Discord feeds (Atom feeds with Discord relative timestamps)
+    path("discord/campaigns/", DropCampaignDiscordFeed(), name="campaign_feed_discord"),
+    path("discord/games/", GameDiscordFeed(), name="game_feed_discord"),
+    path(
+        "discord/games/<str:twitch_id>/campaigns/",
+        GameCampaignDiscordFeed(),
+        name="game_campaign_feed_discord",
+    ),
+    path(
+        "discord/organizations/",
+        OrganizationDiscordFeed(),
+        name="organization_feed_discord",
+    ),
+    path(
+        "discord/reward-campaigns/",
+        RewardCampaignDiscordFeed(),
+        name="reward_campaign_feed_discord",
     ),
 ]
