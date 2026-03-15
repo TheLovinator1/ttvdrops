@@ -2,20 +2,6 @@
 {% block title %}
     {{ org.name }} — Kick Organization
 {% endblock title %}
-{% block extra_head %}
-    <link rel="alternate"
-          type="application/rss+xml"
-          title="All Kick organizations (RSS)"
-          href="{% url 'kick:organization_feed' %}" />
-    <link rel="alternate"
-          type="application/atom+xml"
-          title="All Kick organizations (Atom)"
-          href="{% url 'kick:organization_feed_atom' %}" />
-    <link rel="alternate"
-          type="application/atom+xml"
-          title="All Kick organizations (Discord)"
-          href="{% url 'kick:organization_feed_discord' %}" />
-{% endblock extra_head %}
 {% block content %}
     <main>
         <nav aria-label="Breadcrumb">
@@ -39,14 +25,6 @@
             {% endif %}
             <div>
                 <h1 style="margin: 0 0 0.25rem 0;">{{ org.name }}</h1>
-                <div>
-                    <a href="{% url 'kick:organization_feed' %}"
-                       title="RSS feed for all organizations">[rss]</a>
-                    <a href="{% url 'kick:organization_feed_atom' %}"
-                       title="Atom feed for all organizations">[atom]</a>
-                    <a href="{% url 'kick:organization_feed_discord' %}"
-                       title="Discord feed for all organizations">[discord]</a>
-                </div>
                 {% if org.restricted %}<p style="margin: 0.25rem 0; color: #b00;">Restricted</p>{% endif %}
                 {% if org.url %}
                     <p style="margin: 0.25rem 0;">
