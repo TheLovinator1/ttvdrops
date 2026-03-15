@@ -73,6 +73,42 @@
               type="application/atom+xml"
               title="Newly added reward campaigns (Discord)"
               href="{% url 'twitch:reward_campaign_feed_discord' %}" />
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="All Kick campaigns (RSS)"
+              href="{% url 'kick:campaign_feed' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="All Kick campaigns (Atom)"
+              href="{% url 'kick:campaign_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="All Kick campaigns (Discord)"
+              href="{% url 'kick:campaign_feed_discord' %}" />
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="All Kick games (RSS)"
+              href="{% url 'kick:game_feed' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="All Kick games (Atom)"
+              href="{% url 'kick:game_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="All Kick games (Discord)"
+              href="{% url 'kick:game_feed_discord' %}" />
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="All Kick organizations (RSS)"
+              href="{% url 'kick:organization_feed' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="All Kick organizations (Atom)"
+              href="{% url 'kick:organization_feed_atom' %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="All Kick organizations (Discord)"
+              href="{% url 'kick:organization_feed_discord' %}" />
         {# Allow child templates to inject page-specific alternates into the head #}
         {% block extra_head %}
         {% endblock extra_head %}
@@ -234,9 +270,14 @@
             <a href="{% url 'twitch:emote_gallery' %}">Emotes</a> |
             <a href="https://www.twitch.tv/drops/inventory">Inventory</a>
             <br />
+            <strong>Kick</strong>
+            <a href="{% url 'kick:dashboard' %}">Dashboard</a> |
+            <a href="{% url 'kick:campaign_list' %}">Campaigns</a> |
+            <a href="{% url 'kick:game_list' %}">Games</a> |
+            <a href="{% url 'kick:organization_list' %}">Organizations</a>
+            <br />
             <strong>Other sites</strong>
             <a href="#">Steam</a> |
-            <a href="#">Kick</a> |
             <a href="#">YouTube</a> |
             <a href="#">TikTok</a> |
             <a href="#">Discord</a>

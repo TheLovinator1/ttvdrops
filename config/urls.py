@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 urlpatterns: list[URLPattern | URLResolver] = [
     path(route="sitemap.xml", view=twitch_views.sitemap_view, name="sitemap"),
     path(route="", view=include("twitch.urls", namespace="twitch")),
+    path(route="kick/", view=include("kick.urls", namespace="kick")),
 ]
 
 # Serve media in development

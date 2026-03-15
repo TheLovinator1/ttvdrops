@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}
+    {{ campaign.name }} — Kick Campaign
+{% endblock title %}
+{% block extra_head %}
+    {% if campaign.category %}
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="{{ campaign.category.name }} campaigns (RSS)"
+              href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="{{ campaign.category.name }} campaigns (Atom)"
+              href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="{{ campaign.category.name }} campaigns (Discord)"
+              href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}" />
+    {% endif %}
+{% endblock extra_head %}
+{% block content %}
+    <main>
+        <nav aria-label="Breadcrumb">
+            <a href="{% url 'kick:dashboard' %}">Kick</a> &gt;
+            <a href="{% url 'kick:campaign_list' %}">Campaigns</a> &gt;
+            {{ campaign.name }}
+        </nav>
+        <div style="display: flex;
+                    align-items: flex-start;
+                    gap: 1.5rem;
+                    margin-bottom: 1rem">
+            <div style="flex-shrink: 0;">
+                {% if campaign.image_url %}
+                    <img src="{{ campaign.image_url }}"
+                         alt="{{ campaign.name }} image"
+                         width="200"
+                         height="200"
+                         loading="lazy"
+                         style="max-width: 100%;
+                                height: auto;
+                                border-radius: 8px" />
+                {% else %}
+                    <div style="width: 200px;
+                                height: 200px;
+                                background-color: #eee;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                border-radius: 8px">No Image</div>
+                {% endif %}
+            </div>
+            <div>
+                <h1 style="margin: 0 0 0.25rem 0;">{{ campaign.name }}</h1>
+                {% if campaign.category %}
+                    <div>
+                        <a href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
+                           title="RSS feed for {{ campaign.category.name }} campaigns">[rss]</a>
+                        <a href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
+                           title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
+                        <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
+                           title="Discord feed for {{ campaign.category.name }} campaigns">[discord]</a>
+                    </div>
+                {% endif %}
+                <p style="margin: 0.25rem 0; color: #666;">
+                    Status: {{ campaign.status|default:"unknown"|capfirst }}
+                    {% if campaign.rule_name %}- Rule: {{ campaign.rule_name }}{% endif %}
+                </p>
+                {% if campaign.category or campaign.organization %}
+                    <p style="margin: 0.25rem 0;">
+                        {% if campaign.category %}
+                            <a href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a>
+                        {% endif %}
+                        {% if campaign.organization %}
+                            {% if campaign.category %}-{% endif %}
+                            <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}">{{ campaign.organization.name }}</a>
+                        {% endif %}
+                    </p>
+                {% endif %}
+                <p style="margin: 0.25rem 0; font-size: 0.85rem; color: #666;">
+                    ID: {{ campaign.kick_id }}
+                    {% if campaign.rule_id %}- Rule ID: {{ campaign.rule_id }}{% endif %}
+                    - Added: <time datetime="{{ campaign.added_at|date:'c' }}"
+       title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y" }}</time>
+                    ({{ campaign.added_at|timesince }} ago)
+                    - Updated: <time datetime="{{ campaign.updated_at|date:'c' }}"
+       title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y" }}</time>
+                    ({{ campaign.updated_at|timesince }} ago)
+                </p>
+                {% if campaign.ends_at %}
+                    <p style="margin: 0.25rem 0;">
+                        <strong>Ends:</strong>
+                        <time datetime="{{ campaign.ends_at|date:'c' }}"
+                              title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|date:"M d, Y H:i" }}</time>
+                        {% if campaign.ends_at < now %}
+                            (ended {{ campaign.ends_at|timesince }} ago)
+                        {% else %}
+                            (in {{ campaign.ends_at|timeuntil }})
+                        {% endif %}
+                    </p>
+                {% endif %}
+                {% if campaign.starts_at %}
+                    <p style="margin: 0.25rem 0;">
+                        <strong>Starts:</strong>
+                        <time datetime="{{ campaign.starts_at|date:'c' }}"
+                              title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">{{ campaign.starts_at|date:"M d, Y H:i" }}</time>
+                        {% if campaign.starts_at < now %}
+                            (started {{ campaign.starts_at|timesince }} ago)
+                        {% else %}
+                            (in {{ campaign.starts_at|timeuntil }})
+                        {% endif %}
+                    </p>
+                {% endif %}
+                {% if campaign.duration %}
+                    <p style="margin: 0.25rem 0;">
+                        <strong>Duration:</strong> {{ campaign.duration }}
+                    </p>
+                {% endif %}
+                <p style="margin: 0.25rem 0;">
+                    {% if reward_count %}
+                        {{ reward_count }} reward{{ reward_count|pluralize }}
+                        ({{ total_watch_minutes }} total watch minute{{ total_watch_minutes|pluralize }})
+                    {% else %}
+                        No rewards
+                    {% endif %}
+                </p>
+                <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                    <strong>Participating channels:</strong>
+                    {% if campaign.channels.all %}
+                        <ul style="margin: 0.25rem 0 0 0; padding-left: 1rem;">
+                            {% for channel in campaign.channels.all|slice:":5" %}
+                                <li>
+                                    {% if channel.user %}
+                                        <a href="{{ channel.channel_url }}"
+                                           rel="nofollow noopener"
+                                           target="_blank">{{ channel.user.username }}</a>
+                                    {% else %}
+                                        <a href="{{ channel.channel_url }}"
+                                           rel="nofollow noopener"
+                                           target="_blank">{{ channel.name }}</a>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                            {% if campaign.channels.count > 5 %}
+                                <li style="color: #666; font-style: italic;">... and {{ campaign.channels.count|add:"-5" }} more</li>
+                            {% endif %}
+                        </ul>
+                    {% else %}
+                        <p style="margin: 0.25rem 0 0 0;">
+                            <!-- Is game wide-->
+                            <a href="{{ campaign.category.kick_url }}"
+                               rel="nofollow noopener"
+                               target="_blank">{{ campaign.category.name }}</a> is game wide.
+                        </p>
+                    {% endif %}
+                </div>
+                {% if campaign.created_at %}
+                    <p style="margin: 0.25rem 0;">
+                        <time datetime="{{ campaign.created_at|date:'c' }}"
+                              title="{{ campaign.created_at|date:'DATETIME_FORMAT' }}">
+                            Created: {{ campaign.created_at|date:"M d, Y H:i" }} ({{ campaign.created_at|timesince }} ago)
+                        </time>
+                    </p>
+                {% endif %}
+                {% if campaign.api_updated_at %}
+                    <p style="margin: 0.25rem 0;">
+                        <time datetime="{{ campaign.api_updated_at|date:'c' }}"
+                              title="{{ campaign.api_updated_at|date:'DATETIME_FORMAT' }}">
+                            API Updated: {{ campaign.api_updated_at|date:"M d, Y H:i" }} ({{ campaign.api_updated_at|timesince }} ago)
+                        </time>
+                    </p>
+                {% endif %}
+                <p style="margin: 0.5rem 0 0 0;">
+                    {% if campaign.url %}<a href="{{ campaign.url }}" rel="nofollow noopener" target="_blank">Details</a>{% endif %}
+                    {% if campaign.connect_url %}
+                        {% if campaign.url %}-{% endif %}
+                        <a href="{{ campaign.connect_url }}"
+                           rel="nofollow noopener"
+                           target="_blank">Connect account</a>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        <hr />
+        <h2>Rewards</h2>
+        {% if rewards %}
+            {% for reward in rewards %}
+                <article>
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        <div style="flex-shrink: 0;">
+                            {% if reward.full_image_url %}
+                                <img src="{{ reward.full_image_url }}"
+                                     alt="{{ reward.name }}"
+                                     width="96"
+                                     height="96"
+                                     loading="lazy"
+                                     style="width: 96px;
+                                            height: auto;
+                                            border-radius: 6px" />
+                            {% else %}
+                                <div style="width: 96px;
+                                            height: 96px;
+                                            background-color: #eee;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            border-radius: 6px">No Image</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h3 style="margin: 0 0 0.25rem 0;">{{ reward.name }}</h3>
+                            {% if reward.required_units %}
+                                <p style="margin: 0.25rem 0;">{{ reward.required_units }} minutes watched</p>
+                            {% else %}
+                                <p style="margin: 0.25rem 0;">No watch-time requirement</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        {% else %}
+            <p>No drops available for this campaign.</p>
+        {% endif %}
+    </main>
+{% endblock content %}

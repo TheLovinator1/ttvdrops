@@ -1,0 +1,9 @@
+[Unit]
+Description=TTVDrops import Kick drops at :01, :16, :31, and :46
+
+[Timer]
+OnCalendar=*-*-* *:01,16,31,46:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
