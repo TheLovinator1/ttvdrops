@@ -114,22 +114,13 @@ uv run python manage.py backup_db --output-dir "<path>" --prefix "ttvdrops"
 ### How the duck does permissions work on Linux?
 
 ```bash
-sudo groupadd responses
-sudo usermod -aG responses lovinator
-sudo usermod -aG responses ttvdrops
+sudo chown -R ttvdrops:http /home/ttvdrops/.local/share/TTVDrops/media/
+sudo chgrp -R http /home/ttvdrops/.local/share/TTVDrops/media
+sudo find /home/ttvdrops/.local/share/TTVDrops/media -type d -exec chmod 2775 {} \;
+sudo find /home/ttvdrops/.local/share/TTVDrops/media -type f -exec chmod 664 {} \;
 
-sudo chown -R lovinator:responses /mnt/fourteen/Data/Responses
-sudo chown -R lovinator:responses /mnt/fourteen/Data/ttvdrops
-sudo chmod -R 2775 /mnt/fourteen/Data/Responses
-sudo chmod -R 2775 /mnt/fourteen/Data/ttvdrops
-
-# Import dir
-sudo setfacl -b /mnt/fourteen/Data/Responses /mnt/fourteen/Data/Responses/imported
-sudo setfacl -m g:responses:rwx /mnt/fourteen/Data/Responses /mnt/fourteen/Data/Responses/imported
-sudo setfacl -d -m g:responses:rwx /mnt/fourteen/Data/Responses /mnt/fourteen/Data/Responses/imported
-
-# Backup dir
-sudo setfacl -b /mnt/fourteen/Data/ttvdrops
-sudo setfacl -m g:responses:rwx /mnt/fourteen/Data/ttvdrops
-sudo setfacl -d -m g:responses:rwx /mnt/fourteen/Data/ttvdrops
+sudo chown -R ttvdrops:http /home/ttvdrops/.local/share/TTVDrops/datasets/
+sudo chgrp -R http /home/ttvdrops/.local/share/TTVDrops/datasets/
+sudo find /home/ttvdrops/.local/share/TTVDrops/datasets -type d -exec chmod 2775 {} \;
+sudo find /home/ttvdrops/.local/share/TTVDrops/datasets -type f -exec chmod 664 {} \;
 ```
