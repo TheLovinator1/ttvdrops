@@ -39,6 +39,9 @@ def test_top_level_named_routes_available() -> None:
     msg: str = f"Expected 'twitch:dashboard' to reverse to '/twitch/', got {reverse('twitch:dashboard')}"
     assert reverse("twitch:dashboard") == "/twitch/", msg
 
+    youtube_msg: str = f"Expected 'youtube:index' to reverse to '/youtube/', got {reverse('youtube:index')}"
+    assert reverse("youtube:index") == "/youtube/", youtube_msg
+
 
 def test_debug_tools_not_present_while_testing() -> None:
     """`silk` and Django Debug Toolbar URL patterns are not present while running tests."""

@@ -141,6 +141,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.postgres",
     "twitch.apps.TwitchConfig",
     "kick.apps.KickConfig",
+    "youtube.apps.YoutubeConfig",
     "core.apps.CoreConfig",
 ]
 

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}
+    YouTube Drops Channels
+{% endblock title %}
+{% block content %}
+    <main>
+        <h1>YouTube Drops Channels</h1>
+        <p>Official channels from YouTube partner accounts where drops/rewards may be available.</p>
+        {% for group in partner_groups %}
+            <h2>{{ group.partner }}</h2>
+            <ul>
+                {% for item in group.channels %}
+                    <li>
+                        <a href="{{ item.url }}" rel="noopener" target="_blank">{{ item.channel }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </main>
+{% endblock content %}
