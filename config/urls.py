@@ -5,15 +5,19 @@ from django.conf.urls.static import static
 from django.urls import include
 from django.urls import path
 
-from twitch import views as twitch_views
+from core import views as core_views
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
     from django.urls.resolvers import URLResolver
 
 urlpatterns: list[URLPattern | URLResolver] = [
-    path(route="sitemap.xml", view=twitch_views.sitemap_view, name="sitemap"),
-    path(route="", view=include("twitch.urls", namespace="twitch")),
+    path(route="sitemap.xml", view=core_views.sitemap_view, name="sitemap"),
+    # Core app
+    path(route="", view=include("core.urls", namespace="core")),
+    # Twitch app
+    path(route="twitch/", view=include("twitch.urls", namespace="twitch")),
+    # Kick app
     path(route="kick/", view=include("kick.urls", namespace="kick")),
 ]
 

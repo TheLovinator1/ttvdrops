@@ -327,7 +327,7 @@ class TestChannelListView:
 
     def test_channel_list_loads(self, client: Client) -> None:
         """Test that channel list view loads successfully."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        response: _MonkeyPatchedWSGIResponse = client.get("/twitch/channels/")
         assert response.status_code == 200
 
     def test_campaign_count_annotation(
@@ -342,7 +342,7 @@ class TestChannelListView:
         channel: Channel = channel_with_campaigns["channel"]  # type: ignore[assignment]
         campaigns: list[DropCampaign] = channel_with_campaigns["campaigns"]  # type: ignore[assignment]
 
-        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        response: _MonkeyPatchedWSGIResponse = client.get("/twitch/channels/")
         context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
         if isinstance(context, list):
             context = context[-1]
@@ -375,7 +375,7 @@ class TestChannelListView:
             display_name="NoCampaigns",
         )
 
-        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        response: _MonkeyPatchedWSGIResponse = client.get("/twitch/channels/")
         context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
         if isinstance(context, list):
             context = context[-1]
@@ -420,7 +420,7 @@ class TestChannelListView:
             )
             campaign.allow_channels.add(channel2)
 
-        response: _MonkeyPatchedWSGIResponse = client.get("/channels/")
+        response: _MonkeyPatchedWSGIResponse = client.get("/twitch/channels/")
         context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
         if isinstance(context, list):
             context = context[-1]
@@ -462,7 +462,7 @@ class TestChannelListView:
         )
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            f"/channels/?search={channel.name}",
+            f"/twitch/channels/?search={channel.name}",
         )
         context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
         if isinstance(context, list):
@@ -527,7 +527,7 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_debug_view(self, client: Client) -> None:
         """Test debug view returns 200 and has games_without_owner in context."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:debug"))
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("core:debug"))
         assert response.status_code == 200
         assert "games_without_owner" in response.context
 
@@ -1014,7 +1014,7 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_docs_rss_view(self, client: Client) -> None:
         """Test docs RSS view returns 200 and has feeds in context."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:docs_rss"))
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("core:docs_rss"))
         assert response.status_code == 200
         assert "feeds" in response.context
         assert "filtered_feeds" in response.context
@@ -1268,7 +1268,7 @@ class TestSEOMetaTags:
     def test_noindex_pages_have_robots_directive(self, client: Client) -> None:
         """Test that pages with noindex have proper robots directive."""
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backups"),
+            reverse("core:dataset_backups"),
         )
         assert response.status_code == 200
         assert "robots_directive" in response.context
@@ -1405,7 +1405,7 @@ class TestSitemapView:
         channel: Channel = sample_entities["channel"]
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content: str = response.content.decode()
-        assert f"/channels/{channel.twitch_id}/" in content
+        assert f"/twitch/channels/{channel.twitch_id}/" in content
 
     def test_sitemap_contains_badge_detail_pages(
         self,

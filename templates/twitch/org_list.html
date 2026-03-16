@@ -5,11 +5,11 @@
 {% block content %}
     <h1>Organizations</h1>
     <div>
-        <a href="{% url 'twitch:organization_feed' %}"
+        <a href="{% url 'core:organization_feed' %}"
            title="RSS feed for all organizations">[rss]</a>
-        <a href="{% url 'twitch:organization_feed_atom' %}"
+        <a href="{% url 'core:organization_feed_atom' %}"
            title="Atom feed for all organizations">[atom]</a>
-        <a href="{% url 'twitch:organization_feed_discord' %}"
+        <a href="{% url 'core:organization_feed_discord' %}"
            title="Discord feed for all organizations">[discord]</a>
         <a href="{% url 'twitch:export_organizations_csv' %}"
            title="Export all organizations as CSV">[csv]</a>

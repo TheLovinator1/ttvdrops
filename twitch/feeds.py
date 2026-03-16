@@ -759,7 +759,7 @@ class OrganizationRSSFeed(TTVDropsBaseFeed):
 
     def feed_url(self) -> str:
         """Return the absolute URL for this feed."""
-        return reverse("twitch:organization_feed")
+        return reverse("core:organization_feed")
 
 
 # MARK: /rss/games/
@@ -829,7 +829,7 @@ class GameFeed(TTVDropsBaseFeed):
 
         # Get the full URL for TTVDrops game detail page
         game_url: str = reverse("twitch:game_detail", args=[twitch_id])
-        rss_feed_url: str = reverse("twitch:game_campaign_feed", args=[twitch_id])
+        rss_feed_url: str = reverse("core:game_campaign_feed", args=[twitch_id])
         twitch_directory_url: str = getattr(item, "twitch_directory_url", "")
 
         description_parts.append(
@@ -911,7 +911,7 @@ class GameFeed(TTVDropsBaseFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the RSS feed itself."""
-        return reverse("twitch:game_feed")
+        return reverse("core:game_feed")
 
 
 # MARK: /rss/campaigns/
@@ -1054,7 +1054,7 @@ class DropCampaignFeed(TTVDropsBaseFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the RSS feed itself."""
-        return reverse("twitch:campaign_feed")
+        return reverse("core:campaign_feed")
 
 
 # MARK: /rss/games/<twitch_id>/campaigns/
@@ -1230,7 +1230,7 @@ class GameCampaignFeed(TTVDropsBaseFeed):
 
     def feed_url(self, obj: Game) -> str:
         """Return the URL to the RSS feed itself."""
-        return reverse("twitch:game_campaign_feed", args=[obj.twitch_id])
+        return reverse("core:game_campaign_feed", args=[obj.twitch_id])
 
 
 # MARK: /rss/reward-campaigns/
@@ -1422,7 +1422,7 @@ class RewardCampaignFeed(TTVDropsBaseFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the RSS feed itself."""
-        return reverse("twitch:reward_campaign_feed")
+        return reverse("core:reward_campaign_feed")
 
 
 # Atom feed variants: reuse existing logic but switch the feed generator to Atom
@@ -1433,7 +1433,7 @@ class OrganizationAtomFeed(TTVDropsAtomBaseFeed, OrganizationRSSFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Atom feed itself."""
-        return reverse("twitch:organization_feed_atom")
+        return reverse("core:organization_feed_atom")
 
 
 class GameAtomFeed(TTVDropsAtomBaseFeed, GameFeed):
@@ -1443,7 +1443,7 @@ class GameAtomFeed(TTVDropsAtomBaseFeed, GameFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Atom feed itself."""
-        return reverse("twitch:game_feed_atom")
+        return reverse("core:game_feed_atom")
 
 
 class DropCampaignAtomFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
@@ -1453,7 +1453,7 @@ class DropCampaignAtomFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Atom feed itself."""
-        return reverse("twitch:campaign_feed_atom")
+        return reverse("core:campaign_feed_atom")
 
 
 class GameCampaignAtomFeed(TTVDropsAtomBaseFeed, GameCampaignFeed):
@@ -1461,7 +1461,7 @@ class GameCampaignAtomFeed(TTVDropsAtomBaseFeed, GameCampaignFeed):
 
     def feed_url(self, obj: Game) -> str:
         """Return the URL to the Atom feed itself."""
-        return reverse("twitch:game_campaign_feed_atom", args=[obj.twitch_id])
+        return reverse("core:game_campaign_feed_atom", args=[obj.twitch_id])
 
 
 class RewardCampaignAtomFeed(TTVDropsAtomBaseFeed, RewardCampaignFeed):
@@ -1471,7 +1471,7 @@ class RewardCampaignAtomFeed(TTVDropsAtomBaseFeed, RewardCampaignFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Atom feed itself."""
-        return reverse("twitch:reward_campaign_feed_atom")
+        return reverse("core:reward_campaign_feed_atom")
 
 
 # Discord feed variants: Atom feeds with Discord relative timestamps
@@ -1482,7 +1482,7 @@ class OrganizationDiscordFeed(TTVDropsAtomBaseFeed, OrganizationRSSFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Discord feed itself."""
-        return reverse("twitch:organization_feed_discord")
+        return reverse("core:organization_feed_discord")
 
 
 class GameDiscordFeed(TTVDropsAtomBaseFeed, GameFeed):
@@ -1492,7 +1492,7 @@ class GameDiscordFeed(TTVDropsAtomBaseFeed, GameFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Discord feed itself."""
-        return reverse("twitch:game_feed_discord")
+        return reverse("core:game_feed_discord")
 
 
 class DropCampaignDiscordFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
@@ -1515,7 +1515,7 @@ class DropCampaignDiscordFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Discord feed itself."""
-        return reverse("twitch:campaign_feed_discord")
+        return reverse("core:campaign_feed_discord")
 
 
 class GameCampaignDiscordFeed(TTVDropsAtomBaseFeed, GameCampaignFeed):
@@ -1535,7 +1535,7 @@ class GameCampaignDiscordFeed(TTVDropsAtomBaseFeed, GameCampaignFeed):
 
     def feed_url(self, obj: Game) -> str:
         """Return the URL to the Discord feed itself."""
-        return reverse("twitch:game_campaign_feed_discord", args=[obj.twitch_id])
+        return reverse("core:game_campaign_feed_discord", args=[obj.twitch_id])
 
 
 class RewardCampaignDiscordFeed(TTVDropsAtomBaseFeed, RewardCampaignFeed):
@@ -1602,4 +1602,4 @@ class RewardCampaignDiscordFeed(TTVDropsAtomBaseFeed, RewardCampaignFeed):
 
     def feed_url(self) -> str:
         """Return the URL to the Discord feed itself."""
-        return reverse("twitch:reward_campaign_feed_discord")
+        return reverse("core:reward_campaign_feed_discord")

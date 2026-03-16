@@ -106,7 +106,7 @@ class RSSFeedTestCase(TestCase):
 
     def test_organization_feed(self) -> None:
         """Test organization feed returns 200."""
-        url: str = reverse("twitch:organization_feed")
+        url: str = reverse("core:organization_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -114,7 +114,7 @@ class RSSFeedTestCase(TestCase):
 
     def test_game_feed(self) -> None:
         """Test game feed returns 200."""
-        url: str = reverse("twitch:game_feed")
+        url: str = reverse("core:game_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -123,7 +123,7 @@ class RSSFeedTestCase(TestCase):
         assert "Owned by Test Organization." in content
 
         expected_rss_link: str = reverse(
-            "twitch:game_campaign_feed",
+            "core:game_campaign_feed",
             args=[self.game.twitch_id],
         )
         assert expected_rss_link in content
@@ -137,7 +137,7 @@ class RSSFeedTestCase(TestCase):
 
     def test_organization_atom_feed(self) -> None:
         """Test organization Atom feed returns 200 and Atom XML."""
-        url: str = reverse("twitch:organization_feed_atom")
+        url: str = reverse("core:organization_feed_atom")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
 
         msg: str = f"Expected 200 OK, got {response.status_code} with content: {response.content.decode('utf-8')}"
@@ -151,14 +151,14 @@ class RSSFeedTestCase(TestCase):
 
     def test_game_atom_feed(self) -> None:
         """Test game Atom feed returns 200 and contains expected content."""
-        url: str = reverse("twitch:game_feed_atom")
+        url: str = reverse("core:game_feed_atom")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
         content: str = response.content.decode("utf-8")
         assert "Owned by Test Organization." in content
         expected_atom_link: str = reverse(
-            "twitch:game_campaign_feed",
+            "core:game_campaign_feed",
             args=[self.game.twitch_id],
         )
         assert expected_atom_link in content
@@ -167,7 +167,7 @@ class RSSFeedTestCase(TestCase):
 
     def test_campaign_atom_feed_uses_url_ids_and_correct_self_link(self) -> None:
         """Atom campaign feed should use URL ids and a matching self link."""
-        url: str = reverse("twitch:campaign_feed_atom")
+        url: str = reverse("core:campaign_feed_atom")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
 
         assert response.status_code == 200
@@ -180,33 +180,35 @@ class RSSFeedTestCase(TestCase):
         assert 'href="http://testserver/atom/campaigns/"' in content, msg
 
         msg: str = f"Expected entry ID to be the campaign URL, got: {content}"
-        assert "<id>http://testserver/campaigns/test-campaign-123/</id>" in content, msg
+        assert (
+            "<id>http://testserver/twitch/campaigns/test-campaign-123/</id>" in content
+        ), msg
 
     def test_all_atom_feeds_use_url_ids_and_correct_self_links(self) -> None:
         """All Atom feeds should use absolute URL entry IDs and matching self links."""
         atom_feed_cases: list[tuple[str, dict[str, str], str]] = [
             (
-                "twitch:campaign_feed_atom",
+                "core:campaign_feed_atom",
                 {},
                 f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
-                "twitch:game_feed_atom",
+                "core:game_feed_atom",
                 {},
                 f"http://testserver{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
             ),
             (
-                "twitch:game_campaign_feed_atom",
+                "core:game_campaign_feed_atom",
                 {"twitch_id": self.game.twitch_id},
                 f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
-                "twitch:organization_feed_atom",
+                "core:organization_feed_atom",
                 {},
                 f"http://testserver{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
             ),
             (
-                "twitch:reward_campaign_feed_atom",
+                "core:reward_campaign_feed_atom",
                 {},
                 f"http://testserver{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
             ),
@@ -246,7 +248,7 @@ class RSSFeedTestCase(TestCase):
         )
         drop.benefits.add(benefit)
 
-        url: str = reverse("twitch:campaign_feed_atom")
+        url: str = reverse("core:campaign_feed_atom")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
 
         assert response.status_code == 200
@@ -257,11 +259,11 @@ class RSSFeedTestCase(TestCase):
     def test_atom_feeds_include_stylesheet_processing_instruction(self) -> None:
         """Atom feeds should include an xml-stylesheet processing instruction."""
         feed_urls: list[str] = [
-            reverse("twitch:campaign_feed_atom"),
-            reverse("twitch:game_feed_atom"),
-            reverse("twitch:game_campaign_feed_atom", args=[self.game.twitch_id]),
-            reverse("twitch:organization_feed_atom"),
-            reverse("twitch:reward_campaign_feed_atom"),
+            reverse("core:campaign_feed_atom"),
+            reverse("core:game_feed_atom"),
+            reverse("core:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("core:organization_feed_atom"),
+            reverse("core:reward_campaign_feed_atom"),
         ]
 
         for url in feed_urls:
@@ -297,12 +299,12 @@ class RSSFeedTestCase(TestCase):
         self.campaign.save()
 
         feed_urls: list[str] = [
-            reverse("twitch:game_feed"),
-            reverse("twitch:campaign_feed"),
-            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
-            reverse("twitch:game_feed_atom"),
-            reverse("twitch:campaign_feed_atom"),
-            reverse("twitch:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("core:game_feed"),
+            reverse("core:campaign_feed"),
+            reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:game_feed_atom"),
+            reverse("core:campaign_feed_atom"),
+            reverse("core:game_campaign_feed_atom", args=[self.game.twitch_id]),
         ]
 
         for url in feed_urls:
@@ -333,14 +335,14 @@ class RSSFeedTestCase(TestCase):
         self.reward_campaign.save()
 
         feed_urls: list[str] = [
-            reverse("twitch:game_feed"),
-            reverse("twitch:campaign_feed"),
-            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
-            reverse("twitch:reward_campaign_feed"),
-            reverse("twitch:game_feed_atom"),
-            reverse("twitch:campaign_feed_atom"),
-            reverse("twitch:game_campaign_feed_atom", args=[self.game.twitch_id]),
-            reverse("twitch:reward_campaign_feed_atom"),
+            reverse("core:game_feed"),
+            reverse("core:campaign_feed"),
+            reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:reward_campaign_feed"),
+            reverse("core:game_feed_atom"),
+            reverse("core:campaign_feed_atom"),
+            reverse("core:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("core:reward_campaign_feed_atom"),
         ]
 
         for url in feed_urls:
@@ -378,7 +380,7 @@ class RSSFeedTestCase(TestCase):
 
     def test_campaign_feed(self) -> None:
         """Test campaign feed returns 200."""
-        url: str = reverse("twitch:campaign_feed")
+        url: str = reverse("core:campaign_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -392,11 +394,11 @@ class RSSFeedTestCase(TestCase):
     def test_rss_feeds_include_stylesheet_processing_instruction(self) -> None:
         """RSS feeds should include an xml-stylesheet processing instruction."""
         feed_urls: list[str] = [
-            reverse("twitch:campaign_feed"),
-            reverse("twitch:game_feed"),
-            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
-            reverse("twitch:organization_feed"),
-            reverse("twitch:reward_campaign_feed"),
+            reverse("core:campaign_feed"),
+            reverse("core:game_feed"),
+            reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:organization_feed"),
+            reverse("core:reward_campaign_feed"),
         ]
 
         for url in feed_urls:
@@ -443,11 +445,11 @@ class RSSFeedTestCase(TestCase):
     def test_rss_feeds_include_shared_metadata_fields(self) -> None:
         """RSS output should contain base feed metadata fields."""
         feed_urls: list[str] = [
-            reverse("twitch:campaign_feed"),
-            reverse("twitch:game_feed"),
-            reverse("twitch:game_campaign_feed", args=[self.game.twitch_id]),
-            reverse("twitch:organization_feed"),
-            reverse("twitch:reward_campaign_feed"),
+            reverse("core:campaign_feed"),
+            reverse("core:game_feed"),
+            reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:organization_feed"),
+            reverse("core:reward_campaign_feed"),
         ]
 
         for url in feed_urls:
@@ -480,7 +482,7 @@ class RSSFeedTestCase(TestCase):
             operation_names=["DropCampaignDetails"],
         )
 
-        url: str = reverse("twitch:campaign_feed")
+        url: str = reverse("core:campaign_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         content: str = response.content.decode("utf-8")
@@ -539,7 +541,7 @@ class RSSFeedTestCase(TestCase):
             description="This badge was earned by subscribing.",
         )
 
-        url: str = reverse("twitch:campaign_feed")
+        url: str = reverse("core:campaign_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         content: str = response.content.decode("utf-8")
@@ -547,7 +549,7 @@ class RSSFeedTestCase(TestCase):
 
     def test_game_campaign_feed(self) -> None:
         """Test game-specific campaign feed returns 200."""
-        url: str = reverse("twitch:game_campaign_feed", args=[self.game.twitch_id])
+        url: str = reverse("core:game_campaign_feed", args=[self.game.twitch_id])
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -576,7 +578,7 @@ class RSSFeedTestCase(TestCase):
         )
 
         # Get feed for first game
-        url: str = reverse("twitch:game_campaign_feed", args=[self.game.twitch_id])
+        url: str = reverse("core:game_campaign_feed", args=[self.game.twitch_id])
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         content: str = response.content.decode("utf-8")
 
@@ -609,7 +611,7 @@ class RSSFeedTestCase(TestCase):
             operation_names=["DropCampaignDetails"],
         )
 
-        url: str = reverse("twitch:game_campaign_feed", args=[self.game.twitch_id])
+        url: str = reverse("core:game_campaign_feed", args=[self.game.twitch_id])
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         content: str = response.content.decode("utf-8")
@@ -664,7 +666,7 @@ class RSSFeedTestCase(TestCase):
             game=self.game,
         )
 
-        url: str = reverse("twitch:reward_campaign_feed")
+        url: str = reverse("core:reward_campaign_feed")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         content: str = response.content.decode("utf-8")
@@ -855,7 +857,7 @@ def test_campaign_feed_queries_bounded(
     for i in range(3):
         _build_campaign(game, i)
 
-    url: str = reverse("twitch:campaign_feed")
+    url: str = reverse("core:campaign_feed")
     # TODO(TheLovinator): 14 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
     with django_assert_num_queries(14, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
@@ -911,7 +913,7 @@ def test_campaign_feed_queries_do_not_scale_with_items(
         )
         drop.benefits.add(benefit)
 
-    url: str = reverse("twitch:campaign_feed")
+    url: str = reverse("core:campaign_feed")
 
     # N+1 safeguard: query count should not scale linearly with campaign count.
     with django_assert_num_queries(40, exact=False):
@@ -941,7 +943,7 @@ def test_game_campaign_feed_queries_bounded(
     for i in range(3):
         _build_campaign(game, i)
 
-    url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
+    url: str = reverse("core:game_campaign_feed", args=[game.twitch_id])
 
     with django_assert_num_queries(6, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
@@ -970,7 +972,7 @@ def test_game_campaign_feed_queries_do_not_scale_with_items(
     for i in range(50):
         _build_campaign(game, i)
 
-    url: str = reverse("twitch:game_campaign_feed", args=[game.twitch_id])
+    url: str = reverse("core:game_campaign_feed", args=[game.twitch_id])
 
     with django_assert_num_queries(6, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
@@ -987,7 +989,7 @@ def test_organization_feed_queries_bounded(
     for i in range(5):
         Organization.objects.create(twitch_id=f"org-feed-{i}", name=f"Org Feed {i}")
 
-    url: str = reverse("twitch:organization_feed")
+    url: str = reverse("core:organization_feed")
     with django_assert_num_queries(1, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -1014,7 +1016,7 @@ def test_game_feed_queries_bounded(
         )
         game.owners.add(org)
 
-    url: str = reverse("twitch:game_feed")
+    url: str = reverse("core:game_feed")
     # One query for games + one prefetch query for owners.
     with django_assert_num_queries(2, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
@@ -1043,7 +1045,7 @@ def test_reward_campaign_feed_queries_bounded(
     for i in range(3):
         _build_reward_campaign(game, i)
 
-    url: str = reverse("twitch:reward_campaign_feed")
+    url: str = reverse("core:reward_campaign_feed")
     with django_assert_num_queries(1, exact=True):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -1076,7 +1078,7 @@ def test_docs_rss_queries_bounded(
         _build_campaign(game, i)
         _build_reward_campaign(game, i)
 
-    url: str = reverse("twitch:docs_rss")
+    url: str = reverse("core:docs_rss")
 
     # TODO(TheLovinator): 31 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
     with django_assert_num_queries(31, exact=False):
@@ -1093,8 +1095,8 @@ URL_NAMES: list[tuple[str, dict[str, str]]] = [
     ("twitch:campaign_detail", {"twitch_id": "test-campaign-123"}),
     ("twitch:channel_list", {}),
     ("twitch:channel_detail", {"twitch_id": "test-channel-123"}),
-    ("twitch:debug", {}),
-    ("twitch:docs_rss", {}),
+    ("core:debug", {}),
+    ("core:docs_rss", {}),
     ("twitch:emote_gallery", {}),
     ("twitch:games_grid", {}),
     ("twitch:games_list", {}),
@@ -1103,12 +1105,12 @@ URL_NAMES: list[tuple[str, dict[str, str]]] = [
     ("twitch:organization_detail", {"twitch_id": "test-org-123"}),
     ("twitch:reward_campaign_list", {}),
     ("twitch:reward_campaign_detail", {"twitch_id": "test-reward-123"}),
-    ("twitch:search", {}),
-    ("twitch:campaign_feed", {}),
-    ("twitch:game_feed", {}),
-    ("twitch:game_campaign_feed", {"twitch_id": "test-game-123"}),
-    ("twitch:organization_feed", {}),
-    ("twitch:reward_campaign_feed", {}),
+    ("core:search", {}),
+    ("core:campaign_feed", {}),
+    ("core:game_feed", {}),
+    ("core:game_campaign_feed", {"twitch_id": "test-game-123"}),
+    ("core:organization_feed", {}),
+    ("core:reward_campaign_feed", {}),
 ]
 
 
@@ -1251,7 +1253,7 @@ class DiscordFeedTestCase(TestCase):
 
     def test_organization_discord_feed(self) -> None:
         """Test organization Discord feed returns 200."""
-        url: str = reverse("twitch:organization_feed_discord")
+        url: str = reverse("core:organization_feed_discord")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -1262,7 +1264,7 @@ class DiscordFeedTestCase(TestCase):
 
     def test_game_discord_feed(self) -> None:
         """Test game Discord feed returns 200."""
-        url: str = reverse("twitch:game_feed_discord")
+        url: str = reverse("core:game_feed_discord")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -1272,7 +1274,7 @@ class DiscordFeedTestCase(TestCase):
 
     def test_campaign_discord_feed(self) -> None:
         """Test campaign Discord feed returns 200 with Discord timestamps."""
-        url: str = reverse("twitch:campaign_feed_discord")
+        url: str = reverse("core:campaign_feed_discord")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -1286,7 +1288,7 @@ class DiscordFeedTestCase(TestCase):
     def test_game_campaign_discord_feed(self) -> None:
         """Test game-specific campaign Discord feed returns 200."""
         url: str = reverse(
-            "twitch:game_campaign_feed_discord",
+            "core:game_campaign_feed_discord",
             args=[self.game.twitch_id],
         )
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
@@ -1298,7 +1300,7 @@ class DiscordFeedTestCase(TestCase):
 
     def test_reward_campaign_discord_feed(self) -> None:
         """Test reward campaign Discord feed returns 200."""
-        url: str = reverse("twitch:reward_campaign_feed_discord")
+        url: str = reverse("core:reward_campaign_feed_discord")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/xml; charset=utf-8"
@@ -1313,27 +1315,27 @@ class DiscordFeedTestCase(TestCase):
         """All Discord feeds should use absolute URL entry IDs and matching self links."""
         discord_feed_cases: list[tuple[str, dict[str, str], str]] = [
             (
-                "twitch:campaign_feed_discord",
+                "core:campaign_feed_discord",
                 {},
                 f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
-                "twitch:game_feed_discord",
+                "core:game_feed_discord",
                 {},
                 f"http://testserver{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
             ),
             (
-                "twitch:game_campaign_feed_discord",
+                "core:game_campaign_feed_discord",
                 {"twitch_id": self.game.twitch_id},
                 f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
-                "twitch:organization_feed_discord",
+                "core:organization_feed_discord",
                 {},
                 f"http://testserver{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
             ),
             (
-                "twitch:reward_campaign_feed_discord",
+                "core:reward_campaign_feed_discord",
                 {},
                 f"http://testserver{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
             ),
@@ -1359,11 +1361,11 @@ class DiscordFeedTestCase(TestCase):
     def test_discord_feeds_include_stylesheet_processing_instruction(self) -> None:
         """Discord feeds should include an xml-stylesheet processing instruction."""
         feed_urls: list[str] = [
-            reverse("twitch:campaign_feed_discord"),
-            reverse("twitch:game_feed_discord"),
-            reverse("twitch:game_campaign_feed_discord", args=[self.game.twitch_id]),
-            reverse("twitch:organization_feed_discord"),
-            reverse("twitch:reward_campaign_feed_discord"),
+            reverse("core:campaign_feed_discord"),
+            reverse("core:game_feed_discord"),
+            reverse("core:game_campaign_feed_discord", args=[self.game.twitch_id]),
+            reverse("core:organization_feed_discord"),
+            reverse("core:reward_campaign_feed_discord"),
         ]
 
         for url in feed_urls:
@@ -1378,7 +1380,7 @@ class DiscordFeedTestCase(TestCase):
 
     def test_discord_campaign_feed_contains_discord_timestamps(self) -> None:
         """Discord campaign feed should contain Discord relative timestamps."""
-        url: str = reverse("twitch:campaign_feed_discord")
+        url: str = reverse("core:campaign_feed_discord")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         content: str = response.content.decode("utf-8")
@@ -1392,7 +1394,7 @@ class DiscordFeedTestCase(TestCase):
 
     def test_discord_reward_campaign_feed_contains_discord_timestamps(self) -> None:
         """Discord reward campaign feed should contain Discord relative timestamps."""
-        url: str = reverse("twitch:reward_campaign_feed_discord")
+        url: str = reverse("core:reward_campaign_feed_discord")
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         content: str = response.content.decode("utf-8")

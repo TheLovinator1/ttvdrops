@@ -140,6 +140,7 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.postgres",
     "twitch.apps.TwitchConfig",
     "kick.apps.KickConfig",
+    "core.apps.CoreConfig",
 ]
 
 MIDDLEWARE: list[str] = [

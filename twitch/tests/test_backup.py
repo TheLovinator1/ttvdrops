@@ -288,7 +288,7 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backups"),
+            reverse("core:dataset_backups"),
         )
 
         assert response.status_code == 200
@@ -305,7 +305,7 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backups"),
+            reverse("core:dataset_backups"),
         )
 
         assert response.status_code == 200
@@ -339,7 +339,7 @@ class TestDatasetBackupViews:
         os.utime(newer_backup, (newer_time, newer_time))
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backups"),
+            reverse("core:dataset_backups"),
         )
 
         content = response.content.decode()
@@ -361,7 +361,7 @@ class TestDatasetBackupViews:
 
         response: _MonkeyPatchedWSGIResponse = client.get(
             reverse(
-                "twitch:dataset_backup_download",
+                "core:dataset_backup_download",
                 args=["ttvdrops-20260210-120000.sql.zst"],
             ),
         )
@@ -382,7 +382,7 @@ class TestDatasetBackupViews:
 
         # Attempt path traversal
         response = client.get(
-            reverse("twitch:dataset_backup_download", args=["../../../etc/passwd"]),
+            reverse("core:dataset_backup_download", args=["../../../etc/passwd"]),
         )
         assert response.status_code == 404
 
@@ -400,7 +400,7 @@ class TestDatasetBackupViews:
         invalid_file.write_text("not a backup")
 
         response = client.get(
-            reverse("twitch:dataset_backup_download", args=["malicious.exe"]),
+            reverse("core:dataset_backup_download", args=["malicious.exe"]),
         )
         assert response.status_code == 404
 
@@ -414,7 +414,7 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         response = client.get(
-            reverse("twitch:dataset_backup_download", args=["nonexistent.sql.zst"]),
+            reverse("core:dataset_backup_download", args=["nonexistent.sql.zst"]),
         )
         assert response.status_code == 404
 
@@ -429,7 +429,7 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backups"),
+            reverse("core:dataset_backups"),
         )
 
         assert response.status_code == 200
@@ -452,7 +452,7 @@ class TestDatasetBackupViews:
         (datasets_dir / "old_backup.gz").write_bytes(b"should be ignored")
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backups"),
+            reverse("core:dataset_backups"),
         )
 
         content = response.content.decode()
@@ -481,7 +481,7 @@ class TestDatasetBackupViews:
             handle.write("-- Test\n")
 
         response: _MonkeyPatchedWSGIResponse = client.get(
-            reverse("twitch:dataset_backup_download", args=["2026/02/backup.sql.zst"]),
+            reverse("core:dataset_backup_download", args=["2026/02/backup.sql.zst"]),
         )
 
         assert response.status_code == 200

@@ -155,7 +155,7 @@ class TestBadgeSearch:
         ChatBadgeSet.objects.create(set_id="vip")
         ChatBadgeSet.objects.create(set_id="subscriber")
 
-        response = client.get(reverse("twitch:search"), {"q": "vip"})
+        response = client.get(reverse("core:search"), {"q": "vip"})
         assert response.status_code == 200
         content = response.content.decode()
 
@@ -175,7 +175,7 @@ class TestBadgeSearch:
             description="Test description",
         )
 
-        response = client.get(reverse("twitch:search"), {"q": "Moderator"})
+        response = client.get(reverse("core:search"), {"q": "Moderator"})
         assert response.status_code == 200
         content = response.content.decode()
 
@@ -195,7 +195,7 @@ class TestBadgeSearch:
             description="Unique description text",
         )
 
-        response = client.get(reverse("twitch:search"), {"q": "Unique description"})
+        response = client.get(reverse("core:search"), {"q": "Unique description"})
         assert response.status_code == 200
         content = response.content.decode()
 

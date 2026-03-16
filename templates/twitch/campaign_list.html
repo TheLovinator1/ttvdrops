@@ -9,15 +9,15 @@
     <link rel="alternate"
           type="application/rss+xml"
           title="All campaigns (RSS)"
-          href="{% url 'twitch:campaign_feed' %}" />
+          href="{% url 'core:campaign_feed' %}" />
     <link rel="alternate"
           type="application/atom+xml"
           title="All campaigns (Atom)"
-          href="{% url 'twitch:campaign_feed_atom' %}" />
+          href="{% url 'core:campaign_feed_atom' %}" />
     <link rel="alternate"
           type="application/atom+xml"
           title="All campaigns (Discord)"
-          href="{% url 'twitch:campaign_feed_discord' %}" />
+          href="{% url 'core:campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
     <main>
@@ -25,11 +25,11 @@
             <h1>Drop Campaigns</h1>
             <!-- RSS Feeds -->
             <div>
-                <a href="{% url 'twitch:campaign_feed' %}"
+                <a href="{% url 'core:campaign_feed' %}"
                    title="RSS feed for all campaigns">[rss]</a>
-                <a href="{% url 'twitch:campaign_feed_atom' %}"
+                <a href="{% url 'core:campaign_feed_atom' %}"
                    title="Atom feed for all campaigns">[atom]</a>
-                <a href="{% url 'twitch:campaign_feed_discord' %}"
+                <a href="{% url 'core:campaign_feed_discord' %}"
                    title="Discord feed for all campaigns">[discord]</a>
                 <a href="{% url 'twitch:export_campaigns_csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
                    title="Export campaigns as CSV">[csv]</a>

@@ -44,7 +44,7 @@ class ExportViewsTestCase(TestCase):
 
     def test_export_campaigns_csv(self) -> None:
         """Test CSV export of campaigns."""
-        response = self.client.get("/export/campaigns/csv/")
+        response = self.client.get("/twitch/export/campaigns/csv/")
         assert response.status_code == 200
         assert response["Content-Type"] == "text/csv"
         assert b"Twitch ID" in response.content
@@ -53,7 +53,7 @@ class ExportViewsTestCase(TestCase):
 
     def test_export_campaigns_json(self) -> None:
         """Test JSON export of campaigns."""
-        response = self.client.get("/export/campaigns/json/")
+        response = self.client.get("/twitch/export/campaigns/json/")
         assert response.status_code == 200
         assert response["Content-Type"] == "application/json"
 
@@ -66,7 +66,7 @@ class ExportViewsTestCase(TestCase):
 
     def test_export_games_csv(self) -> None:
         """Test CSV export of games."""
-        response = self.client.get("/export/games/csv/")
+        response = self.client.get("/twitch/export/games/csv/")
         assert response.status_code == 200
         assert response["Content-Type"] == "text/csv"
         assert b"Twitch ID" in response.content
@@ -75,7 +75,7 @@ class ExportViewsTestCase(TestCase):
 
     def test_export_games_json(self) -> None:
         """Test JSON export of games."""
-        response = self.client.get("/export/games/json/")
+        response = self.client.get("/twitch/export/games/json/")
         assert response.status_code == 200
         assert response["Content-Type"] == "application/json"
 
@@ -87,7 +87,7 @@ class ExportViewsTestCase(TestCase):
 
     def test_export_organizations_csv(self) -> None:
         """Test CSV export of organizations."""
-        response = self.client.get("/export/organizations/csv/")
+        response = self.client.get("/twitch/export/organizations/csv/")
         assert response.status_code == 200
         assert response["Content-Type"] == "text/csv"
         assert b"Twitch ID" in response.content
@@ -96,7 +96,7 @@ class ExportViewsTestCase(TestCase):
 
     def test_export_organizations_json(self) -> None:
         """Test JSON export of organizations."""
-        response = self.client.get("/export/organizations/json/")
+        response = self.client.get("/twitch/export/organizations/json/")
         assert response.status_code == 200
         assert response["Content-Type"] == "application/json"
 
@@ -108,13 +108,13 @@ class ExportViewsTestCase(TestCase):
 
     def test_export_campaigns_csv_with_filters(self) -> None:
         """Test CSV export of campaigns with status filter."""
-        response = self.client.get("/export/campaigns/csv/?status=active")
+        response = self.client.get("/twitch/export/campaigns/csv/?status=active")
         assert response.status_code == 200
         assert b"campaign123" in response.content
 
     def test_export_campaigns_json_with_filters(self) -> None:
         """Test JSON export of campaigns with status filter."""
-        response = self.client.get("/export/campaigns/json/?status=active")
+        response = self.client.get("/twitch/export/campaigns/json/?status=active")
         assert response.status_code == 200
 
         data = json.loads(response.content)
