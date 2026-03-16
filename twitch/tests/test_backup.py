@@ -84,34 +84,39 @@ class TestBackupCommand:
         assert "twitch_game" in content
         assert "Test Org" in content
 
-    def test_backup_excludes_non_twitch_tables(self, tmp_path: Path) -> None:
-        """Test that backup only includes twitch_ prefixed tables."""
+    def test_backup_excludes_non_app_tables(self, tmp_path: Path) -> None:
+        """Test that backup includes app tables and excludes non-app tables."""
         _skip_if_pg_dump_missing()
         # Create test data so tables exist
         Organization.objects.create(twitch_id="test001", name="Test Org")
 
-        output_dir = tmp_path / "backups"
+        output_dir: Path = tmp_path / "backups"
         output_dir.mkdir()
 
         call_command("backup_db", output_dir=str(output_dir), prefix="test")
 
-        backup_file = next(iter(output_dir.glob("test-*.sql.zst")))
+        backup_file: Path = next(iter(output_dir.glob("test-*.sql.zst")))
 
         with (
             backup_file.open("rb") as raw_handle,
             zstd.open(raw_handle, "r") as compressed,
             io.TextIOWrapper(compressed, encoding="utf-8") as handle,
         ):
-            content = handle.read()
+            content: str = handle.read()
 
         # Should NOT contain django admin, silk, or debug toolbar tables
         assert "django_session" not in content
+        assert "django_migrations" not in content
+        assert "django_content_type" not in content
         assert "silk_" not in content
         assert "debug_toolbar_" not in content
         assert "django_admin_log" not in content
+        assert "auth_" not in content
+        assert "youtube_" not in content
 
-        # Should contain twitch tables
+        # Should contain twitch and kick tables
         assert "twitch_" in content
+        assert "kick_" in content
 
     def test_backup_with_custom_prefix(self, tmp_path: Path) -> None:
         """Test that custom prefix is used in filename."""

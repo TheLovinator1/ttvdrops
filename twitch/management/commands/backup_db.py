@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 
 
 class Command(BaseCommand):
-    """Create a compressed SQL dump of the Twitch dataset tables."""
+    """Create a compressed SQL dump of the Twitch and Kick dataset tables."""
 
-    help = "Create a compressed SQL dump of the Twitch dataset tables."
+    help = "Create a compressed SQL dump of the Twitch and Kick dataset tables."
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         """Define arguments for the backup command."""
@@ -59,9 +59,14 @@ class Command(BaseCommand):
         timestamp: str = timezone.localtime(timezone.now()).strftime("%Y%m%d-%H%M%S")
         output_path: Path = output_dir / f"{prefix}-{timestamp}.sql.zst"
 
-        allowed_tables = _get_allowed_tables("twitch_")
+        allowed_tables = sorted({
+            *_get_allowed_tables("twitch_"),
+            *_get_allowed_tables("kick_"),
+        })
         if not allowed_tables:
-            self.stdout.write(self.style.WARNING("No twitch tables found to back up."))
+            self.stdout.write(
+                self.style.WARNING("No twitch or kick tables found to back up."),
+            )
             return
 
         if django_connection.vendor == "postgresql":

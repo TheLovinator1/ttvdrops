@@ -645,8 +645,8 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
     datasets.sort(key=operator.itemgetter("updated_at"), reverse=True)
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch Dataset",
-        page_description="Database backups and datasets available for download.",
+        page_title="Twitch/Kick drop data",
+        page_description="Twitch/Kick datasets available for download, including historical drop campaign data and more.",
     )
     context: dict[str, Any] = {
         "datasets": datasets,
