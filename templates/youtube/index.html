@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}
-    YouTube channels with rewards
+    {{ page_title }}
 {% endblock title %}
 {% block content %}
     <main>
@@ -14,17 +14,17 @@
             <thead>
                 <tr>
                     <th>Channel</th>
-                    <th>Partner</th>
+                    <th>Organization</th>
                 </tr>
             </thead>
             <tbody>
-                {% for group in partner_groups %}
+                {% for group in organization_groups %}
                     {% for item in group.channels %}
                         <tr>
                             <td>
                                 <a href="{{ item.url }}" rel="noopener" target="_blank">{{ item.channel }}</a>
                             </td>
-                            <td>{{ group.partner }}</td>
+                            <td>{{ group.organization }}</td>
                         </tr>
                     {% endfor %}
                 {% endfor %}

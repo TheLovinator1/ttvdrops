@@ -10,13 +10,44 @@ if TYPE_CHECKING:
 class YouTubeIndexViewTest(TestCase):
     """Tests for the YouTube drops channels index page."""
 
+    def test_index_includes_page_specific_seo_metadata(self) -> None:
+        """The YouTube page should render dedicated title and description metadata."""
+        response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
+        content: str = response.content.decode()
+
+        assert response.context is not None
+        assert response.context["page_title"] == "YouTube channels with rewards"
+        assert (
+            response.context["page_description"]
+            == "Browse YouTube channels listed as reward-enabled, including Call of Duty, Blizzard, "
+            "Fortnite, Riot Games, and more."
+        )
+        assert (
+            '<meta property="og:title" content="YouTube channels with rewards" />'
+            in content
+        )
+        assert (
+            '<meta property="og:description"\n'
+            '      content="Browse YouTube channels listed as reward-enabled, including Call of Duty, '
+            'Blizzard, Fortnite, Riot Games, and more." />'
+        ) in content
+        assert (
+            '<meta name="twitter:title" content="YouTube channels with rewards" />'
+            in content
+        )
+        assert (
+            '<meta name="description"\n'
+            '      content="Browse YouTube channels listed as reward-enabled, including Call of Duty, '
+            'Blizzard, Fortnite, Riot Games, and more." />'
+        ) in content
+
     def test_index_returns_200(self) -> None:
         """The YouTube index page should return HTTP 200."""
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         assert response.status_code == 200
 
     def test_index_displays_known_channels(self) -> None:
-        """The page should include key known channels from the partner list."""
+        """The page should include key known channels from the organization list."""
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         content: str = response.content.decode()
 
@@ -28,8 +59,8 @@ class YouTubeIndexViewTest(TestCase):
         assert "Riot Games" in content
         assert "Ubisoft" in content
 
-    def test_index_includes_partner_urls(self) -> None:
-        """The page should render partner channel links from the source list."""
+    def test_index_includes_organization_urls(self) -> None:
+        """The page should render organization channel links from the source list."""
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         content: str = response.content.decode()
 
@@ -37,8 +68,8 @@ class YouTubeIndexViewTest(TestCase):
         assert "https://www.youtube.com/user/epicfortnite" in content
         assert "https://www.youtube.com/lolesports" in content
 
-    def test_index_groups_partners_alphabetically(self) -> None:
-        """Partner sections should render grouped and in alphabetical order."""
+    def test_index_groups_organizations_alphabetically(self) -> None:
+        """Organization sections should render grouped and in alphabetical order."""
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         content: str = response.content.decode()
 
