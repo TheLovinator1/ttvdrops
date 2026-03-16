@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from django.core.management.base import CommandParser
     from django.db.models import QuerySet
     from django.db.models.fields.files import FieldFile
+    from PIL.ImageFile import ImageFile
 
 
 class Command(BaseCommand):
@@ -69,7 +70,7 @@ class Command(BaseCommand):
                 self.stdout.write(
                     self.style.MIGRATE_HEADING("\nProcessing Drop Campaigns..."),
                 )
-                stats = self._download_campaign_images(
+                stats: dict[str, int] = self._download_campaign_images(
                     client=client,
                     limit=limit,
                     force=force,
@@ -161,7 +162,7 @@ class Command(BaseCommand):
                 stats["skipped"] += 1
                 continue
 
-            result = self._download_image(
+            result: str = self._download_image(
                 client,
                 campaign.image_url,
                 campaign.twitch_id,
@@ -210,7 +211,7 @@ class Command(BaseCommand):
                 stats["skipped"] += 1
                 continue
 
-            result = self._download_image(
+            result: str = self._download_image(
                 client,
                 benefit.image_asset_url,
                 benefit.twitch_id,
@@ -259,7 +260,7 @@ class Command(BaseCommand):
                 stats["skipped"] += 1
                 continue
 
-            result = self._download_image(
+            result: str = self._download_image(
                 client,
                 reward_campaign.image_url,
                 reward_campaign.twitch_id,
@@ -335,17 +336,19 @@ class Command(BaseCommand):
             }:
                 return
 
-            base_path = source_path.with_suffix("")
-            webp_path = base_path.with_suffix(".webp")
-            avif_path = base_path.with_suffix(".avif")
+            base_path: Path = source_path.with_suffix("")
+            webp_path: Path = base_path.with_suffix(".webp")
+            avif_path: Path = base_path.with_suffix(".avif")
 
             with Image.open(source_path) as img:
                 # Convert to RGB if needed
                 if img.mode in {"RGBA", "LA"} or (
                     img.mode == "P" and "transparency" in img.info
                 ):
-                    background = Image.new("RGB", img.size, (255, 255, 255))
-                    rgba_img = img.convert("RGBA") if img.mode == "P" else img
+                    background: Image = Image.new("RGB", img.size, (255, 255, 255))
+                    rgba_img: Image | ImageFile = (
+                        img.convert("RGBA") if img.mode == "P" else img
+                    )
                     background.paste(
                         rgba_img,
                         mask=rgba_img.split()[-1]
@@ -354,9 +357,9 @@ class Command(BaseCommand):
                     )
                     rgb_img = background
                 elif img.mode != "RGB":
-                    rgb_img = img.convert("RGB")
+                    rgb_img: Image = img.convert("RGB")
                 else:
-                    rgb_img = img
+                    rgb_img: ImageFile = img
 
                 # Save WebP
                 rgb_img.save(webp_path, "WEBP", quality=85, method=6)
@@ -387,11 +390,11 @@ class Command(BaseCommand):
             ),
         )
         if stats["downloaded"] > 0:
-            media_path = Path(settings.MEDIA_ROOT)
+            media_path: Path = Path(settings.MEDIA_ROOT)
             if "Campaigns" in model_name and "Reward" not in model_name:
-                image_dir = media_path / "campaigns" / "images"
+                image_dir: Path = media_path / "campaigns" / "images"
             elif "Benefits" in model_name:
-                image_dir = media_path / "benefits" / "images"
+                image_dir: Path = media_path / "benefits" / "images"
             else:
-                image_dir = media_path / "reward_campaigns" / "images"
+                image_dir: Path = media_path / "reward_campaigns" / "images"
             self.stdout.write(self.style.SUCCESS(f"Saved images to: {image_dir}"))
