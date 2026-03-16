@@ -20,7 +20,7 @@ class YouTubeIndexViewTest(TestCase):
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         content: str = response.content.decode()
 
-        assert "YouTube Drops Channels" in content
+        assert "YouTube channels with rewards." in content
         assert "Call of Duty" in content
         assert "PlayOverwatch" in content
         assert "Hearthstone" in content
@@ -42,8 +42,11 @@ class YouTubeIndexViewTest(TestCase):
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         content: str = response.content.decode()
 
-        assert "<h2>Activision (Call of Duty)</h2>" in content
-        assert "<h2>Battle.net / Blizzard</h2>" in content
-        assert content.index("<h2>Activision (Call of Duty)</h2>") < content.index(
-            "<h2>Battle.net / Blizzard</h2>",
+        activision_cell: str = "<td>Activision (Call of Duty)</td>"
+        blizzard_cell: str = "<td>Battle.net / Blizzard</td>"
+
+        assert activision_cell in content
+        assert blizzard_cell in content
+        assert content.index(activision_cell) < content.index(
+            blizzard_cell,
         )
