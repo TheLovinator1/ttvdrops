@@ -1,4 +1,6 @@
+import csv
 import io
+import json
 import os
 import shutil
 import subprocess  # noqa: S404
@@ -82,6 +84,16 @@ class Command(BaseCommand):
             msg = f"Unsupported database backend: {django_connection.vendor}"
             raise CommandError(msg)
 
+        json_path: Path = output_dir / f"{prefix}-{timestamp}.json.zst"
+        _write_json_dump(json_path, allowed_tables)
+
+        csv_paths: list[Path] = _write_csv_dumps(
+            output_dir,
+            prefix,
+            timestamp,
+            allowed_tables,
+        )
+
         created_at: datetime = datetime.fromtimestamp(
             output_path.stat().st_mtime,
             tz=timezone.get_current_timezone(),
@@ -90,6 +102,10 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"Backup created: {output_path} (updated {created_at.isoformat()})",
             ),
+        )
+        self.stdout.write(self.style.SUCCESS(f"JSON backup created: {json_path}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"CSV backups created: {len(csv_paths)} files"),
         )
         self.stdout.write(self.style.SUCCESS(f"Included tables: {len(allowed_tables)}"))
 
@@ -298,3 +314,77 @@ def _sql_literal(value: object) -> str:
     if isinstance(value, bytes):
         return "X'" + value.hex() + "'"
     return "'" + str(value).replace("'", "''") + "'"
+
+
+def _json_default(value: object) -> str:
+    """Convert non-serializable values to JSON-compatible strings.
+
+    Args:
+        value: Value to convert.
+
+    Returns:
+        String representation.
+    """
+    if isinstance(value, bytes):
+        return value.hex()
+    return str(value)
+
+
+def _write_json_dump(output_path: Path, tables: list[str]) -> None:
+    """Write a JSON dump of all tables into a zstd-compressed file.
+
+    Args:
+        output_path: Destination path for the zstd file.
+        tables: Table names to include.
+    """
+    data: dict[str, list[dict]] = {}
+    with django_connection.cursor() as cursor:
+        for table in tables:
+            cursor.execute(f'SELECT * FROM "{table}"')  # noqa: S608
+            columns: list[str] = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            data[table] = [dict(zip(columns, row, strict=False)) for row in rows]
+
+    with (
+        output_path.open("wb") as raw_handle,
+        zstd.open(raw_handle, "w") as compressed,
+        io.TextIOWrapper(compressed, encoding="utf-8") as handle,
+    ):
+        json.dump(data, handle, default=_json_default)
+
+
+def _write_csv_dumps(
+    output_dir: Path,
+    prefix: str,
+    timestamp: str,
+    tables: list[str],
+) -> list[Path]:
+    """Write per-table CSV files into zstd-compressed files.
+
+    Args:
+        output_dir: Directory where CSV files will be written.
+        prefix: Filename prefix.
+        timestamp: Timestamp string for filenames.
+        tables: Table names to include.
+
+    Returns:
+        List of created file paths.
+    """
+    paths: list[Path] = []
+    with django_connection.cursor() as cursor:
+        for table in tables:
+            cursor.execute(f'SELECT * FROM "{table}"')  # noqa: S608
+            columns: list[str] = [col[0] for col in cursor.description]
+            rows: list[tuple] = cursor.fetchall()
+
+            output_path: Path = output_dir / f"{prefix}-{timestamp}-{table}.csv.zst"
+            with (
+                output_path.open("wb") as raw_handle,
+                zstd.open(raw_handle, "w") as compressed,
+                io.TextIOWrapper(compressed, encoding="utf-8") as handle,
+            ):
+                writer: csv.Writer = csv.writer(handle)
+                writer.writerow(columns)
+                writer.writerows(rows)
+            paths.append(output_path)
+    return paths

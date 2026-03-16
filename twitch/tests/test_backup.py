@@ -1,8 +1,11 @@
+import csv
 import io
+import json
 import math
 import os
 import shutil
 from compression import zstd
+from datetime import datetime as dt
 from typing import TYPE_CHECKING
 
 import pytest
@@ -12,13 +15,18 @@ from django.db import connection
 from django.urls import reverse
 
 from twitch.management.commands.backup_db import _get_allowed_tables
+from twitch.management.commands.backup_db import _json_default
 from twitch.management.commands.backup_db import _sql_literal
+from twitch.management.commands.backup_db import _write_csv_dumps
+from twitch.management.commands.backup_db import _write_json_dump
 from twitch.management.commands.backup_db import _write_postgres_dump
 from twitch.management.commands.backup_db import _write_sqlite_dump
 from twitch.models import Game
 from twitch.models import Organization
 
 if TYPE_CHECKING:
+    from csv import Reader
+    from datetime import datetime
     from pathlib import Path
 
     from django.test import Client
@@ -164,6 +172,59 @@ class TestBackupCommand:
         backup_files = list(datasets_dir.glob("ttvdrops-*.sql.zst"))
         assert len(backup_files) >= 1
 
+    def test_backup_creates_json_file(self, tmp_path: Path) -> None:
+        """Test that backup command creates a JSON file alongside the SQL dump."""
+        _skip_if_pg_dump_missing()
+        Organization.objects.create(twitch_id="test_json", name="Test Org JSON")
+
+        output_dir: Path = tmp_path / "backups"
+        output_dir.mkdir()
+
+        call_command("backup_db", output_dir=str(output_dir), prefix="test")
+
+        json_files: list[Path] = list(output_dir.glob("test-*.json.zst"))
+        assert len(json_files) == 1
+
+        with (
+            json_files[0].open("rb") as raw_handle,
+            zstd.open(raw_handle, "r") as compressed,
+            io.TextIOWrapper(compressed, encoding="utf-8") as handle,
+        ):
+            data = json.load(handle)
+
+        assert isinstance(data, dict)
+        assert "twitch_organization" in data
+        assert any(
+            row.get("name") == "Test Org JSON" for row in data["twitch_organization"]
+        )
+
+    def test_backup_creates_csv_files(self, tmp_path: Path) -> None:
+        """Test that backup command creates per-table CSV files alongside the SQL dump."""
+        _skip_if_pg_dump_missing()
+        Organization.objects.create(twitch_id="test_csv", name="Test Org CSV")
+
+        output_dir: Path = tmp_path / "backups"
+        output_dir.mkdir()
+
+        call_command("backup_db", output_dir=str(output_dir), prefix="test")
+
+        org_csv_files: list[Path] = list(
+            output_dir.glob("test-*-twitch_organization.csv.zst"),
+        )
+        assert len(org_csv_files) == 1
+
+        with (
+            org_csv_files[0].open("rb") as raw_handle,
+            zstd.open(raw_handle, "r") as compressed,
+            io.TextIOWrapper(compressed, encoding="utf-8") as handle,
+        ):
+            reader: Reader = csv.reader(handle)
+            rows: list[list[str]] = list(reader)
+
+        assert len(rows) >= 2  # header + at least one data row
+        assert "name" in rows[0]
+        assert any("Test Org CSV" in row for row in rows[1:])
+
 
 @pytest.mark.django_db
 class TestBackupHelperFunctions:
@@ -249,6 +310,71 @@ class TestBackupHelperFunctions:
             assert "twitch_organization" in content
             assert "INSERT INTO" in content
             assert "Write Test Org" in content
+
+    def test_write_json_dump_creates_valid_json(self, tmp_path: Path) -> None:
+        """Test _write_json_dump creates valid compressed JSON with all tables."""
+        Organization.objects.create(
+            twitch_id="test_json_helper",
+            name="JSON Helper Org",
+        )
+
+        tables: list[str] = _get_allowed_tables("twitch_")
+        output_path: Path = tmp_path / "backup.json.zst"
+        _write_json_dump(output_path, tables)
+
+        with (
+            output_path.open("rb") as raw_handle,
+            zstd.open(raw_handle, "r") as compressed,
+            io.TextIOWrapper(compressed, encoding="utf-8") as handle,
+        ):
+            data = json.load(handle)
+
+        assert isinstance(data, dict)
+        assert "twitch_organization" in data
+        assert all(table in data for table in tables)
+        assert any(
+            row.get("name") == "JSON Helper Org" for row in data["twitch_organization"]
+        )
+
+    def test_write_csv_dumps_creates_per_table_files(self, tmp_path: Path) -> None:
+        """Test _write_csv_dumps creates one compressed CSV file per table."""
+        Organization.objects.create(twitch_id="test_csv_helper", name="CSV Helper Org")
+
+        tables: list[str] = _get_allowed_tables("twitch_")
+        paths: list[Path] = _write_csv_dumps(
+            tmp_path,
+            "test",
+            "20260317-120000",
+            tables,
+        )
+
+        assert len(paths) == len(tables)
+        assert all(p.exists() for p in paths)
+
+        org_csv: Path = tmp_path / "test-20260317-120000-twitch_organization.csv.zst"
+        assert org_csv.exists()
+
+        with (
+            org_csv.open("rb") as raw_handle,
+            zstd.open(raw_handle, "r") as compressed,
+            io.TextIOWrapper(compressed, encoding="utf-8") as handle,
+        ):
+            reader: Reader = csv.reader(handle)
+            rows: list[list[str]] = list(reader)
+
+        assert len(rows) >= 2  # header + at least one data row
+        assert "name" in rows[0]
+        assert any("CSV Helper Org" in row for row in rows[1:])
+
+    def test_json_default_handles_bytes(self) -> None:
+        """Test _json_default converts bytes to hex string."""
+        assert _json_default(b"\x00\x01") == "0001"
+        assert _json_default(b"hello") == "68656c6c6f"
+
+    def test_json_default_handles_other_types(self) -> None:
+        """Test _json_default falls back to str() for other types."""
+        value: datetime = dt(2026, 3, 17, 12, 0, 0, tzinfo=dt.now().astimezone().tzinfo)
+        assert _json_default(value) == str(value)
 
 
 @pytest.mark.django_db
