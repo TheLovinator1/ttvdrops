@@ -20,6 +20,7 @@ dependencies = [
     "pydantic",
     "pygments",
     "python-dotenv",
+    "sentry-sdk",
     "setproctitle",
     "tqdm",
 ]
