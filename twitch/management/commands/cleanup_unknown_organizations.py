@@ -11,8 +11,8 @@ from twitch.models import Game
 from twitch.models import Organization
 
 if TYPE_CHECKING:
-    from debug_toolbar.panels.templates.panel import QuerySet
     from django.core.management.base import CommandParser
+    from django.db.models import QuerySet
 
 
 class Command(BaseCommand):

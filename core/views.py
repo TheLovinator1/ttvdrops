@@ -53,9 +53,9 @@ if TYPE_CHECKING:
     from os import stat_result
     from pathlib import Path
 
-    from debug_toolbar.utils import QueryDict
     from django.db.models import QuerySet
     from django.http import HttpRequest
+    from django.http.request import QueryDict
 
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
@@ -309,7 +309,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             # Add limit=1 to GET parameters
             get_data: QueryDict = request.GET.copy()
             get_data["limit"] = "1"
-            limited_request.GET = get_data  # pyright: ignore[reportAttributeAccessIssue]
+            limited_request.GET = get_data
 
             response: HttpResponse = feed_view(limited_request, *args)
             return _pretty_example(response.content.decode("utf-8"))

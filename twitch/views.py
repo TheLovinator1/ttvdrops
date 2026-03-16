@@ -1396,7 +1396,7 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
 class GamesListView(GamesGridView):
     """List view for games in simple list format."""
 
-    template_name: str = "twitch/games_list.html"
+    template_name: str | None = "twitch/games_list.html"
 
 
 # MARK: /channels/
@@ -1748,7 +1748,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         )
         return ChatBadge.objects.filter(pk__in=badge_ids).order_by(preserved_order)
 
-    badges = get_sorted_badges(badge_set)
+    badges: QuerySet[ChatBadge, ChatBadge] = get_sorted_badges(badge_set)
 
     # Attach award_campaigns attribute to each badge for template use
     for badge in badges:

@@ -53,7 +53,7 @@ def normalize_twitch_box_art_url(url: str) -> str:
         return url
 
     normalized_path: str = TWITCH_BOX_ART_SIZE_PATTERN.sub("", parsed.path)
-    return urlunparse(parsed._replace(path=normalized_path))
+    return str(urlunparse(parsed._replace(path=normalized_path)))
 
 
 @lru_cache(maxsize=40 * 40 * 1024)

@@ -279,6 +279,7 @@ class RSSFeedTestCase(TestCase):
     def test_campaign_and_game_feeds_use_absolute_media_enclosure_urls(self) -> None:
         """Campaign/game RSS+Atom enclosures should use absolute URLs for local media files."""
         self.game.box_art = ""
+        assert self.game.box_art_file is not None
         self.game.box_art_file.save(
             "box.png",
             ContentFile(b"game-image-bytes"),
@@ -289,6 +290,7 @@ class RSSFeedTestCase(TestCase):
         self.game.save()
 
         self.campaign.image_url = ""
+        assert self.campaign.image_file is not None
         self.campaign.image_file.save(
             "campaign.png",
             ContentFile(b"campaign-image-bytes"),
@@ -712,6 +714,7 @@ class RSSFeedTestCase(TestCase):
             name="File Game",
             display_name="File Game",
         )
+        assert game2.box_art_file is not None
         game2.box_art_file.save("sample.png", ContentFile(b"hello"))
         game2.save()
 
@@ -723,6 +726,7 @@ class RSSFeedTestCase(TestCase):
             end_at=timezone.now() + timedelta(days=1),
             operation_names=["DropCampaignDetails"],
         )
+        assert campaign2.image_file is not None
         campaign2.image_file.save("camp.jpg", ContentFile(b"world"))
         campaign2.save()
 

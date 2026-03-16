@@ -264,7 +264,7 @@ class Command(BaseCommand):
         client: httpx.Client,
         image_url: str,
         twitch_id: str,
-        file_field: FieldFile,
+        file_field: FieldFile | None,
     ) -> str:
         """Download a single image and save it to the file field.
 
@@ -280,6 +280,9 @@ class Command(BaseCommand):
         parsed_url: ParseResult = urlparse(image_url)
         suffix: str = Path(parsed_url.path).suffix or ".jpg"
         file_name: str = f"{twitch_id}{suffix}"
+
+        if file_field is None:
+            return "failed"
 
         try:
             response: httpx.Response = client.get(image_url)
@@ -299,7 +302,9 @@ class Command(BaseCommand):
             file_field.save(file_name, ContentFile(response.content), save=True)
 
             # Auto-convert to WebP and AVIF
-            self._convert_to_modern_formats(file_field.path)
+            image_path: str | None = getattr(file_field, "path", None)
+            if image_path:
+                self._convert_to_modern_formats(image_path)
 
             return "downloaded"
 

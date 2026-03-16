@@ -1067,9 +1067,18 @@ class TestSEOHelperFunctions:
     def test_build_seo_context_with_all_parameters(self) -> None:
         """Test _build_seo_context with all parameters."""
         now: datetime.datetime = timezone.now()
-        breadcrumb: list[dict[str, int | str]] = [
-            {"position": 1, "name": "Home", "url": "/"},
-        ]
+        breadcrumb: dict[str, Any] = {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Home",
+                    "item": "/",
+                },
+            ],
+        }
 
         context: dict[str, Any] = _build_seo_context(
             page_title="Test",
@@ -1077,7 +1086,7 @@ class TestSEOHelperFunctions:
             page_image="https://example.com/img.jpg",
             og_type="article",
             schema_data={},
-            breadcrumb_schema=breadcrumb,  # pyright: ignore[reportArgumentType]
+            breadcrumb_schema=breadcrumb,
             pagination_info=[{"rel": "next", "url": "/page/2/"}],
             published_date=now.isoformat(),
             modified_date=now.isoformat(),

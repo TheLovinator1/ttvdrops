@@ -177,7 +177,9 @@ class TTVDropsAtomBaseFeed(TTVDropsBaseFeed):
     feed_type = BrowserFriendlyAtom1Feed
 
 
-def _with_campaign_related(queryset: QuerySet[DropCampaign]) -> QuerySet[DropCampaign]:
+def _with_campaign_related(
+    queryset: QuerySet[DropCampaign, DropCampaign],
+) -> QuerySet[DropCampaign, DropCampaign]:
     """Apply related-selects/prefetches needed by feed rendering to avoid N+1 queries.
 
     Returns:

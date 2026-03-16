@@ -442,6 +442,8 @@ class ImportKickDropsCommandTest(TestCase):
         campaign: KickDropCampaign = KickDropCampaign.objects.get()
         assert campaign.name == "PUBG 9th Anniversary"
         assert campaign.status == "active"
+        assert campaign.organization is not None
+        assert campaign.category is not None
         assert campaign.organization.name == "KRAFTON"
         assert campaign.category.name == "PUBG: Battlegrounds"
 

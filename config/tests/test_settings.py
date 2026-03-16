@@ -12,7 +12,6 @@ from config import settings
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Generator
-    from collections.abc import Iterator
     from pathlib import Path
     from types import ModuleType
 
@@ -28,7 +27,7 @@ def reload_settings_module() -> Generator[Callable[..., ModuleType]]:
     original_env: dict[str, str] = os.environ.copy()
 
     @contextmanager
-    def temporary_env(env: dict[str, str]) -> Iterator[None]:
+    def temporary_env(env: dict[str, str]) -> Generator[None]:
         previous_env: dict[str, str] = os.environ.copy()
         os.environ.clear()
         os.environ.update(env)

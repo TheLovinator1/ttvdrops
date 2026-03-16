@@ -631,6 +631,9 @@ class Command(BaseCommand):
             )
             return
 
+        if game_obj.box_art_file is None:
+            return
+
         game_obj.box_art_file.save(file_name, ContentFile(response.content), save=True)
 
     def _get_or_create_channel(self, channel_info: ChannelInfoSchema) -> Channel:

@@ -38,7 +38,7 @@ class Command(BaseCommand):
             help="Re-download even if a local box art file already exists.",
         )
 
-    def handle(self, *_args: object, **options: object) -> None:
+    def handle(self, *_args: object, **options: object) -> None:  # noqa: PLR0914
         """Download Twitch box art images for all games."""
         limit_value: object | None = options.get("limit")
         limit: int | None = limit_value if isinstance(limit_value, int) else None
@@ -92,6 +92,10 @@ class Command(BaseCommand):
                     skipped += 1
                     continue
 
+                if game.box_art_file is None:
+                    failed += 1
+                    continue
+
                 game.box_art_file.save(
                     file_name,
                     ContentFile(response.content),
@@ -99,7 +103,9 @@ class Command(BaseCommand):
                 )
 
                 # Auto-convert to WebP and AVIF
-                self._convert_to_modern_formats(game.box_art_file.path)
+                box_art_path: str | None = getattr(game.box_art_file, "path", None)
+                if box_art_path:
+                    self._convert_to_modern_formats(box_art_path)
 
                 downloaded += 1
 
