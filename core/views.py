@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import operator
+from collections import OrderedDict
 from copy import copy
 from typing import TYPE_CHECKING
 from typing import Any
@@ -12,6 +13,7 @@ from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
 from django.db.models import OuterRef
+from django.db.models import Prefetch
 from django.db.models import Q
 from django.db.models.functions import Trim
 from django.db.models.query import QuerySet
@@ -23,6 +25,8 @@ from django.template.defaultfilters import filesizeformat
 from django.urls import reverse
 from django.utils import timezone
 
+from kick.models import KickChannel
+from kick.models import KickDropCampaign
 from twitch.feeds import DropCampaignAtomFeed
 from twitch.feeds import DropCampaignDiscordFeed
 from twitch.feeds import DropCampaignFeed
@@ -794,7 +798,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /
-def dashboard(request: HttpRequest) -> HttpResponse:  # noqa: ARG001
+def dashboard(request: HttpRequest) -> HttpResponse:
     """Dashboard view showing summary stats and latest campaigns.
 
     Args:
@@ -803,8 +807,116 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # noqa: ARG001
     Returns:
         HttpResponse: The rendered dashboard page.
     """
-    # Return HTML to show that the view is working.
-    return HttpResponse(
-        "<h1>Welcome to the Twitch Drops Dashboard</h1><p>Use the navigation to explore campaigns, games, organizations, and more.</p>",
-        content_type="text/html",
+    now: datetime.datetime = timezone.now()
+
+    active_twitch_campaigns: QuerySet[DropCampaign] = (
+        DropCampaign.objects
+        .filter(start_at__lte=now, end_at__gte=now)
+        .select_related("game")
+        .prefetch_related("game__owners")
+        .prefetch_related(
+            Prefetch(
+                "allow_channels",
+                queryset=Channel.objects.order_by("display_name"),
+                to_attr="channels_ordered",
+            ),
+        )
+        .order_by("-start_at")
+    )
+
+    twitch_campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
+    for campaign in active_twitch_campaigns:
+        game: Game = campaign.game
+        game_id: str = game.twitch_id
+        if game_id not in twitch_campaigns_by_game:
+            twitch_campaigns_by_game[game_id] = {
+                "name": game.display_name,
+                "box_art": game.box_art_best_url,
+                "owners": list(game.owners.all()),
+                "campaigns": [],
+            }
+        twitch_campaigns_by_game[game_id]["campaigns"].append({
+            "campaign": campaign,
+            "allowed_channels": getattr(campaign, "channels_ordered", []),
+        })
+
+    active_kick_campaigns: QuerySet[KickDropCampaign] = (
+        KickDropCampaign.objects
+        .filter(starts_at__lte=now, ends_at__gte=now)
+        .select_related("organization", "category")
+        .prefetch_related(
+            Prefetch("channels", queryset=KickChannel.objects.select_related("user")),
+            "rewards",
+        )
+        .order_by("-starts_at")
+    )
+
+    kick_campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
+    for campaign in active_kick_campaigns:
+        if campaign.category is None:
+            game_key: str = "unknown"
+            game_name: str = "Unknown Category"
+            game_image: str = ""
+            game_kick_id: int | None = None
+        else:
+            game_key = str(campaign.category.kick_id)
+            game_name = campaign.category.name
+            game_image = campaign.category.image_url
+            game_kick_id = campaign.category.kick_id
+
+        if game_key not in kick_campaigns_by_game:
+            kick_campaigns_by_game[game_key] = {
+                "name": game_name,
+                "image": game_image,
+                "kick_id": game_kick_id,
+                "campaigns": [],
+            }
+
+        kick_campaigns_by_game[game_key]["campaigns"].append({
+            "campaign": campaign,
+            "channels": list(campaign.channels.all()),
+            "rewards": list(campaign.rewards.all()),
+        })
+
+    active_reward_campaigns: QuerySet[RewardCampaign] = (
+        RewardCampaign.objects
+        .filter(starts_at__lte=now, ends_at__gte=now)
+        .select_related("game")
+        .order_by("-starts_at")
+    )
+
+    website_schema: dict[str, str | dict[str, str | dict[str, str]]] = {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "ttvdrops",
+        "url": request.build_absolute_uri("/"),
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": request.build_absolute_uri(
+                    "/search/?q={search_term_string}",
+                ),
+            },
+            "query-input": "required name=search_term_string",
+        },
+    }
+
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title="Twitch/Kick Drops",
+        page_description=("Twitch and Kick drops."),
+        og_type="website",
+        schema_data=website_schema,
+    )
+
+    return render(
+        request,
+        "core/dashboard.html",
+        {
+            "campaigns_by_game": twitch_campaigns_by_game,
+            "kick_campaigns_by_game": kick_campaigns_by_game,
+            "active_reward_campaigns": active_reward_campaigns,
+            "now": now,
+            **seo_context,
+        },
     )
