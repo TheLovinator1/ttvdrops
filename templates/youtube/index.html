@@ -1,20 +1,34 @@
 {% extends "base.html" %}
 {% block title %}
-    YouTube Drops Channels
+    YouTube channels with rewards
 {% endblock title %}
 {% block content %}
     <main>
-        <h1>YouTube Drops Channels</h1>
-        <p>Official channels from YouTube partner accounts where drops/rewards may be available.</p>
-        {% for group in partner_groups %}
-            <h2>{{ group.partner }}</h2>
-            <ul>
-                {% for item in group.channels %}
-                    <li>
-                        <a href="{{ item.url }}" rel="noopener" target="_blank">{{ item.channel }}</a>
-                    </li>
+        <h1>YouTube channels with rewards.</h1>
+        <p>
+            <a href="https://support.google.com/youtube/answer/9024948?hl=en&co=GENIE.Platform%3DAndroid"
+               rel="noopener"
+               target="_blank">YouTube Help Center</a> has the following channels listed where you can earn rewards:
+        </p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Channel</th>
+                    <th>Partner</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in partner_groups %}
+                    {% for item in group.channels %}
+                        <tr>
+                            <td>
+                                <a href="{{ item.url }}" rel="noopener" target="_blank">{{ item.channel }}</a>
+                            </td>
+                            <td>{{ group.partner }}</td>
+                        </tr>
+                    {% endfor %}
                 {% endfor %}
-            </ul>
-        {% endfor %}
+            </tbody>
+        </table>
     </main>
 {% endblock content %}
