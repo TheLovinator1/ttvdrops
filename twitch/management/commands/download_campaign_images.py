@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import httpx
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from PIL import Image
 
@@ -111,6 +112,15 @@ class Command(BaseCommand):
                     f"Failed: {total_stats['failed']}.",
                 ),
             )
+
+        # Convert downloaded images to modern formats (WebP, AVIF)
+        if total_stats["downloaded"] > 0:
+            self.stdout.write(
+                self.style.MIGRATE_HEADING(
+                    "\nConverting downloaded images to modern formats...",
+                ),
+            )
+            call_command("convert_images_to_modern_formats")
 
     def _download_campaign_images(
         self,

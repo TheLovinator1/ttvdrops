@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 import httpx
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from PIL import Image
 
@@ -38,7 +39,7 @@ class Command(BaseCommand):
             help="Re-download even if a local box art file already exists.",
         )
 
-    def handle(self, *_args: object, **options: object) -> None:  # noqa: PLR0914
+    def handle(self, *_args: object, **options: object) -> None:  # noqa: PLR0914, PLR0915
         """Download Twitch box art images for all games."""
         limit_value: object | None = options.get("limit")
         limit: int | None = limit_value if isinstance(limit_value, int) else None
@@ -117,6 +118,15 @@ class Command(BaseCommand):
         )
         box_art_dir: Path = Path(settings.MEDIA_ROOT) / "games" / "box_art"
         self.stdout.write(self.style.SUCCESS(f"Saved box art to: {box_art_dir}"))
+
+        # Convert downloaded images to modern formats (WebP, AVIF)
+        if downloaded > 0:
+            self.stdout.write(
+                self.style.MIGRATE_HEADING(
+                    "\nConverting downloaded images to modern formats...",
+                ),
+            )
+            call_command("convert_images_to_modern_formats")
 
     def _convert_to_modern_formats(self, image_path: str) -> None:
         """Convert downloaded image to WebP and AVIF formats.
