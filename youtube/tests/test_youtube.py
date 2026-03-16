@@ -1,4 +1,6 @@
+import json
 from typing import TYPE_CHECKING
+from typing import Any
 
 from django.test import TestCase
 from django.urls import reverse
@@ -40,6 +42,53 @@ class YouTubeIndexViewTest(TestCase):
             '      content="Browse YouTube channels listed as reward-enabled, including Call of Duty, '
             'Blizzard, Fortnite, Riot Games, and more." />'
         ) in content
+
+    def test_index_schema_data_is_valid_itemlist(self) -> None:
+        """The page should include a valid Schema.org ItemList in the JSON-LD context."""
+        response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
+
+        assert response.context is not None
+        assert "schema_data" in response.context
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["@context"] == "https://schema.org"
+        assert schema["@type"] == "ItemList"
+        assert schema["name"] == "YouTube channels with rewards"
+        assert "itemListElement" in schema
+
+        items: list[dict[str, Any]] = schema["itemListElement"]
+        assert len(items) > 0
+
+        # Every entry must be a ListItem wrapping an Organization
+        for item in items:
+            assert item["@type"] == "ListItem"
+            assert "position" in item
+            org: dict[str, Any] = item["item"]
+            assert org["@type"] == "Organization"
+            assert "name" in org
+            assert isinstance(org["sameAs"], list)
+            assert len(org["sameAs"]) > 0
+
+    def test_index_schema_data_includes_known_orgs(self) -> None:
+        """The Schema.org ItemList should contain entries for known organizations."""
+        response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])  # type: ignore[index]
+        org_names: list[str] = [
+            item["item"]["name"] for item in schema["itemListElement"]
+        ]
+
+        assert "Activision (Call of Duty)" in org_names
+        assert "Battle.net / Blizzard" in org_names
+        assert "Riot Games" in org_names
+        assert "Epic Games" in org_names
+
+    def test_index_schema_data_org_same_as_are_youtube_urls(self) -> None:
+        """Each Organization's sameAs values should be YouTube URLs."""
+        response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])  # type: ignore[index]
+        for list_item in schema["itemListElement"]:
+            for url in list_item["item"]["sameAs"]:
+                assert url.startswith("https://www.youtube.com/")
 
     def test_index_returns_200(self) -> None:
         """The YouTube index page should return HTTP 200."""

@@ -1,5 +1,7 @@
+import json
 from collections import defaultdict
 from typing import TYPE_CHECKING
+from typing import Any
 
 from django.shortcuts import render
 
@@ -116,9 +118,32 @@ def index(request: HttpRequest) -> HttpResponse:
             "channels": sorted_items,
         })
 
-    context: dict[str, str | list[dict[str, str | list[dict[str, str]]]]] = {
+    list_items: list[dict[str, Any]] = [
+        {
+            "@type": "ListItem",
+            "position": position,
+            "item": {
+                "@type": "Organization",
+                "name": group["organization"],
+                "sameAs": [ch["url"] for ch in group["channels"]],  # type: ignore[index]
+            },
+        }
+        for position, group in enumerate(organization_groups, start=1)
+    ]
+
+    schema: dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": PAGE_TITLE,
+        "description": PAGE_DESCRIPTION,
+        "url": request.build_absolute_uri(),
+        "itemListElement": list_items,
+    }
+
+    context: dict[str, Any] = {
         "page_title": PAGE_TITLE,
         "page_description": PAGE_DESCRIPTION,
         "organization_groups": organization_groups,
+        "schema_data": json.dumps(schema),
     }
     return render(request=request, template_name="youtube/index.html", context=context)
