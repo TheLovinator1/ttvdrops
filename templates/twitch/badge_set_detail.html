@@ -9,7 +9,6 @@
         <table>
             <tbody>
                 {% for badge in badges %}
-                    <!-- {{ badge.title }} {% if badge.description != badge.title %}- {{ badge.description }}{% else %}{% endif %} -->
                     <tr>
                         <td>
                             <code>{{ badge.badge_id }}</code>
@@ -48,5 +47,4 @@
     {% else %}
         <p>No badges found in this set.</p>
     {% endif %}
-    {{ set_data|safe }}
 {% endblock content %}

@@ -63,7 +63,6 @@
                         <div style="flex: 1; overflow-x: auto;">
                             <div style="display: flex; gap: 1rem; min-width: max-content;">
                                 {% for campaign_data in game_data.campaigns %}
-                                    <!-- {{ campaign_data.campaign.name }} -->
                                     <article style="display: flex;
                                                     flex-direction: column;
                                                     align-items: center;
@@ -106,7 +105,6 @@
                                                     {% if campaign_data.campaign.allow_is_enabled %}
                                                         {% if campaign_data.allowed_channels %}
                                                             {% for channel in campaign_data.allowed_channels|slice:":5" %}
-                                                                <!-- {{ channel.name }} -->
                                                                 <li style="margin-bottom: 0.1rem;">
                                                                     <a href="https://twitch.tv/{{ channel.name }}"
                                                                        rel="nofollow ugc"
@@ -132,14 +130,12 @@
                                                                 {% endif %}
                                                             {% endif %}
                                                             {% if campaign_data.allowed_channels|length > 5 %}
-                                                                <!-- {{ campaign_data.allowed_channels|length }} allowed channels -->
                                                                 <li style="margin-bottom: 0.1rem; color: #666; font-style: italic;">
                                                                     ... and {{ campaign_data.allowed_channels|length|add:"-5" }} more
                                                                 </li>
                                                             {% endif %}
                                                         {% else %}
                                                             {% if campaign_data.campaign.game.twitch_directory_url %}
-                                                                <!--{{ campaign_data.campaign.game.display_name }} Twitch directory URL: {{ campaign_data.campaign.game.twitch_directory_url }} -->
                                                                 <li>
                                                                     <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
                                                                        rel="nofollow ugc"
@@ -148,7 +144,6 @@
                                                                     </a>
                                                                 </li>
                                                             {% else %}
-                                                                <!-- {{ campaign_data.campaign.game.display_name }} Twitch directory URL not available -->
                                                                 <li>Failed to get Twitch directory URL :(</li>
                                                             {% endif %}
                                                         {% endif %}

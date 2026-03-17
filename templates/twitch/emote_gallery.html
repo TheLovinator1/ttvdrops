@@ -6,8 +6,6 @@
 {% block content %}
   <h1>Emotes</h1>
   {% for emote in emotes %}
-    <!-- Emote from campaign {{ emote.campaign.name }} -->
-    <!-- https://ttvdrops.lovinator.space{{ emote.image_url }} -->
     <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"
        title="{{ emote.campaign.name }}"
        style="display: inline-block">

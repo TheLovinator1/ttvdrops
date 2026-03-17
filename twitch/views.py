@@ -14,7 +14,6 @@ from django.core.paginator import EmptyPage
 from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
-from django.core.serializers import serialize
 from django.db.models import Case
 from django.db.models import Count
 from django.db.models import Prefetch
@@ -28,9 +27,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import DetailView
 from django.views.generic import ListView
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexers.data import JsonLexer
 
 from twitch.models import Channel
 from twitch.models import ChatBadge
@@ -264,14 +260,6 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
     """
     orgs: QuerySet[Organization] = Organization.objects.all().order_by("name")
 
-    # Serialize all organizations
-    serialized_orgs: str = serialize(
-        "json",
-        orgs,
-        fields=("twitch_id", "name", "added_at", "updated_at"),
-    )
-    orgs_data: list[dict] = json.loads(serialized_orgs)
-
     # CollectionPage schema for organizations list
     collection_schema: dict[str, str] = {
         "@context": "https://schema.org",
@@ -288,7 +276,6 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
     )
     context: dict[str, Any] = {
         "orgs": orgs,
-        "orgs_data": format_and_color_json(orgs_data),
         **seo_context,
     }
 
@@ -296,7 +283,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /organizations/<twitch_id>/
-def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # noqa: PLR0914
+def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
     """Function-based view for organization detail.
 
     Args:
@@ -316,30 +303,6 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
         raise Http404(msg) from exc
 
     games: QuerySet[Game] = organization.games.all()  # pyright: ignore[reportAttributeAccessIssue]
-
-    serialized_org: str = serialize(
-        "json",
-        [organization],
-        fields=("twitch_id", "name", "added_at", "updated_at"),
-    )
-    org_data: list[dict] = json.loads(serialized_org)
-
-    if games.exists():
-        serialized_games: str = serialize(
-            "json",
-            games,
-            fields=(
-                "twitch_id",
-                "slug",
-                "name",
-                "display_name",
-                "box_art",
-                "added_at",
-                "updated_at",
-            ),
-        )
-        games_data: list[dict] = json.loads(serialized_games)
-        org_data[0]["fields"]["games"] = games_data
 
     org_name: str = organization.name or organization.twitch_id
     games_count: int = games.count()
@@ -394,7 +357,6 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     context: dict[str, Any] = {
         "organization": organization,
         "games": games,
-        "org_data": format_and_color_json(org_data[0]),
         **seo_context,
     }
 
@@ -505,22 +467,6 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     return render(request, "twitch/campaign_list.html", context)
 
 
-def format_and_color_json(data: dict[str, Any] | list[dict] | str) -> str:
-    """Format and color a JSON string for HTML display.
-
-    Args:
-        data: Either a dictionary, list of dictionaries, or a JSON string to format.
-
-    Returns:
-        str: The formatted code with HTML styles.
-    """
-    if isinstance(data, (dict, list)):
-        formatted_code: str = json.dumps(data, indent=4)
-    else:
-        formatted_code = data
-    return highlight(formatted_code, JsonLexer(), HtmlFormatter())
-
-
 def _enhance_drops_with_context(
     drops: QuerySet[TimeBasedDrop],
     now: datetime.datetime,
@@ -564,7 +510,7 @@ def _enhance_drops_with_context(
 
 
 # MARK: /campaigns/<twitch_id>/
-def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # noqa: PLR0914, PLR0915
+def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # noqa: PLR0914
     """Function-based view for a drop campaign detail.
 
     Args:
@@ -598,96 +544,6 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         .order_by("required_minutes_watched")
     )
 
-    serialized_campaign: str = serialize(
-        "json",
-        [campaign],
-        fields=(
-            "twitch_id",
-            "name",
-            "description",
-            "details_url",
-            "account_link_url",
-            "image_url",
-            "start_at",
-            "end_at",
-            "allow_is_enabled",
-            "operation_names",
-            "game",
-            "created_at",
-            "updated_at",
-        ),
-    )
-    campaign_data: list[dict[str, Any]] = json.loads(serialized_campaign)
-
-    if drops.exists():
-        badge_benefit_names: set[str] = {
-            benefit.name
-            for drop in drops
-            for benefit in drop.benefits.all()
-            if benefit.distribution_type == "BADGE" and benefit.name
-        }
-        badge_descriptions_by_title: dict[str, str] = dict(
-            ChatBadge.objects.filter(title__in=badge_benefit_names).values_list(
-                "title",
-                "description",
-            ),
-        )
-
-        serialized_drops = serialize(
-            "json",
-            drops,
-            fields=(
-                "twitch_id",
-                "name",
-                "required_minutes_watched",
-                "required_subs",
-                "start_at",
-                "end_at",
-                "added_at",
-                "updated_at",
-            ),
-        )
-        drops_data: list[dict[str, Any]] = json.loads(serialized_drops)
-
-        for i, drop in enumerate(drops):
-            drop_benefits: list[DropBenefit] = list(drop.benefits.all())
-            if drop_benefits:
-                serialized_benefits: str = serialize(
-                    "json",
-                    drop_benefits,
-                    fields=(
-                        "twitch_id",
-                        "name",
-                        "image_asset_url",
-                        "added_at",
-                        "updated_at",
-                        "created_at",
-                        "entitlement_limit",
-                        "is_ios_available",
-                        "distribution_type",
-                    ),
-                )
-                benefits_data: list[dict[str, Any]] = json.loads(serialized_benefits)
-
-                for benefit_data in benefits_data:
-                    fields: dict[str, Any] = benefit_data.get("fields", {})
-                    if fields.get("distribution_type") != "BADGE":
-                        continue
-
-                    # DropBenefit doesn't have a description field; fetch it from ChatBadge when possible.
-                    if fields.get("description"):
-                        continue
-
-                    badge_description: str | None = badge_descriptions_by_title.get(
-                        fields.get("name", ""),
-                    )
-                    if badge_description:
-                        fields["description"] = badge_description
-
-                drops_data[i]["fields"]["benefits"] = benefits_data
-
-        campaign_data[0]["fields"]["drops"] = drops_data
-
     now: datetime.datetime = timezone.now()
     enhanced_drops: list[dict[str, Any]] = _enhance_drops_with_context(drops, now)
     # Attach awarded_badge to each drop in enhanced_drops
@@ -706,7 +562,6 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         "campaign": campaign,
         "now": now,
         "drops": enhanced_drops,
-        "campaign_data": format_and_color_json(campaign_data[0]),
         "owners": list(campaign.game.owners.all()),
         "allowed_channels": getattr(campaign, "channels_ordered", []),
     }
@@ -1043,45 +898,6 @@ class GameDetailView(DetailView):
             if campaign.end_at is not None and campaign.end_at < now
         ]
 
-        serialized_game: str = serialize(
-            "json",
-            [game],
-            fields=(
-                "twitch_id",
-                "slug",
-                "name",
-                "display_name",
-                "box_art",
-                "owners",
-                "added_at",
-                "updated_at",
-            ),
-        )
-        game_data: list[dict[str, Any]] = json.loads(serialized_game)
-
-        if campaigns_list:
-            serialized_campaigns = serialize(
-                "json",
-                campaigns_list,
-                fields=(
-                    "twitch_id",
-                    "name",
-                    "description",
-                    "details_url",
-                    "account_link_url",
-                    "image_url",
-                    "start_at",
-                    "end_at",
-                    "allow_is_enabled",
-                    "game",
-                    "operation_names",
-                    "added_at",
-                    "updated_at",
-                ),
-            )
-            campaigns_data: list[dict[str, Any]] = json.loads(serialized_campaigns)
-            game_data[0]["fields"]["campaigns"] = campaigns_data
-
         owners: list[Organization] = list(game.owners.all())
 
         game_name: str = game.display_name or game.name or game.twitch_id
@@ -1159,7 +975,6 @@ class GameDetailView(DetailView):
             "owners": owners,
             "drop_awarded_badges": drop_awarded_badges,
             "now": now,
-            "game_data": format_and_color_json(game_data[0]),
             **seo_context,
         })
 
@@ -1379,28 +1194,6 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         msg = "No reward campaign found matching the query"
         raise Http404(msg) from exc
 
-    serialized_campaign: str = serialize(
-        "json",
-        [reward_campaign],
-        fields=(
-            "twitch_id",
-            "name",
-            "brand",
-            "summary",
-            "instructions",
-            "external_url",
-            "about_url",
-            "reward_value_url_param",
-            "starts_at",
-            "ends_at",
-            "is_sitewide",
-            "game",
-            "added_at",
-            "updated_at",
-        ),
-    )
-    campaign_data: list[dict[str, Any]] = json.loads(serialized_campaign)
-
     now: datetime.datetime = timezone.now()
 
     campaign_name: str = reward_campaign.name or reward_campaign.twitch_id
@@ -1480,7 +1273,6 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
     context: dict[str, Any] = {
         "reward_campaign": reward_campaign,
         "now": now,
-        "campaign_data": format_and_color_json(campaign_data[0]),
         "is_active": reward_campaign.is_active,
         **seo_context,
     }
@@ -1672,33 +1464,6 @@ class ChannelDetailView(DetailView):
             if campaign.end_at is not None and campaign.end_at < now
         ]
 
-        serialized_channel: str = serialize(
-            "json",
-            [channel],
-            fields=("twitch_id", "name", "display_name", "added_at", "updated_at"),
-        )
-        channel_data: list[dict[str, Any]] = json.loads(serialized_channel)
-
-        if campaigns_list:
-            serialized_campaigns: str = serialize(
-                "json",
-                campaigns_list,
-                fields=(
-                    "twitch_id",
-                    "name",
-                    "description",
-                    "details_url",
-                    "account_link_url",
-                    "image_url",
-                    "start_at",
-                    "end_at",
-                    "added_at",
-                    "updated_at",
-                ),
-            )
-            campaigns_data: list[dict[str, Any]] = json.loads(serialized_campaigns)
-            channel_data[0]["fields"]["campaigns"] = campaigns_data
-
         name: str = channel.display_name or channel.name or channel.twitch_id
         total_campaigns: int = len(campaigns_list)
         description: str = f"{name} participates in {total_campaigns} drop campaign"
@@ -1761,7 +1526,6 @@ class ChannelDetailView(DetailView):
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
             "now": now,
-            "channel_data": format_and_color_json(channel_data[0]),
             **seo_context,
         })
 
@@ -1878,34 +1642,6 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         ).distinct()
         badge.award_campaigns = list(campaigns)  # pyright: ignore[reportAttributeAccessIssue]
 
-    # Serialize for JSON display
-    serialized_set: str = serialize(
-        "json",
-        [badge_set],
-        fields=("set_id", "added_at", "updated_at"),
-    )
-    set_data: list[dict[str, Any]] = json.loads(serialized_set)
-
-    if badges:
-        serialized_badges: str = serialize(
-            "json",
-            badges,
-            fields=(
-                "badge_id",
-                "image_url_1x",
-                "image_url_2x",
-                "image_url_4x",
-                "title",
-                "description",
-                "click_action",
-                "click_url",
-                "added_at",
-                "updated_at",
-            ),
-        )
-        badges_data: list[dict[str, Any]] = json.loads(serialized_badges)
-        set_data[0]["fields"]["badges"] = badges_data
-
     badge_set_name: str = badge_set.set_id
     badge_set_description: str = f"Twitch chat badge set {badge_set_name} with {len(badges)} badge{'s' if len(badges) != 1 else ''} awarded through drop campaigns."
 
@@ -1927,7 +1663,6 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     context: dict[str, Any] = {
         "badge_set": badge_set,
         "badges": badges,
-        "set_data": format_and_color_json(set_data[0]),
         **seo_context,
     }
 

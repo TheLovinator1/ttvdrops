@@ -33,17 +33,13 @@
         <table>
             <tbody>
                 {% for campaign in active_campaigns %}
-                    <!-- Campaign {{ campaign.name }} ({{ campaign.twitch_id }}) -->
                     <tr>
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                             {% if campaign.time_based_drops.all %}
                                 <!-- If the campaign has time-based drops, show the benefits in a nested div -->
                                 <div>
-                                    <!-- swag swag swag {{campaign.sorted_benefits}} -->
                                     {% for benefit in campaign.sorted_benefits %}
-                                        <!-- Benefit {{ benefit.name }} ({{ benefit.twitch_id }}) -->
-                                        <!-- {{ benefit.image_best_url }} -->
                                         <span title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
                                                 <!-- Show the benefit image if available -->
@@ -85,7 +81,6 @@
         <table>
             <tbody>
                 {% for campaign in upcoming_campaigns %}
-                    <!-- Campaign {{ campaign.name }} ({{ campaign.twitch_id }}) -->
                     <tr>
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
@@ -93,7 +88,6 @@
                                 <!-- If the campaign has time-based drops, show the benefits in a nested div -->
                                 <div>
                                     {% for benefit in campaign.sorted_benefits %}
-                                        <!-- Benefit {{ benefit.name }} ({{ benefit.twitch_id }}) -->
                                         <span title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
                                                 <!-- Show the benefit image if available -->
@@ -135,7 +129,6 @@
         <table>
             <tbody>
                 {% for campaign in expired_campaigns %}
-                    <!-- Campaign {{ campaign.name }} ({{ campaign.twitch_id }}) -->
                     <tr>
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
@@ -143,7 +136,6 @@
                                 <!-- If the campaign has time-based drops, show the benefits in a nested div -->
                                 <div>
                                     {% for benefit in campaign.sorted_benefits %}
-                                        <!-- Benefit {{ benefit.name }} ({{ benefit.twitch_id }}) -->
                                         <span title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
                                                 <img src="{{ benefit.image_best_url|default:benefit.image_asset_url }}"
@@ -181,5 +173,4 @@
     {% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
         <p>No campaigns found for this channel.</p>
     {% endif %}
-    {{ channel_data|safe }}
 {% endblock content %}

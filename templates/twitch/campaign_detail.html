@@ -114,7 +114,6 @@
         <table style="border-collapse: collapse; width: 100%;">
             <tbody>
                 {% for drop in drops %}
-                    <!-- {{ drop.drop.name }} - {{ drop.drop.benefits.all|join:", " }} -->
                     <tr>
                         <td>
                             {% for benefit in drop.drop.benefits.all %}
@@ -177,7 +176,6 @@
         <h5>Allowed Channels</h5>
         <div>
             {% for channel in allowed_channels %}
-                <!-- {{ channel.display_name }} https://www.twitch.tv/{{ channel.display_name }} -->
                 <a href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name }}</a>
             {% endfor %}
         </div>
@@ -189,6 +187,4 @@
             Go to a participating live channel
         </a>
     {% endif %}
-    <!-- Campaign JSON -->
-    {{ campaign_data|safe }}
 {% endblock content %}

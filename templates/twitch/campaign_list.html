@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
 {% load image_tags %}
-{% load image_tags %}
 {% block title %}
     Drop Campaigns
 {% endblock title %}
@@ -47,7 +46,6 @@
                     <select name="game">
                         <option value="">All Games</option>
                         {% for game in games %}
-                            <!-- Game option with Twitch ID {{ game.twitch_id }} and display name "{{ game.display_name }}" -->
                             <option value="{{ game.twitch_id }}"
                                     {% if selected_game == game.twitch_id %}selected{% endif %}>
                                 {{ game.display_name|default:game.name|default:game.slug|default:game.twitch_id }}
@@ -58,7 +56,6 @@
                     <select id="status" name="status">
                         <option value="">All Statuses</option>
                         {% for status in status_options %}
-                            <!-- Status option "{{ status }}" -->
                             <option value="{{ status }}"
                                     {% if selected_status == status %}selected{% endif %}>{{ status|title }}</option>
                         {% endfor %}
@@ -71,7 +68,6 @@
         {% if campaigns %}
             {% regroup campaigns by game as campaigns_by_game %}
             {% for game_group in campaigns_by_game %}
-                <!-- Game group for game "{{ game_group.grouper.display_name }}" with {{ game_group.list|length }} campaigns -->
                 <section>
                     <div style="display: flex; gap: 1rem;">
                         <div>
@@ -108,9 +104,6 @@
                             <div style="overflow-x: auto;">
                                 <div style="display: flex; gap: 1rem; min-width: max-content;">
                                     {% for campaign in game_group.list %}
-                                        <!-- Campaign "{{ campaign.clean_name }}" with Twitch ID {{ campaign.twitch_id }} -->
-                                        <!-- https://ttvdrops.lovinator.space{% url 'twitch:campaign_detail' campaign.twitch_id %} -->
-                                        <!-- https://ttvdrops.lovinator.space{{ campaign.image_best_url }} -->
                                         <article style="display: flex;
                                                         flex-direction: column;
                                                         align-items: flex-start;
@@ -165,7 +158,6 @@
         {% endif %}
         <!-- Pagination -->
         {% if is_paginated %}
-            <!-- {{ page_obj.paginator.count }} total campaigns, showing {{ page_obj.start_index }} to {{ page_obj.end_index }} on page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} -->
             <nav style="text-align: center;">
                 <div>
                     {% if page_obj.has_previous %}
