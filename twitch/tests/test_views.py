@@ -1,6 +1,7 @@
 import datetime
 import json
 from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -8,6 +9,7 @@ from typing import Literal
 import pytest
 from django.core.handlers.wsgi import WSGIRequest
 from django.core.paginator import Paginator
+from django.db.models import Max
 from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
@@ -15,6 +17,7 @@ from django.utils import timezone
 from kick.models import KickCategory
 from kick.models import KickDropCampaign
 from kick.models import KickOrganization
+from twitch.management.commands.better_import_drops import Command
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -22,6 +25,7 @@ from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.views import _build_breadcrumb_schema
 from twitch.views import _build_pagination_info
@@ -1420,6 +1424,113 @@ class TestSitemapView:
 
         # Ensure at least one entry includes a lastmod (there are entities created by the fixture)
         assert "<lastmod>" in content
+
+    def test_import_does_not_update_lastmod_on_repeated_imports(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Ensure repeated imports do not change sitemap lastmod timestamps."""
+        command = Command()
+
+        payload: dict[str, object] = {
+            "data": {
+                "currentUser": {
+                    "id": "17658559",
+                    "inventory": {
+                        "dropCampaignsInProgress": [
+                            {
+                                "id": "inventory-campaign-1",
+                                "name": "Test Inventory Campaign",
+                                "description": "Campaign from Inventory operation",
+                                "startAt": "2025-01-01T00:00:00Z",
+                                "endAt": "2025-12-31T23:59:59Z",
+                                "accountLinkURL": "https://example.com/link",
+                                "detailsURL": "https://example.com/details",
+                                "imageURL": "https://example.com/campaign.png",
+                                "status": "ACTIVE",
+                                "self": {
+                                    "isAccountConnected": True,
+                                    "__typename": "DropCampaignSelfEdge",
+                                },
+                                "game": {
+                                    "id": "inventory-game-1",
+                                    "displayName": "Inventory Game",
+                                    "boxArtURL": "https://example.com/boxart.png",
+                                    "slug": "inventory-game",
+                                    "name": "Inventory Game",
+                                    "__typename": "Game",
+                                },
+                                "owner": {
+                                    "id": "inventory-org-1",
+                                    "name": "Inventory Organization",
+                                    "__typename": "Organization",
+                                },
+                                "timeBasedDrops": [],
+                                "eventBasedDrops": None,
+                                "__typename": "DropCampaign",
+                            },
+                        ],
+                        "gameEventDrops": None,
+                        "__typename": "Inventory",
+                    },
+                    "__typename": "User",
+                },
+            },
+            "extensions": {"operationName": "Inventory"},
+        }
+
+        def _lastmod_values() -> tuple[
+            datetime.datetime | None,
+            datetime.datetime | None,
+        ]:
+            twitch_drops_lastmod = max(
+                [
+                    dt
+                    for dt in [
+                        DropCampaign.objects.aggregate(max=Max("updated_at"))["max"],
+                        RewardCampaign.objects.aggregate(max=Max("updated_at"))["max"],
+                    ]
+                    if dt is not None
+                ],
+                default=None,
+            )
+            twitch_others_lastmod = max(
+                [
+                    dt
+                    for dt in [
+                        Game.objects.aggregate(max=Max("updated_at"))["max"],
+                        Organization.objects.aggregate(max=Max("updated_at"))["max"],
+                        ChatBadgeSet.objects.aggregate(max=Max("updated_at"))["max"],
+                    ]
+                    if dt is not None
+                ],
+                default=None,
+            )
+            return twitch_drops_lastmod, twitch_others_lastmod
+
+        # Initial import
+        success, _ = command.process_responses(
+            responses=[payload],
+            file_path=Path("test_inventory.json"),
+            options={},
+        )
+        assert success is True
+
+        first_drops, first_others = _lastmod_values()
+
+        # Second import should not change lastmod values for related models
+        success, _ = command.process_responses(
+            responses=[payload],
+            file_path=Path("test_inventory.json"),
+            options={},
+        )
+        assert success is True
+
+        second_drops, second_others = _lastmod_values()
+
+        assert first_drops == second_drops
+        assert first_others == second_others
 
     def test_sitemap_contains_static_pages(
         self,

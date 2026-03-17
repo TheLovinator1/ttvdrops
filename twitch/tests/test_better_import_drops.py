@@ -165,6 +165,81 @@ class ExtractCampaignsTests(TestCase):
         assert campaign.name == "Test Inventory Campaign"
         assert campaign.operation_names == ["Inventory"]
 
+    def test_import_does_not_update_campaign_when_data_unchanged(self) -> None:
+        """Ensure repeated imports do not modify the campaign updated_at."""
+        command = Command()
+
+        payload: dict[str, object] = {
+            "data": {
+                "currentUser": {
+                    "id": "17658559",
+                    "inventory": {
+                        "dropCampaignsInProgress": [
+                            {
+                                "id": "inventory-campaign-1",
+                                "name": "Test Inventory Campaign",
+                                "description": "Campaign from Inventory operation",
+                                "startAt": "2025-01-01T00:00:00Z",
+                                "endAt": "2025-12-31T23:59:59Z",
+                                "accountLinkURL": "https://example.com/link",
+                                "detailsURL": "https://example.com/details",
+                                "imageURL": "https://example.com/campaign.png",
+                                "status": "ACTIVE",
+                                "self": {
+                                    "isAccountConnected": True,
+                                    "__typename": "DropCampaignSelfEdge",
+                                },
+                                "game": {
+                                    "id": "inventory-game-1",
+                                    "displayName": "Inventory Game",
+                                    "boxArtURL": "https://example.com/boxart.png",
+                                    "slug": "inventory-game",
+                                    "name": "Inventory Game",
+                                    "__typename": "Game",
+                                },
+                                "owner": {
+                                    "id": "inventory-org-1",
+                                    "name": "Inventory Organization",
+                                    "__typename": "Organization",
+                                },
+                                "timeBasedDrops": [],
+                                "eventBasedDrops": None,
+                                "__typename": "DropCampaign",
+                            },
+                        ],
+                        "gameEventDrops": None,
+                        "__typename": "Inventory",
+                    },
+                    "__typename": "User",
+                },
+            },
+            "extensions": {"operationName": "Inventory"},
+        }
+
+        # First import to create the campaign
+        success, _ = command.process_responses(
+            responses=[payload],
+            file_path=Path("test_inventory.json"),
+            options={},
+        )
+        assert success is True
+
+        campaign: DropCampaign = DropCampaign.objects.get(
+            twitch_id="inventory-campaign-1",
+        )
+        updated_at = campaign.updated_at
+
+        # Second import should not change updated_at since data is identical
+        success, _ = command.process_responses(
+            responses=[payload],
+            file_path=Path("test_inventory.json"),
+            options={},
+        )
+        assert success is True
+
+        campaign.refresh_from_db()
+        assert campaign.updated_at == updated_at
+
     def test_handles_inventory_with_null_campaigns(self) -> None:
         """Ensure Inventory JSON with null dropCampaignsInProgress is handled correctly."""
         command = Command()

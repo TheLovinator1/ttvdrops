@@ -36,6 +36,7 @@ from twitch.utils import parse_date
 
 if TYPE_CHECKING:
     from django.core.management.base import CommandParser
+    from django.db.models import Model
     from json_repair import JSONReturnType
 
     from twitch.schemas import ChannelInfoSchema
@@ -544,6 +545,32 @@ class Command(BaseCommand):
 
         return valid_responses, broken_dir
 
+    def _save_if_changed(self, obj: Model, defaults: dict[str, object]) -> bool:
+        """Save the model instance only when data actually changed.
+
+        This prevents unnecessary updates and avoids touching fields like
+        `updated_at` when the imported values are identical.
+
+        Args:
+            obj: The model instance to potentially update.
+            defaults: Field values to apply.
+
+        Returns:
+            True if the object was saved, False if no changes were detected.
+        """
+        changed_fields: list[str] = []
+
+        for field, new_value in defaults.items():
+            if getattr(obj, field, None) != new_value:
+                setattr(obj, field, new_value)
+                changed_fields.append(field)
+
+        if not changed_fields:
+            return False
+
+        obj.save(update_fields=changed_fields)
+        return True
+
     def _get_or_create_organization(self, org_data: OrganizationSchema) -> Organization:
         """Get or create an organization.
 
@@ -553,11 +580,13 @@ class Command(BaseCommand):
         Returns:
             Organization instance.
         """
-        org_obj, created = Organization.objects.update_or_create(
+        org_obj, created = Organization.objects.get_or_create(
             twitch_id=org_data.twitch_id,
             defaults={"name": org_data.name},
         )
-        if created:
+        if not created:
+            self._save_if_changed(org_obj, {"name": org_data.name})
+        else:
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created new organization: {org_data.name}",
             )
@@ -589,19 +618,23 @@ class Command(BaseCommand):
         if campaign_org_obj:
             owner_orgs.add(campaign_org_obj)
 
-        game_obj, created = Game.objects.update_or_create(
+        defaults: dict[str, str] = {
+            "display_name": game_data.display_name or (game_data.name or ""),
+            "name": game_data.name or "",
+            "slug": game_data.slug or "",
+            "box_art": game_data.box_art_url or "",
+        }
+
+        game_obj, created = Game.objects.get_or_create(
             twitch_id=game_data.twitch_id,
-            defaults={
-                "display_name": game_data.display_name or (game_data.name or ""),
-                "name": game_data.name or "",
-                "slug": game_data.slug or "",
-                "box_art": game_data.box_art_url or "",
-            },
+            defaults=defaults,
         )
         # Set owners (ManyToMany)
         if created or owner_orgs:
             game_obj.owners.add(*owner_orgs)
-        if created:
+        if not created:
+            self._save_if_changed(game_obj, defaults)
+        else:
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}",
             )
@@ -648,11 +681,17 @@ class Command(BaseCommand):
         # Use name as display_name fallback if displayName is None
         display_name: str = channel_info.display_name or channel_info.name
 
-        channel_obj, created = Channel.objects.update_or_create(
+        defaults: dict[str, str] = {
+            "name": channel_info.name,
+            "display_name": display_name,
+        }
+        channel_obj, created = Channel.objects.get_or_create(
             twitch_id=channel_info.twitch_id,
-            defaults={"name": channel_info.name, "display_name": display_name},
+            defaults=defaults,
         )
-        if created:
+        if not created:
+            self._save_if_changed(channel_obj, defaults)
+        else:
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {display_name}",
             )
@@ -750,11 +789,13 @@ class Command(BaseCommand):
                     "account_link_url": drop_campaign.account_link_url,
                 }
 
-                campaign_obj, created = DropCampaign.objects.update_or_create(
+                campaign_obj, created = DropCampaign.objects.get_or_create(
                     twitch_id=drop_campaign.twitch_id,
                     defaults=defaults,
                 )
-                if created:
+                if not created:
+                    self._save_if_changed(campaign_obj, defaults)
+                else:
                     tqdm.write(
                         f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}",
                     )
@@ -829,11 +870,13 @@ class Command(BaseCommand):
             if end_at_dt is not None:
                 drop_defaults["end_at"] = end_at_dt
 
-            drop_obj, created = TimeBasedDrop.objects.update_or_create(
+            drop_obj, created = TimeBasedDrop.objects.get_or_create(
                 twitch_id=drop_schema.twitch_id,
                 defaults=drop_defaults,
             )
-            if created:
+            if not created:
+                self._save_if_changed(drop_obj, drop_defaults)
+            else:
                 tqdm.write(
                     f"{Fore.GREEN}✓{Style.RESET_ALL} Created TimeBasedDrop: {drop_schema.name}",
                 )
@@ -859,11 +902,13 @@ class Command(BaseCommand):
             if created_at_dt:
                 benefit_defaults["created_at"] = created_at_dt
 
-        benefit_obj, created = DropBenefit.objects.update_or_create(
+        benefit_obj, created = DropBenefit.objects.get_or_create(
             twitch_id=benefit_schema.twitch_id,
             defaults=benefit_defaults,
         )
-        if created:
+        if not created:
+            self._save_if_changed(benefit_obj, benefit_defaults)
+        else:
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}",
             )
@@ -888,12 +933,15 @@ class Command(BaseCommand):
                 benefit_schema=benefit_schema,
             )
 
-            _edge_obj, created = DropBenefitEdge.objects.update_or_create(
+            defaults = {"entitlement_limit": edge_schema.entitlement_limit}
+            edge_obj, created = DropBenefitEdge.objects.get_or_create(
                 drop=drop_obj,
                 benefit=benefit_obj,
-                defaults={"entitlement_limit": edge_schema.entitlement_limit},
+                defaults=defaults,
             )
-            if created:
+            if not created:
+                self._save_if_changed(edge_obj, defaults)
+            else:
                 tqdm.write(
                     f"{Fore.GREEN}✓{Style.RESET_ALL} Linked benefit: {benefit_schema.name} → {drop_obj.name}",
                 )
@@ -996,22 +1044,27 @@ class Command(BaseCommand):
                 else "",
             }
 
-            _reward_campaign_obj, created = RewardCampaign.objects.update_or_create(
+            reward_obj, created = RewardCampaign.objects.get_or_create(
                 twitch_id=reward_campaign.twitch_id,
                 defaults=defaults,
             )
 
-            action: Literal["Imported new", "Updated"] = (
-                "Imported new" if created else "Updated"
-            )
-            display_name = (
-                f"{reward_campaign.brand}: {reward_campaign.name}"
-                if reward_campaign.brand
-                else reward_campaign.name
-            )
-            tqdm.write(
-                f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: {display_name}",
-            )
+            updated: bool = False
+            if not created:
+                updated = self._save_if_changed(reward_obj, defaults)
+
+            if created or updated:
+                action: Literal["Imported new", "Updated"] = (
+                    "Imported new" if created else "Updated"
+                )
+                display_name = (
+                    f"{reward_campaign.brand}: {reward_campaign.name}"
+                    if reward_campaign.brand
+                    else reward_campaign.name
+                )
+                tqdm.write(
+                    f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: {display_name}",
+                )
 
     def handle(self, *args, **options) -> None:  # noqa: ARG002
         """Main entry point for the command.
