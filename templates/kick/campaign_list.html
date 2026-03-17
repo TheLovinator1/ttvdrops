@@ -26,6 +26,7 @@
                title="Atom feed for all campaigns">[atom]</a>
             <a href="{% url 'kick:campaign_feed_discord' %}"
                title="Discord feed for all campaigns">[discord]</a>
+            <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
         </div>
         <form method="get" action="{% url 'kick:campaign_list' %}">
             <div style="display: flex;

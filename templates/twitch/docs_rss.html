@@ -6,99 +6,148 @@
 {% block content %}
     <main>
         <h1>RSS Feeds Documentation</h1>
-        <p>This page lists all available RSS feeds for TTVDrops.</p>
         <p>
-            Atom feeds are also available for the same resources under the
-            <code>/atom/</code> endpoints.
+            You have three types of feeds available for Twitch drops data: RSS, Atom, and Discord.
+            RSS and Atom feeds are similar and can be used in any RSS reader application.
+            The main difference is that Atom feeds include additional metadata and support for more complex content, while RSS feeds are more widely supported by older applications.
         </p>
         <p>
             Discord feeds are available under the <code>/discord/</code> endpoints. These are Atom feeds
             that include Discord relative timestamps (e.g., <code>&lt;t:1773450272:R&gt;</code>) for dates,
-            making them ideal for Discord bots and integrations.
+            making them ideal for Discord bots and integrations. Future enhancements may include Discord-specific formatting or content.
         </p>
         <section>
             <h2>Global RSS Feeds</h2>
-            <p>These feeds contain all items across the entire site:</p>
-            <ul>
-                {% for feed in feeds %}
-                    <li>
-                        <h3>{{ feed.title }}</h3>
-                        <p>{{ feed.description }}</p>
-                        <p>
-                            <a href="{{ feed.url }}">Subscribe to {{ feed.title }} RSS Feed</a>
-                            {% if feed.atom_url %}
-                                &nbsp;|&nbsp;
-                                <a href="{{ feed.atom_url }}">Subscribe to {{ feed.title }} Atom Feed</a>
-                            {% endif %}
-                            {% if feed.discord_url %}
-                                &nbsp;|&nbsp;
-                                <a href="{{ feed.discord_url }}">Subscribe to {{ feed.title }} Discord Feed</a>
-                            {% endif %}
-                        </p>
-                        <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
-                        {% if feed.example_xml_atom %}
-                            <h4>Atom example</h4>
-                            <pre><code class="language-xml">{{ feed.example_xml_atom|escape }}</code></pre>
-                        {% endif %}
-                        {% if feed.example_xml_discord %}
-                            <h4>Discord example</h4>
-                            <pre><code class="language-xml">{{ feed.example_xml_discord|escape }}</code></pre>
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>RSS</th>
+                        <th>Atom</th>
+                        <th>Discord</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>New Twitch games</td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/rss/games/">https://ttvdrops.lovinator.space/rss/games/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/atom/games/">https://ttvdrops.lovinator.space/atom/games/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/discord/games/">https://ttvdrops.lovinator.space/discord/games/</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Latest Twitch drop campaigns</td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/rss/campaigns/">https://ttvdrops.lovinator.space/rss/campaigns/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/atom/campaigns/">https://ttvdrops.lovinator.space/atom/campaigns/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/discord/campaigns/">https://ttvdrops.lovinator.space/discord/campaigns/</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Latest Twitch organizations</td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/rss/organizations/">https://ttvdrops.lovinator.space/rss/organizations/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/atom/organizations/">https://ttvdrops.lovinator.space/atom/organizations/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/discord/organizations/">https://ttvdrops.lovinator.space/discord/organizations/</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Latest Twitch reward campaigns</td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/rss/reward-campaigns/">https://ttvdrops.lovinator.space/rss/reward-campaigns/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/atom/reward-campaigns/">https://ttvdrops.lovinator.space/atom/reward-campaigns/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/discord/reward-campaigns/">https://ttvdrops.lovinator.space/discord/reward-campaigns/</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Latest Kick campaigns</td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/kick/rss/campaigns/">https://ttvdrops.lovinator.space/kick/rss/campaigns/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/kick/atom/campaigns/">https://ttvdrops.lovinator.space/kick/atom/campaigns/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/discord/campaigns/">https://ttvdrops.lovinator.space/discord/campaigns/</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Latest Kick games</td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/kick/rss/games/">https://ttvdrops.lovinator.space/kick/rss/games/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/kick/atom/games/">https://ttvdrops.lovinator.space/kick/atom/games/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/discord/games/">https://ttvdrops.lovinator.space/discord/games/</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Latest Kick organizations</td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/kick/rss/organizations/">https://ttvdrops.lovinator.space/kick/rss/organizations/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/kick/atom/organizations/">https://ttvdrops.lovinator.space/kick/atom/organizations/</a>
+                        </td>
+                        <td>
+                            <a href="https://ttvdrops.lovinator.space/discord/organizations/">https://ttvdrops.lovinator.space/discord/organizations/</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
         <section>
             <h2>Filtered RSS Feeds</h2>
-            <p>
-                You can subscribe to RSS feeds scoped to a specific game or organization. When available, links below point to live examples; otherwise use the endpoint template.
-            </p>
-            <ul>
-                {% for feed in filtered_feeds %}
-                    <li>
-                        <h3>{{ feed.title }}</h3>
-                        <p>{{ feed.description }}</p>
-                        <p>
-                            Endpoint: <code>{{ feed.url }}</code>
-                            {% if feed.atom_url %}&nbsp;|&nbsp; Atom: <code>{{ feed.atom_url }}</code>{% endif %}
-                            {% if feed.discord_url %}&nbsp;|&nbsp; Discord: <code>{{ feed.discord_url }}</code>{% endif %}
-                        </p>
-                        {% if feed.has_sample %}
-                            <p>
-                                <a href="{{ feed.url }}">View a live example</a>
-                                {% if feed.atom_url %}
-                                    &nbsp;|&nbsp;
-                                    <a href="{{ feed.atom_url }}">View Atom example</a>
-                                {% endif %}
-                                {% if feed.discord_url %}
-                                    &nbsp;|&nbsp;
-                                    <a href="{{ feed.discord_url }}">View Discord example</a>
-                                {% endif %}
-                            </p>
-                        {% endif %}
-                        <pre><code class="language-xml">{% if feed.example_xml %}{{ feed.example_xml|escape }}{% else %}No example XML available yet.{% endif %}</code></pre>
-                        {% if feed.example_xml_atom %}
-                            <h4>Atom example</h4>
-                            <pre><code class="language-xml">{{ feed.example_xml_atom|escape }}</code></pre>
-                        {% endif %}
-                        {% if feed.example_xml_discord %}
-                            <h4>Discord example</h4>
-                            <pre><code class="language-xml">{{ feed.example_xml_discord|escape }}</code></pre>
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ul>
-        </section>
-        <section>
-            <h2>How to Use RSS Feeds</h2>
-            <p>
-                RSS feeds allow you to stay updated with new content. You can use any RSS reader application to subscribe to these feeds.
-            </p>
-            <ul>
-                <li>Copy the feed URL</li>
-                <li>Paste it into your favorite RSS reader (Feedly, Inoreader, NetNewsWire, etc.)</li>
-                <li>Get automatic updates when new content is added</li>
-            </ul>
+            <p>You can subscribe to RSS feeds scoped to a specific game.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Game</th>
+                        <th>RSS</th>
+                        <th>Atom</th>
+                        <th>Discord</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ game.display_name }}</td>
+                        <td>
+                            <a href="{% url 'core:game_campaign_feed' game.twitch_id %}">
+                                https://ttvdrops.lovinator.space/rss/games/{{ game.twitch_id }}/
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}">
+                                https://ttvdrops.lovinator.space/atom/games/{{ game.twitch_id }}/
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}">
+                                https://ttvdrops.lovinator.space/discord/games/{{ game.twitch_id }}/
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
     </main>
 {% endblock content %}

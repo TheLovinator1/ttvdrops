@@ -59,6 +59,7 @@
                            title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
                         <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
                            title="Discord feed for {{ campaign.category.name }} campaigns">[discord]</a>
+                        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                     </div>
                 {% endif %}
                 <p style="margin: 0.25rem 0; color: #666;">

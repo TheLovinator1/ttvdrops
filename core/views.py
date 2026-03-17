@@ -3,7 +3,6 @@ import json
 import logging
 import operator
 from collections import OrderedDict
-from copy import copy
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -27,21 +26,6 @@ from django.utils import timezone
 
 from kick.models import KickChannel
 from kick.models import KickDropCampaign
-from twitch.feeds import DropCampaignAtomFeed
-from twitch.feeds import DropCampaignDiscordFeed
-from twitch.feeds import DropCampaignFeed
-from twitch.feeds import GameAtomFeed
-from twitch.feeds import GameCampaignAtomFeed
-from twitch.feeds import GameCampaignDiscordFeed
-from twitch.feeds import GameCampaignFeed
-from twitch.feeds import GameDiscordFeed
-from twitch.feeds import GameFeed
-from twitch.feeds import OrganizationAtomFeed
-from twitch.feeds import OrganizationDiscordFeed
-from twitch.feeds import OrganizationRSSFeed
-from twitch.feeds import RewardCampaignAtomFeed
-from twitch.feeds import RewardCampaignDiscordFeed
-from twitch.feeds import RewardCampaignFeed
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -53,13 +37,11 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from os import stat_result
     from pathlib import Path
 
     from django.db.models import QuerySet
     from django.http import HttpRequest
-    from django.http.request import QueryDict
 
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
@@ -279,178 +261,33 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0915
 
 # MARK: /docs/rss/
 def docs_rss_view(request: HttpRequest) -> HttpResponse:
-    """View for /docs/rss that lists all available RSS feeds.
+    """View for /docs/rss that lists all available feeds and explains how to use them.
 
     Args:
         request: The HTTP request object.
 
     Returns:
-        Rendered HTML response with list of RSS feeds.
+        HttpResponse: The rendered documentation page.
     """
-
-    def absolute(path: str) -> str:
-        try:
-            return request.build_absolute_uri(path)
-        except Exception:
-            logger.exception("Failed to build absolute URL for %s", path)
-        return path
-
-    def _pretty_example(xml_str: str, max_items: int = 1) -> str:
-        try:
-            trimmed: str = xml_str.strip()
-            first_item: int = trimmed.find("<item")
-            if first_item != -1 and max_items == 1:
-                second_item: int = trimmed.find("<item", first_item + 5)
-                if second_item != -1:
-                    end_channel: int = trimmed.find("</channel>", second_item)
-                    if end_channel != -1:
-                        trimmed = trimmed[:second_item] + trimmed[end_channel:]
-            formatted: str = trimmed.replace("><", ">\n<")
-            return "\n".join(line for line in formatted.splitlines() if line.strip())
-        except Exception:
-            logger.exception("Failed to pretty-print RSS example")
-            return xml_str
-
-    def render_feed(feed_view: Callable[..., HttpResponse], *args: object) -> str:
-        try:
-            limited_request: HttpRequest = copy(request)
-            # Add limit=1 to GET parameters
-            get_data: QueryDict = request.GET.copy()
-            get_data["limit"] = "1"
-            limited_request.GET = get_data
-
-            response: HttpResponse = feed_view(limited_request, *args)
-            return _pretty_example(response.content.decode("utf-8"))
-        except Exception:
-            logger.exception(
-                "Failed to render %s for RSS docs",
-                feed_view.__class__.__name__,
-            )
-        return ""
-
-    show_atom: bool = bool(request.GET.get("show_atom"))
-
-    feeds: list[dict[str, str]] = [
-        {
-            "title": "All Organizations",
-            "description": "Latest organizations added to TTVDrops",
-            "url": absolute(reverse("core:organization_feed")),
-            "atom_url": absolute(reverse("core:organization_feed_atom")),
-            "discord_url": absolute(reverse("core:organization_feed_discord")),
-            "example_xml": render_feed(OrganizationRSSFeed()),
-            "example_xml_atom": render_feed(OrganizationAtomFeed())
-            if show_atom
-            else "",
-            "example_xml_discord": render_feed(OrganizationDiscordFeed())
-            if show_atom
-            else "",
-        },
-        {
-            "title": "All Games",
-            "description": "Latest games added to TTVDrops",
-            "url": absolute(reverse("core:game_feed")),
-            "atom_url": absolute(reverse("core:game_feed_atom")),
-            "discord_url": absolute(reverse("core:game_feed_discord")),
-            "example_xml": render_feed(GameFeed()),
-            "example_xml_atom": render_feed(GameAtomFeed()) if show_atom else "",
-            "example_xml_discord": render_feed(GameDiscordFeed()) if show_atom else "",
-        },
-        {
-            "title": "All Drop Campaigns",
-            "description": "Latest drop campaigns across all games",
-            "url": absolute(reverse("core:campaign_feed")),
-            "atom_url": absolute(reverse("core:campaign_feed_atom")),
-            "discord_url": absolute(reverse("core:campaign_feed_discord")),
-            "example_xml": render_feed(DropCampaignFeed()),
-            "example_xml_atom": render_feed(DropCampaignAtomFeed())
-            if show_atom
-            else "",
-            "example_xml_discord": render_feed(DropCampaignDiscordFeed())
-            if show_atom
-            else "",
-        },
-        {
-            "title": "All Reward Campaigns",
-            "description": "Latest reward campaigns (Quest rewards) on Twitch",
-            "url": absolute(reverse("core:reward_campaign_feed")),
-            "atom_url": absolute(reverse("core:reward_campaign_feed_atom")),
-            "discord_url": absolute(reverse("core:reward_campaign_feed_discord")),
-            "example_xml": render_feed(RewardCampaignFeed()),
-            "example_xml_atom": render_feed(RewardCampaignAtomFeed())
-            if show_atom
-            else "",
-            "example_xml_discord": render_feed(RewardCampaignDiscordFeed())
-            if show_atom
-            else "",
-        },
-    ]
-
-    sample_game: Game | None = Game.objects.order_by("-added_at").first()
-    sample_org: Organization | None = Organization.objects.order_by("-added_at").first()
-    if sample_org is None and sample_game is not None:
-        sample_org = sample_game.owners.order_by("-pk").first()
-
-    filtered_feeds: list[dict[str, str | bool]] = [
-        {
-            "title": "Campaigns for a Single Game",
-            "description": "Latest drop campaigns for one game.",
-            "url": (
-                absolute(
-                    reverse("core:game_campaign_feed", args=[sample_game.twitch_id]),
-                )
-                if sample_game
-                else absolute("/rss/games/<game_id>/campaigns/")
-            ),
-            "atom_url": (
-                absolute(
-                    reverse(
-                        "core:game_campaign_feed_atom",
-                        args=[sample_game.twitch_id],
-                    ),
-                )
-                if sample_game
-                else absolute("/atom/games/<game_id>/campaigns/")
-            ),
-            "discord_url": (
-                absolute(
-                    reverse(
-                        "core:game_campaign_feed_discord",
-                        args=[sample_game.twitch_id],
-                    ),
-                )
-                if sample_game
-                else absolute("/discord/games/<game_id>/campaigns/")
-            ),
-            "has_sample": bool(sample_game),
-            "example_xml": render_feed(GameCampaignFeed(), sample_game.twitch_id)
-            if sample_game
-            else "",
-            "example_xml_atom": (
-                render_feed(GameCampaignAtomFeed(), sample_game.twitch_id)
-                if sample_game and show_atom
-                else ""
-            ),
-            "example_xml_discord": (
-                render_feed(GameCampaignDiscordFeed(), sample_game.twitch_id)
-                if sample_game and show_atom
-                else ""
-            ),
-        },
-    ]
+    now: datetime.datetime = timezone.now()
+    sample_game: Game | None = (
+        Game.objects
+        .filter(drop_campaigns__start_at__lte=now, drop_campaigns__end_at__gte=now)
+        .distinct()
+        .first()
+    )
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch RSS Feeds",
-        page_description="RSS feeds for Twitch drops.",
+        page_title="Feed Documentation",
+        page_description="Documentation for the RSS feeds available on ttvdrops.lovinator.space, including how to use them and what data they contain.",
         page_url=request.build_absolute_uri(reverse("core:docs_rss")),
     )
+
     return render(
         request,
         "twitch/docs_rss.html",
         {
-            "feeds": feeds,
-            "filtered_feeds": filtered_feeds,
-            "sample_game": sample_game,
-            "sample_org": sample_org,
+            "game": sample_game,
             **seo_context,
         },
     )

@@ -37,11 +37,12 @@
     <div style="margin-bottom: 1rem;">
         <a href="{% url 'core:reward_campaign_feed' %}"
            style="margin-right: 1rem"
-           title="RSS feed for all reward campaigns">RSS feed for all reward campaigns</a>
+           title="RSS feed for all reward campaigns">[rss]</a>
         <a href="{% url 'core:reward_campaign_feed_atom' %}"
            title="Atom feed for all reward campaigns">[atom]</a>
         <a href="{% url 'core:reward_campaign_feed_discord' %}"
            title="Discord feed for all reward campaigns">[discord]</a>
+        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
     </div>
     <!-- Campaign Summary -->
     {% if reward_campaign.summary %}<p id="campaign-summary">{{ reward_campaign.summary|linebreaksbr }}</p>{% endif %}

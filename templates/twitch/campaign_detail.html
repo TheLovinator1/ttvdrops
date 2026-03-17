@@ -104,6 +104,7 @@
                        title="Atom feed for {{ campaign.game.display_name }} campaigns">[atom]</a>
                     <a href="{% url 'core:game_campaign_feed_discord' campaign.game.twitch_id %}"
                        title="Discord feed for {{ campaign.game.display_name }} campaigns">[discord]</a>
+                    <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                 {% endif %}
             </div>
         </div>

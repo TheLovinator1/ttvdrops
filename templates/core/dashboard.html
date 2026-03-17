@@ -48,6 +48,7 @@
                        title="Atom feed for Twitch campaigns">[atom]</a>
                     <a href="{% url 'core:campaign_feed_discord' %}"
                        title="Discord feed for Twitch campaigns">[discord]</a>
+                    <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                 </div>
             </header>
             {% if campaigns_by_game %}
@@ -223,6 +224,7 @@
                            title="Atom feed for all Kick campaigns">[atom]</a>
                         <a href="{% url 'kick:campaign_feed_discord' %}"
                            title="Discord feed for all Kick campaigns">[discord]</a>
+                        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                     </div>
                 </header>
                 {% if kick_campaigns_by_game %}

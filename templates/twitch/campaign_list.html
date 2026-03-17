@@ -30,6 +30,7 @@
                    title="Atom feed for all campaigns">[atom]</a>
                 <a href="{% url 'core:campaign_feed_discord' %}"
                    title="Discord feed for all campaigns">[discord]</a>
+                <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                 <a href="{% url 'twitch:export_campaigns_csv' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
                    title="Export campaigns as CSV">[csv]</a>
                 <a href="{% url 'twitch:export_campaigns_json' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
