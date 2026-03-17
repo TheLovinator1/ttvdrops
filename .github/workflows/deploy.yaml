@@ -23,10 +23,22 @@ jobs:
       - uses: actions/checkout@v6
       - run: uv sync --all-extras --dev -U
       - run: uv run pytest
+      - name: Check if makemigrations are needed
+        run: |
+          if uv run python manage.py makemigrations --check --dry-run; then
+            echo "No migrations needed."
+          else
+            echo "Migrations needed. Please create and commit migrations before deploying."
+            exit 1
+          fi
       - name: Deploy to Server
-        if: ${{ success() }}
+        if: ${{ success() && github.ref == 'refs/heads/master' }}
         run: |
           sudo -u ttvdrops git -C /home/ttvdrops/ttvdrops pull
-          sudo -u ttvdrops uv sync -U
+          sudo -u ttvdrops uv sync -U --all-extras --dev --directory /home/ttvdrops/ttvdrops
           sudo -u ttvdrops uv run python /home/ttvdrops/ttvdrops/manage.py migrate
           sudo systemctl restart ttvdrops
+      - name: Check if server is up
+        run: |
+          sleep 2
+          curl -f https://ttvdrops.lovinator.space/ || exit 1
