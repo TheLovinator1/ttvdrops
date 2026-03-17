@@ -4,7 +4,7 @@ name: Deploy to Server
 # forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/git
 # forgejo-runner ALL=(root) NOPASSWD: /bin/systemctl restart ttvdrops
 # forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv run python /home/ttvdrops/ttvdrops/manage.py migrate
-# forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv sync -U
+# forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv sync -U --all-extras --dev --directory /home/ttvdrops/ttvdrops
 
 on:
   push:
