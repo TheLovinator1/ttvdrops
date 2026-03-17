@@ -73,6 +73,7 @@ DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and mor
 def _build_seo_context(  # noqa: PLR0913, PLR0917
     page_title: str = "ttvdrops",
     page_description: str | None = None,
+    page_url: str | None = None,
     page_image: str | None = None,
     page_image_width: int | None = None,
     page_image_height: int | None = None,
@@ -89,6 +90,7 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     Args:
         page_title: Page title (shown in browser tab, og:title).
         page_description: Page description (meta description, og:description).
+        page_url: Canonical absolute URL for the current page.
         page_image: Image URL for og:image meta tag.
         page_image_width: Width of the image in pixels.
         page_image_height: Height of the image in pixels.
@@ -115,6 +117,8 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
         "og_type": og_type,
         "robots_directive": robots_directive,
     }
+    if page_url:
+        context["page_url"] = page_url
     if page_image:
         context["page_image"] = page_image
         if page_image_width and page_image_height:
@@ -437,6 +441,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch RSS Feeds",
         page_description="RSS feeds for Twitch drops.",
+        page_url=request.build_absolute_uri(reverse("core:docs_rss")),
     )
     return render(
         request,
@@ -836,6 +841,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=page_title,
         page_description=page_description,
+        page_url=request.build_absolute_uri(reverse("core:search")),
     )
     return render(
         request,

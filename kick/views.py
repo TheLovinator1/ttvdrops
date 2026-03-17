@@ -56,6 +56,8 @@ def _build_seo_context(
         "robots_directive": "index, follow",
     }
     if seo_meta:
+        if seo_meta.get("page_url"):
+            context["page_url"] = seo_meta["page_url"]
         if seo_meta.get("og_type"):
             context["og_type"] = seo_meta["og_type"]
         if seo_meta.get("robots_directive"):
@@ -225,6 +227,7 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, str] = _build_seo_context(
         page_title=title,
         page_description="Browse Kick drop campaigns.",
+        seo_meta={"page_url": request.build_absolute_uri(base_url)},
     )
     return render(
         request,

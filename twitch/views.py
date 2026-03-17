@@ -116,6 +116,8 @@ def _build_seo_context(
         "robots_directive": "index, follow",
     }
     if seo_meta:
+        if seo_meta.get("page_url"):
+            context["page_url"] = seo_meta["page_url"]
         if seo_meta.get("og_type"):
             context["og_type"] = seo_meta["og_type"]
         if seo_meta.get("robots_directive"):
@@ -483,6 +485,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
         page_title=title,
         page_description=description,
         seo_meta={
+            "page_url": request.build_absolute_uri(base_url),
             "pagination_info": pagination_info,
             "schema_data": collection_schema,
         },
@@ -1336,6 +1339,7 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
         page_title=title,
         page_description=description,
         seo_meta={
+            "page_url": request.build_absolute_uri(base_url),
             "pagination_info": pagination_info,
             "schema_data": collection_schema,
         },
@@ -1557,6 +1561,7 @@ class ChannelListView(ListView):
             page_title="Twitch Channels",
             page_description="List of Twitch channels participating in drop campaigns.",
             seo_meta={
+                "page_url": self.request.build_absolute_uri(base_url),
                 "pagination_info": pagination_info,
                 "schema_data": collection_schema,
             },

@@ -16,9 +16,6 @@
 {# - robots_directive: str - robots meta content (default: "index, follow") #}
 {# #}
 {% load static %}
-{# Preconnect to external resources for performance #}
-<link rel="preconnect" href="https://static-cdn.jtvnw.net" />
-<link rel="dns-prefetch" href="https://static-cdn.jtvnw.net" />
 {# Description meta tag #}
 <meta name="description"
       content="{% firstof page_description 'ttvdrops - Track Twitch drops.' %}" />
@@ -26,7 +23,7 @@
 <meta name="robots"
       content="{% firstof robots_directive 'index, follow' %}" />
 {# Author and Copyright #}
-<meta name="author" content="TheLovinator1" />
+<meta name="author" content="TheLovinator" />
 <meta name="copyright"
       content="This work is dedicated to the public domain under CC0 1.0 Universal." />
 {# Open Graph tags for social sharing #}
@@ -45,10 +42,14 @@
 {% endif %}
 {# Twitter Card tags for rich previews #}
 <meta name="twitter:card"
-      content="{% if page_image %}summary_large_image{% else %}summary{% endif %}" />
+      content="{% if page_image %}
+                     summary_large_image
+               {% else %}
+                     summary
+               {% endif %}" />
 <meta name="twitter:title" content="{% firstof page_title 'ttvdrops' %}" />
 <meta name="twitter:description"
-      content="{% firstof page_description 'ttvdrops - Track Twitch drops.' %}" />
+      content="{% firstof page_description 'ttvdrops - Twitch and Kick drops.' %}" />
 {% if page_image %}<meta name="twitter:image" content="{{ page_image }}" />{% endif %}
 {# Article dates for content pages #}
 {% if published_date %}<meta property="article:published_time" content="{{ published_date }}" />{% endif %}
@@ -61,6 +62,22 @@
       {% for link in pagination_info %}<link rel="{{ link.rel }}" href="{{ link.url }}" />{% endfor %}
 {% endif %}
 {# Schema.org JSON-LD structured data #}
-{% if schema_data %}<script type="application/ld+json">{{ schema_data|safe }}</script>{% endif %}
+{% if schema_data %}
+      <script type="application/ld+json">
+          {
+              {
+                  schema_data | safe
+              }
+          }
+      </script>
+{% endif %}
 {# Breadcrumb schema #}
-{% if breadcrumb_schema %}<script type="application/ld+json">{{ breadcrumb_schema|safe }}</script>{% endif %}
+{% if breadcrumb_schema %}
+      <script type="application/ld+json">
+          {
+              {
+                  breadcrumb_schema | safe
+              }
+          }
+      </script>
+{% endif %}
