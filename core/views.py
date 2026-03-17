@@ -285,7 +285,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
 
     return render(
         request,
-        "twitch/docs_rss.html",
+        "core/docs_rss.html",
         {
             "game": sample_game,
             **seo_context,
@@ -432,7 +432,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:
     )
     context.update(seo_context)
 
-    return render(request, "twitch/debug.html", context)
+    return render(request, "core/debug.html", context)
 
 
 # MARK: /datasets/
@@ -543,7 +543,7 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
         "dataset_count": len(datasets),
         **seo_context,
     }
-    return render(request, "twitch/dataset_backups.html", context)
+    return render(request, "core/dataset_backups.html", context)
 
 
 def dataset_backup_download_view(
@@ -682,7 +682,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
     )
     return render(
         request,
-        "twitch/search_results.html",
+        "core/search_results.html",
         {"query": query, "results": results, **seo_context},
     )
 

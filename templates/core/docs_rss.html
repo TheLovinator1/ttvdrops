@@ -115,39 +115,41 @@
                 </tbody>
             </table>
         </section>
-        <section>
-            <h2>Filtered RSS Feeds</h2>
-            <p>You can subscribe to RSS feeds scoped to a specific game.</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Game</th>
-                        <th>RSS</th>
-                        <th>Atom</th>
-                        <th>Discord</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>{{ game.display_name }}</td>
-                        <td>
-                            <a href="{% url 'core:game_campaign_feed' game.twitch_id %}">
-                                https://ttvdrops.lovinator.space/rss/games/{{ game.twitch_id }}/
-                            </a>
-                        </td>
-                        <td>
-                            <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}">
-                                https://ttvdrops.lovinator.space/atom/games/{{ game.twitch_id }}/
-                            </a>
-                        </td>
-                        <td>
-                            <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}">
-                                https://ttvdrops.lovinator.space/discord/games/{{ game.twitch_id }}/
-                            </a>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
+        {% if game %}
+            <section>
+                <h2>Filtered RSS Feeds</h2>
+                <p>You can subscribe to RSS feeds scoped to a specific game.</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Game</th>
+                            <th>RSS</th>
+                            <th>Atom</th>
+                            <th>Discord</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>{{ game.display_name }}</td>
+                            <td>
+                                <a href="{% url 'core:game_campaign_feed' game.twitch_id %}">
+                                    https://ttvdrops.lovinator.space/rss/games/{{ game.twitch_id }}/
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}">
+                                    https://ttvdrops.lovinator.space/atom/games/{{ game.twitch_id }}/
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}">
+                                    https://ttvdrops.lovinator.space/discord/games/{{ game.twitch_id }}/
+                                </a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
     </main>
 {% endblock content %}

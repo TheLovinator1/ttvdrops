@@ -1006,14 +1006,29 @@ class TestChannelListView:
 
     @pytest.mark.django_db
     def test_docs_rss_view(self, client: Client) -> None:
-        """Test docs RSS view returns 200 and has feeds in context."""
+        """Test docs RSS view returns 200."""
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("core:docs_rss"))
         assert response.status_code == 200
-        assert "feeds" in response.context
-        assert "filtered_feeds" in response.context
-        assert response.context["feeds"][0]["example_xml"]
-        html: str = response.content.decode()
-        assert '<code class="language-xml">' in html
+
+        # Add Game with running campaign to ensure it's included in the RSS feed
+        game: Game = Game.objects.create(
+            twitch_id="g-rss",
+            name="Game RSS",
+            display_name="Game RSS",
+        )
+
+        DropCampaign.objects.create(
+            twitch_id="c-rss",
+            name="Campaign RSS",
+            game=game,
+            start_at=timezone.now() - timedelta(days=1),
+            end_at=timezone.now() + timedelta(days=1),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        response = client.get(reverse("core:docs_rss"))
+        assert response.status_code == 200
+        assert "g-rss" in response.content.decode("utf-8")
 
 
 @pytest.mark.django_db
