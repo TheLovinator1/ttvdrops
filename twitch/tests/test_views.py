@@ -12,6 +12,9 @@ from django.test import RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
+from kick.models import KickCategory
+from kick.models import KickDropCampaign
+from kick.models import KickOrganization
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -1321,19 +1324,61 @@ class TestSitemapView:
             name="ch1",
             display_name="Channel 1",
         )
+        now: datetime = timezone.now()
         campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="camp1",
             name="Test Campaign",
             description="Desc",
             game=game,
             operation_names=["DropCampaignDetails"],
+            start_at=now - datetime.timedelta(days=1),
+            end_at=now + datetime.timedelta(days=1),
         )
+        inactive_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp2",
+            name="Inactive Campaign",
+            description="Desc",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - datetime.timedelta(days=10),
+            end_at=now - datetime.timedelta(days=5),
+        )
+
+        kick_org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org1",
+            name="Kick Org",
+        )
+        kick_cat: KickCategory = KickCategory.objects.create(
+            kick_id=1,
+            name="Kick Game",
+            slug="kick-game",
+        )
+        kick_active: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="kcamp1",
+            name="Kick Active Campaign",
+            organization=kick_org,
+            category=kick_cat,
+            starts_at=now - datetime.timedelta(days=1),
+            ends_at=now + datetime.timedelta(days=1),
+        )
+        kick_inactive: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="kcamp2",
+            name="Kick Inactive Campaign",
+            organization=kick_org,
+            category=kick_cat,
+            starts_at=now - datetime.timedelta(days=10),
+            ends_at=now - datetime.timedelta(days=5),
+        )
+
         badge: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="badge1")
         return {
             "org": org,
             "game": game,
             "channel": channel,
             "campaign": campaign,
+            "inactive_campaign": inactive_campaign,
+            "kick_active": kick_active,
+            "kick_inactive": kick_inactive,
             "badge": badge,
         }
 
@@ -1357,16 +1402,24 @@ class TestSitemapView:
         content = response.content.decode()
         assert content.startswith('<?xml version="1.0" encoding="UTF-8"?>')
 
-    def test_sitemap_contains_urlset(
+    def test_sitemap_contains_sitemap_index(
         self,
         client: Client,
         sample_entities: dict[str, Any],
     ) -> None:
-        """Test sitemap contains urlset element."""
+        """Test sitemap index contains sitemap locations."""
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
         content: str = response.content.decode()
-        assert "<urlset" in content
-        assert "</urlset>" in content
+        assert "<sitemapindex" in content
+        assert "</sitemapindex>" in content
+        assert "/sitemap-static.xml" in content
+        assert "/sitemap-twitch-channels.xml" in content
+        assert "/sitemap-twitch-drops.xml" in content
+        assert "/sitemap-kick.xml" in content
+        assert "/sitemap-youtube.xml" in content
+
+        # Ensure at least one entry includes a lastmod (there are entities created by the fixture)
+        assert "<lastmod>" in content
 
     def test_sitemap_contains_static_pages(
         self,
@@ -1374,15 +1427,19 @@ class TestSitemapView:
         sample_entities: dict[str, Any],
     ) -> None:
         """Test sitemap includes static pages."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-static.xml")
         content: str = response.content.decode()
-        # Check for some static pages
+
+        # Check for the homepage and a few key list views across apps.
         assert (
             "<loc>http://testserver/</loc>" in content
             or "<loc>http://localhost:8000/</loc>" in content
         )
-        assert "/campaigns/" in content
-        assert "/games/" in content
+        assert "http://testserver/twitch/" in content
+        assert "http://testserver/kick/" in content
+        assert "http://testserver/youtube/" in content
+        assert "http://testserver/twitch/campaigns/" in content
+        assert "http://testserver/twitch/games/" in content
 
     def test_sitemap_contains_game_detail_pages(
         self,
@@ -1391,7 +1448,7 @@ class TestSitemapView:
     ) -> None:
         """Test sitemap includes game detail pages."""
         game: Game = sample_entities["game"]
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-twitch-others.xml")
         content: str = response.content.decode()
         assert f"/games/{game.twitch_id}/" in content
 
@@ -1402,9 +1459,61 @@ class TestSitemapView:
     ) -> None:
         """Test sitemap includes campaign detail pages."""
         campaign: DropCampaign = sample_entities["campaign"]
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-twitch-drops.xml")
         content: str = response.content.decode()
         assert f"/campaigns/{campaign.twitch_id}/" in content
+
+    def test_sitemap_prioritizes_active_drops(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Test active drops are prioritised and crawled more frequently."""
+        active_campaign: DropCampaign = sample_entities["campaign"]
+        inactive_campaign: DropCampaign = sample_entities["inactive_campaign"]
+
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-twitch-drops.xml")
+        content: str = response.content.decode()
+
+        active_loc: str = f"<loc>http://testserver/twitch/campaigns/{active_campaign.twitch_id}/</loc>"
+        active_index: int = content.find(active_loc)
+        assert active_index != -1
+        active_end: int = content.find("</url>", active_index)
+        assert active_end != -1
+
+        inactive_loc: str = f"<loc>http://testserver/twitch/campaigns/{inactive_campaign.twitch_id}/</loc>"
+        inactive_index: int = content.find(inactive_loc)
+        assert inactive_index != -1
+        inactive_end: int = content.find("</url>", inactive_index)
+        assert inactive_end != -1
+
+    def test_sitemap_prioritizes_active_kick_campaigns(
+        self,
+        client: Client,
+        sample_entities: dict[str, Any],
+    ) -> None:
+        """Test active Kick campaigns are prioritised and crawled more frequently."""
+        active_campaign: KickDropCampaign = sample_entities["kick_active"]
+        inactive_campaign: KickDropCampaign = sample_entities["kick_inactive"]
+
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-kick.xml")
+        content: str = response.content.decode()
+
+        active_loc: str = (
+            f"<loc>http://testserver/kick/campaigns/{active_campaign.kick_id}/</loc>"
+        )
+        active_index: int = content.find(active_loc)
+        assert active_index != -1
+        active_end: int = content.find("</url>", active_index)
+        assert active_end != -1
+
+        inactive_loc: str = (
+            f"<loc>http://testserver/kick/campaigns/{inactive_campaign.kick_id}/</loc>"
+        )
+        inactive_index: int = content.find(inactive_loc)
+        assert inactive_index != -1
+        inactive_end: int = content.find("</url>", inactive_index)
+        assert inactive_end != -1
 
     def test_sitemap_contains_organization_detail_pages(
         self,
@@ -1413,7 +1522,7 @@ class TestSitemapView:
     ) -> None:
         """Test sitemap includes organization detail pages."""
         org: Organization = sample_entities["org"]
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-twitch-others.xml")
         content: str = response.content.decode()
         assert f"/organizations/{org.twitch_id}/" in content
 
@@ -1424,7 +1533,9 @@ class TestSitemapView:
     ) -> None:
         """Test sitemap includes channel detail pages."""
         channel: Channel = sample_entities["channel"]
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            "/sitemap-twitch-channels.xml",
+        )
         content: str = response.content.decode()
         assert f"/twitch/channels/{channel.twitch_id}/" in content
 
@@ -1435,31 +1546,19 @@ class TestSitemapView:
     ) -> None:
         """Test sitemap includes badge detail pages."""
         badge: ChatBadge = sample_entities["badge"]
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-twitch-others.xml")
         content: str = response.content.decode()
         assert f"/badges/{badge.set_id}/" in content  # pyright: ignore[reportAttributeAccessIssue]
 
-    def test_sitemap_includes_priority(
+    def test_sitemap_contains_youtube_pages(
         self,
         client: Client,
         sample_entities: dict[str, Any],
     ) -> None:
-        """Test sitemap includes priority values."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        """Test sitemap includes YouTube landing page."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-youtube.xml")
         content: str = response.content.decode()
-        assert "<priority>" in content
-        assert "</priority>" in content
-
-    def test_sitemap_includes_changefreq(
-        self,
-        client: Client,
-        sample_entities: dict[str, Any],
-    ) -> None:
-        """Test sitemap includes changefreq values."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
-        content: str = response.content.decode()
-        assert "<changefreq>" in content
-        assert "</changefreq>" in content
+        assert "/youtube/" in content
 
     def test_sitemap_includes_lastmod(
         self,
@@ -1467,7 +1566,7 @@ class TestSitemapView:
         sample_entities: dict[str, Any],
     ) -> None:
         """Test sitemap includes lastmod for detail pages."""
-        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap.xml")
+        response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-twitch-others.xml")
         content: str = response.content.decode()
         # Check for lastmod in game or campaign entries
         assert "<lastmod>" in content

@@ -11,6 +11,7 @@ from django.db import connection
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import Q
@@ -119,143 +120,357 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     return context
 
 
+def _render_urlset_xml(
+    url_entries: list[dict[str, str | dict[str, str]]],
+) -> str:
+    """Render a <urlset> sitemap XML string from URL entries.
+
+    Args:
+        url_entries: List of dictionaries containing URL entry data.
+
+    Returns:
+        A string containing the rendered XML.
+
+    """
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for url_entry in url_entries:
+        xml += "  <url>\n"
+        xml += f"    <loc>{url_entry['url']}</loc>\n"
+        if url_entry.get("lastmod"):
+            xml += f"    <lastmod>{url_entry['lastmod']}</lastmod>\n"
+        xml += "  </url>\n"
+    xml += "</urlset>"
+    return xml
+
+
+def _render_sitemap_index_xml(sitemap_entries: list[dict[str, str]]) -> str:
+    """Render a <sitemapindex> XML string listing sitemap URLs.
+
+    Args:
+        sitemap_entries: List of dictionaries with "loc" and optional "lastmod".
+
+    Returns:
+        A string containing the rendered XML.
+    """
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for entry in sitemap_entries:
+        xml += "  <sitemap>\n"
+        xml += f"    <loc>{entry['loc']}</loc>\n"
+        if entry.get("lastmod"):
+            xml += f"    <lastmod>{entry['lastmod']}</lastmod>\n"
+        xml += "  </sitemap>\n"
+    xml += "</sitemapindex>"
+    return xml
+
+
+def _build_base_url(request: HttpRequest) -> str:
+    """Return base url including scheme and host."""
+    return f"{request.scheme}://{request.get_host()}"
+
+
 # MARK: /sitemap.xml
-def sitemap_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0915
-    """Generate a dynamic XML sitemap for search engines.
+def sitemap_view(request: HttpRequest) -> HttpResponse:
+    """Sitemap index pointing to per-section sitemap files.
 
     Args:
         request: The HTTP request.
 
     Returns:
-        HttpResponse: XML sitemap.
+        HttpResponse: The rendered sitemap index XML.
     """
-    base_url: str = f"{request.scheme}://{request.get_host()}"
+    base_url: str = _build_base_url(request)
 
-    # Start building sitemap XML
+    # Compute last modified per-section so search engines can more intelligently crawl.
+    # Do not fabricate a lastmod date if the section has no data.
+    twitch_channels_lastmod = Channel.objects.aggregate(max=Max("updated_at"))["max"]
+    twitch_drops_lastmod = max(
+        [
+            dt
+            for dt in [
+                DropCampaign.objects.aggregate(max=Max("updated_at"))["max"],
+                RewardCampaign.objects.aggregate(max=Max("updated_at"))["max"],
+            ]
+            if dt is not None
+        ]
+        or [None],
+    )
+    twitch_others_lastmod = max(
+        [
+            dt
+            for dt in [
+                Game.objects.aggregate(max=Max("updated_at"))["max"],
+                Organization.objects.aggregate(max=Max("updated_at"))["max"],
+                ChatBadgeSet.objects.aggregate(max=Max("updated_at"))["max"],
+            ]
+            if dt is not None
+        ]
+        or [None],
+    )
+    kick_lastmod = KickDropCampaign.objects.aggregate(max=Max("updated_at"))["max"]
+
+    sitemap_entries: list[dict[str, str]] = [
+        {"loc": f"{base_url}/sitemap-static.xml"},
+        {"loc": f"{base_url}/sitemap-twitch-channels.xml"},
+        {"loc": f"{base_url}/sitemap-twitch-drops.xml"},
+        {"loc": f"{base_url}/sitemap-twitch-others.xml"},
+        {"loc": f"{base_url}/sitemap-kick.xml"},
+        {"loc": f"{base_url}/sitemap-youtube.xml"},
+    ]
+
+    if twitch_channels_lastmod is not None:
+        sitemap_entries[1]["lastmod"] = twitch_channels_lastmod.isoformat()
+    if twitch_drops_lastmod is not None:
+        sitemap_entries[2]["lastmod"] = twitch_drops_lastmod.isoformat()
+    if twitch_others_lastmod is not None:
+        sitemap_entries[3]["lastmod"] = twitch_others_lastmod.isoformat()
+    if kick_lastmod is not None:
+        sitemap_entries[4]["lastmod"] = kick_lastmod.isoformat()
+
+    xml_content: str = _render_sitemap_index_xml(sitemap_entries)
+    return HttpResponse(xml_content, content_type="application/xml")
+
+
+# MARK: /sitemap-static.xml
+def sitemap_static_view(request: HttpRequest) -> HttpResponse:
+    """Sitemap containing the main static pages.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered sitemap XML.
+    """
+    base_url: str = _build_base_url(request)
+
+    # Include the canonical top-level pages, the main app dashboards, and key list views.
+    # Using reverse() keeps these URLs correct if route patterns change.
+    static_route_names: list[str] = [
+        "core:dashboard",
+        # "core:search",
+        "core:dataset_backups",
+        "core:docs_rss",
+        # Core RSS/Atom feeds
+        # "core:campaign_feed",
+        # "core:game_feed",
+        # "core:organization_feed",
+        # "core:reward_campaign_feed",
+        # "core:campaign_feed_atom",
+        # "core:game_feed_atom",
+        # "core:organization_feed_atom",
+        # "core:reward_campaign_feed_atom",
+        # "core:campaign_feed_discord",
+        # "core:game_feed_discord",
+        # "core:organization_feed_discord",
+        # "core:reward_campaign_feed_discord",
+        # Twitch pages
+        "twitch:dashboard",
+        "twitch:badge_list",
+        "twitch:campaign_list",
+        "twitch:channel_list",
+        "twitch:emote_gallery",
+        "twitch:games_grid",
+        "twitch:games_list",
+        "twitch:org_list",
+        "twitch:reward_campaign_list",
+        # Kick pages
+        "kick:dashboard",
+        "kick:campaign_list",
+        "kick:game_list",
+        "kick:category_list",
+        "kick:organization_list",
+        # Kick RSS/Atom feeds
+        # "kick:campaign_feed",
+        # "kick:game_feed",
+        # "kick:category_feed",
+        # "kick:organization_feed",
+        # "kick:campaign_feed_atom",
+        # "kick:game_feed_atom",
+        # "kick:category_feed_atom",
+        # "kick:organization_feed_atom",
+        # "kick:campaign_feed_discord",
+        # "kick:game_feed_discord",
+        # "kick:category_feed_discord",
+        # "kick:organization_feed_discord",
+        # YouTube
+        "youtube:index",
+    ]
+
+    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+    for route_name in static_route_names:
+        url = reverse(route_name)
+        sitemap_urls.append({"url": f"{base_url}{url}"})
+
+    xml_content: str = _render_urlset_xml(sitemap_urls)
+    return HttpResponse(xml_content, content_type="application/xml")
+
+
+# MARK: /sitemap-twitch-channels.xml
+def sitemap_twitch_channels_view(request: HttpRequest) -> HttpResponse:
+    """Sitemap containing Twitch channel pages.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered sitemap XML.
+    """
+    base_url: str = _build_base_url(request)
     sitemap_urls: list[dict[str, str | dict[str, str]]] = []
 
-    # Static pages
-    sitemap_urls.extend([
-        {"url": f"{base_url}/", "priority": "1.0", "changefreq": "daily"},
-        {"url": f"{base_url}/campaigns/", "priority": "0.9", "changefreq": "daily"},
-        {
-            "url": f"{base_url}/reward-campaigns/",
-            "priority": "0.9",
-            "changefreq": "daily",
-        },
-        {"url": f"{base_url}/games/", "priority": "0.9", "changefreq": "weekly"},
-        {
-            "url": f"{base_url}/organizations/",
-            "priority": "0.8",
-            "changefreq": "weekly",
-        },
-        {"url": f"{base_url}/channels/", "priority": "0.8", "changefreq": "weekly"},
-        {"url": f"{base_url}/badges/", "priority": "0.7", "changefreq": "monthly"},
-        {"url": f"{base_url}/emotes/", "priority": "0.7", "changefreq": "monthly"},
-        {"url": f"{base_url}/search/", "priority": "0.6", "changefreq": "monthly"},
-    ])
-
-    # Dynamic detail pages - Games
-    games: QuerySet[Game] = Game.objects.all()
-    for game in games:
-        entry: dict[str, str | dict[str, str]] = {
-            "url": f"{base_url}{reverse('twitch:game_detail', args=[game.twitch_id])}",
-            "priority": "0.8",
-            "changefreq": "weekly",
-        }
-        if game.updated_at:
-            entry["lastmod"] = game.updated_at.isoformat()
-        sitemap_urls.append(entry)
-
-    # Dynamic detail pages - Campaigns
-    campaigns: QuerySet[DropCampaign] = DropCampaign.objects.all()
-    for campaign in campaigns:
-        resource_url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
-        full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {
-            "url": full_url,
-            "priority": "0.7",
-            "changefreq": "weekly",
-        }
-        if campaign.updated_at:
-            entry["lastmod"] = campaign.updated_at.isoformat()
-        sitemap_urls.append(entry)
-
-    # Dynamic detail pages - Organizations
-    orgs: QuerySet[Organization] = Organization.objects.all()
-    for org in orgs:
-        resource_url = reverse("twitch:organization_detail", args=[org.twitch_id])
-        full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {
-            "url": full_url,
-            "priority": "0.7",
-            "changefreq": "weekly",
-        }
-        if org.updated_at:
-            entry["lastmod"] = org.updated_at.isoformat()
-        sitemap_urls.append(entry)
-
-    # Dynamic detail pages - Channels
     channels: QuerySet[Channel] = Channel.objects.all()
     for channel in channels:
-        resource_url = reverse("twitch:channel_detail", args=[channel.twitch_id])
+        resource_url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {
-            "url": full_url,
-            "priority": "0.6",
-            "changefreq": "weekly",
-        }
+        entry: dict[str, str | dict[str, str]] = {"url": full_url}
         if channel.updated_at:
             entry["lastmod"] = channel.updated_at.isoformat()
         sitemap_urls.append(entry)
 
-    # Dynamic detail pages - Badges
-    badge_sets: QuerySet[ChatBadgeSet] = ChatBadgeSet.objects.all()
-    for badge_set in badge_sets:
-        resource_url = reverse("twitch:badge_set_detail", args=[badge_set.set_id])
-        full_url: str = f"{base_url}{resource_url}"
-        sitemap_urls.append({
-            "url": full_url,
-            "priority": "0.5",
-            "changefreq": "monthly",
-        })
+    xml_content: str = _render_urlset_xml(sitemap_urls)
+    return HttpResponse(xml_content, content_type="application/xml")
 
-    # Dynamic detail pages - Reward Campaigns
+
+# MARK: /sitemap-twitch-drops.xml
+def sitemap_twitch_drops_view(request: HttpRequest) -> HttpResponse:
+    """Sitemap containing Twitch drop campaign pages.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered sitemap XML.
+    """
+    base_url: str = _build_base_url(request)
+    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+
+    campaigns: QuerySet[DropCampaign] = DropCampaign.objects.all()
+    for campaign in campaigns:
+        resource_url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        full_url: str = f"{base_url}{resource_url}"
+        entry: dict[str, str] = {"url": full_url}
+        if campaign.updated_at:
+            entry["lastmod"] = campaign.updated_at.isoformat()
+        sitemap_urls.append(entry)
+
     reward_campaigns: QuerySet[RewardCampaign] = RewardCampaign.objects.all()
     for reward_campaign in reward_campaigns:
         resource_url = reverse(
             "twitch:reward_campaign_detail",
-            args=[
-                reward_campaign.twitch_id,
-            ],
+            args=[reward_campaign.twitch_id],
         )
+
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {
-            "url": full_url,
-            "priority": "0.6",
-            "changefreq": "weekly",
-        }
+        entry: dict[str, str | dict[str, str]] = {"url": full_url}
         if reward_campaign.updated_at:
             entry["lastmod"] = reward_campaign.updated_at.isoformat()
+
         sitemap_urls.append(entry)
 
-    # Build XML
-    xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
-    xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml_content: str = _render_urlset_xml(sitemap_urls)
+    return HttpResponse(xml_content, content_type="application/xml")
 
-    for url_entry in sitemap_urls:
-        xml_content += "  <url>\n"
-        xml_content += f"    <loc>{url_entry['url']}</loc>\n"
-        if url_entry.get("lastmod"):
-            xml_content += f"    <lastmod>{url_entry['lastmod']}</lastmod>\n"
-        xml_content += (
-            f"    <changefreq>{url_entry.get('changefreq', 'monthly')}</changefreq>\n"
-        )
-        xml_content += f"    <priority>{url_entry.get('priority', '0.5')}</priority>\n"
-        xml_content += "  </url>\n"
 
-    xml_content += "</urlset>"
+# MARK: /sitemap-twitch-others.xml
+def sitemap_twitch_others_view(request: HttpRequest) -> HttpResponse:
+    """Sitemap containing other Twitch pages (games, organizations, badges, emotes).
 
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered sitemap XML.
+    """
+    base_url: str = _build_base_url(request)
+    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+
+    games: QuerySet[Game] = Game.objects.all()
+    for game in games:
+        resource_url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        full_url: str = f"{base_url}{resource_url}"
+        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+
+        if game.updated_at:
+            entry["lastmod"] = game.updated_at.isoformat()
+
+        sitemap_urls.append(entry)
+
+    orgs: QuerySet[Organization] = Organization.objects.all()
+    for org in orgs:
+        resource_url: str = reverse("twitch:organization_detail", args=[org.twitch_id])
+        full_url: str = f"{base_url}{resource_url}"
+        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+
+        if org.updated_at:
+            entry["lastmod"] = org.updated_at.isoformat()
+
+        sitemap_urls.append(entry)
+
+    badge_sets: QuerySet[ChatBadgeSet] = ChatBadgeSet.objects.all()
+    for badge_set in badge_sets:
+        resource_url = reverse("twitch:badge_set_detail", args=[badge_set.set_id])
+        full_url = f"{base_url}{resource_url}"
+        sitemap_urls.append({"url": full_url})
+
+    # Emotes currently don't have individual detail pages, but keep a listing here.
+    sitemap_urls.append({"url": f"{base_url}/emotes/"})
+
+    xml_content: str = _render_urlset_xml(sitemap_urls)
+    return HttpResponse(xml_content, content_type="application/xml")
+
+
+# MARK: /sitemap-kick.xml
+def sitemap_kick_view(request: HttpRequest) -> HttpResponse:
+    """Sitemap containing Kick drops and related pages.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered sitemap XML.
+    """
+    base_url: str = _build_base_url(request)
+    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+
+    kick_campaigns: QuerySet[KickDropCampaign] = KickDropCampaign.objects.all()
+    for campaign in kick_campaigns:
+        resource_url: str = reverse("kick:campaign_detail", args=[campaign.kick_id])
+        full_url: str = f"{base_url}{resource_url}"
+        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+
+        if campaign.updated_at:
+            entry["lastmod"] = campaign.updated_at.isoformat()
+
+        sitemap_urls.append(entry)
+
+    # Include Kick organizations and game list pages
+    sitemap_urls.extend((
+        {"url": f"{base_url}/kick/organizations/"},
+        {"url": f"{base_url}/kick/games/"},
+    ))
+
+    xml_content: str = _render_urlset_xml(sitemap_urls)
+    return HttpResponse(xml_content, content_type="application/xml")
+
+
+# MARK: /sitemap-youtube.xml
+def sitemap_youtube_view(request: HttpRequest) -> HttpResponse:
+    """Sitemap containing the YouTube page(s).
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered sitemap XML.
+    """
+    base_url: str = _build_base_url(request)
+
+    sitemap_urls: list[dict[str, str | dict[str, str]]] = [
+        {"url": f"{base_url}{reverse('youtube:index')}"},
+    ]
+
+    xml_content: str = _render_urlset_xml(sitemap_urls)
     return HttpResponse(xml_content, content_type="application/xml")
 
 

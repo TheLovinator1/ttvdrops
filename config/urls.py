@@ -13,6 +13,36 @@ if TYPE_CHECKING:
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path(route="sitemap.xml", view=core_views.sitemap_view, name="sitemap"),
+    path(
+        route="sitemap-static.xml",
+        view=core_views.sitemap_static_view,
+        name="sitemap-static",
+    ),
+    path(
+        route="sitemap-twitch-channels.xml",
+        view=core_views.sitemap_twitch_channels_view,
+        name="sitemap-twitch-channels",
+    ),
+    path(
+        route="sitemap-twitch-drops.xml",
+        view=core_views.sitemap_twitch_drops_view,
+        name="sitemap-twitch-drops",
+    ),
+    path(
+        route="sitemap-twitch-others.xml",
+        view=core_views.sitemap_twitch_others_view,
+        name="sitemap-twitch-others",
+    ),
+    path(
+        route="sitemap-kick.xml",
+        view=core_views.sitemap_kick_view,
+        name="sitemap-kick",
+    ),
+    path(
+        route="sitemap-youtube.xml",
+        view=core_views.sitemap_youtube_view,
+        name="sitemap-youtube",
+    ),
     # Core app
     path(route="", view=include("core.urls", namespace="core")),
     # Twitch app
