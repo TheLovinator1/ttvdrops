@@ -1730,7 +1730,7 @@ class TestImageObjectStructuredData:
         org: Organization,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """VideoGame ImageObject should carry attribution and license metadata."""
+        """VideoGame ImageObject should carry attribution metadata."""
         url: str = reverse("twitch:game_detail", args=[game.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -1743,14 +1743,6 @@ class TestImageObjectStructuredData:
             "name": org.name,
             "url": f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}",
         }
-        assert (
-            img["license"]
-            == f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}"
-        )
-        assert (
-            img["acquireLicensePage"]
-            == f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}"
-        )
 
     def test_game_schema_no_image_when_no_box_art(
         self,
@@ -1850,7 +1842,7 @@ class TestImageObjectStructuredData:
         org: Organization,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Event ImageObject should carry attribution and license metadata."""
+        """Event ImageObject should carry attribution metadata."""
         url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -1863,14 +1855,6 @@ class TestImageObjectStructuredData:
             "name": org.name,
             "url": f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}",
         }
-        assert (
-            img["license"]
-            == f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}"
-        )
-        assert (
-            img["acquireLicensePage"]
-            == f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}"
-        )
 
     def test_campaign_schema_no_image_when_no_image_url(
         self,
@@ -1947,8 +1931,6 @@ class TestImageObjectStructuredData:
             "name": "Twitch",
             "url": "https://www.twitch.tv/",
         }
-        assert schema["image"]["license"] == "https://www.twitch.tv/"
-        assert schema["image"]["acquireLicensePage"] == "https://www.twitch.tv/"
         assert "organizer" not in schema
 
     # --- _pick_owner / Twitch Gaming skipping ---

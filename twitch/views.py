@@ -79,7 +79,7 @@ def _build_image_object(
     *,
     copyright_notice: str | None = None,
 ) -> dict[str, Any]:
-    """Build a Schema.org ImageObject with attribution and license metadata.
+    """Build a Schema.org ImageObject with attribution metadata.
 
     Args:
         request: The HTTP request used for absolute URL building.
@@ -96,14 +96,13 @@ def _build_image_object(
         "name": creator_name,
         "url": creator_url,
     }
+
     return {
         "@type": "ImageObject",
         "contentUrl": request.build_absolute_uri(image_url),
         "creditText": creator_name,
         "copyrightNotice": copyright_notice or creator_name,
         "creator": creator,
-        "license": creator_url,
-        "acquireLicensePage": creator_url,
     }
 
 
