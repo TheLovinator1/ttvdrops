@@ -17,7 +17,7 @@ from django.urls import reverse
 from twitch.management.commands.backup_db import _get_allowed_tables
 from twitch.management.commands.backup_db import _json_default
 from twitch.management.commands.backup_db import _sql_literal
-from twitch.management.commands.backup_db import _write_csv_dumps
+from twitch.management.commands.backup_db import _write_csv_dump
 from twitch.management.commands.backup_db import _write_json_dump
 from twitch.management.commands.backup_db import _write_postgres_dump
 from twitch.management.commands.backup_db import _write_sqlite_dump
@@ -198,8 +198,8 @@ class TestBackupCommand:
             row.get("name") == "Test Org JSON" for row in data["twitch_organization"]
         )
 
-    def test_backup_creates_csv_files(self, tmp_path: Path) -> None:
-        """Test that backup command creates per-table CSV files alongside the SQL dump."""
+    def test_backup_creates_single_csv_file(self, tmp_path: Path) -> None:
+        """Test that backup command creates a single CSV file alongside the SQL dump."""
         _skip_if_pg_dump_missing()
         Organization.objects.create(twitch_id="test_csv", name="Test Org CSV")
 
@@ -208,13 +208,11 @@ class TestBackupCommand:
 
         call_command("backup_db", output_dir=str(output_dir), prefix="test")
 
-        org_csv_files: list[Path] = list(
-            output_dir.glob("test-*-twitch_organization.csv.zst"),
-        )
-        assert len(org_csv_files) == 1
+        csv_files: list[Path] = list(output_dir.glob("test-*.csv.zst"))
+        assert len(csv_files) == 1
 
         with (
-            org_csv_files[0].open("rb") as raw_handle,
+            csv_files[0].open("rb") as raw_handle,
             zstd.open(raw_handle, "r") as compressed,
             io.TextIOWrapper(compressed, encoding="utf-8") as handle,
         ):
@@ -222,8 +220,11 @@ class TestBackupCommand:
             rows: list[list[str]] = list(reader)
 
         assert len(rows) >= 2  # header + at least one data row
-        assert "name" in rows[0]
-        assert any("Test Org CSV" in row for row in rows[1:])
+        assert rows[0] == ["table", "row_json"]
+        data_rows: list[list[str]] = [
+            row for row in rows[1:] if row and row[0] == "twitch_organization"
+        ]
+        assert any("Test Org CSV" in row[1] for row in data_rows)
 
 
 @pytest.mark.django_db
@@ -336,26 +337,23 @@ class TestBackupHelperFunctions:
             row.get("name") == "JSON Helper Org" for row in data["twitch_organization"]
         )
 
-    def test_write_csv_dumps_creates_per_table_files(self, tmp_path: Path) -> None:
-        """Test _write_csv_dumps creates one compressed CSV file per table."""
+    def test_write_csv_dump_creates_single_file(self, tmp_path: Path) -> None:
+        """Test _write_csv_dump creates one combined compressed CSV file."""
         Organization.objects.create(twitch_id="test_csv_helper", name="CSV Helper Org")
 
         tables: list[str] = _get_allowed_tables("twitch_")
-        paths: list[Path] = _write_csv_dumps(
+        path: Path = _write_csv_dump(
             tmp_path,
             "test",
             "20260317-120000",
             tables,
         )
 
-        assert len(paths) == len(tables)
-        assert all(p.exists() for p in paths)
-
-        org_csv: Path = tmp_path / "test-20260317-120000-twitch_organization.csv.zst"
-        assert org_csv.exists()
+        assert path.exists()
+        assert path.name == "test-20260317-120000.csv.zst"
 
         with (
-            org_csv.open("rb") as raw_handle,
+            path.open("rb") as raw_handle,
             zstd.open(raw_handle, "r") as compressed,
             io.TextIOWrapper(compressed, encoding="utf-8") as handle,
         ):
@@ -363,8 +361,11 @@ class TestBackupHelperFunctions:
             rows: list[list[str]] = list(reader)
 
         assert len(rows) >= 2  # header + at least one data row
-        assert "name" in rows[0]
-        assert any("CSV Helper Org" in row for row in rows[1:])
+        assert rows[0] == ["table", "row_json"]
+        data_rows: list[list[str]] = [
+            row for row in rows[1:] if row and row[0] == "twitch_organization"
+        ]
+        assert any("CSV Helper Org" in row[1] for row in data_rows)
 
     def test_json_default_handles_bytes(self) -> None:
         """Test _json_default converts bytes to hex string."""
@@ -388,7 +389,7 @@ class TestDatasetBackupViews:
         Returns:
             Path to the created datasets directory.
         """
-        datasets_dir = tmp_path / "datasets"
+        datasets_dir: Path = tmp_path / "datasets"
         datasets_dir.mkdir()
         return datasets_dir
 
@@ -399,7 +400,7 @@ class TestDatasetBackupViews:
         Returns:
             Path to the created backup file.
         """
-        backup_file = datasets_dir / "ttvdrops-20260210-120000.sql.zst"
+        backup_file: Path = datasets_dir / "ttvdrops-20260210-120000.sql.zst"
         with (
             backup_file.open("wb") as raw_handle,
             zstd.open(raw_handle, "w") as compressed,
@@ -452,8 +453,8 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         # Create multiple backup files with different timestamps
-        older_backup = datasets_dir / "ttvdrops-20260210-100000.sql.zst"
-        newer_backup = datasets_dir / "ttvdrops-20260210-140000.sql.zst"
+        older_backup: Path = datasets_dir / "ttvdrops-20260210-100000.sql.zst"
+        newer_backup: Path = datasets_dir / "ttvdrops-20260210-140000.sql.zst"
 
         for backup in [older_backup, newer_backup]:
             with (
@@ -473,9 +474,9 @@ class TestDatasetBackupViews:
             reverse("core:dataset_backups"),
         )
 
-        content = response.content.decode()
-        newer_pos = content.find("20260210-140000")
-        older_pos = content.find("20260210-100000")
+        content: str = response.content.decode()
+        newer_pos: int = content.find("20260210-140000")
+        older_pos: int = content.find("20260210-100000")
 
         # Newer backup should appear first (sorted descending)
         assert 0 < newer_pos < older_pos
@@ -512,7 +513,7 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         # Attempt path traversal
-        response = client.get(
+        response: _MonkeyPatchedWSGIResponse = client.get(
             reverse("core:dataset_backup_download", args=["../../../etc/passwd"]),
         )
         assert response.status_code == 404
@@ -527,10 +528,10 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         # Create a file with invalid extension
-        invalid_file = datasets_dir / "malicious.exe"
-        invalid_file.write_text("not a backup")
+        invalid_file: Path = datasets_dir / "malicious.exe"
+        invalid_file.write_text("not a backup", encoding="utf-8")
 
-        response = client.get(
+        response: _MonkeyPatchedWSGIResponse = client.get(
             reverse("core:dataset_backup_download", args=["malicious.exe"]),
         )
         assert response.status_code == 404
@@ -544,7 +545,7 @@ class TestDatasetBackupViews:
         """Test download returns 404 for non-existent file."""
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
-        response = client.get(
+        response: _MonkeyPatchedWSGIResponse = client.get(
             reverse("core:dataset_backup_download", args=["nonexistent.sql.zst"]),
         )
         assert response.status_code == 404
@@ -565,7 +566,7 @@ class TestDatasetBackupViews:
 
         assert response.status_code == 200
         # Should contain size information (bytes, KB, MB, or GB)
-        content = response.content.decode()
+        content: str = response.content.decode()
         assert any(unit in content for unit in ["bytes", "KB", "MB", "GB"])
 
     def test_dataset_list_ignores_non_zst_files(
@@ -586,7 +587,7 @@ class TestDatasetBackupViews:
             reverse("core:dataset_backups"),
         )
 
-        content = response.content.decode()
+        content: str = response.content.decode()
         assert "backup.sql.zst" in content
         assert "readme.txt" not in content
         assert "old_backup.gz" not in content
@@ -601,9 +602,9 @@ class TestDatasetBackupViews:
         monkeypatch.setattr(settings, "DATA_DIR", datasets_dir.parent)
 
         # Create subdirectory with backup
-        subdir = datasets_dir / "2026" / "02"
+        subdir: Path = datasets_dir / "2026" / "02"
         subdir.mkdir(parents=True)
-        backup_file = subdir / "backup.sql.zst"
+        backup_file: Path = subdir / "backup.sql.zst"
         with (
             backup_file.open("wb") as raw_handle,
             zstd.open(raw_handle, "w") as compressed,

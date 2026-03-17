@@ -5,6 +5,21 @@
 {% block content %}
     <main>
         <h1>Dataset Backups</h1>
+        <section>
+            <h2>About this dataset</h2>
+            <p>This site tracks and publishes open Twitch and Kick drop campaign data.</p>
+            <p>
+                The exported datasets on this page are released under <strong>CC0</strong> so you can reuse them freely.
+                The underlying source data is scraped from Twitch/Kick APIs and pages, so we do not control the
+                upstream content and cannot guarantee upstream accuracy or permanence.
+            </p>
+            <p>Note that some drops has missing or incomplete data due to Twitch API limitations.</p>
+            <p>
+                Need a special format for your workflow or research pipeline?
+                <a href="https://github.com/TheLovinator1/ttvdrops/issues">Contact me via GitHub issues</a>
+                and describe what you need.
+            </p>
+        </section>
         {% if datasets %}
             <table>
                 <thead>
