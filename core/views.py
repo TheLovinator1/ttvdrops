@@ -644,9 +644,56 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
 
     datasets.sort(key=operator.itemgetter("updated_at"), reverse=True)
 
+    dataset_distributions: list[dict[str, str]] = []
+    for dataset in datasets:
+        download_path: str | None = dataset.get("download_path")
+        if not download_path:
+            continue
+        dataset_distributions.append({
+            "@type": "DataDownload",
+            "name": dataset["name"],
+            "contentUrl": request.build_absolute_uri(
+                reverse("core:dataset_backup_download", args=[download_path]),
+            ),
+            "encodingFormat": "application/zstd",
+        })
+
+    dataset_schema: dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": "Historical archive of Twitch and Kick drop data",
+        "identifier": request.build_absolute_uri(reverse("core:dataset_backups")),
+        "temporalCoverage": "2024-07-17/..",
+        "url": request.build_absolute_uri(reverse("core:dataset_backups")),
+        "license": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "isAccessibleForFree": True,
+        "description": (
+            "Historical data on Twitch and Kick drops, campaigns, rewards, and more, available for download as compressed SQL files or JSON."
+        ),
+        "keywords": [
+            "Twitch drops",
+            "Kick drops",
+        ],
+        "creator": {
+            "@type": "Person",
+            "givenName": "Joakim",
+            "familyName": "Hellsén",
+            "name": "Joakim Hellsén",
+            "sameAs": "https://orcid.org/0009-0006-7305-524X",
+        },
+        "includedInDataCatalog": {
+            "@type": "DataCatalog",
+            "name": "ttvdrops.lovinator.space",
+            "url": request.build_absolute_uri(reverse("core:dataset_backups")),
+        },
+    }
+    if dataset_distributions:
+        dataset_schema["distribution"] = dataset_distributions
+
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch/Kick drop data",
         page_description="Twitch/Kick datasets available for download, including historical drop campaign data and more.",
+        schema_data=dataset_schema,
     )
     context: dict[str, Any] = {
         "datasets": datasets,
