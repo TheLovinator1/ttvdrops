@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import json
 import logging
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import Literal
 
 from django.core.paginator import EmptyPage
@@ -24,6 +27,7 @@ if TYPE_CHECKING:
     from django.http import HttpRequest
     from django.http import HttpResponse
 
+    from core.seo import SeoMeta
     from kick.models import KickChannel
     from kick.models import KickReward
 
@@ -33,26 +37,36 @@ logger: logging.Logger = logging.getLogger("ttvdrops.kick.views")
 def _build_seo_context(
     page_title: str = "Kick Drops",
     page_description: str | None = None,
-    og_type: str = "website",
-    robots_directive: str = "index, follow",
-) -> dict[str, str]:
-    """Build minimal SEO context for template rendering.
+    seo_meta: SeoMeta | None = None,
+) -> dict[str, Any]:
+    """Build SEO context for template rendering.
 
     Args:
         page_title: The title of the page for <title> and OG tags.
         page_description: Optional description for meta and OG tags.
-        og_type: Open Graph type (default "website").
-        robots_directive: Value for meta robots tag (default "index, follow").
+        seo_meta: Optional typed SEO metadata.
 
     Returns:
         A dictionary with SEO-related context variables.
     """
-    return {
+    context: dict[str, Any] = {
         "page_title": page_title,
         "page_description": page_description or "Archive of Kick drops.",
-        "og_type": og_type,
-        "robots_directive": robots_directive,
+        "og_type": "website",
+        "robots_directive": "index, follow",
     }
+    if seo_meta:
+        if seo_meta.get("og_type"):
+            context["og_type"] = seo_meta["og_type"]
+        if seo_meta.get("robots_directive"):
+            context["robots_directive"] = seo_meta["robots_directive"]
+        if seo_meta.get("schema_data"):
+            context["schema_data"] = json.dumps(seo_meta["schema_data"])
+        if seo_meta.get("published_date"):
+            context["published_date"] = seo_meta["published_date"]
+        if seo_meta.get("modified_date"):
+            context["modified_date"] = seo_meta["modified_date"]
+    return context
 
 
 def _build_breadcrumb_schema(items: list[dict[str, str]]) -> str:
@@ -278,9 +292,51 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
         },
     ])
 
-    seo_context: dict[str, str] = _build_seo_context(
+    campaign_url: str = request.build_absolute_uri(
+        reverse("kick:campaign_detail", args=[campaign.kick_id]),
+    )
+    campaign_event: dict[str, Any] = {
+        "@type": "Event",
+        "name": campaign.name,
+        "description": f"Kick drop campaign: {campaign.name}.",
+        "url": campaign_url,
+        "eventStatus": "https://schema.org/EventScheduled",
+        "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
+        "location": {"@type": "VirtualLocation", "url": "https://kick.com"},
+    }
+    if campaign.starts_at:
+        campaign_event["startDate"] = campaign.starts_at.isoformat()
+    if campaign.ends_at:
+        campaign_event["endDate"] = campaign.ends_at.isoformat()
+    if campaign.organization:
+        campaign_event["organizer"] = {
+            "@type": "Organization",
+            "name": campaign.organization.name,
+        }
+
+    webpage_node: dict[str, Any] = {
+        "@type": "WebPage",
+        "url": campaign_url,
+        "datePublished": campaign.added_at.isoformat(),
+        "dateModified": campaign.updated_at.isoformat(),
+    }
+
+    campaign_schema: dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@graph": [
+            campaign_event,
+            webpage_node,
+        ],
+    }
+
+    seo_context: dict[str, Any] = _build_seo_context(
         page_title=campaign.name,
         page_description=f"Kick drop campaign: {campaign.name}.",
+        seo_meta={
+            "schema_data": campaign_schema,
+            "published_date": campaign.added_at.isoformat(),
+            "modified_date": campaign.updated_at.isoformat(),
+        },
     )
     return render(
         request,
@@ -379,9 +435,27 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
         },
     ])
 
-    seo_context: dict[str, str] = _build_seo_context(
+    category_url: str = request.build_absolute_uri(
+        reverse("kick:game_detail", args=[category.kick_id]),
+    )
+    category_schema: dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": category.name,
+        "description": f"Kick drop campaigns for {category.name}.",
+        "url": category_url,
+        "datePublished": category.added_at.isoformat(),
+        "dateModified": category.updated_at.isoformat(),
+    }
+
+    seo_context: dict[str, Any] = _build_seo_context(
         page_title=category.name,
         page_description=f"Kick drop campaigns for {category.name}.",
+        seo_meta={
+            "schema_data": category_schema,
+            "published_date": category.added_at.isoformat(),
+            "modified_date": category.updated_at.isoformat(),
+        },
     )
     return render(
         request,
@@ -466,9 +540,37 @@ def organization_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse
         },
     ])
 
-    seo_context: dict[str, str] = _build_seo_context(
+    org_url: str = request.build_absolute_uri(
+        reverse("kick:organization_detail", args=[org.kick_id]),
+    )
+    organization_node: dict[str, Any] = {
+        "@type": "Organization",
+        "name": org.name,
+        "url": org_url,
+        "description": f"Kick drop campaigns by {org.name}.",
+    }
+    webpage_node: dict[str, Any] = {
+        "@type": "WebPage",
+        "url": org_url,
+        "datePublished": org.added_at.isoformat(),
+        "dateModified": org.updated_at.isoformat(),
+    }
+    org_schema: dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@graph": [
+            organization_node,
+            webpage_node,
+        ],
+    }
+
+    seo_context: dict[str, Any] = _build_seo_context(
         page_title=org.name,
         page_description=f"Kick drop campaigns by {org.name}.",
+        seo_meta={
+            "schema_data": org_schema,
+            "published_date": org.added_at.isoformat(),
+            "modified_date": org.updated_at.isoformat(),
+        },
     )
     return render(
         request,

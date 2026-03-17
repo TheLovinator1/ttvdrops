@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import datetime
 import json
@@ -44,6 +46,8 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
     from django.http import HttpRequest
 
+    from core.seo import SeoMeta
+
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
 MIN_QUERY_LENGTH_FOR_FTS = 3
@@ -89,66 +93,48 @@ def _truncate_description(text: str, max_length: int = 160) -> str:
     return text[:max_length].rsplit(" ", 1)[0] + "…"
 
 
-def _build_seo_context(  # noqa: PLR0913, PLR0917
+def _build_seo_context(
     page_title: str = "ttvdrops",
     page_description: str | None = None,
-    page_image: str | None = None,
-    page_image_width: int | None = None,
-    page_image_height: int | None = None,
-    og_type: str = "website",
-    schema_data: dict[str, Any] | None = None,
-    breadcrumb_schema: dict[str, Any] | None = None,
-    pagination_info: list[dict[str, str]] | None = None,
-    published_date: str | None = None,
-    modified_date: str | None = None,
-    robots_directive: str = "index, follow",
+    seo_meta: SeoMeta | None = None,
 ) -> dict[str, Any]:
     """Build SEO context for template rendering.
 
     Args:
         page_title: Page title (shown in browser tab, og:title).
         page_description: Page description (meta description, og:description).
-        page_image: Image URL for og:image meta tag.
-        page_image_width: Width of the image in pixels.
-        page_image_height: Height of the image in pixels.
-        og_type: OpenGraph type (e.g., "website", "article").
-        schema_data: Dict representation of Schema.org JSON-LD data.
-        breadcrumb_schema: Breadcrumb schema dict for navigation hierarchy.
-        pagination_info: List of dicts with "rel" (prev|next|first|last) and "url".
-        published_date: ISO 8601 published date (e.g., "2025-01-01T00:00:00Z").
-        modified_date: ISO 8601 modified date.
-        robots_directive: Robots meta content (e.g., "index, follow" or "noindex").
+        seo_meta: Optional typed SEO metadata with image, schema, breadcrumb,
+            pagination, OpenGraph, and date fields.
 
     Returns:
         Dict with SEO context variables to pass to render().
     """
-    # TODO(TheLovinator): Instead of having so many parameters,  # noqa: TD003
-    # consider having a single "seo_info" parameter that
-    # can contain all of these optional fields. This would make
-    # it easier to extend in the future without changing the
-    # function signature.
-
     context: dict[str, Any] = {
         "page_title": page_title,
         "page_description": page_description or DEFAULT_SITE_DESCRIPTION,
-        "og_type": og_type,
-        "robots_directive": robots_directive,
+        "og_type": "website",
+        "robots_directive": "index, follow",
     }
-    if page_image:
-        context["page_image"] = page_image
-        if page_image_width and page_image_height:
-            context["page_image_width"] = page_image_width
-            context["page_image_height"] = page_image_height
-    if schema_data:
-        context["schema_data"] = json.dumps(schema_data)
-    if breadcrumb_schema:
-        context["breadcrumb_schema"] = json.dumps(breadcrumb_schema)
-    if pagination_info:
-        context["pagination_info"] = pagination_info
-    if published_date:
-        context["published_date"] = published_date
-    if modified_date:
-        context["modified_date"] = modified_date
+    if seo_meta:
+        if seo_meta.get("og_type"):
+            context["og_type"] = seo_meta["og_type"]
+        if seo_meta.get("robots_directive"):
+            context["robots_directive"] = seo_meta["robots_directive"]
+        if seo_meta.get("page_image"):
+            context["page_image"] = seo_meta["page_image"]
+            if seo_meta.get("page_image_width") and seo_meta.get("page_image_height"):
+                context["page_image_width"] = seo_meta["page_image_width"]
+                context["page_image_height"] = seo_meta["page_image_height"]
+        if seo_meta.get("schema_data"):
+            context["schema_data"] = json.dumps(seo_meta["schema_data"])
+        if seo_meta.get("breadcrumb_schema"):
+            context["breadcrumb_schema"] = json.dumps(seo_meta["breadcrumb_schema"])
+        if seo_meta.get("pagination_info"):
+            context["pagination_info"] = seo_meta["pagination_info"]
+        if seo_meta.get("published_date"):
+            context["published_date"] = seo_meta["published_date"]
+        if seo_meta.get("modified_date"):
+            context["modified_date"] = seo_meta["modified_date"]
     return context
 
 
@@ -296,7 +282,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch Organizations",
         page_description="List of Twitch organizations.",
-        schema_data=collection_schema,
+        seo_meta={"schema_data": collection_schema},
     )
     context: dict[str, Any] = {
         "orgs": orgs,
@@ -361,12 +347,24 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     url: str = request.build_absolute_uri(
         reverse("twitch:organization_detail", args=[organization.twitch_id]),
     )
-    org_schema: dict[str, str | dict[str, str]] = {
-        "@context": "https://schema.org",
+    organization_node: dict[str, Any] = {
         "@type": "Organization",
         "name": org_name,
         "url": url,
         "description": org_description,
+    }
+    webpage_node: dict[str, Any] = {
+        "@type": "WebPage",
+        "url": url,
+        "datePublished": organization.added_at.isoformat(),
+        "dateModified": organization.updated_at.isoformat(),
+    }
+    org_schema: dict[str, Any] = {
+        "@context": "https://schema.org",
+        "@graph": [
+            organization_node,
+            webpage_node,
+        ],
     }
 
     # Breadcrumb schema
@@ -384,9 +382,12 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=org_name,
         page_description=org_description,
-        schema_data=org_schema,
-        breadcrumb_schema=breadcrumb_schema,
-        modified_date=organization.updated_at.isoformat(),
+        seo_meta={
+            "schema_data": org_schema,
+            "breadcrumb_schema": breadcrumb_schema,
+            "published_date": organization.added_at.isoformat(),
+            "modified_date": organization.updated_at.isoformat(),
+        },
     )
     context: dict[str, Any] = {
         "organization": organization,
@@ -481,8 +482,10 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=title,
         page_description=description,
-        pagination_info=pagination_info,
-        schema_data=collection_schema,
+        seo_meta={
+            "pagination_info": pagination_info,
+            "schema_data": collection_schema,
+        },
     )
     context: dict[str, Any] = {
         "campaigns": campaigns,
@@ -724,7 +727,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     )
 
     # TODO(TheLovinator): If the campaign has specific allowed channels, we could list those as potential locations instead of just linking to Twitch homepage.  # noqa: TD003
-    campaign_schema: dict[str, str | dict[str, str]] = {
+    campaign_event: dict[str, Any] = {
         "@context": "https://schema.org",
         "@type": "Event",
         "name": campaign_name,
@@ -738,9 +741,9 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         },
     }
     if campaign.start_at:
-        campaign_schema["startDate"] = campaign.start_at.isoformat()
+        campaign_event["startDate"] = campaign.start_at.isoformat()
     if campaign.end_at:
-        campaign_schema["endDate"] = campaign.end_at.isoformat()
+        campaign_event["endDate"] = campaign.end_at.isoformat()
     campaign_owner: Organization | None = (
         _pick_owner(list(campaign.game.owners.all())) if campaign.game else None
     )
@@ -750,17 +753,25 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         else "Twitch"
     )
     if campaign_image:
-        campaign_schema["image"] = {
+        campaign_event["image"] = {
             "@type": "ImageObject",
             "contentUrl": request.build_absolute_uri(campaign_image),
             "creditText": campaign_owner_name,
             "copyrightNotice": campaign_owner_name,
         }
     if campaign_owner:
-        campaign_schema["organizer"] = {
+        campaign_event["organizer"] = {
             "@type": "Organization",
             "name": campaign_owner_name,
         }
+    webpage_node: dict[str, Any] = {
+        "@type": "WebPage",
+        "url": url,
+        "datePublished": campaign.added_at.isoformat(),
+        "dateModified": campaign.updated_at.isoformat(),
+    }
+    campaign_event["mainEntityOfPage"] = webpage_node
+    campaign_schema: dict[str, Any] = campaign_event
 
     # Breadcrumb schema for navigation
     # TODO(TheLovinator): We should have a game.get_display_name() method that encapsulates the logic of choosing between display_name, name, and twitch_id.  # noqa: TD003
@@ -787,12 +798,19 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=campaign_name,
         page_description=campaign_description,
-        page_image=campaign_image,
-        page_image_width=campaign_image_width,
-        page_image_height=campaign_image_height,
-        schema_data=campaign_schema,
-        breadcrumb_schema=breadcrumb_schema,
-        modified_date=campaign.updated_at.isoformat() if campaign.updated_at else None,
+        seo_meta={
+            "page_image": campaign_image,
+            "page_image_width": campaign_image_width,
+            "page_image_height": campaign_image_height,
+            "schema_data": campaign_schema,
+            "breadcrumb_schema": breadcrumb_schema,
+            "published_date": campaign.added_at.isoformat()
+            if campaign.added_at
+            else None,
+            "modified_date": campaign.updated_at.isoformat()
+            if campaign.updated_at
+            else None,
+        },
     )
     context.update(seo_context)
 
@@ -887,7 +905,7 @@ class GamesGridView(ListView):
         seo_context: dict[str, Any] = _build_seo_context(
             page_title="Twitch Games",
             page_description="Twitch games that had or have Twitch drops.",
-            schema_data=collection_schema,
+            seo_meta={"schema_data": collection_schema},
         )
         context.update(seo_context)
 
@@ -1080,6 +1098,10 @@ class GameDetailView(DetailView):
                 reverse("twitch:game_detail", args=[game.twitch_id]),
             ),
         }
+        if game.added_at:
+            game_schema["datePublished"] = game.added_at.isoformat()
+        if game.updated_at:
+            game_schema["dateModified"] = game.updated_at.isoformat()
         preferred_owner: Organization | None = _pick_owner(owners)
         owner_name: str = (
             (preferred_owner.name or preferred_owner.twitch_id)
@@ -1114,12 +1136,17 @@ class GameDetailView(DetailView):
         seo_context: dict[str, Any] = _build_seo_context(
             page_title=game_name,
             page_description=game_description,
-            page_image=game_image,
-            page_image_width=game_image_width,
-            page_image_height=game_image_height,
-            schema_data=game_schema,
-            breadcrumb_schema=breadcrumb_schema,
-            modified_date=game.updated_at.isoformat() if game.updated_at else None,
+            seo_meta={
+                "page_image": game_image,
+                "page_image_width": game_image_width,
+                "page_image_height": game_image_height,
+                "schema_data": game_schema,
+                "breadcrumb_schema": breadcrumb_schema,
+                "published_date": game.added_at.isoformat() if game.added_at else None,
+                "modified_date": game.updated_at.isoformat()
+                if game.updated_at
+                else None,
+            },
         )
         context.update({
             "active_campaigns": active_campaigns,
@@ -1213,8 +1240,10 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch Drops",
         page_description="Overview of active Twitch drop campaigns and rewards.",
-        og_type="website",
-        schema_data=website_schema,
+        seo_meta={
+            "og_type": "website",
+            "schema_data": website_schema,
+        },
     )
     return render(
         request,
@@ -1306,8 +1335,10 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=title,
         page_description=description,
-        pagination_info=pagination_info,
-        schema_data=collection_schema,
+        seo_meta={
+            "pagination_info": pagination_info,
+            "schema_data": collection_schema,
+        },
     )
     context: dict[str, Any] = {
         "reward_campaigns": reward_campaigns,
@@ -1375,28 +1406,44 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         else f"{campaign_name}"
     )
 
-    campaign_schema: dict[str, str | dict[str, str]] = {
-        "@context": "https://schema.org",
+    reward_url: str = request.build_absolute_uri(
+        reverse("twitch:reward_campaign_detail", args=[reward_campaign.twitch_id]),
+    )
+
+    campaign_event: dict[str, Any] = {
         "@type": "Event",
         "name": campaign_name,
         "description": campaign_description,
-        "url": request.build_absolute_uri(
-            reverse("twitch:reward_campaign_detail", args=[reward_campaign.twitch_id]),
-        ),
+        "url": reward_url,
         "eventStatus": "https://schema.org/EventScheduled",
         "eventAttendanceMode": "https://schema.org/OnlineEventAttendanceMode",
         "location": {"@type": "VirtualLocation", "url": "https://www.twitch.tv"},
     }
     if reward_campaign.starts_at:
-        campaign_schema["startDate"] = reward_campaign.starts_at.isoformat()
+        campaign_event["startDate"] = reward_campaign.starts_at.isoformat()
     if reward_campaign.ends_at:
-        campaign_schema["endDate"] = reward_campaign.ends_at.isoformat()
+        campaign_event["endDate"] = reward_campaign.ends_at.isoformat()
     if reward_campaign.game and reward_campaign.game.owners.exists():
         owner = reward_campaign.game.owners.first()
-        campaign_schema["organizer"] = {
+        campaign_event["organizer"] = {
             "@type": "Organization",
             "name": owner.name or owner.twitch_id,
         }
+
+    webpage_node: dict[str, Any] = {
+        "@type": "WebPage",
+        "url": reward_url,
+        "datePublished": reward_campaign.added_at.isoformat(),
+        "dateModified": reward_campaign.updated_at.isoformat(),
+    }
+
+    campaign_schema = {
+        "@context": "https://schema.org",
+        "@graph": [
+            campaign_event,
+            webpage_node,
+        ],
+    }
 
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
@@ -1419,9 +1466,12 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=campaign_name,
         page_description=campaign_description,
-        schema_data=campaign_schema,
-        breadcrumb_schema=breadcrumb_schema,
-        modified_date=reward_campaign.updated_at.isoformat(),
+        seo_meta={
+            "schema_data": campaign_schema,
+            "breadcrumb_schema": breadcrumb_schema,
+            "published_date": reward_campaign.added_at.isoformat(),
+            "modified_date": reward_campaign.updated_at.isoformat(),
+        },
     )
     context: dict[str, Any] = {
         "reward_campaign": reward_campaign,
@@ -1506,8 +1556,10 @@ class ChannelListView(ListView):
         seo_context: dict[str, Any] = _build_seo_context(
             page_title="Twitch Channels",
             page_description="List of Twitch channels participating in drop campaigns.",
-            pagination_info=pagination_info,
-            schema_data=collection_schema,
+            seo_meta={
+                "pagination_info": pagination_info,
+                "schema_data": collection_schema,
+            },
         )
         context.update(seo_context)
         context["search_query"] = search_query
@@ -1648,16 +1700,29 @@ class ChannelDetailView(DetailView):
         if total_campaigns > 1:
             description += "s"
 
-        channel_schema: dict[str, Any] = {
-            "@context": "https://schema.org",
+        channel_url: str = self.request.build_absolute_uri(
+            reverse("twitch:channel_detail", args=[channel.twitch_id]),
+        )
+        channel_node: dict[str, Any] = {
             "@type": "BroadcastChannel",
             "name": name,
             "description": description,
-            "url": self.request.build_absolute_uri(
-                reverse("twitch:channel_detail", args=[channel.twitch_id]),
-            ),
+            "url": channel_url,
             "broadcastChannelId": channel.twitch_id,
             "providerName": "Twitch",
+        }
+        webpage_node: dict[str, Any] = {
+            "@type": "WebPage",
+            "url": channel_url,
+            "datePublished": channel.added_at.isoformat(),
+            "dateModified": channel.updated_at.isoformat(),
+        }
+        channel_schema: dict[str, Any] = {
+            "@context": "https://schema.org",
+            "@graph": [
+                channel_node,
+                webpage_node,
+            ],
         }
 
         # Breadcrumb schema
@@ -1675,11 +1740,16 @@ class ChannelDetailView(DetailView):
         seo_context: dict[str, Any] = _build_seo_context(
             page_title=name,
             page_description=description,
-            schema_data=channel_schema,
-            breadcrumb_schema=breadcrumb_schema,
-            modified_date=channel.updated_at.isoformat()
-            if channel.updated_at
-            else None,
+            seo_meta={
+                "schema_data": channel_schema,
+                "breadcrumb_schema": breadcrumb_schema,
+                "published_date": channel.added_at.isoformat()
+                if channel.added_at
+                else None,
+                "modified_date": channel.updated_at.isoformat()
+                if channel.updated_at
+                else None,
+            },
         )
         context.update({
             "active_campaigns": active_campaigns,
@@ -1733,7 +1803,7 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch Chat Badges",
         page_description="List of Twitch chat badges awarded through drop campaigns.",
-        schema_data=collection_schema,
+        seo_meta={"schema_data": collection_schema},
     )
     context: dict[str, Any] = {
         "badge_sets": badge_sets,
@@ -1847,7 +1917,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=f"Badge Set: {badge_set_name}",
         page_description=badge_set_description,
-        schema_data=badge_schema,
+        seo_meta={"schema_data": badge_schema},
     )
     context: dict[str, Any] = {
         "badge_set": badge_set,

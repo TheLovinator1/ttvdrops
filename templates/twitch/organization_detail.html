@@ -21,14 +21,22 @@
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
-    <h1 id="org-name">{{ organization.name }}</h1>
-    <theader>
-    <h2 id="games-header">Games by {{ organization.name }}</h2>
-    </theader>
-    <table id="games-table">
+    <h1>{{ organization.name }}</h1>
+    <p>
+        Published:
+        <time datetime="{{ organization.added_at|date:'c' }}"
+              title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time>
+        · Last updated:
+        <time datetime="{{ organization.updated_at|date:'c' }}"
+              title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time>
+    </p>
+    <header>
+        <h2>Games by {{ organization.name }}</h2>
+    </header>
+    <table>
         <tbody>
             {% for game in games %}
-                <tr id="game-row-{{ game.twitch_id }}">
+                <tr>
                     <td>
                         <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game }}</a>
                     </td>

@@ -45,6 +45,14 @@
             </div>
             <!-- Campaign description -->
             <p>{{ campaign.description|linebreaksbr }}</p>
+            <small>
+                Published:
+                <time datetime="{{ campaign.added_at|date:'c' }}"
+                      title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time>
+                · Last updated:
+                <time datetime="{{ campaign.updated_at|date:'c' }}"
+                      title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time>
+            </small>
             <!-- Campaign end times -->
             <div>
                 {% if campaign.end_at < now %}

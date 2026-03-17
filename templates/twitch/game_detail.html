@@ -47,6 +47,14 @@
                 Twitch ID: <a href="https://www.twitch.tv/directory/category/{{ game.slug|urlencode }}">{{ game.twitch_id }}</a>
             </div>
             <div>Twitch slug: {{ game.slug }}</div>
+            <small>
+                Published:
+                <time datetime="{{ game.added_at|date:'c' }}"
+                      title="{{ game.added_at|date:'DATETIME_FORMAT' }}">{{ game.added_at|date:"M d, Y H:i" }}</time>
+                · Last updated:
+                <time datetime="{{ game.updated_at|date:'c' }}"
+                      title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time>
+            </small>
             <!-- RSS Feeds -->
             <div>
                 <a href="{% url 'core:game_campaign_feed' game.twitch_id %}"

@@ -1051,9 +1051,11 @@ class TestSEOHelperFunctions:
         context: dict[str, Any] = _build_seo_context(
             page_title="Test Title",
             page_description="Test Description",
-            page_image="https://example.com/image.jpg",
-            og_type="article",
-            schema_data={"@context": "https://schema.org"},
+            seo_meta={
+                "page_image": "https://example.com/image.jpg",
+                "og_type": "article",
+                "schema_data": {"@context": "https://schema.org"},
+            },
         )
 
         assert context["page_title"] == "Test Title"
@@ -1083,14 +1085,16 @@ class TestSEOHelperFunctions:
         context: dict[str, Any] = _build_seo_context(
             page_title="Test",
             page_description="Desc",
-            page_image="https://example.com/img.jpg",
-            og_type="article",
-            schema_data={},
-            breadcrumb_schema=breadcrumb,
-            pagination_info=[{"rel": "next", "url": "/page/2/"}],
-            published_date=now.isoformat(),
-            modified_date=now.isoformat(),
-            robots_directive="noindex, follow",
+            seo_meta={
+                "page_image": "https://example.com/img.jpg",
+                "og_type": "article",
+                "schema_data": {},
+                "breadcrumb_schema": breadcrumb,
+                "pagination_info": [{"rel": "next", "url": "/page/2/"}],
+                "published_date": now.isoformat(),
+                "modified_date": now.isoformat(),
+                "robots_directive": "noindex, follow",
+            },
         )
 
         # breadcrumb_schema is JSON-dumped, so parse it back
