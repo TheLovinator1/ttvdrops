@@ -951,7 +951,9 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch/Kick Drops",
-        page_description=("Twitch and Kick drops."),
+        page_description=(
+            "RSS feeds, historical data, and information about Twitch and Kick drops, campaigns, rewards, and more."
+        ),
         og_type="website",
         schema_data=website_schema,
     )
