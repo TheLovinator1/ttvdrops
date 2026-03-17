@@ -1,4 +1,3 @@
-import csv
 import io
 import json
 import os
@@ -87,13 +86,6 @@ class Command(BaseCommand):
         json_path: Path = output_dir / f"{prefix}-{timestamp}.json.zst"
         _write_json_dump(json_path, allowed_tables)
 
-        csv_path: Path = _write_csv_dump(
-            output_dir,
-            prefix,
-            timestamp,
-            allowed_tables,
-        )
-
         created_at: datetime = datetime.fromtimestamp(
             output_path.stat().st_mtime,
             tz=timezone.get_current_timezone(),
@@ -104,7 +96,6 @@ class Command(BaseCommand):
             ),
         )
         self.stdout.write(self.style.SUCCESS(f"JSON backup created: {json_path}"))
-        self.stdout.write(self.style.SUCCESS(f"CSV backup created: {csv_path}"))
         self.stdout.write(self.style.SUCCESS(f"Included tables: {len(allowed_tables)}"))
 
 
@@ -349,46 +340,3 @@ def _write_json_dump(output_path: Path, tables: list[str]) -> None:
         io.TextIOWrapper(compressed, encoding="utf-8") as handle,
     ):
         json.dump(data, handle, default=_json_default)
-
-
-def _write_csv_dump(
-    output_dir: Path,
-    prefix: str,
-    timestamp: str,
-    tables: list[str],
-) -> Path:
-    """Write a combined CSV file containing rows from all tables.
-
-    Args:
-        output_dir: Directory where CSV files will be written.
-        prefix: Filename prefix.
-        timestamp: Timestamp string for filenames.
-        tables: Table names to include.
-
-    Returns:
-        Created file path.
-    """
-    output_path: Path = output_dir / f"{prefix}-{timestamp}.csv.zst"
-
-    with (
-        output_path.open("wb") as raw_handle,
-        zstd.open(raw_handle, "w") as compressed,
-        io.TextIOWrapper(compressed, encoding="utf-8") as handle,
-    ):
-        writer: csv.Writer = csv.writer(handle)
-        writer.writerow(["table", "row_json"])
-
-        with django_connection.cursor() as cursor:
-            for table in tables:
-                cursor.execute(f'SELECT * FROM "{table}"')  # noqa: S608
-                columns: list[str] = [col[0] for col in cursor.description]
-                rows: list[tuple] = cursor.fetchall()
-
-                for row in rows:
-                    row_dict = dict(zip(columns, row, strict=False))
-                    writer.writerow([
-                        table,
-                        json.dumps(row_dict, default=_json_default),
-                    ])
-
-    return output_path

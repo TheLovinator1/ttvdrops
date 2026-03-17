@@ -1,4 +1,3 @@
-import csv
 import io
 import json
 import math
@@ -17,7 +16,6 @@ from django.urls import reverse
 from twitch.management.commands.backup_db import _get_allowed_tables
 from twitch.management.commands.backup_db import _json_default
 from twitch.management.commands.backup_db import _sql_literal
-from twitch.management.commands.backup_db import _write_csv_dump
 from twitch.management.commands.backup_db import _write_json_dump
 from twitch.management.commands.backup_db import _write_postgres_dump
 from twitch.management.commands.backup_db import _write_sqlite_dump
@@ -25,7 +23,6 @@ from twitch.models import Game
 from twitch.models import Organization
 
 if TYPE_CHECKING:
-    from csv import Reader
     from datetime import datetime
     from pathlib import Path
 
@@ -198,34 +195,6 @@ class TestBackupCommand:
             row.get("name") == "Test Org JSON" for row in data["twitch_organization"]
         )
 
-    def test_backup_creates_single_csv_file(self, tmp_path: Path) -> None:
-        """Test that backup command creates a single CSV file alongside the SQL dump."""
-        _skip_if_pg_dump_missing()
-        Organization.objects.create(twitch_id="test_csv", name="Test Org CSV")
-
-        output_dir: Path = tmp_path / "backups"
-        output_dir.mkdir()
-
-        call_command("backup_db", output_dir=str(output_dir), prefix="test")
-
-        csv_files: list[Path] = list(output_dir.glob("test-*.csv.zst"))
-        assert len(csv_files) == 1
-
-        with (
-            csv_files[0].open("rb") as raw_handle,
-            zstd.open(raw_handle, "r") as compressed,
-            io.TextIOWrapper(compressed, encoding="utf-8") as handle,
-        ):
-            reader: Reader = csv.reader(handle)
-            rows: list[list[str]] = list(reader)
-
-        assert len(rows) >= 2  # header + at least one data row
-        assert rows[0] == ["table", "row_json"]
-        data_rows: list[list[str]] = [
-            row for row in rows[1:] if row and row[0] == "twitch_organization"
-        ]
-        assert any("Test Org CSV" in row[1] for row in data_rows)
-
 
 @pytest.mark.django_db
 class TestBackupHelperFunctions:
@@ -336,36 +305,6 @@ class TestBackupHelperFunctions:
         assert any(
             row.get("name") == "JSON Helper Org" for row in data["twitch_organization"]
         )
-
-    def test_write_csv_dump_creates_single_file(self, tmp_path: Path) -> None:
-        """Test _write_csv_dump creates one combined compressed CSV file."""
-        Organization.objects.create(twitch_id="test_csv_helper", name="CSV Helper Org")
-
-        tables: list[str] = _get_allowed_tables("twitch_")
-        path: Path = _write_csv_dump(
-            tmp_path,
-            "test",
-            "20260317-120000",
-            tables,
-        )
-
-        assert path.exists()
-        assert path.name == "test-20260317-120000.csv.zst"
-
-        with (
-            path.open("rb") as raw_handle,
-            zstd.open(raw_handle, "r") as compressed,
-            io.TextIOWrapper(compressed, encoding="utf-8") as handle,
-        ):
-            reader: Reader = csv.reader(handle)
-            rows: list[list[str]] = list(reader)
-
-        assert len(rows) >= 2  # header + at least one data row
-        assert rows[0] == ["table", "row_json"]
-        data_rows: list[list[str]] = [
-            row for row in rows[1:] if row and row[0] == "twitch_organization"
-        ]
-        assert any("CSV Helper Org" in row[1] for row in data_rows)
 
     def test_json_default_handles_bytes(self) -> None:
         """Test _json_default converts bytes to hex string."""
