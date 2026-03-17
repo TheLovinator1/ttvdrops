@@ -1638,3 +1638,375 @@ class TestDropCampaignImageFallback:
 
         # Should use benefit's image_asset_url (since no local file)
         assert campaign.image_best_url == benefit.image_best_url
+
+
+@pytest.mark.django_db
+class TestImageObjectStructuredData:
+    """Tests for ImageObject structured data in game and campaign schema_data."""
+
+    @pytest.fixture
+    def org(self) -> Organization:
+        """Create an organization for testing.
+
+        Returns:
+            Organization: The created organization instance.
+        """
+        return Organization.objects.create(twitch_id="org-img", name="Acme Corp")
+
+    @pytest.fixture
+    def game(self, org: Organization) -> Game:
+        """Create a game with box art for testing.
+
+        Args:
+            org (Organization): The organization to associate with the game.
+
+        Returns:
+            Game: The created game instance.
+        """
+        g: Game = Game.objects.create(
+            twitch_id="game-img",
+            name="img_game",
+            display_name="Image Game",
+            box_art="https://example.com/boxart.jpg",
+        )
+        g.owners.add(org)
+        return g
+
+    @pytest.fixture
+    def campaign(self, game: Game) -> DropCampaign:
+        """Create a campaign with an image for testing.
+
+        Args:
+            game (Game): The game to associate with the campaign.
+
+        Returns:
+            DropCampaign: The created campaign instance.
+        """
+        return DropCampaign.objects.create(
+            twitch_id="camp-img",
+            name="Image Campaign",
+            game=game,
+            image_url="https://example.com/campaign.jpg",
+            operation_names=["DropCampaignDetails"],
+        )
+
+    # --- game detail ---
+
+    def test_game_schema_image_is_image_object(
+        self,
+        client: Client,
+        game: Game,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """VideoGame schema image should be an ImageObject, not a plain URL."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["@type"] == "VideoGame"
+        img: dict[str, Any] = schema["image"]
+        assert isinstance(img, dict), "image should be a dict, not a plain URL string"
+        assert img["@type"] == "ImageObject"
+        assert img["contentUrl"].endswith(game.box_art_best_url)
+        assert img["contentUrl"].startswith("http")
+
+    def test_game_schema_image_has_credit_fields(
+        self,
+        client: Client,
+        game: Game,
+        org: Organization,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """VideoGame ImageObject should carry creditText and copyrightNotice."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        img: dict[str, Any] = schema["image"]
+        assert img["creditText"] == org.name
+        assert org.name in img["copyrightNotice"]
+
+    def test_game_schema_no_image_when_no_box_art(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """VideoGame schema should omit image key when box_art is empty."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        game_no_art: Game = Game.objects.create(
+            twitch_id="game-no-art",
+            name="no_art_game",
+            display_name="No Art Game",
+            box_art="",
+        )
+        url: str = reverse("twitch:game_detail", args=[game_no_art.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert "image" not in schema
+
+    def test_game_schema_publisher_uses_owner_name(
+        self,
+        client: Client,
+        game: Game,
+        org: Organization,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """VideoGame schema publisher name should match the owning organization."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["publisher"]["name"] == org.name
+
+    def test_game_schema_owner_name_matches_credit_text(
+        self,
+        client: Client,
+        game: Game,
+        org: Organization,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """publisher.name and image.creditText should be the same value."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["publisher"]["name"] == schema["image"]["creditText"]
+
+    def test_game_schema_owner_falls_back_to_twitch_id(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When owner.name is empty, twitch_id is used as credit fallback."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        nameless_org: Organization = Organization.objects.create(
+            twitch_id="org-nameless",
+            name="",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game-nameless-owner",
+            name="nameless_owner_game",
+            display_name="Nameless Owner Game",
+            box_art="https://example.com/boxart.jpg",
+        )
+        game.owners.add(nameless_org)
+
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["image"]["creditText"] == nameless_org.twitch_id
+
+    # --- campaign detail ---
+
+    def test_campaign_schema_image_is_image_object(
+        self,
+        client: Client,
+        campaign: DropCampaign,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Event schema image should be an ImageObject, not a plain URL string."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["@type"] == "Event"
+        img: dict[str, Any] = schema["image"]
+        assert isinstance(img, dict), "image should be a dict, not a plain URL string"
+        assert img["@type"] == "ImageObject"
+        assert img["contentUrl"].endswith(campaign.image_best_url)
+        assert img["contentUrl"].startswith("http")
+
+    def test_campaign_schema_image_has_credit_fields(
+        self,
+        client: Client,
+        campaign: DropCampaign,
+        org: Organization,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Event ImageObject should carry creditText and copyrightNotice."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        img: dict[str, Any] = schema["image"]
+        assert img["creditText"] == org.name
+        assert org.name in img["copyrightNotice"]
+
+    def test_campaign_schema_no_image_when_no_image_url(
+        self,
+        client: Client,
+        game: Game,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Event schema should omit image key when campaign has no image."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        campaign_no_img: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp-no-img",
+            name="No Image Campaign",
+            game=game,
+            image_url="",
+            operation_names=["DropCampaignDetails"],
+        )
+        url: str = reverse("twitch:campaign_detail", args=[campaign_no_img.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert "image" not in schema
+
+    def test_campaign_schema_organizer_uses_owner_name(
+        self,
+        client: Client,
+        campaign: DropCampaign,
+        org: Organization,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Event schema organizer name should match the owning organization."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["organizer"]["name"] == org.name
+
+    def test_campaign_schema_owner_name_matches_credit_text(
+        self,
+        client: Client,
+        campaign: DropCampaign,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """organizer.name and image.creditText should be the same value."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["organizer"]["name"] == schema["image"]["creditText"]
+
+    def test_campaign_schema_owner_falls_back_to_twitch(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When campaign has no owning org, creditText falls back to 'Twitch'."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        game_no_owner: Game = Game.objects.create(
+            twitch_id="game-no-owner",
+            name="no_owner_game",
+            display_name="No Owner Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp-no-owner",
+            name="No Owner Campaign",
+            game=game_no_owner,
+            image_url="https://example.com/campaign.jpg",
+            operation_names=["DropCampaignDetails"],
+        )
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["image"]["creditText"] == "Twitch"
+        assert "organizer" not in schema
+
+    # --- _pick_owner / Twitch Gaming skipping ---
+
+    def test_game_schema_skips_twitch_gaming_owner(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When one owner is 'Twitch Gaming' and another is not, the non-generic one is used."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        twitch_gaming: Organization = Organization.objects.create(
+            twitch_id="twitch-gaming",
+            name="Twitch Gaming",
+        )
+        real_publisher: Organization = Organization.objects.create(
+            twitch_id="real-pub",
+            name="Real Publisher",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game-multi-owner",
+            name="multi_owner_game",
+            display_name="Multi Owner Game",
+            box_art="https://example.com/boxart.jpg",
+        )
+        game.owners.add(twitch_gaming, real_publisher)
+
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["image"]["creditText"] == "Real Publisher"
+        assert schema["publisher"]["name"] == "Real Publisher"
+
+    def test_game_schema_uses_twitch_gaming_when_only_owner(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When the only owner is 'Twitch Gaming', it is still used (no other choice)."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        twitch_gaming: Organization = Organization.objects.create(
+            twitch_id="twitch-gaming-solo",
+            name="Twitch Gaming",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game-tg-only",
+            name="tg_only_game",
+            display_name="TG Only Game",
+            box_art="https://example.com/boxart.jpg",
+        )
+        game.owners.add(twitch_gaming)
+
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["image"]["creditText"] == "Twitch Gaming"
+
+    def test_campaign_schema_skips_twitch_gaming_owner(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Campaign schema prefers a non-generic publisher over 'Twitch Gaming'."""
+        monkeypatch.setattr("twitch.views.format_and_color_json", lambda data: data)
+        twitch_gaming: Organization = Organization.objects.create(
+            twitch_id="twitch-gaming-camp",
+            name="Twitch Gaming",
+        )
+        real_publisher: Organization = Organization.objects.create(
+            twitch_id="real-pub-camp",
+            name="Real Campaign Publisher",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game-camp-multi",
+            name="camp_multi_game",
+            display_name="Camp Multi Game",
+        )
+        game.owners.add(twitch_gaming, real_publisher)
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp-multi-owner",
+            name="Multi Owner Campaign",
+            game=game,
+            image_url="https://example.com/campaign.jpg",
+            operation_names=["DropCampaignDetails"],
+        )
+
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        schema: dict[str, Any] = json.loads(response.context["schema_data"])
+        assert schema["image"]["creditText"] == "Real Campaign Publisher"
+        assert schema["organizer"]["name"] == "Real Campaign Publisher"

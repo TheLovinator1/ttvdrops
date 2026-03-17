@@ -51,6 +51,26 @@ MIN_SEARCH_RANK = 0.05
 DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and more."
 
 
+def _pick_owner(owners: list[Organization]) -> Organization | None:
+    """Return the most relevant owner, skipping generic Twitch org names when possible.
+
+    Args:
+        owners: List of Organization objects associated with a game.
+
+    Returns:
+        The first non-generic owner, or the first owner if all are generic, or None.
+    """
+    if not owners:
+        return None
+
+    # Twitch Gaming is Twitch's own generic publishing label; when a game has multiple
+    # owners we prefer the actual game publisher over it for attribution.
+    generic_orgs: frozenset[str] = frozenset({"Twitch Gaming", "Twitch"})
+    preferred: list[Organization] = [o for o in owners if o.name not in generic_orgs]
+
+    return preferred[0] if preferred else owners[0]
+
+
 def _truncate_description(text: str, max_length: int = 160) -> str:
     """Truncate text to a reasonable description length (for meta tags).
 
@@ -721,15 +741,26 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         campaign_schema["startDate"] = campaign.start_at.isoformat()
     if campaign.end_at:
         campaign_schema["endDate"] = campaign.end_at.isoformat()
+    campaign_owner: Organization | None = (
+        _pick_owner(list(campaign.game.owners.all())) if campaign.game else None
+    )
+    campaign_owner_name: str = (
+        (campaign_owner.name or campaign_owner.twitch_id)
+        if campaign_owner
+        else "Twitch"
+    )
     if campaign_image:
-        campaign_schema["image"] = campaign_image
-    if campaign.game and campaign.game.owners.exists():
-        owner: Organization | None = campaign.game.owners.first()
-        if owner:
-            campaign_schema["organizer"] = {
-                "@type": "Organization",
-                "name": owner.name or owner.twitch_id,
-            }
+        campaign_schema["image"] = {
+            "@type": "ImageObject",
+            "contentUrl": request.build_absolute_uri(campaign_image),
+            "creditText": campaign_owner_name,
+            "copyrightNotice": campaign_owner_name,
+        }
+    if campaign_owner:
+        campaign_schema["organizer"] = {
+            "@type": "Organization",
+            "name": campaign_owner_name,
+        }
 
     # Breadcrumb schema for navigation
     # TODO(TheLovinator): We should have a game.get_display_name() method that encapsulates the logic of choosing between display_name, name, and twitch_id.  # noqa: TD003
@@ -1049,12 +1080,23 @@ class GameDetailView(DetailView):
                 reverse("twitch:game_detail", args=[game.twitch_id]),
             ),
         }
+        preferred_owner: Organization | None = _pick_owner(owners)
+        owner_name: str = (
+            (preferred_owner.name or preferred_owner.twitch_id)
+            if preferred_owner
+            else "Twitch"
+        )
         if game.box_art_best_url:
-            game_schema["image"] = game.box_art_best_url
+            game_schema["image"] = {
+                "@type": "ImageObject",
+                "contentUrl": self.request.build_absolute_uri(game.box_art_best_url),
+                "creditText": owner_name,
+                "copyrightNotice": owner_name,
+            }
         if owners:
             game_schema["publisher"] = {
                 "@type": "Organization",
-                "name": owners[0].name or owners[0].twitch_id,
+                "name": owner_name,
             }
 
         # Breadcrumb schema
