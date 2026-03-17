@@ -71,6 +71,42 @@ def _pick_owner(owners: list[Organization]) -> Organization | None:
     return preferred[0] if preferred else owners[0]
 
 
+def _build_image_object(
+    request: HttpRequest,
+    image_url: str,
+    creator_name: str,
+    creator_url: str,
+    *,
+    copyright_notice: str | None = None,
+) -> dict[str, Any]:
+    """Build a Schema.org ImageObject with attribution and license metadata.
+
+    Args:
+        request: The HTTP request used for absolute URL building.
+        image_url: Relative or absolute image URL.
+        creator_name: Human-readable creator/owner name.
+        creator_url: URL for the creator organization or fallback owner page.
+        copyright_notice: Optional copyright text.
+
+    Returns:
+        Dict with ImageObject fields used in structured data.
+    """
+    creator: dict[str, str] = {
+        "@type": "Organization",
+        "name": creator_name,
+        "url": creator_url,
+    }
+    return {
+        "@type": "ImageObject",
+        "contentUrl": request.build_absolute_uri(image_url),
+        "creditText": creator_name,
+        "copyrightNotice": copyright_notice or creator_name,
+        "creator": creator,
+        "license": creator_url,
+        "acquireLicensePage": creator_url,
+    }
+
+
 def _truncate_description(text: str, max_length: int = 160) -> str:
     """Truncate text to a reasonable description length (for meta tags).
 
@@ -610,13 +646,21 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         if campaign_owner
         else "Twitch"
     )
+    campaign_owner_url: str = (
+        request.build_absolute_uri(
+            reverse("twitch:organization_detail", args=[campaign_owner.twitch_id]),
+        )
+        if campaign_owner
+        else "https://www.twitch.tv/"
+    )
     if campaign_image:
-        campaign_event["image"] = {
-            "@type": "ImageObject",
-            "contentUrl": request.build_absolute_uri(campaign_image),
-            "creditText": campaign_owner_name,
-            "copyrightNotice": campaign_owner_name,
-        }
+        campaign_event["image"] = _build_image_object(
+            request,
+            campaign_image,
+            campaign_owner_name,
+            campaign_owner_url,
+            copyright_notice=campaign_owner_name,
+        )
     if campaign_owner:
         campaign_event["organizer"] = {
             "@type": "Organization",
@@ -927,13 +971,21 @@ class GameDetailView(DetailView):
             if preferred_owner
             else "Twitch"
         )
+        owner_url: str = (
+            self.request.build_absolute_uri(
+                reverse("twitch:organization_detail", args=[preferred_owner.twitch_id]),
+            )
+            if preferred_owner
+            else "https://www.twitch.tv/"
+        )
         if game.box_art_best_url:
-            game_schema["image"] = {
-                "@type": "ImageObject",
-                "contentUrl": self.request.build_absolute_uri(game.box_art_best_url),
-                "creditText": owner_name,
-                "copyrightNotice": owner_name,
-            }
+            game_schema["image"] = _build_image_object(
+                self.request,
+                game.box_art_best_url,
+                owner_name,
+                owner_url,
+                copyright_notice=owner_name,
+            )
         if owners:
             game_schema["publisher"] = {
                 "@type": "Organization",
