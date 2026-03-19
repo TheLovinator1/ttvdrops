@@ -121,7 +121,7 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
 
 
 def _render_urlset_xml(
-    url_entries: list[dict[str, str | dict[str, str]]],
+    url_entries: list[dict[str, str]],
 ) -> str:
     """Render a <urlset> sitemap XML string from URL entries.
 
@@ -184,20 +184,24 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
 
     # Compute last modified per-section so search engines can more intelligently crawl.
     # Do not fabricate a lastmod date if the section has no data.
-    twitch_channels_lastmod = Channel.objects.aggregate(max=Max("updated_at"))["max"]
-    twitch_drops_lastmod = max(
-        [
+    twitch_channels_lastmod: datetime.datetime | None = Channel.objects.aggregate(
+        max=Max("updated_at"),
+    )["max"]
+
+    twitch_drops_lastmod: datetime.datetime | None = max(
+        (
             dt
             for dt in [
                 DropCampaign.objects.aggregate(max=Max("updated_at"))["max"],
                 RewardCampaign.objects.aggregate(max=Max("updated_at"))["max"],
             ]
             if dt is not None
-        ]
-        or [None],
+        ),
+        default=None,
     )
-    twitch_others_lastmod = max(
-        [
+
+    twitch_others_lastmod: datetime.datetime | None = max(
+        (
             dt
             for dt in [
                 Game.objects.aggregate(max=Max("updated_at"))["max"],
@@ -205,10 +209,13 @@ def sitemap_view(request: HttpRequest) -> HttpResponse:
                 ChatBadgeSet.objects.aggregate(max=Max("updated_at"))["max"],
             ]
             if dt is not None
-        ]
-        or [None],
+        ),
+        default=None,
     )
-    kick_lastmod = KickDropCampaign.objects.aggregate(max=Max("updated_at"))["max"]
+
+    kick_lastmod: datetime.datetime | None = KickDropCampaign.objects.aggregate(
+        max=Max("updated_at"),
+    )["max"]
 
     sitemap_entries: list[dict[str, str]] = [
         {"loc": f"{base_url}/sitemap-static.xml"},
@@ -297,7 +304,7 @@ def sitemap_static_view(request: HttpRequest) -> HttpResponse:
         "youtube:index",
     ]
 
-    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+    sitemap_urls: list[dict[str, str]] = []
     for route_name in static_route_names:
         url = reverse(route_name)
         sitemap_urls.append({"url": f"{base_url}{url}"})
@@ -317,13 +324,13 @@ def sitemap_twitch_channels_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered sitemap XML.
     """
     base_url: str = _build_base_url(request)
-    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+    sitemap_urls: list[dict[str, str]] = []
 
     channels: QuerySet[Channel] = Channel.objects.all()
     for channel in channels:
         resource_url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+        entry: dict[str, str] = {"url": full_url}
         if channel.updated_at:
             entry["lastmod"] = channel.updated_at.isoformat()
         sitemap_urls.append(entry)
@@ -343,16 +350,16 @@ def sitemap_twitch_drops_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered sitemap XML.
     """
     base_url: str = _build_base_url(request)
-    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+    sitemap_urls: list[dict[str, str]] = []
 
     campaigns: QuerySet[DropCampaign] = DropCampaign.objects.all()
     for campaign in campaigns:
         resource_url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str] = {"url": full_url}
+        campaign_url_entry: dict[str, str] = {"url": full_url}
         if campaign.updated_at:
-            entry["lastmod"] = campaign.updated_at.isoformat()
-        sitemap_urls.append(entry)
+            campaign_url_entry["lastmod"] = campaign.updated_at.isoformat()
+        sitemap_urls.append(campaign_url_entry)
 
     reward_campaigns: QuerySet[RewardCampaign] = RewardCampaign.objects.all()
     for reward_campaign in reward_campaigns:
@@ -362,11 +369,13 @@ def sitemap_twitch_drops_view(request: HttpRequest) -> HttpResponse:
         )
 
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+        reward_campaign_url_entry: dict[str, str] = {"url": full_url}
         if reward_campaign.updated_at:
-            entry["lastmod"] = reward_campaign.updated_at.isoformat()
+            reward_campaign_url_entry["lastmod"] = (
+                reward_campaign.updated_at.isoformat()
+            )
 
-        sitemap_urls.append(entry)
+        sitemap_urls.append(reward_campaign_url_entry)
 
     xml_content: str = _render_urlset_xml(sitemap_urls)
     return HttpResponse(xml_content, content_type="application/xml")
@@ -383,13 +392,13 @@ def sitemap_twitch_others_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered sitemap XML.
     """
     base_url: str = _build_base_url(request)
-    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+    sitemap_urls: list[dict[str, str]] = []
 
     games: QuerySet[Game] = Game.objects.all()
     for game in games:
         resource_url: str = reverse("twitch:game_detail", args=[game.twitch_id])
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+        entry: dict[str, str] = {"url": full_url}
 
         if game.updated_at:
             entry["lastmod"] = game.updated_at.isoformat()
@@ -400,7 +409,7 @@ def sitemap_twitch_others_view(request: HttpRequest) -> HttpResponse:
     for org in orgs:
         resource_url: str = reverse("twitch:organization_detail", args=[org.twitch_id])
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+        entry: dict[str, str] = {"url": full_url}
 
         if org.updated_at:
             entry["lastmod"] = org.updated_at.isoformat()
@@ -431,13 +440,13 @@ def sitemap_kick_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered sitemap XML.
     """
     base_url: str = _build_base_url(request)
-    sitemap_urls: list[dict[str, str | dict[str, str]]] = []
+    sitemap_urls: list[dict[str, str]] = []
 
     kick_campaigns: QuerySet[KickDropCampaign] = KickDropCampaign.objects.all()
     for campaign in kick_campaigns:
         resource_url: str = reverse("kick:campaign_detail", args=[campaign.kick_id])
         full_url: str = f"{base_url}{resource_url}"
-        entry: dict[str, str | dict[str, str]] = {"url": full_url}
+        entry: dict[str, str] = {"url": full_url}
 
         if campaign.updated_at:
             entry["lastmod"] = campaign.updated_at.isoformat()
@@ -466,7 +475,7 @@ def sitemap_youtube_view(request: HttpRequest) -> HttpResponse:
     """
     base_url: str = _build_base_url(request)
 
-    sitemap_urls: list[dict[str, str | dict[str, str]]] = [
+    sitemap_urls: list[dict[str, str]] = [
         {"url": f"{base_url}{reverse('youtube:index')}"},
     ]
 
@@ -980,7 +989,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         kick_campaigns_by_game[game_key]["campaigns"].append({
             "campaign": campaign,
             "channels": list(campaign.channels.all()),
-            "rewards": list(campaign.rewards.all()),
+            "rewards": list(campaign.rewards.all()),  # pyright: ignore[reportAttributeAccessIssue]
         })
 
     active_reward_campaigns: QuerySet[RewardCampaign] = (

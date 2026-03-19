@@ -30,6 +30,9 @@ def get_urls_from_sitemap(sitemap_url: str, list_of_urls: list[str]) -> list[str
     if parser.has_sitemaps():
         sitemaps: SitemapIndex = parser.get_sitemaps()
         for sitemap in sitemaps:
+            if not sitemap.loc:
+                continue
+
             list_of_urls.extend(
                 get_urls_from_sitemap(
                     sitemap_url=sitemap.loc,
@@ -39,7 +42,7 @@ def get_urls_from_sitemap(sitemap_url: str, list_of_urls: list[str]) -> list[str
 
     elif parser.has_urls():
         urls: UrlSet = parser.get_urls()
-        list_of_urls.extend(url.loc for url in urls)
+        list_of_urls.extend(url.loc for url in urls if url.loc)
 
     return list_of_urls
 
@@ -99,6 +102,7 @@ class Command(BaseCommand):
             api_key_location=api_key_location,
         )
 
+        status_code: int = 0
         urls: list[str] = get_urls_from_sitemap(sitemap_url=sitemap, list_of_urls=[])
         chucked_urls: list[list[str]] = get_chucked_urls(urls=urls)
         for chunk in chucked_urls:

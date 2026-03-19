@@ -147,27 +147,46 @@ def _build_seo_context(
         "robots_directive": "index, follow",
     }
     if seo_meta:
-        if seo_meta.get("page_url"):
-            context["page_url"] = seo_meta["page_url"]
-        if seo_meta.get("og_type"):
-            context["og_type"] = seo_meta["og_type"]
-        if seo_meta.get("robots_directive"):
-            context["robots_directive"] = seo_meta["robots_directive"]
-        if seo_meta.get("page_image"):
-            context["page_image"] = seo_meta["page_image"]
-            if seo_meta.get("page_image_width") and seo_meta.get("page_image_height"):
-                context["page_image_width"] = seo_meta["page_image_width"]
-                context["page_image_height"] = seo_meta["page_image_height"]
-        if seo_meta.get("schema_data"):
-            context["schema_data"] = json.dumps(seo_meta["schema_data"])
-        if seo_meta.get("breadcrumb_schema"):
-            context["breadcrumb_schema"] = json.dumps(seo_meta["breadcrumb_schema"])
-        if seo_meta.get("pagination_info"):
-            context["pagination_info"] = seo_meta["pagination_info"]
-        if seo_meta.get("published_date"):
-            context["published_date"] = seo_meta["published_date"]
-        if seo_meta.get("modified_date"):
-            context["modified_date"] = seo_meta["modified_date"]
+        page_url = seo_meta.get("page_url")
+        if page_url:
+            context["page_url"] = page_url
+
+        og_type = seo_meta.get("og_type")
+        if og_type:
+            context["og_type"] = og_type
+
+        robots_directive = seo_meta.get("robots_directive")
+        if robots_directive:
+            context["robots_directive"] = robots_directive
+
+        page_image = seo_meta.get("page_image")
+        if page_image:
+            context["page_image"] = page_image
+            page_image_width = seo_meta.get("page_image_width")
+            page_image_height = seo_meta.get("page_image_height")
+            if page_image_width and page_image_height:
+                context["page_image_width"] = page_image_width
+                context["page_image_height"] = page_image_height
+
+        schema_data = seo_meta.get("schema_data")
+        if schema_data:
+            context["schema_data"] = json.dumps(schema_data)
+
+        breadcrumb_schema = seo_meta.get("breadcrumb_schema")
+        if breadcrumb_schema:
+            context["breadcrumb_schema"] = json.dumps(breadcrumb_schema)
+
+        pagination_info = seo_meta.get("pagination_info")
+        if pagination_info:
+            context["pagination_info"] = pagination_info
+
+        published_date = seo_meta.get("published_date")
+        if published_date:
+            context["published_date"] = published_date
+
+        modified_date = seo_meta.get("modified_date")
+        if modified_date:
+            context["modified_date"] = modified_date
     return context
 
 
