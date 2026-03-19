@@ -5,7 +5,7 @@ name: Deploy to Server
 # forgejo-runner ALL=(root) NOPASSWD: /bin/systemctl restart ttvdrops
 # forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv run python /home/ttvdrops/ttvdrops/manage.py migrate
 # forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv sync -U --all-extras --dev --directory /home/ttvdrops/ttvdrops
-
+# forgejo-runner ALL=(ttvdrops) NOPASSWD: /usr/bin/uv run python /home/ttvdrops/ttvdrops/manage.py collectstatic --noinput
 on:
   push:
   pull_request:
@@ -37,6 +37,7 @@ jobs:
           sudo -u ttvdrops git -C /home/ttvdrops/ttvdrops pull
           sudo -u ttvdrops uv sync -U --all-extras --dev --directory /home/ttvdrops/ttvdrops
           sudo -u ttvdrops uv run python /home/ttvdrops/ttvdrops/manage.py migrate
+          sudo -u ttvdrops uv run python /home/ttvdrops/ttvdrops/manage.py collectstatic --noinput
           sudo systemctl restart ttvdrops
       - name: Check if server is up
         run: |
