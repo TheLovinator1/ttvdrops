@@ -23,6 +23,8 @@ dependencies = [
     "sentry-sdk",
     "setproctitle",
     "tqdm",
+    "index-now-for-python",
+    "sitemap-parser",
 ]
 
 [dependency-groups]
@@ -115,3 +117,6 @@ lint.ignore = [
 [tool.djlint]
 profile = "django"
 ignore = "H021,H030"
+
+[tool.uv.sources]
+sitemap-parser = { git = "https://github.com/TheLovinator1/sitemap-parser.git" }
