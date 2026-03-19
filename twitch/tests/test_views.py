@@ -566,6 +566,7 @@ class TestChannelListView:
                 start_at=now - timedelta(days=10),
                 end_at=now + timedelta(days=10),
                 operation_names=["DropCampaignDetails"],
+                is_fully_imported=True,
             )
             for i in range(150)
         ]
@@ -609,6 +610,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=5),
             end_at=now + timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Create upcoming campaign
@@ -619,6 +621,7 @@ class TestChannelListView:
             start_at=now + timedelta(days=5),
             end_at=now + timedelta(days=10),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Create expired campaign
@@ -629,6 +632,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=10),
             end_at=now - timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Test active filter
@@ -648,7 +652,7 @@ class TestChannelListView:
             name="Game",
             display_name="Game",
         )
-        now: datetime.datetime = timezone.now()
+        now = timezone.now()
 
         # Create active campaign
         DropCampaign.objects.create(
@@ -658,16 +662,18 @@ class TestChannelListView:
             start_at=now - timedelta(days=5),
             end_at=now + timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Create upcoming campaign
-        _upcoming_campaign: DropCampaign = DropCampaign.objects.create(
+        DropCampaign.objects.create(
             twitch_id="upcoming",
             name="Upcoming Campaign",
             game=game,
-            start_at=now + timedelta(days=5),
+            start_at=now + timedelta(days=1),
             end_at=now + timedelta(days=10),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Create expired campaign
@@ -678,6 +684,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=10),
             end_at=now - timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Test upcoming filter
@@ -707,6 +714,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=5),
             end_at=now + timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Create upcoming campaign
@@ -717,6 +725,7 @@ class TestChannelListView:
             start_at=now + timedelta(days=5),
             end_at=now + timedelta(days=10),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Create expired campaign
@@ -727,6 +736,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=10),
             end_at=now - timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Test expired filter
@@ -761,6 +771,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=5),
             end_at=now + timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
         DropCampaign.objects.create(
             twitch_id="c2",
@@ -769,6 +780,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=5),
             end_at=now + timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Create campaign for game 2
@@ -779,6 +791,7 @@ class TestChannelListView:
             start_at=now - timedelta(days=5),
             end_at=now + timedelta(days=5),
             operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
         )
 
         # Test filtering by game1
@@ -819,6 +832,7 @@ class TestChannelListView:
                 start_at=now - timedelta(days=5),
                 end_at=now + timedelta(days=5),
                 operation_names=["DropCampaignDetails"],
+                is_fully_imported=True,
             )
             for i in range(150)
         ]
@@ -1337,6 +1351,7 @@ class TestSitemapView:
             operation_names=["DropCampaignDetails"],
             start_at=now - datetime.timedelta(days=1),
             end_at=now + datetime.timedelta(days=1),
+            is_fully_imported=True,
         )
         inactive_campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="camp2",
@@ -1346,6 +1361,7 @@ class TestSitemapView:
             operation_names=["DropCampaignDetails"],
             start_at=now - datetime.timedelta(days=10),
             end_at=now - datetime.timedelta(days=5),
+            is_fully_imported=True,
         )
 
         kick_org: KickOrganization = KickOrganization.objects.create(
@@ -1364,6 +1380,7 @@ class TestSitemapView:
             category=kick_cat,
             starts_at=now - datetime.timedelta(days=1),
             ends_at=now + datetime.timedelta(days=1),
+            is_fully_imported=True,
         )
         kick_inactive: KickDropCampaign = KickDropCampaign.objects.create(
             kick_id="kcamp2",
@@ -1372,6 +1389,7 @@ class TestSitemapView:
             category=kick_cat,
             starts_at=now - datetime.timedelta(days=10),
             ends_at=now - datetime.timedelta(days=5),
+            is_fully_imported=True,
         )
 
         badge: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="badge1")
@@ -1707,6 +1725,7 @@ class TestSEOPaginationLinks:
                 description="Desc",
                 game=game,
                 operation_names=["DropCampaignDetails"],
+                is_fully_imported=True,
             )
 
         response = client.get(reverse("twitch:campaign_list"))
@@ -1731,6 +1750,7 @@ class TestSEOPaginationLinks:
                 description="Desc",
                 game=game,
                 operation_names=["DropCampaignDetails"],
+                is_fully_imported=True,
             )
 
         response = client.get(reverse("twitch:campaign_list"))

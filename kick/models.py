@@ -260,6 +260,10 @@ class KickDropCampaign(auto_prefetch.Model):
     )
     added_at = models.DateTimeField(auto_now_add=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True, editable=False)
+    is_fully_imported = models.BooleanField(
+        default=False,
+        help_text="True if all images and formats are imported and ready for display.",
+    )
 
     class Meta(auto_prefetch.Model.Meta):
         ordering = ["-starts_at"]

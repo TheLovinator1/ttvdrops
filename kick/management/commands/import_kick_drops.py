@@ -144,6 +144,7 @@ class Command(BaseCommand):
                 "category": category,
                 "created_at": data.created_at,
                 "api_updated_at": data.updated_at,
+                "is_fully_imported": True,
             },
         )
         if created:

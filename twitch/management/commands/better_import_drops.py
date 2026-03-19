@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ from colorama import Fore
 from colorama import Style
 from colorama import init as colorama_init
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from pydantic import ValidationError
@@ -35,6 +37,8 @@ from twitch.utils import normalize_twitch_box_art_url
 from twitch.utils import parse_date
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from django.core.management.base import CommandParser
     from django.db.models import Model
     from json_repair import JSONReturnType
@@ -545,7 +549,7 @@ class Command(BaseCommand):
 
         return valid_responses, broken_dir
 
-    def _save_if_changed(self, obj: Model, defaults: dict[str, object]) -> bool:
+    def _save_if_changed(self, obj: Model, defaults: Mapping[str, object]) -> bool:
         """Save the model instance only when data actually changed.
 
         This prevents unnecessary updates and avoids touching fields like
@@ -618,7 +622,7 @@ class Command(BaseCommand):
         if campaign_org_obj:
             owner_orgs.add(campaign_org_obj)
 
-        defaults: dict[str, str] = {
+        defaults: dict[str, object] = {
             "display_name": game_data.display_name or (game_data.name or ""),
             "name": game_data.name or "",
             "slug": game_data.slug or "",
@@ -681,7 +685,7 @@ class Command(BaseCommand):
         # Use name as display_name fallback if displayName is None
         display_name: str = channel_info.display_name or channel_info.name
 
-        defaults: dict[str, str] = {
+        defaults: dict[str, object] = {
             "name": channel_info.name,
             "display_name": display_name,
         }
@@ -698,7 +702,7 @@ class Command(BaseCommand):
 
         return channel_obj
 
-    def process_responses(
+    def process_responses(  # noqa: PLR0915
         self,
         responses: list[dict[str, Any]],
         file_path: Path,
@@ -778,7 +782,7 @@ class Command(BaseCommand):
                         raise ValueError(msg)
                     continue
 
-                defaults: dict[str, str | datetime | Game | bool] = {
+                defaults: dict[str, object] = {
                     "name": drop_campaign.name,
                     "description": drop_campaign.description,
                     "image_url": drop_campaign.image_url,
@@ -799,6 +803,16 @@ class Command(BaseCommand):
                     tqdm.write(
                         f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}",
                     )
+
+                # Always run additional commands after import
+                call_command("download_box_art")
+                call_command("download_campaign_images")
+                call_command("convert_images_to_modern_formats")
+
+                # After all downloads and processing, mark as fully imported
+                if campaign_obj:
+                    campaign_obj.is_fully_imported = True
+                    campaign_obj.save(update_fields=["is_fully_imported"])
 
                 action: Literal["Imported new", "Updated"] = (
                     "Imported new" if created else "Updated"
@@ -1026,7 +1040,7 @@ class Command(BaseCommand):
                                 f"{Fore.YELLOW}→{Style.RESET_ALL} Game not found for reward campaign: {game_id}",
                             )
 
-            defaults: dict[str, str | datetime | Game | bool | None] = {
+            defaults: dict[str, object] = {
                 "name": reward_campaign.name,
                 "brand": reward_campaign.brand,
                 "starts_at": starts_at_dt,
@@ -1084,6 +1098,7 @@ class Command(BaseCommand):
             else:
                 msg: str = f"Path does not exist: {input_path}"
                 raise CommandError(msg)
+
         except KeyboardInterrupt:
             tqdm.write(self.style.WARNING("\n\nInterrupted by user!"))
             tqdm.write(self.style.WARNING("Shutting down gracefully..."))

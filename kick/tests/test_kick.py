@@ -1,3 +1,4 @@
+import datetime
 import re
 from datetime import UTC
 from datetime import datetime as dt
@@ -11,6 +12,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 from django.core.management import call_command
+from django.test import Client
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -28,6 +30,7 @@ from kick.schemas import KickDropsResponseSchema
 
 if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
+    from pytest_django.asserts import QuerySet
 
     from kick.schemas import KickDropCampaignSchema
     from kick.schemas import KickRewardSchema
@@ -525,6 +528,7 @@ class KickDashboardViewTest(TestCase):
             category=cat,
             rule_id=1,
             rule_name="Watch to redeem",
+            is_fully_imported=True,
         )
 
     def test_dashboard_returns_200(self) -> None:
@@ -577,6 +581,7 @@ class KickCampaignListViewTest(TestCase):
             category=cat,
             rule_id=1,
             rule_name="Watch to redeem",
+            is_fully_imported=True,
         )
 
     def test_campaign_list_returns_200(self) -> None:
@@ -935,3 +940,105 @@ class KickFeedsTest(TestCase):
         assert result.startswith("&lt;t:")
         assert result.endswith(":R&gt;")
         assert not str(discord_timestamp(None))
+
+
+class KickDropCampaignFullyImportedTest(TestCase):
+    """Tests for KickDropCampaign.is_fully_imported field and filtering."""
+
+    def setUp(self) -> None:
+        """Create common org and category fixtures for campaign import tests."""
+        self.org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-fi",
+            name="Org",
+        )
+        self.cat: KickCategory = KickCategory.objects.create(
+            kick_id=1,
+            name="Cat",
+            slug="cat",
+        )
+
+    def test_campaign_not_fully_imported_by_default(self) -> None:
+        """By default, a newly created campaign should have is_fully_imported set to False."""
+        campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-fi-1",
+            name="Not Imported",
+            organization=self.org,
+            category=self.cat,
+            rule_id=1,
+            rule_name="Rule",
+        )
+        assert campaign.is_fully_imported is False
+
+    def test_campaign_fully_imported_flag(self) -> None:
+        """When creating a campaign with is_fully_imported=True, the flag should be set correctly."""
+        campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-fi-2",
+            name="Imported",
+            organization=self.org,
+            category=self.cat,
+            rule_id=1,
+            rule_name="Rule",
+            is_fully_imported=True,
+        )
+        assert campaign.is_fully_imported is True
+
+    def test_queryset_filters_only_fully_imported(self) -> None:
+        """Filtering campaigns by is_fully_imported should return only those with the flag set to True."""
+        KickDropCampaign.objects.create(
+            kick_id="camp-fi-3",
+            name="Not Imported",
+            organization=self.org,
+            category=self.cat,
+            rule_id=1,
+            rule_name="Rule",
+        )
+        imported: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-fi-4",
+            name="Imported",
+            organization=self.org,
+            category=self.cat,
+            rule_id=1,
+            rule_name="Rule",
+            is_fully_imported=True,
+        )
+        qs: QuerySet[KickDropCampaign, KickDropCampaign] = (
+            KickDropCampaign.objects.filter(is_fully_imported=True)
+        )
+        assert list(qs) == [imported]
+
+    def test_dashboard_view_only_shows_fully_imported(self) -> None:
+        """Dashboard view should only show fully imported and active campaigns."""
+        now: dt = timezone.now()
+
+        # Not imported, but active
+        KickDropCampaign.objects.create(
+            kick_id="camp-fi-5",
+            name="Not Imported",
+            organization=self.org,
+            category=self.cat,
+            rule_id=1,
+            rule_name="Rule",
+            starts_at=now - datetime.timedelta(days=1),
+            ends_at=now + datetime.timedelta(days=1),
+        )
+
+        # Imported and active
+        imported: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-fi-6",
+            name="Imported",
+            organization=self.org,
+            category=self.cat,
+            rule_id=1,
+            rule_name="Rule",
+            is_fully_imported=True,
+            starts_at=now - datetime.timedelta(days=1),
+            ends_at=now + datetime.timedelta(days=1),
+        )
+
+        client = Client()
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("kick:dashboard"))
+        assert response.status_code == 200
+        campaigns: QuerySet[KickDropCampaign, KickDropCampaign] = response.context[
+            "active_campaigns"
+        ]
+        assert list(campaigns) == [imported]

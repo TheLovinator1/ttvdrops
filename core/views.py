@@ -352,7 +352,9 @@ def sitemap_twitch_drops_view(request: HttpRequest) -> HttpResponse:
     base_url: str = _build_base_url(request)
     sitemap_urls: list[dict[str, str]] = []
 
-    campaigns: QuerySet[DropCampaign] = DropCampaign.objects.all()
+    campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
+        is_fully_imported=True,
+    )
     for campaign in campaigns:
         resource_url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
         full_url: str = f"{base_url}{resource_url}"
@@ -442,7 +444,9 @@ def sitemap_kick_view(request: HttpRequest) -> HttpResponse:
     base_url: str = _build_base_url(request)
     sitemap_urls: list[dict[str, str]] = []
 
-    kick_campaigns: QuerySet[KickDropCampaign] = KickDropCampaign.objects.all()
+    kick_campaigns: QuerySet[KickDropCampaign] = KickDropCampaign.objects.filter(
+        is_fully_imported=True,
+    )
     for campaign in kick_campaigns:
         resource_url: str = reverse("kick:campaign_detail", args=[campaign.kick_id])
         full_url: str = f"{base_url}{resource_url}"

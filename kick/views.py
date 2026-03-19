@@ -155,7 +155,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     now: datetime.datetime = timezone.now()
     active_campaigns: QuerySet[KickDropCampaign] = (
         KickDropCampaign.objects
-        .filter(starts_at__lte=now, ends_at__gte=now)
+        .filter(starts_at__lte=now, ends_at__gte=now, is_fully_imported=True)
         .select_related("organization", "category")
         .prefetch_related("channels__user", "rewards")
         .order_by("-starts_at")
@@ -193,6 +193,7 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
 
     queryset: QuerySet[KickDropCampaign] = (
         KickDropCampaign.objects
+        .filter(is_fully_imported=True)
         .select_related("organization", "category")
         .prefetch_related("rewards")
         .order_by("-starts_at")

@@ -429,6 +429,10 @@ class DropCampaign(auto_prefetch.Model):
         auto_now=True,
         help_text="Timestamp when this campaign record was last updated.",
     )
+    is_fully_imported = models.BooleanField(
+        default=False,
+        help_text="True if all images and formats are imported and ready for display.",
+    )
 
     class Meta(auto_prefetch.Model.Meta):
         ordering = ["-start_at"]

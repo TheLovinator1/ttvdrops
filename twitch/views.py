@@ -430,7 +430,9 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     game_filter: str | None = request.GET.get("game")
     status_filter: str | None = request.GET.get("status")
     per_page: int = 100
-    queryset: QuerySet[DropCampaign] = DropCampaign.objects.all()
+    queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(
+        is_fully_imported=True,
+    )
 
     if game_filter:
         queryset = queryset.filter(game__twitch_id=game_filter)
