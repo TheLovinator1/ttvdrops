@@ -16,7 +16,6 @@ from colorama import Fore
 from colorama import Style
 from colorama import init as colorama_init
 from django.core.files.base import ContentFile
-from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from pydantic import ValidationError
@@ -702,7 +701,7 @@ class Command(BaseCommand):
 
         return channel_obj
 
-    def process_responses(  # noqa: PLR0915
+    def process_responses(
         self,
         responses: list[dict[str, Any]],
         file_path: Path,
@@ -804,12 +803,11 @@ class Command(BaseCommand):
                         f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}",
                     )
 
-                # Always run additional commands after import
-                call_command("download_box_art")
-                call_command("download_campaign_images")
-                call_command("convert_images_to_modern_formats")
-
-                # After all downloads and processing, mark as fully imported
+                # # Always run additional commands after import
+                # call_command("download_box_art")
+                # call_command("download_campaign_images")
+                # call_command("convert_images_to_modern_formats")
+                # # After all downloads and processing, mark as fully imported
                 if campaign_obj:
                     campaign_obj.is_fully_imported = True
                     campaign_obj.save(update_fields=["is_fully_imported"])
