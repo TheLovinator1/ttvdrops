@@ -22,28 +22,30 @@ class Organization(auto_prefetch.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
     twitch_id = models.TextField(
-        unique=True,
+        help_text="The unique Twitch identifier for the organization.",
         verbose_name="Organization ID",
         editable=False,
-        help_text="The unique Twitch identifier for the organization.",
-    )
-    name = models.TextField(
         unique=True,
-        verbose_name="Name",
+    )
+
+    name = models.TextField(
         help_text="Display name of the organization.",
+        verbose_name="Name",
+        unique=True,
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Added At",
-        editable=False,
         help_text="Timestamp when this organization record was created.",
+        verbose_name="Added At",
+        auto_now_add=True,
+        editable=False,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
+        help_text="Timestamp when this organization record was last updated.",
         verbose_name="Updated At",
         editable=False,
-        help_text="Timestamp when this organization record was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -77,71 +79,87 @@ class Game(auto_prefetch.Model):
 
     twitch_id = models.TextField(verbose_name="Twitch game ID", unique=True)
     slug = models.TextField(
+        help_text="Short unique identifier for the game.",
+        verbose_name="Slug",
         max_length=200,
         blank=True,
         default="",
-        verbose_name="Slug",
-        help_text="Short unique identifier for the game.",
     )
-    name = models.TextField(blank=True, default="", verbose_name="Name")
-    display_name = models.TextField(blank=True, default="", verbose_name="Display name")
+
+    name = models.TextField(
+        verbose_name="Name",
+        blank=True,
+        default="",
+    )
+
+    display_name = models.TextField(
+        verbose_name="Display name",
+        blank=True,
+        default="",
+    )
+
     box_art = models.URLField(  # noqa: DJ001
+        verbose_name="Box art URL",
         max_length=500,
         blank=True,
-        null=True,
         default="",
-        verbose_name="Box art URL",
+        null=True,
     )
 
     box_art_file = models.ImageField(
+        help_text="Locally cached box art image served from this site.",
+        height_field="box_art_height",
+        width_field="box_art_width",
         upload_to="games/box_art/",
         blank=True,
         null=True,
-        width_field="box_art_width",
-        height_field="box_art_height",
-        help_text="Locally cached box art image served from this site.",
     )
+
     box_art_width = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        editable=False,
         help_text="Width of cached box art image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
     )
+
     box_art_height = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        editable=False,
         help_text="Height of cached box art image in pixels.",
-    )
-    box_art_size_bytes = models.PositiveIntegerField(
-        null=True,
-        blank=True,
         editable=False,
-        help_text="File size of the cached box art image in bytes.",
+        blank=True,
+        null=True,
     )
+
+    box_art_size_bytes = models.PositiveIntegerField(
+        help_text="File size of the cached box art image in bytes.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
     box_art_mime_type = models.CharField(
+        help_text="MIME type of the cached box art image (e.g., 'image/png').",
+        editable=False,
         max_length=50,
         blank=True,
         default="",
-        editable=False,
-        help_text="MIME type of the cached box art image (e.g., 'image/png').",
     )
 
     owners = models.ManyToManyField(
-        Organization,
-        related_name="games",
-        blank=True,
-        verbose_name="Organizations",
         help_text="Organizations that own this game.",
+        verbose_name="Organizations",
+        related_name="games",
+        to=Organization,
+        blank=True,
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Timestamp when this game record was created.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
         help_text="Timestamp when this game record was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -229,39 +247,49 @@ class TwitchGameData(auto_prefetch.Model):
     """
 
     twitch_id = models.TextField(
+        help_text="The Twitch ID for this game.",
         verbose_name="Twitch Game ID",
         unique=True,
-        help_text="The Twitch ID for this game.",
-    )
-    game = auto_prefetch.ForeignKey(
-        Game,
-        on_delete=models.SET_NULL,
-        related_name="twitch_game_data",
-        null=True,
-        blank=True,
-        verbose_name="Game",
-        help_text=("Optional link to the local Game record for this Twitch game."),
     )
 
-    name = models.TextField(blank=True, default="", verbose_name="Name")
-    box_art_url = models.URLField(
-        max_length=500,
+    game = auto_prefetch.ForeignKey(
+        help_text="Optional link to the local Game record for this Twitch game.",
+        related_name="twitch_game_data",
+        on_delete=models.SET_NULL,
+        verbose_name="Game",
+        blank=True,
+        null=True,
+        to=Game,
+    )
+
+    name = models.TextField(
+        verbose_name="Name",
         blank=True,
         default="",
-        verbose_name="Box art URL",
-        help_text=(
-            "URL template with {width}x{height} placeholders for the box art image."
-        ),
     )
-    igdb_id = models.TextField(blank=True, default="", verbose_name="IGDB ID")
+
+    box_art_url = models.URLField(
+        help_text="URL template with {width}x{height} placeholders for the box art image.",
+        verbose_name="Box art URL",
+        blank=True,
+        default="",
+        max_length=500,
+    )
+
+    igdb_id = models.TextField(
+        verbose_name="IGDB ID",
+        blank=True,
+        default="",
+    )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Record creation time.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
         help_text="Record last update time.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -284,26 +312,29 @@ class Channel(auto_prefetch.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
 
     twitch_id = models.TextField(
-        verbose_name="Channel ID",
         help_text="The unique Twitch identifier for the channel.",
+        verbose_name="Channel ID",
         unique=True,
     )
+
     name = models.TextField(
-        verbose_name="Username",
         help_text="The lowercase username of the channel.",
+        verbose_name="Username",
     )
+
     display_name = models.TextField(
-        verbose_name="Display Name",
         help_text="The display name of the channel (with proper capitalization).",
+        verbose_name="Display Name",
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Timestamp when this channel record was created.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
         help_text="Timestamp when this channel record was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -326,112 +357,130 @@ class DropCampaign(auto_prefetch.Model):
     """Represents a Twitch drop campaign."""
 
     twitch_id = models.TextField(
-        unique=True,
-        editable=False,
         help_text="The Twitch ID for this campaign.",
+        editable=False,
+        unique=True,
     )
-    name = models.TextField(help_text="Name of the drop campaign.")
+
+    name = models.TextField(
+        help_text="Name of the drop campaign.",
+    )
+
     description = models.TextField(
-        blank=True,
         help_text="Detailed description of the campaign.",
+        blank=True,
     )
+
     details_url = models.URLField(
-        max_length=500,
-        blank=True,
-        default="",
         help_text="URL with campaign details.",
+        max_length=500,
+        blank=True,
+        default="",
     )
+
     account_link_url = models.URLField(
-        max_length=500,
-        blank=True,
-        default="",
         help_text="URL to link a Twitch account for the campaign.",
-    )
-    image_url = models.URLField(
         max_length=500,
         blank=True,
         default="",
+    )
+
+    image_url = models.URLField(
         help_text="URL to an image representing the campaign.",
+        max_length=500,
+        blank=True,
+        default="",
     )
+
     image_file = models.ImageField(
-        upload_to="campaigns/images/",
-        blank=True,
-        null=True,
-        width_field="image_width",
-        height_field="image_height",
         help_text="Locally cached campaign image served from this site.",
+        upload_to="campaigns/images/",
+        height_field="image_height",
+        width_field="image_width",
+        blank=True,
+        null=True,
     )
+
     image_width = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        editable=False,
         help_text="Width of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
     )
+
     image_height = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        editable=False,
         help_text="Height of cached image in pixels.",
-    )
-    image_size_bytes = models.PositiveIntegerField(
-        null=True,
-        blank=True,
         editable=False,
-        help_text="File size of the cached campaign image in bytes.",
+        blank=True,
+        null=True,
     )
+
+    image_size_bytes = models.PositiveIntegerField(
+        help_text="File size of the cached campaign image in bytes.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
     image_mime_type = models.CharField(
+        help_text="MIME type of the cached campaign image (e.g., 'image/png').",
+        editable=False,
         max_length=50,
         blank=True,
         default="",
-        editable=False,
-        help_text="MIME type of the cached campaign image (e.g., 'image/png').",
     )
+
     start_at = models.DateTimeField(
-        null=True,
-        blank=True,
         help_text="Datetime when the campaign starts.",
-    )
-    end_at = models.DateTimeField(
+        blank=True,
         null=True,
-        blank=True,
+    )
+
+    end_at = models.DateTimeField(
         help_text="Datetime when the campaign ends.",
-    )
-    allow_is_enabled = models.BooleanField(
-        default=True,
-        help_text="Whether the campaign allows participation.",
-    )
-    allow_channels = models.ManyToManyField(
-        Channel,
         blank=True,
-        related_name="allowed_campaigns",
+        null=True,
+    )
+
+    allow_is_enabled = models.BooleanField(
+        help_text="Whether the campaign allows participation.",
+        default=True,
+    )
+
+    allow_channels = models.ManyToManyField(
         help_text="Channels that are allowed to participate in this campaign.",
+        related_name="allowed_campaigns",
+        to=Channel,
+        blank=True,
     )
 
     game = auto_prefetch.ForeignKey(
-        Game,
-        on_delete=models.CASCADE,
-        related_name="drop_campaigns",
-        verbose_name="Game",
         help_text="Game associated with this campaign.",
+        related_name="drop_campaigns",
+        on_delete=models.CASCADE,
+        verbose_name="Game",
+        to=Game,
     )
 
     operation_names = models.JSONField(
+        help_text="List of GraphQL operation names used to fetch this campaign data (e.g., ['ViewerDropsDashboard', 'Inventory']).",
         default=list,
         blank=True,
-        help_text="List of GraphQL operation names used to fetch this campaign data (e.g., ['ViewerDropsDashboard', 'Inventory']).",
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Timestamp when this campaign record was created.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
         help_text="Timestamp when this campaign record was last updated.",
+        auto_now=True,
     )
+
     is_fully_imported = models.BooleanField(
-        default=False,
         help_text="True if all images and formats are imported and ready for display.",
+        default=False,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -575,71 +624,77 @@ class DropBenefit(auto_prefetch.Model):
     """Represents a benefit that can be earned from a drop."""
 
     twitch_id = models.TextField(
-        unique=True,
         help_text="The Twitch ID for this benefit.",
         editable=False,
+        unique=True,
     )
+
     name = models.TextField(
-        blank=True,
-        default="N/A",
         help_text="Name of the drop benefit.",
+        default="N/A",
+        blank=True,
     )
+
     image_asset_url = models.URLField(
+        help_text="URL to the benefit's image asset.",
         max_length=500,
         blank=True,
         default="",
-        help_text="URL to the benefit's image asset.",
-    )
-    image_file = models.ImageField(
-        upload_to="benefits/images/",
-        blank=True,
-        null=True,
-        width_field="image_width",
-        height_field="image_height",
-        help_text="Locally cached benefit image served from this site.",
-    )
-    image_width = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        editable=False,
-        help_text="Width of cached image in pixels.",
-    )
-    image_height = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        editable=False,
-        help_text="Height of cached image in pixels.",
-    )
-    created_at = models.DateTimeField(
-        null=True,
-        help_text=(
-            "Timestamp when the benefit was created. This is from Twitch API and not auto-generated."
-        ),
-    )
-    entitlement_limit = models.PositiveIntegerField(
-        default=1,
-        help_text="Maximum number of times this benefit can be earned.",
     )
 
-    # NOTE: Default may need revisiting once requirements are confirmed.
-    is_ios_available = models.BooleanField(
-        default=False,
-        help_text="Whether the benefit is available on iOS.",
+    image_file = models.ImageField(
+        help_text="Locally cached benefit image served from this site.",
+        upload_to="benefits/images/",
+        height_field="image_height",
+        width_field="image_width",
+        blank=True,
+        null=True,
     )
+
+    image_width = models.PositiveIntegerField(
+        help_text="Width of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
+    image_height = models.PositiveIntegerField(
+        help_text="Height of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
+    created_at = models.DateTimeField(
+        help_text="Timestamp when the benefit was created. This is from Twitch API and not auto-generated.",
+        null=True,
+    )
+
+    entitlement_limit = models.PositiveIntegerField(
+        help_text="Maximum number of times this benefit can be earned.",
+        default=1,
+    )
+
+    is_ios_available = models.BooleanField(
+        help_text="Whether the benefit is available on iOS.",
+        default=False,
+    )
+
     distribution_type = models.TextField(
+        help_text="Type of distribution for this benefit.",
         max_length=50,
         blank=True,
         default="",
-        help_text="Type of distribution for this benefit.",
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Timestamp when this benefit record was created.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
         help_text="Timestamp when this benefit record was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -674,27 +729,30 @@ class DropBenefitEdge(auto_prefetch.Model):
     """Link a TimeBasedDrop to a DropBenefit."""
 
     drop = auto_prefetch.ForeignKey(
+        help_text="The time-based drop in this relationship.",
         to="twitch.TimeBasedDrop",
         on_delete=models.CASCADE,
-        help_text="The time-based drop in this relationship.",
     )
+
     benefit = auto_prefetch.ForeignKey(
-        DropBenefit,
-        on_delete=models.CASCADE,
         help_text="The benefit in this relationship.",
+        on_delete=models.CASCADE,
+        to=DropBenefit,
     )
+
     entitlement_limit = models.PositiveIntegerField(
-        default=1,
         help_text="Max times this benefit can be claimed for this drop.",
+        default=1,
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Timestamp when this drop-benefit edge was created.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
         help_text="Timestamp when this drop-benefit edge was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -722,52 +780,60 @@ class TimeBasedDrop(auto_prefetch.Model):
     """Represents a time-based drop in a drop campaign."""
 
     twitch_id = models.TextField(
-        unique=True,
-        editable=False,
         help_text="The Twitch ID for this time-based drop.",
-    )
-    name = models.TextField(help_text="Name of the time-based drop.")
-    required_minutes_watched = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        help_text="Minutes required to watch before earning this drop.",
-    )
-    required_subs = models.PositiveIntegerField(
-        default=0,
-        help_text="Number of subscriptions required to unlock this drop.",
-    )
-    start_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Datetime when this drop becomes available.",
-    )
-    end_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Datetime when this drop expires.",
+        editable=False,
+        unique=True,
     )
 
-    # Foreign keys
-    campaign = auto_prefetch.ForeignKey(
-        DropCampaign,
-        on_delete=models.CASCADE,
-        related_name="time_based_drops",
-        help_text="The campaign this drop belongs to.",
+    name = models.TextField(
+        help_text="Name of the time-based drop.",
     )
+
+    required_minutes_watched = models.PositiveIntegerField(
+        help_text="Minutes required to watch before earning this drop.",
+        blank=True,
+        null=True,
+    )
+
+    required_subs = models.PositiveIntegerField(
+        help_text="Number of subscriptions required to unlock this drop.",
+        default=0,
+    )
+
+    start_at = models.DateTimeField(
+        help_text="Datetime when this drop becomes available.",
+        blank=True,
+        null=True,
+    )
+
+    end_at = models.DateTimeField(
+        help_text="Datetime when this drop expires.",
+        blank=True,
+        null=True,
+    )
+
+    campaign = auto_prefetch.ForeignKey(
+        help_text="The campaign this drop belongs to.",
+        related_name="time_based_drops",
+        on_delete=models.CASCADE,
+        to=DropCampaign,
+    )
+
     benefits = models.ManyToManyField(
-        DropBenefit,
+        help_text="Benefits unlocked by this drop.",
         through=DropBenefitEdge,
         related_name="drops",
-        help_text="Benefits unlocked by this drop.",
+        to=DropBenefit,
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Timestamp when this time-based drop record was created.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
+        help_text="Timestamp when this time-based drop record was last updated.",
         auto_now=True,
-        help_text=("Timestamp when this time-based drop record was last updated."),
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -798,104 +864,123 @@ class RewardCampaign(auto_prefetch.Model):
     """Represents a Twitch reward campaign (Quest rewards)."""
 
     twitch_id = models.TextField(
-        unique=True,
-        editable=False,
         help_text="The Twitch ID for this reward campaign.",
+        editable=False,
+        unique=True,
     )
-    name = models.TextField(help_text="Name of the reward campaign.")
+
+    name = models.TextField(
+        help_text="Name of the reward campaign.",
+    )
+
     brand = models.TextField(
+        help_text="Brand associated with the reward campaign.",
         blank=True,
         default="",
-        help_text="Brand associated with the reward campaign.",
     )
+
     starts_at = models.DateTimeField(
-        null=True,
-        blank=True,
         help_text="Datetime when the reward campaign starts.",
-    )
-    ends_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Datetime when the reward campaign ends.",
     )
+
+    ends_at = models.DateTimeField(
+        help_text="Datetime when the reward campaign ends.",
+        null=True,
+        blank=True,
+    )
+
     status = models.TextField(
         max_length=50,
-        default="UNKNOWN",
         help_text="Status of the reward campaign.",
+        default="UNKNOWN",
     )
+
     summary = models.TextField(
-        blank=True,
-        default="",
         help_text="Summary description of the reward campaign.",
-    )
-    instructions = models.TextField(
         blank=True,
         default="",
-        help_text="Instructions for the reward campaign.",
     )
+
+    instructions = models.TextField(
+        help_text="Instructions for the reward campaign.",
+        blank=True,
+        default="",
+    )
+
     external_url = models.URLField(
         max_length=500,
-        blank=True,
-        default="",
         help_text="External URL for the reward campaign.",
-    )
-    reward_value_url_param = models.TextField(
         blank=True,
         default="",
-        help_text="URL parameter for reward value.",
     )
+
+    reward_value_url_param = models.TextField(
+        help_text="URL parameter for reward value.",
+        blank=True,
+        default="",
+    )
+
     about_url = models.URLField(
         max_length=500,
+        help_text="About URL for the reward campaign.",
         blank=True,
         default="",
-        help_text="About URL for the reward campaign.",
     )
+
     image_url = models.URLField(
         max_length=500,
+        help_text="URL to an image representing the reward campaign.",
         blank=True,
         default="",
-        help_text="URL to an image representing the reward campaign.",
     )
+
     image_file = models.ImageField(
+        help_text="Locally cached reward campaign image served from this site.",
         upload_to="reward_campaigns/images/",
-        blank=True,
-        null=True,
         width_field="image_width",
         height_field="image_height",
-        help_text="Locally cached reward campaign image served from this site.",
+        blank=True,
+        null=True,
     )
+
     image_width = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        editable=False,
         help_text="Width of cached image in pixels.",
-    )
-    image_height = models.PositiveIntegerField(
-        null=True,
-        blank=True,
         editable=False,
-        help_text="Height of cached image in pixels.",
-    )
-    is_sitewide = models.BooleanField(
-        default=False,
-        help_text="Whether the reward campaign is sitewide.",
-    )
-    game = auto_prefetch.ForeignKey(
-        Game,
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
-        related_name="reward_campaigns",
+        null=True,
+    )
+
+    image_height = models.PositiveIntegerField(
+        help_text="Height of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
+    is_sitewide = models.BooleanField(
+        help_text="Whether the reward campaign is sitewide.",
+        default=False,
+    )
+
+    game = auto_prefetch.ForeignKey(
         help_text="Game associated with this reward campaign (if any).",
+        related_name="reward_campaigns",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        to=Game,
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
         help_text="Timestamp when this reward campaign record was created.",
+        auto_now_add=True,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
         help_text="Timestamp when this reward campaign record was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -944,22 +1029,23 @@ class ChatBadgeSet(auto_prefetch.Model):
     """Represents a set of Twitch global chat badges (e.g., VIP, Subscriber, Bits)."""
 
     set_id = models.TextField(
-        unique=True,
-        verbose_name="Set ID",
         help_text="Identifier for this badge set (e.g., 'vip', 'subscriber', 'bits').",
+        verbose_name="Set ID",
+        unique=True,
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Added At",
-        editable=False,
         help_text="Timestamp when this badge set record was created.",
+        verbose_name="Added At",
+        auto_now_add=True,
+        editable=False,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
+        help_text="Timestamp when this badge set record was last updated.",
         verbose_name="Updated At",
         editable=False,
-        help_text="Timestamp when this badge set record was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):
@@ -980,64 +1066,73 @@ class ChatBadge(auto_prefetch.Model):
     """Represents a specific version of a Twitch global chat badge."""
 
     badge_set = auto_prefetch.ForeignKey(
-        ChatBadgeSet,
-        on_delete=models.CASCADE,
-        related_name="badges",
-        verbose_name="Badge Set",
         help_text="The badge set this badge belongs to.",
+        on_delete=models.CASCADE,
+        verbose_name="Badge Set",
+        related_name="badges",
+        to=ChatBadgeSet,
     )
+
     badge_id = models.TextField(
-        verbose_name="Badge ID",
         help_text="Version identifier for this badge (e.g., '1', 'Alliance', '10000').",
+        verbose_name="Badge ID",
     )
+
     image_url_1x = models.URLField(
-        max_length=500,
-        verbose_name="Image URL (18px)",
         help_text="URL to the small version (18px x 18px) of the badge.",
+        verbose_name="Image URL (18px)",
+        max_length=500,
     )
+
     image_url_2x = models.URLField(
-        max_length=500,
-        verbose_name="Image URL (36px)",
         help_text="URL to the medium version (36px x 36px) of the badge.",
+        verbose_name="Image URL (36px)",
+        max_length=500,
     )
+
     image_url_4x = models.URLField(
-        max_length=500,
-        verbose_name="Image URL (72px)",
         help_text="URL to the large version (72px x 72px) of the badge.",
+        verbose_name="Image URL (72px)",
+        max_length=500,
     )
+
     title = models.TextField(
-        verbose_name="Title",
         help_text="The title of the badge (e.g., 'VIP').",
+        verbose_name="Title",
     )
+
     description = models.TextField(
-        verbose_name="Description",
         help_text="The description of the badge.",
+        verbose_name="Description",
     )
+
     click_action = models.TextField(  # noqa: DJ001
+        help_text="The action to take when clicking on the badge (e.g., 'visit_url').",
+        verbose_name="Click Action",
         blank=True,
         null=True,
-        verbose_name="Click Action",
-        help_text="The action to take when clicking on the badge (e.g., 'visit_url').",
     )
+
     click_url = models.URLField(  # noqa: DJ001
+        help_text="The URL to navigate to when clicking on the badge.",
+        verbose_name="Click URL",
         max_length=500,
         blank=True,
         null=True,
-        verbose_name="Click URL",
-        help_text="The URL to navigate to when clicking on the badge.",
     )
 
     added_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name="Added At",
-        editable=False,
         help_text="Timestamp when this badge record was created.",
+        verbose_name="Added At",
+        auto_now_add=True,
+        editable=False,
     )
+
     updated_at = models.DateTimeField(
-        auto_now=True,
+        help_text="Timestamp when this badge record was last updated.",
         verbose_name="Updated At",
         editable=False,
-        help_text="Timestamp when this badge record was last updated.",
+        auto_now=True,
     )
 
     class Meta(auto_prefetch.Model.Meta):

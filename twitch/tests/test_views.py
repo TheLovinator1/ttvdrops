@@ -1342,7 +1342,8 @@ class TestSitemapView:
             name="ch1",
             display_name="Channel 1",
         )
-        now: datetime = timezone.now()
+
+        now: datetime.datetime = timezone.now()
         campaign: DropCampaign = DropCampaign.objects.create(
             twitch_id="camp1",
             name="Test Campaign",

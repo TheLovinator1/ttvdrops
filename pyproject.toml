@@ -25,7 +25,14 @@ dependencies = [
     "tqdm",
     "index-now-for-python",
     "sitemap-parser",
+    "celery[redis]",
+    "django-celery-results",
+    "django-celery-beat",
+    "flower",
+    "hiredis",
+    "redis",
 ]
+
 
 [dependency-groups]
 dev = [

@@ -64,11 +64,12 @@
 - Use settings modules and environment variables to configure behavior, not hardcoded constants
 
 ## Technology Stack
-- Python 3, Django, SQLite
+- Python 3, Django, PostgreSQL, Redis (Valkey), Celery for background tasks
 - HTML templates with Django templating; static assets served from `static/` and collected to `staticfiles/`
 - Management commands in `twitch/management/commands/` for data import and maintenance tasks
 - Use `pyproject.toml` + uv for dependency and environment management
 - Use `uv run python manage.py <command>` to run Django management commands
+- Use `uv run pytest` to run tests
 
 ## Documentation & Project Organization
 - Only create documentation files when explicitly requested by the user

@@ -135,14 +135,19 @@ LOGGING: dict[str, Any] = {
 }
 
 INSTALLED_APPS: list[str] = [
+    # Django built-in apps
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
+    # Internal apps
     "twitch.apps.TwitchConfig",
     "kick.apps.KickConfig",
     "youtube.apps.YoutubeConfig",
     "core.apps.CoreConfig",
+    # Third-party apps
+    "django_celery_results",
+    "django_celery_beat",
 ]
 
 MIDDLEWARE: list[str] = [
@@ -202,3 +207,24 @@ if not TESTING:
             profile_session_sample_rate=1.0,
             profile_lifecycle="trace",
         )
+
+REDIS_URL_CACHE: str = os.getenv(
+    key="REDIS_URL_CACHE",
+    default="redis://localhost:6379/0",
+)
+REDIS_URL_CELERY: str = os.getenv(
+    key="REDIS_URL_CELERY",
+    default="redis://localhost:6379/1",
+)
+
+CACHES: dict[str, dict[str, str]] = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL_CACHE,
+    },
+}
+
+CELERY_BROKER_URL: str = REDIS_URL_CELERY
+CELERY_RESULT_BACKEND = "django-db"
+CELERY_RESULT_EXTENDED = True
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"

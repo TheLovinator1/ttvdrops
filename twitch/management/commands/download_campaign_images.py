@@ -345,8 +345,12 @@ class Command(BaseCommand):
                 if img.mode in {"RGBA", "LA"} or (
                     img.mode == "P" and "transparency" in img.info
                 ):
-                    background: Image = Image.new("RGB", img.size, (255, 255, 255))
-                    rgba_img: Image | ImageFile = (
+                    background: Image.Image = Image.new(
+                        "RGB",
+                        img.size,
+                        (255, 255, 255),
+                    )
+                    rgba_img: Image.Image | ImageFile = (
                         img.convert("RGBA") if img.mode == "P" else img
                     )
                     background.paste(
@@ -357,9 +361,9 @@ class Command(BaseCommand):
                     )
                     rgb_img = background
                 elif img.mode != "RGB":
-                    rgb_img: Image = img.convert("RGB")
+                    rgb_img: Image.Image = img.convert("RGB")
                 else:
-                    rgb_img: ImageFile = img
+                    rgb_img: Image.Image = img
 
                 # Save WebP
                 rgb_img.save(webp_path, "WEBP", quality=85, method=6)

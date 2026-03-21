@@ -81,6 +81,19 @@ uv run python manage.py runserver
 uv run pytest
 ```
 
+## Celery
+
+```bash
+
+```
+
+Start a worker:
+
+```bash
+uv run celery -A config worker --loglevel=info
+uv run celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
+
 ## Import Drops
 
 ```bash
