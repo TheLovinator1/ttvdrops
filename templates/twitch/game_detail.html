@@ -24,7 +24,7 @@
         <!-- Game image -->
         <div style="margin-right: 16px;">
             {% if game.box_art_best_url %}
-                {% picture game.box_art_best_url alt=game.name width=160 %}
+                {% picture game.box_art_best_url alt="Box art for "|add:game.get_game_name width=160 %}
             {% endif %}
         </div>
         <!-- Game Title and Details -->
