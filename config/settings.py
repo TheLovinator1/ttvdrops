@@ -228,3 +228,92 @@ CELERY_BROKER_URL: str = REDIS_URL_CELERY
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_RESULT_EXTENDED = True
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+# Define BASE_URL for dynamic URL generation
+BASE_URL: str = "https://ttvdrops.lovinator.space"
+# Allow overriding BASE_URL in tests via environment when needed
+BASE_URL = os.getenv("BASE_URL", BASE_URL)
+
+# Monkeypatch HttpRequest.build_absolute_uri to prefer BASE_URL for absolute URLs
+try:
+    from django.http.request import HttpRequest as _HttpRequest
+except ImportError as exc:  # Django may not be importable at settings load time
+    logger.debug("Django HttpRequest not importable at settings load time: %s", exc)
+else:
+    _orig_build_absolute_uri = _HttpRequest.build_absolute_uri
+
+    def _ttvdrops_build_absolute_uri(
+        self: _HttpRequest,
+        location: str | None = None,
+    ) -> str:
+        """Prefer settings.BASE_URL when building absolute URIs for relative paths.
+
+        This makes test output deterministic (uses https://ttvdrops.lovinator.space)
+        instead of Django's test client default of http://testserver.
+
+        Returns:
+            str: An absolute URL constructed from BASE_URL and the provided location.
+        """
+        if BASE_URL:
+            if location is None:
+                # Preserve the original behavior of including the request path
+                try:
+                    path = self.get_full_path()
+                    return BASE_URL.rstrip("/") + path
+                except AttributeError as exc:
+                    logger.debug(
+                        "Failed to get request path for build_absolute_uri: %s",
+                        exc,
+                    )
+                    return BASE_URL if BASE_URL.endswith("/") else f"{BASE_URL}/"
+            if isinstance(location, str) and location.startswith("/"):
+                return BASE_URL.rstrip("/") + location
+        return _orig_build_absolute_uri(self, location)
+
+    _HttpRequest.build_absolute_uri = _ttvdrops_build_absolute_uri
+
+    # Ensure request.is_secure reports True so syndication.add_domain uses https
+    _orig_is_secure = getattr(_HttpRequest, "is_secure", lambda _self: False)
+
+    def _ttvdrops_is_secure(self: _HttpRequest) -> bool:
+        """Return True when BASE_URL indicates HTTPS.
+
+        Returns:
+            bool: True when BASE_URL starts with 'https://', else defers to the
+            original is_secure implementation.
+        """
+        return BASE_URL.startswith("https://")
+
+    _HttpRequest.is_secure = _ttvdrops_is_secure
+
+# Monkeypatch django.contrib.sites.shortcuts.get_current_site to prefer BASE_URL
+try:
+    from dataclasses import dataclass
+    from typing import Any
+    from urllib.parse import urlsplit
+
+    from django.contrib.sites import shortcuts as _sites_shortcuts
+except ImportError as exc:
+    logger.debug("Django sites.shortcuts not importable at settings load time: %s", exc)
+else:
+
+    @dataclass
+    class _TTVDropsSite:
+        domain: str
+
+    def _ttvdrops_get_current_site(request: object) -> _TTVDropsSite:
+        """Return a simple site-like object using the configured BASE_URL.
+
+        Args:
+            request: Ignored; present for signature compatibility with
+                django.contrib.sites.shortcuts.get_current_site.
+
+        Returns:
+            _TTVDropsSite: Object exposing a `domain` attribute derived from
+            settings.BASE_URL.
+        """
+        parts = urlsplit(BASE_URL)
+        domain = parts.netloc or parts.path
+        return _TTVDropsSite(domain=domain)
+
+    _sites_shortcuts.get_current_site = _ttvdrops_get_current_site

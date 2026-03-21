@@ -41,6 +41,12 @@ if TYPE_CHECKING:
     from twitch.views import Page
 
 
+@pytest.fixture(autouse=True)
+def apply_base_url_override(settings: object) -> None:
+    """Ensure BASE_URL is globally overridden for all tests."""
+    settings.BASE_URL = "https://ttvdrops.lovinator.space"
+
+
 @pytest.mark.django_db
 class TestSearchView:
     """Tests for the search_view function."""
@@ -1562,14 +1568,14 @@ class TestSitemapView:
 
         # Check for the homepage and a few key list views across apps.
         assert (
-            "<loc>http://testserver/</loc>" in content
+            "<loc>https://ttvdrops.lovinator.space/</loc>" in content
             or "<loc>http://localhost:8000/</loc>" in content
         )
-        assert "http://testserver/twitch/" in content
-        assert "http://testserver/kick/" in content
-        assert "http://testserver/youtube/" in content
-        assert "http://testserver/twitch/campaigns/" in content
-        assert "http://testserver/twitch/games/" in content
+        assert "https://ttvdrops.lovinator.space/twitch/" in content
+        assert "https://ttvdrops.lovinator.space/kick/" in content
+        assert "https://ttvdrops.lovinator.space/youtube/" in content
+        assert "https://ttvdrops.lovinator.space/twitch/campaigns/" in content
+        assert "https://ttvdrops.lovinator.space/twitch/games/" in content
 
     def test_sitemap_contains_game_detail_pages(
         self,
@@ -1605,13 +1611,13 @@ class TestSitemapView:
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-twitch-drops.xml")
         content: str = response.content.decode()
 
-        active_loc: str = f"<loc>http://testserver/twitch/campaigns/{active_campaign.twitch_id}/</loc>"
+        active_loc: str = f"<loc>https://ttvdrops.lovinator.space/twitch/campaigns/{active_campaign.twitch_id}/</loc>"
         active_index: int = content.find(active_loc)
         assert active_index != -1
         active_end: int = content.find("</url>", active_index)
         assert active_end != -1
 
-        inactive_loc: str = f"<loc>http://testserver/twitch/campaigns/{inactive_campaign.twitch_id}/</loc>"
+        inactive_loc: str = f"<loc>https://ttvdrops.lovinator.space/twitch/campaigns/{inactive_campaign.twitch_id}/</loc>"
         inactive_index: int = content.find(inactive_loc)
         assert inactive_index != -1
         inactive_end: int = content.find("</url>", inactive_index)
@@ -1629,17 +1635,13 @@ class TestSitemapView:
         response: _MonkeyPatchedWSGIResponse = client.get("/sitemap-kick.xml")
         content: str = response.content.decode()
 
-        active_loc: str = (
-            f"<loc>http://testserver/kick/campaigns/{active_campaign.kick_id}/</loc>"
-        )
+        active_loc: str = f"<loc>https://ttvdrops.lovinator.space/kick/campaigns/{active_campaign.kick_id}/</loc>"
         active_index: int = content.find(active_loc)
         assert active_index != -1
         active_end: int = content.find("</url>", active_index)
         assert active_end != -1
 
-        inactive_loc: str = (
-            f"<loc>http://testserver/kick/campaigns/{inactive_campaign.kick_id}/</loc>"
-        )
+        inactive_loc: str = f"<loc>https://ttvdrops.lovinator.space/kick/campaigns/{inactive_campaign.kick_id}/</loc>"
         inactive_index: int = content.find(inactive_loc)
         assert inactive_index != -1
         inactive_end: int = content.find("</url>", inactive_index)
@@ -1972,7 +1974,7 @@ class TestImageObjectStructuredData:
         assert img["creator"] == {
             "@type": "Organization",
             "name": org.name,
-            "url": f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}",
+            "url": f"https://ttvdrops.lovinator.space{reverse('twitch:organization_detail', args=[org.twitch_id])}",
         }
 
     def test_game_schema_no_image_when_no_box_art(
@@ -2084,7 +2086,7 @@ class TestImageObjectStructuredData:
         assert img["creator"] == {
             "@type": "Organization",
             "name": org.name,
-            "url": f"http://testserver{reverse('twitch:organization_detail', args=[org.twitch_id])}",
+            "url": f"https://ttvdrops.lovinator.space{reverse('twitch:organization_detail', args=[org.twitch_id])}",
         }
 
     def test_campaign_schema_no_image_when_no_image_url(

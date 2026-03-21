@@ -177,11 +177,12 @@ class RSSFeedTestCase(TestCase):
         assert 'rel="self"' in content, msg
 
         msg: str = f"Expected self link to point to campaign feed URL, got: {content}"
-        assert 'href="http://testserver/atom/campaigns/"' in content, msg
+        assert 'href="https://ttvdrops.lovinator.space/atom/campaigns/"' in content, msg
 
         msg: str = f"Expected entry ID to be the campaign URL, got: {content}"
         assert (
-            "<id>http://testserver/twitch/campaigns/test-campaign-123/</id>" in content
+            "<id>https://ttvdrops.lovinator.space/twitch/campaigns/test-campaign-123/</id>"
+            in content
         ), msg
 
     def test_all_atom_feeds_use_url_ids_and_correct_self_links(self) -> None:
@@ -190,27 +191,27 @@ class RSSFeedTestCase(TestCase):
             (
                 "core:campaign_feed_atom",
                 {},
-                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
                 "core:game_feed_atom",
                 {},
-                f"http://testserver{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
             ),
             (
                 "core:game_campaign_feed_atom",
                 {"twitch_id": self.game.twitch_id},
-                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
                 "core:organization_feed_atom",
                 {},
-                f"http://testserver{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
             ),
             (
                 "core:reward_campaign_feed_atom",
                 {},
-                f"http://testserver{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
             ),
         ]
 
@@ -221,7 +222,7 @@ class RSSFeedTestCase(TestCase):
             assert response.status_code == 200
             content: str = response.content.decode("utf-8")
 
-            expected_self_link: str = f'href="http://testserver{url}"'
+            expected_self_link: str = f'href="https://ttvdrops.lovinator.space{url}"'
             msg: str = f"Expected self link in Atom feed {url_name}, got: {content}"
             assert 'rel="self"' in content, msg
 
@@ -317,7 +318,7 @@ class RSSFeedTestCase(TestCase):
             msg: str = (
                 f"Expected absolute media enclosure URLs for {url}, got: {content}"
             )
-            assert "http://testserver/media/" in content, msg
+            assert "https://ttvdrops.lovinator.space/media/" in content, msg
             assert 'url="/media/' not in content, msg
             assert 'href="/media/' not in content, msg
 
@@ -1321,27 +1322,27 @@ class DiscordFeedTestCase(TestCase):
             (
                 "core:campaign_feed_discord",
                 {},
-                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
                 "core:game_feed_discord",
                 {},
-                f"http://testserver{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:game_detail', args=[self.game.twitch_id])}",
             ),
             (
                 "core:game_campaign_feed_discord",
                 {"twitch_id": self.game.twitch_id},
-                f"http://testserver{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:campaign_detail', args=[self.campaign.twitch_id])}",
             ),
             (
                 "core:organization_feed_discord",
                 {},
-                f"http://testserver{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:organization_detail', args=[self.org.twitch_id])}",
             ),
             (
                 "core:reward_campaign_feed_discord",
                 {},
-                f"http://testserver{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
+                f"https://ttvdrops.lovinator.space{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
             ),
         ]
 
@@ -1352,7 +1353,7 @@ class DiscordFeedTestCase(TestCase):
             assert response.status_code == 200
             content: str = response.content.decode("utf-8")
 
-            expected_self_link: str = f'href="http://testserver{url}"'
+            expected_self_link: str = f'href="https://ttvdrops.lovinator.space{url}"'
             msg: str = f"Expected self link in Discord feed {url_name}, got: {content}"
             assert 'rel="self"' in content, msg
 

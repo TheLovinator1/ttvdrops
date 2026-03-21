@@ -2,6 +2,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import auto_prefetch
+from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.urls import reverse
@@ -64,7 +65,7 @@ class Organization(auto_prefetch.Model):
     def feed_description(self: Organization) -> str:
         """Return a description of the organization for RSS feeds."""
         name: str = self.name or "Unknown Organization"
-        url: str = reverse("twitch:organization_detail", args=[self.twitch_id])
+        url: str = f"{settings.BASE_URL}{reverse('twitch:organization_detail', args=[self.twitch_id])}"
 
         return format_html(
             '<p>New Twitch organization added to TTVDrops:</p>\n<p><a href="{}">{}</a></p>',

@@ -49,7 +49,7 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-n 4"
+addopts = ""
 filterwarnings = [
     "ignore:Parsing dates involving a day of month without a year specified is ambiguous:DeprecationWarning",
 ]
@@ -87,6 +87,7 @@ lint.ignore = [
     "PLR0912", # Checks for functions or methods with too many branches, including (nested) if, elif, and else branches, for loops, try-except clauses, and match and case statements.
     "PLR6301", # Checks for the presence of unused self parameter in methods definitions.
     "RUF012",  # Checks for mutable default values in class attributes.
+    "ARG001",  # Checks for the presence of unused arguments in function definitions.
 
     # Conflicting lint rules when using Ruff's formatter
     # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules

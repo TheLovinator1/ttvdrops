@@ -48,23 +48,33 @@ def test_meta_tags_use_request_absolute_url_for_og_url_and_canonical() -> None:
     """Test that without page_url in context, og:url and canonical tags use request.build_absolute_uri."""
     content: str = _render_meta_tags(path="/drops/")
 
-    assert _extract_meta_content(content, "og:url") == "http://testserver/drops/"
-    assert '<link rel="canonical" href="http://testserver/drops/" />' in content
+    assert (
+        _extract_meta_content(content, "og:url")
+        == "https://ttvdrops.lovinator.space/drops/"
+    )
+    assert (
+        '<link rel="canonical" href="https://ttvdrops.lovinator.space/drops/" />'
+        in content
+    )
 
 
 def test_meta_tags_use_explicit_page_url_for_og_url_and_canonical() -> None:
     """Test that providing page_url in context results in correct og:url and canonical tags."""
     content: str = _render_meta_tags(
         {
-            "page_url": "https://example.com/custom-page/",
+            "page_url": "https://ttvdrops.lovinator.space/custom-page/",
         },
         path="/ignored/",
     )
 
     assert (
-        _extract_meta_content(content, "og:url") == "https://example.com/custom-page/"
+        _extract_meta_content(content, "og:url")
+        == "https://ttvdrops.lovinator.space/custom-page/"
     )
-    assert '<link rel="canonical" href="https://example.com/custom-page/" />' in content
+    assert (
+        '<link rel="canonical" href="https://ttvdrops.lovinator.space/custom-page/" />'
+        in content
+    )
 
 
 def test_meta_tags_twitter_card_is_summary_without_image() -> None:
@@ -78,16 +88,19 @@ def test_meta_tags_twitter_card_is_summary_without_image() -> None:
 def test_meta_tags_twitter_card_is_summary_large_image_with_page_image() -> None:
     """Test that providing page_image in context results in twitter:card being summary_large_image and correct og:image and twitter:image tags."""
     content: str = _render_meta_tags({
-        "page_image": "https://example.com/image.png",
+        "page_image": "https://ttvdrops.lovinator.space/image.png",
         "page_image_width": 1200,
         "page_image_height": 630,
     })
 
     assert _extract_meta_content(content, "twitter:card") == "summary_large_image"
-    assert _extract_meta_content(content, "og:image") == "https://example.com/image.png"
+    assert (
+        _extract_meta_content(content, "og:image")
+        == "https://ttvdrops.lovinator.space/image.png"
+    )
     assert (
         _extract_meta_content(content, "twitter:image")
-        == "https://example.com/image.png"
+        == "https://ttvdrops.lovinator.space/image.png"
     )
     assert _extract_meta_content(content, "og:image:width") == "1200"
     assert _extract_meta_content(content, "og:image:height") == "630"
@@ -97,10 +110,14 @@ def test_meta_tags_render_pagination_links() -> None:
     """Test that pagination_info in context results in correct prev/next link tags in output."""
     content: str = _render_meta_tags({
         "pagination_info": [
-            {"rel": "prev", "url": "https://example.com/page/1/"},
-            {"rel": "next", "url": "https://example.com/page/3/"},
+            {"rel": "prev", "url": "https://ttvdrops.lovinator.space/page/1/"},
+            {"rel": "next", "url": "https://ttvdrops.lovinator.space/page/3/"},
         ],
     })
 
-    assert '<link rel="prev" href="https://example.com/page/1/" />' in content
-    assert '<link rel="next" href="https://example.com/page/3/" />' in content
+    assert (
+        '<link rel="prev" href="https://ttvdrops.lovinator.space/page/1/" />' in content
+    )
+    assert (
+        '<link rel="next" href="https://ttvdrops.lovinator.space/page/3/" />' in content
+    )
