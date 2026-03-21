@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def apply_base_url_override(settings: object) -> None:
     """Ensure BASE_URL is globally overridden for all tests."""
-    settings.BASE_URL = "https://ttvdrops.lovinator.space"
+    settings.BASE_URL = "https://ttvdrops.lovinator.space"  # pyright: ignore[reportAttributeAccessIssue]
 
 
 @pytest.mark.django_db
