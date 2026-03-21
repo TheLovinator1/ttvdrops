@@ -140,6 +140,18 @@
                                                                         ... and {{ campaign_data.allowed_channels|length|add:"-5" }} more
                                                                     </li>
                                                                 {% endif %}
+                                                            {% else %}
+                                                                {% if campaign_data.campaign.game.twitch_directory_url %}
+                                                                    <li>
+                                                                        <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
+                                                                           rel="nofollow ugc"
+                                                                           title="Find streamers playing {{ campaign_data.campaign.game.display_name }} with drops enabled">
+                                                                            Go to a participating live channel
+                                                                        </a>
+                                                                    </li>
+                                                                {% else %}
+                                                                    <li>Failed to get Twitch directory URL :(</li>
+                                                                {% endif %}
                                                             {% endif %}
                                                         </ul>
                                                     </div>
