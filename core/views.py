@@ -256,14 +256,59 @@ def sitemap_static_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered sitemap XML.
     """
     # `request` is unused but required by Django's view signature.
-    base_url: str = _build_base_url()
+    base_url: str = _build_base_url().rstrip("/")
     sitemap_urls: list[dict[str, str]] = [
-        {"loc": f"{base_url}/"},
-        {"loc": f"{base_url}/twitch/"},
-        {"loc": f"{base_url}/twitch/campaigns/"},
-        {"loc": f"{base_url}/twitch/games/"},
-        {"loc": f"{base_url}/kick/"},
-        {"loc": f"{base_url}/youtube/"},
+        {"loc": f"{base_url}{reverse('core:dashboard')}"},
+        {"loc": f"{base_url}{reverse('core:search')}"},
+        {"loc": f"{base_url}{reverse('core:debug')}"},
+        {"loc": f"{base_url}{reverse('core:dataset_backups')}"},
+        {"loc": f"{base_url}{reverse('core:docs_rss')}"},
+        # Core RSS/Atom/Discord feeds
+        {"loc": f"{base_url}{reverse('core:campaign_feed')}"},
+        {"loc": f"{base_url}{reverse('core:game_feed')}"},
+        {"loc": f"{base_url}{reverse('core:organization_feed')}"},
+        {"loc": f"{base_url}{reverse('core:reward_campaign_feed')}"},
+        {"loc": f"{base_url}{reverse('core:campaign_feed_atom')}"},
+        {"loc": f"{base_url}{reverse('core:game_feed_atom')}"},
+        {"loc": f"{base_url}{reverse('core:organization_feed_atom')}"},
+        {"loc": f"{base_url}{reverse('core:reward_campaign_feed_atom')}"},
+        {"loc": f"{base_url}{reverse('core:campaign_feed_discord')}"},
+        {"loc": f"{base_url}{reverse('core:game_feed_discord')}"},
+        {"loc": f"{base_url}{reverse('core:organization_feed_discord')}"},
+        {"loc": f"{base_url}{reverse('core:reward_campaign_feed_discord')}"},
+        # Twitch app pages
+        {"loc": f"{base_url}{reverse('twitch:dashboard')}"},
+        {"loc": f"{base_url}{reverse('twitch:campaign_list')}"},
+        {"loc": f"{base_url}{reverse('twitch:games_grid')}"},
+        {"loc": f"{base_url}{reverse('twitch:games_list')}"},
+        {"loc": f"{base_url}{reverse('twitch:channel_list')}"},
+        {"loc": f"{base_url}{reverse('twitch:badge_list')}"},
+        {"loc": f"{base_url}{reverse('twitch:emote_gallery')}"},
+        {"loc": f"{base_url}{reverse('twitch:org_list')}"},
+        {"loc": f"{base_url}{reverse('twitch:reward_campaign_list')}"},
+        {"loc": f"{base_url}{reverse('twitch:export_campaigns_csv')}"},
+        {"loc": f"{base_url}{reverse('twitch:export_games_csv')}"},
+        {"loc": f"{base_url}{reverse('twitch:export_organizations_csv')}"},
+        {"loc": f"{base_url}{reverse('twitch:export_campaigns_json')}"},
+        {"loc": f"{base_url}{reverse('twitch:export_games_json')}"},
+        {"loc": f"{base_url}{reverse('twitch:export_organizations_json')}"},
+        # Kick app pages and feeds
+        {"loc": f"{base_url}{reverse('kick:dashboard')}"},
+        {"loc": f"{base_url}{reverse('kick:campaign_list')}"},
+        {"loc": f"{base_url}{reverse('kick:game_list')}"},
+        {"loc": f"{base_url}{reverse('kick:organization_list')}"},
+        {"loc": f"{base_url}{reverse('kick:campaign_feed')}"},
+        {"loc": f"{base_url}{reverse('kick:game_feed')}"},
+        {"loc": f"{base_url}{reverse('kick:organization_feed')}"},
+        {"loc": f"{base_url}{reverse('kick:campaign_feed_atom')}"},
+        {"loc": f"{base_url}{reverse('kick:game_feed_atom')}"},
+        {"loc": f"{base_url}{reverse('kick:organization_feed_atom')}"},
+        {"loc": f"{base_url}{reverse('kick:campaign_feed_discord')}"},
+        {"loc": f"{base_url}{reverse('kick:game_feed_discord')}"},
+        {"loc": f"{base_url}{reverse('kick:organization_feed_discord')}"},
+        # YouTube
+        {"loc": f"{base_url}{reverse('youtube:index')}"},
+        # Misc/static
         {"loc": f"{base_url}/about/"},
         {"loc": f"{base_url}/robots.txt"},
     ]
