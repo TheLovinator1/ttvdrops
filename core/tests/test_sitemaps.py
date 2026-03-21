@@ -23,7 +23,7 @@ def test_sitemap_static_contains_expected_links(
     youtube apps as well as some misc static files like /robots.txt.
     """
     # Ensure deterministic BASE_URL
-    settings.BASE_URL = "https://ttvdrops.lovinator.space"
+    settings.BASE_URL = "https://ttvdrops.lovinator.space"  # pyright: ignore[reportAttributeAccessIssue]
 
     response = client.get(reverse("sitemap-static"))
     assert response.status_code == 200
@@ -31,7 +31,7 @@ def test_sitemap_static_contains_expected_links(
 
     locs = _extract_locs(response.content)
 
-    base = settings.BASE_URL.rstrip("/")
+    base = settings.BASE_URL.rstrip("/")  # pyright: ignore[reportAttributeAccessIssue]
 
     expected_paths = [
         reverse("core:dashboard"),

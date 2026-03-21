@@ -22,8 +22,8 @@ from django.http import Http404
 from django.http import HttpRequest
 from django.http import HttpResponse
 from django.shortcuts import render
-from django.shortcuts import reverse
 from django.template.defaultfilters import filesizeformat
+from django.urls import reverse
 from django.utils import timezone
 
 from kick.models import KickChannel
