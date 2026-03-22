@@ -5,6 +5,9 @@
 {% endblock title %}
 {% block content %}
     <h1>{{ badge_set.set_id }}</h1>
+    <div>
+        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:badge_list' %}">Badges</a> > {{ badge_set.set_id }}
+    </div>
     {% if badges %}
         <table>
             <tbody>
@@ -19,12 +22,12 @@
                         <td>{{ badge.title }}</td>
                         <td>{{ badge.description }}</td>
                         <td>
-                            <a href="{{ badge.image_url_1x }}" rel="nofollow ugc">[18px]</a>
-                            <a href="{{ badge.image_url_2x }}" rel="nofollow ugc">[36px]</a>
-                            <a href="{{ badge.image_url_4x }}" rel="nofollow ugc">[72px]</a>
+                            <a href="{{ badge.image_url_1x }}">[18px]</a>
+                            <a href="{{ badge.image_url_2x }}">[36px]</a>
+                            <a href="{{ badge.image_url_4x }}">[72px]</a>
                         </td>
                         <td>
-                            {% if badge.click_url %}<a href="{{ badge.click_url }}" rel="nofollow ugc">{{ badge.click_action }}</a>{% endif %}
+                            {% if badge.click_url %}<a href="{{ badge.click_url }}">{{ badge.click_action }}</a>{% endif %}
                         </td>
                     </tr>
                     {% if badge.award_campaigns %}

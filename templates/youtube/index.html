@@ -6,9 +6,7 @@
     <main>
         <h1>YouTube channels with rewards.</h1>
         <p>
-            <a href="https://support.google.com/youtube/answer/9024948?hl=en&co=GENIE.Platform%3DAndroid"
-               rel="noopener"
-               target="_blank">YouTube Help Center</a> has the following channels listed where you can earn rewards:
+            <a href="https://support.google.com/youtube/answer/9024948?hl=en&co=GENIE.Platform%3DAndroid">YouTube Help Center</a> has the following channels listed where you can earn rewards:
         </p>
         <table>
             <thead>
@@ -22,7 +20,7 @@
                     {% for item in group.channels %}
                         <tr>
                             <td>
-                                <a href="{{ item.url }}" rel="noopener" target="_blank">{{ item.channel }}</a>
+                                <a href="{{ item.url }}">{{ item.channel }}</a>
                             </td>
                             <td>{{ group.organization }}</td>
                         </tr>

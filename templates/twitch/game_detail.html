@@ -33,28 +33,30 @@
                 {{ game.display_name }}
                 {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
             </h1>
+            <!-- Add breadcrumbs -->
+            <div>
+                <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:games_grid' %}">Games</a> > {{ game.display_name }}
+            </div>
             <!-- Game owner -->
             {% if owners %}
-                <small>
+                <div style="font-size: 0.9em;">
                     Owned by
                     {% for owner in owners %}
                         <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
-                        {% if not forloop.last %},{% endif %}
+                        {% if not forloop.last %}-{% endif %}
                     {% endfor %}
-                </small>
+                </div>
             {% endif %}
             <div>
-                Twitch ID: <a href="https://www.twitch.tv/directory/category/{{ game.slug|urlencode }}">{{ game.twitch_id }}</a>
-            </div>
-            <div>Twitch slug: {{ game.slug }}</div>
-            <small>
-                Published:
+                Published
                 <time datetime="{{ game.added_at|date:'c' }}"
-                      title="{{ game.added_at|date:'DATETIME_FORMAT' }}">{{ game.added_at|date:"M d, Y H:i" }}</time>
-                · Last updated:
+                      title="{{ game.added_at|date:'DATETIME_FORMAT' }}">{{ game.added_at|date:"M d, Y H:i" }}</time> ({{ game.added_at|timesince }} ago)
+            </div>
+            <div>
+                Last updated
                 <time datetime="{{ game.updated_at|date:'c' }}"
-                      title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time>
-            </small>
+                      title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time> ({{ game.updated_at|timesince }} ago)
+            </div>
             <!-- RSS Feeds -->
             <div>
                 <a href="{% url 'core:game_campaign_feed' game.twitch_id %}"

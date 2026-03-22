@@ -18,7 +18,10 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
-        <h1>Active Kick Drop Campaigns</h1>
+        <h1>Active Kick Drops</h1>
+        <div>
+            Scraped from <a href="https://web.kick.com/api/v1/drops/campaigns">Kick API</a>.
+        </div>
         <!-- RSS Feeds -->
         <div>
             <a href="{% url 'kick:campaign_feed' %}"
@@ -114,9 +117,7 @@
                             {% endif %}
                             {% if campaign.connect_url %}
                                 <p style="margin: 0.25rem 0;">
-                                    <a href="{{ campaign.connect_url }}"
-                                       rel="nofollow noopener"
-                                       target="_blank">Connect account</a>
+                                    <a href="{{ campaign.connect_url }}">Connect account</a>
                                 </p>
                             {% endif %}
                             <div style="margin-top: 0.5rem; font-size: 0.9rem;">
@@ -126,13 +127,9 @@
                                         {% for channel in campaign.channels.all|slice:":5" %}
                                             <li>
                                                 {% if channel.user %}
-                                                    <a href="{{ channel.channel_url }}"
-                                                       rel="nofollow noopener"
-                                                       target="_blank">{{ channel.user.username }}</a>
+                                                    <a href="{{ channel.channel_url }}">{{ channel.user.username }}</a>
                                                 {% else %}
-                                                    <a href="{{ channel.channel_url }}"
-                                                       rel="nofollow noopener"
-                                                       target="_blank">{{ channel.slug }}</a>
+                                                    <a href="{{ channel.channel_url }}">{{ channel.slug }}</a>
                                                 {% endif %}
                                             </li>
                                         {% endfor %}

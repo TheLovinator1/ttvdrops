@@ -4,6 +4,10 @@
 {% endblock title %}
 {% block content %}
     <h1>Organizations</h1>
+    <!-- Add breadcrumbs -->
+    <div>
+        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Organizations
+    </div>
     <div>
         <a href="{% url 'core:organization_feed' %}"
            title="RSS feed for all organizations">[rss]</a>

@@ -918,11 +918,11 @@ class GameFeed(TTVDropsBaseFeed):
 
 # MARK: /rss/campaigns/
 class DropCampaignFeed(TTVDropsBaseFeed):
-    """RSS feed for latest drop campaigns."""
+    """RSS feed for latest Twitch drops."""
 
-    title: str = "Twitch Drop Campaigns"
+    title: str = "Twitch Drops"
     link: str = "/"
-    description: str = "Latest Twitch drop campaigns on TTVDrops"
+    description: str = "Latest Twitch drops"
     item_guid_is_permalink = True
 
     _limit: int | None = None

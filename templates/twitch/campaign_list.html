@@ -21,7 +21,10 @@
 {% block content %}
     <main>
         <header>
-            <h1>Drop Campaigns</h1>
+            <h1>List of Twitch Drop Campaigns</h1>
+            <div>
+                <a href="{% url 'core:dashboard' %}">Dashboard</a> > Drops
+            </div>
             <!-- RSS Feeds -->
             <div>
                 <a href="{% url 'core:campaign_feed' %}"

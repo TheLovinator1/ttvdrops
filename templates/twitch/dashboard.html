@@ -20,11 +20,8 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
-        <h1>Active Twitch Drops Campaigns</h1>
+        <h1>List of all active Twitch drops.</h1>
         <p>
-            This page lists all currently active Twitch Drops campaigns
-            organized by game.
-            <br />
             Click on a campaign for more details about it and how to
             earn drops.
             <br />
@@ -108,7 +105,6 @@
                                                             {% for channel in campaign_data.allowed_channels|slice:":5" %}
                                                                 <li style="margin-bottom: 0.1rem;">
                                                                     <a href="https://twitch.tv/{{ channel.name }}"
-                                                                       rel="nofollow ugc"
                                                                        title="Watch {{ channel.display_name }} on Twitch">
                                                                         {{ channel.display_name }}</a><a href="{% url 'twitch:channel_detail' channel.twitch_id %}"
    title="View {{ channel.display_name }} details"
@@ -121,7 +117,6 @@
                                                                 {% if campaign.game.twitch_directory_url %}
                                                                     <li>
                                                                         <a href="{{ campaign.game.twitch_directory_url }}"
-                                                                           rel="nofollow ugc"
                                                                            title="Open Twitch category page for {{ campaign_data.campaign.game.display_name }} with Drops filter">
                                                                             Browse {{ campaign_data.campaign.game.display_name }} category
                                                                         </a>
@@ -139,7 +134,6 @@
                                                             {% if campaign_data.campaign.game.twitch_directory_url %}
                                                                 <li>
                                                                     <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
-                                                                       rel="nofollow ugc"
                                                                        title="Find streamers playing {{ campaign_data.campaign.game.display_name }} with drops enabled">
                                                                         Go to a participating live channel
                                                                     </a>
@@ -236,7 +230,6 @@
                                 {% if campaign.external_url %}
                                     <div style="margin-top: 0.75rem;">
                                         <a href="{{ campaign.external_url }}"
-                                           rel="nofollow ugc"
                                            style="display: inline-block;
                                                   padding: 0.5rem 1rem;
                                                   background-color: #9146ff;

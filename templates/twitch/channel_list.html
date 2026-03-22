@@ -5,6 +5,9 @@
 {% endblock title %}
 {% block content %}
     <h1>Channels</h1>
+    <div>
+        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Channels
+    </div>
     <p>Browse all channels that can participate in drop campaigns</p>
     <form method="get" action="{% url 'twitch:channel_list' %}">
         <input type="text"

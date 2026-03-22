@@ -114,7 +114,6 @@
                                                                 {% for channel in campaign_data.allowed_channels|slice:":5" %}
                                                                     <li style="margin-bottom: 0.1rem;">
                                                                         <a href="https://twitch.tv/{{ channel.name }}"
-                                                                           rel="nofollow ugc"
                                                                            title="Watch {{ channel.display_name }} on Twitch">
                                                                             {{ channel.display_name }}</a><a href="{% url 'twitch:channel_detail' channel.twitch_id %}"
    title="View {{ channel.display_name }} details"
@@ -126,7 +125,6 @@
                                                                     {% if campaign_data.campaign.game.twitch_directory_url %}
                                                                         <li>
                                                                             <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
-                                                                               rel="nofollow ugc"
                                                                                title="Find streamers playing {{ campaign_data.campaign.game.display_name }} with drops enabled">
                                                                                 Go to a participating live channel
                                                                             </a>
@@ -144,7 +142,6 @@
                                                                 {% if campaign_data.campaign.game.twitch_directory_url %}
                                                                     <li>
                                                                         <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
-                                                                           rel="nofollow ugc"
                                                                            title="Find streamers playing {{ campaign_data.campaign.game.display_name }} with drops enabled">
                                                                             Go to a participating live channel
                                                                         </a>
@@ -321,7 +318,7 @@
                                                             {% if campaign_data.channels %}
                                                                 {% for channel in campaign_data.channels|slice:":5" %}
                                                                     <li style="margin-bottom: 0.1rem;">
-                                                                        <a href="{{ channel.channel_url }}" rel="nofollow ugc" target="_blank">
+                                                                        <a href="{{ channel.channel_url }}">
                                                                             {% if channel.user %}
                                                                                 {{ channel.user.username }}
                                                                             {% else %}

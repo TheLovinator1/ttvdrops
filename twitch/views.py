@@ -457,7 +457,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     except EmptyPage:
         campaigns = paginator.page(paginator.num_pages)
 
-    title = "Twitch Drop Campaigns"
+    title = "Twitch Drops"
     if status_filter:
         title += f" ({status_filter.capitalize()})"
     if game_filter:
@@ -467,13 +467,13 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
         except Game.DoesNotExist:
             pass
 
-    description = "Browse Twitch drop campaigns"
+    description = "Browse Twitch drops"
     if status_filter == "active":
-        description = "Browse active Twitch drop campaigns."
+        description = "Browse active Twitch drops."
     elif status_filter == "upcoming":
-        description = "View upcoming Twitch drop campaigns starting soon."
+        description = "View upcoming Twitch drops starting soon."
     elif status_filter == "expired":
-        description = "Browse expired Twitch drop campaigns."
+        description = "Browse expired Twitch drops."
 
     # Build base URL for pagination
     base_url = "/campaigns/"
@@ -965,7 +965,7 @@ class GameDetailView(DetailView):
         owners: list[Organization] = list(game.owners.all())
 
         game_name: str = game.display_name or game.name or game.twitch_id
-        game_description: str = f"Twitch drop campaigns for {game_name}."
+        game_description: str = f"Twitch drops for {game_name}."
         game_image: str | None = game.box_art_best_url
         game_image_width: int | None = game.box_art_width if game.box_art_file else None
         game_image_height: int | None = (
@@ -1129,7 +1129,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch Drops",
-        page_description="Overview of active Twitch drop campaigns and rewards.",
+        page_description="Overview of active Twitch drops and rewards.",
         seo_meta={
             "og_type": "website",
             "schema_data": website_schema,
@@ -1186,17 +1186,17 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     except EmptyPage:
         reward_campaigns = paginator.page(paginator.num_pages)
 
-    title = "Twitch Reward Campaigns"
+    title = "Twitch Rewards"
     if status_filter:
         title += f" ({status_filter.capitalize()})"
 
     description = "Twitch rewards."
     if status_filter == "active":
-        description = "Browse active Twitch reward campaigns."
+        description = "Browse active Twitch rewards."
     elif status_filter == "upcoming":
-        description = "Browse upcoming Twitch reward campaigns."
+        description = "Browse upcoming Twitch rewards."
     elif status_filter == "expired":
-        description = "Browse expired Twitch reward campaigns."
+        description = "Browse expired Twitch rewards."
 
     # Build base URL for pagination
     base_url = "/reward-campaigns/"

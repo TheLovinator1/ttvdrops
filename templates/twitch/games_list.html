@@ -19,6 +19,10 @@
 {% block content %}
     <main>
         <h1>Games List</h1>
+        <!-- Add breadcrumbs -->
+        <div>
+            <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Games
+        </div>
         <div>
             <a href="{% url 'twitch:games_grid' %}" title="View games as grid">[grid]</a>
             <a href="{% url 'core:game_feed' %}" title="RSS feed for all games">[rss]</a>

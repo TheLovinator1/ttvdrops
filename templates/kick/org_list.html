@@ -20,6 +20,9 @@
     <main>
         <h1>Kick Organizations</h1>
         <div>
+            <a href="{% url 'kick:dashboard' %}">Kick</a> > Organizations
+        </div>
+        <div>
             <a href="{% url 'kick:organization_feed' %}"
                title="RSS feed for all organizations">[rss]</a>
             <a href="{% url 'kick:organization_feed_atom' %}"
@@ -34,7 +37,7 @@
                     <li>
                         <a href="{% url 'kick:organization_detail' org.kick_id %}">{{ org.name }}</a>
                         {% if org.campaign_count %}- {{ org.campaign_count }} campaign{{ org.campaign_count|pluralize }}{% endif %}
-                        {% if org.url %}- <a href="{{ org.url }}" rel="nofollow noopener" target="_blank">{{ org.url }}</a>{% endif %}
+                        {% if org.url %}- <a href="{{ org.url }}">{{ org.url }}</a>{% endif %}
                     </li>
                 {% endfor %}
             </ul>

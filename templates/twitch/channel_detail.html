@@ -5,29 +5,37 @@
 {% block content %}
     <!-- Channel Title -->
     <h1>{{ channel.display_name }}</h1>
+    <!-- Add breadcrumbs -->
+    <div>
+        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:channel_list' %}">Channels</a> > {{ channel.display_name }}
+    </div>
     {% if channel.display_name != channel.name %}
-        <p>
+        <div>
             Username: <code>{{ channel.name }}</code>
-        </p>
+        </div>
     {% endif %}
+    <!-- Channel Info -->
+    <div>Channel ID: {{ channel.twitch_id }}</div>
+    <div>
+        Published
+        <time datetime="{{ channel.added_at|date:'c' }}"
+              title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">{{ channel.added_at|date:"M d, Y H:i" }}</time> ({{ channel.added_at|timesince }} ago)
+    </div>
+    <div>
+        Last updated
+        <time datetime="{{ channel.updated_at|date:'c' }}"
+              title="{{ channel.updated_at|date:'DATETIME_FORMAT' }}">{{ channel.updated_at|date:"M d, Y H:i" }}</time> ({{ channel.updated_at|timesince }} ago)
+    </div>
     <!-- Twitch Stream Embed -->
     <iframe src="https://player.twitch.tv/?channel={{ channel.name }}&parent={{ request.get_host }}&muted=false"
             height="480"
             width="100%"
             allowfullscreen
             style="max-width: 854px;
-                   border: none">
+                   border: none;
+                   margin-top: 16px;
+                   margin-bottom: 16px">
     </iframe>
-    <!-- Channel Info -->
-    <p>Channel ID: {{ channel.twitch_id }}</p>
-    <p>
-        Published:
-        <time datetime="{{ channel.added_at|date:'c' }}"
-              title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">{{ channel.added_at|date:"M d, Y H:i" }}</time>
-        · Last updated:
-        <time datetime="{{ channel.updated_at|date:'c' }}"
-              title="{{ channel.updated_at|date:'DATETIME_FORMAT' }}">{{ channel.updated_at|date:"M d, Y H:i" }}</time>
-    </p>
     {% if active_campaigns %}
         <h5>Active Campaigns</h5>
         <table>

@@ -5,6 +5,9 @@
 {% endblock title %}
 {% block content %}
     <h1>{{ badge_sets.count }} Twitch Chat Badges</h1>
+    <div>
+        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Badges
+    </div>
     {% if badge_sets %}
         {% for data in badge_data %}
             <h2>

@@ -22,14 +22,20 @@
 {% endblock extra_head %}
 {% block content %}
     <h1>{{ organization.name }}</h1>
-    <p>
-        Published:
+    <!-- Add breadcrumbs -->
+    <div>
+        <a href="{% url 'core:dashboard' %}">Dashboard</a> > <a href="{% url 'twitch:org_list' %}">Organizations</a> > {{ organization.name }}
+    </div>
+    <div>
+        Published
         <time datetime="{{ organization.added_at|date:'c' }}"
-              title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time>
-        · Last updated:
+              title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time> ({{ organization.added_at|timesince }} ago)
+    </div>
+    <div>
+        Last updated
         <time datetime="{{ organization.updated_at|date:'c' }}"
-              title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time>
-    </p>
+              title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time> ({{ organization.updated_at|timesince }} ago)
+    </div>
     <header>
         <h2>Games by {{ organization.name }}</h2>
     </header>

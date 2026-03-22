@@ -18,7 +18,16 @@
           href="{% url 'core:reward_campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
-    <h1>Reward Campaigns</h1>
+    <h1>List of Twitch Reward Campaigns</h1>
+    <!-- Add breadcrumbs -->
+    <div>
+        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Reward Campaigns
+    </div>
+    <p>This is an archive of old Twitch reward campaigns because we currently do not scrape them.</p>
+    <p>
+        Feel free to submit a pull request on <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a>
+        with a working implementation :-).
+    </p>
     <!-- RSS Feeds -->
     <div>
         <a href="{% url 'core:reward_campaign_feed' %}"
@@ -29,11 +38,6 @@
            title="Discord feed for all reward campaigns">[discord]</a>
         <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
     </div>
-    <p>This is an archive of old Twitch reward campaigns because we do not monitor them.</p>
-    <p>
-        Feel free to submit a pull request on <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a>
-        with a working implementation :-).
-    </p>
     {% if reward_campaigns %}
         {% comment %}
         <h5>Active Reward Campaigns</h5>

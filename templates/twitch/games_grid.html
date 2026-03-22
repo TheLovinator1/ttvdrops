@@ -20,7 +20,11 @@
 {% block content %}
     <main>
         <header>
-            <h1 id="page-title">All Games</h1>
+            <h1>All Games</h1>
+            <!-- Add breadcrumbs -->
+            <div>
+                <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Games
+            </div>
             <div>
                 <a href="{% url 'twitch:games_list' %}" title="View games as list">[list]</a>
                 <a href="{% url 'core:game_feed' %}" title="RSS feed for all games">[rss]</a>
@@ -40,8 +44,7 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
                     {% for organization, games in games_by_org.items %}
                         {% for item in games %}
-                            <article id="game-{{ item.game.twitch_id }}"
-                                     style="padding: 0.25rem;
+                            <article style="padding: 0.25rem;
                                             border-radius: 8px;
                                             flex: 1 1 160px;
                                             text-align: center">

@@ -20,6 +20,9 @@
     <main>
         <h1>Kick Games</h1>
         <div>
+            <a href="{% url 'kick:dashboard' %}">Kick</a> > Games
+        </div>
+        <div>
             <a href="{% url 'kick:game_feed' %}" title="RSS feed for all games">[rss]</a>
             <a href="{% url 'kick:game_feed_atom' %}"
                title="Atom feed for all games">[atom]</a>

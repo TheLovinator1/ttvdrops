@@ -28,7 +28,7 @@
                 {% if org.restricted %}<p style="margin: 0.25rem 0; color: #b00;">Restricted</p>{% endif %}
                 {% if org.url %}
                     <p style="margin: 0.25rem 0;">
-                        <a href="{{ org.url }}" rel="nofollow noopener" target="_blank">{{ org.url }}</a>
+                        <a href="{{ org.url }}">{{ org.url }}</a>
                     </p>
                 {% endif %}
                 <p style="margin: 0.25rem 0; font-size: 0.85rem; color: #666;">
@@ -121,9 +121,7 @@
                             {% endif %}
                             {% if campaign.connect_url %}
                                 <p style="margin: 0.25rem 0;">
-                                    <a href="{{ campaign.connect_url }}"
-                                       rel="nofollow noopener"
-                                       target="_blank">Connect account</a>
+                                    <a href="{{ campaign.connect_url }}">Connect account</a>
                                 </p>
                             {% endif %}
                             <div style="margin-top: 0.5rem; font-size: 0.9rem;">
@@ -133,13 +131,9 @@
                                         {% for channel in campaign.channels.all|slice:":5" %}
                                             <li>
                                                 {% if channel.user %}
-                                                    <a href="{{ channel.channel_url }}"
-                                                       rel="nofollow noopener"
-                                                       target="_blank">{{ channel.user.username }}</a>
+                                                    <a href="{{ channel.channel_url }}">{{ channel.user.username }}</a>
                                                 {% else %}
-                                                    <a href="{{ channel.channel_url }}"
-                                                       rel="nofollow noopener"
-                                                       target="_blank">{{ channel.slug }}</a>
+                                                    <a href="{{ channel.channel_url }}">{{ channel.slug }}</a>
                                                 {% endif %}
                                             </li>
                                         {% endfor %}

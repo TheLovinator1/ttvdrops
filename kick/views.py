@@ -289,9 +289,6 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
         campaign.rewards.order_by("required_units").select_related("category"),  # type: ignore[union-attr]
     )
     channels: list[KickChannel] = list(campaign.channels.select_related("user"))
-    reward_count: int = len(rewards)
-    channels_count: int = len(channels)
-    total_watch_minutes: int = sum(reward.required_units for reward in rewards)
 
     breadcrumb_schema: str = _build_breadcrumb_schema([
         {"name": "Home", "url": request.build_absolute_uri("/")},
@@ -360,9 +357,6 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
             "campaign": campaign,
             "rewards": rewards,
             "channels": channels,
-            "reward_count": reward_count,
-            "channels_count": channels_count,
-            "total_watch_minutes": total_watch_minutes,
             "now": now,
             "breadcrumb_schema": breadcrumb_schema,
             **seo_context,

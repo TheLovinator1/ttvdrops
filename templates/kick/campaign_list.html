@@ -18,7 +18,13 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
-        <h1>Kick Drop Campaigns</h1>
+        <h1>List of Kick drops</h1>
+        <div>
+            <a href="{% url 'kick:dashboard' %}">Kick</a> > Campaigns
+        </div>
+        <div>
+            Scraped from <a href="https://web.kick.com/api/v1/drops/campaigns">Kick API</a>.
+        </div>
         <div>
             <a href="{% url 'kick:campaign_feed' %}"
                title="RSS feed for all campaigns">[rss]</a>
