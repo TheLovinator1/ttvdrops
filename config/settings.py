@@ -71,7 +71,6 @@ DATA_DIR: Path = get_data_dir()
 
 ADMINS: list[tuple[str, str]] = [("Joakim Hellsén", "tlovinator@gmail.com")]
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ROOT_URLCONF = "config.urls"
 SECRET_KEY: str = os.getenv("DJANGO_SECRET_KEY", default="")
 if not SECRET_KEY:
