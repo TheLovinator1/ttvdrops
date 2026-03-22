@@ -1410,3 +1410,33 @@ class DiscordFeedTestCase(TestCase):
             f"Expected Discord timestamp format &amp;lt;t:UNIX_TIMESTAMP:R&amp;gt; in content, got: {content}"
         )
         assert "()" not in content
+
+    def test_feed_links_return_200(self) -> None:
+        """Test that all links in the feeds return 200 OK."""
+        feed_urls: list[str] = [
+            reverse("core:organization_feed"),
+            reverse("core:game_feed"),
+            reverse("core:organization_feed_atom"),
+        ]
+
+        for feed_url in feed_urls:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(feed_url)
+            assert response.status_code == 200, f"Feed {feed_url} did not return 200."
+
+            # Extract all links from the feed content
+            content: str = response.content.decode("utf-8")
+            links: list[str] = re.findall(r'href=["\'](https?://.*?)["\']', content)
+
+            for link in links:
+                skip_links: list[str] = [
+                    "rss_styles.xslt",
+                    "twitch.tv",
+                ]
+
+                if any(skip in link for skip in skip_links):
+                    # Skip testing rss_styles.xslt, external Twitch links, and internal links that may not exist in test environment
+                    continue
+                link_response: _MonkeyPatchedWSGIResponse = self.client.get(link)
+
+                msg: str = f"Link {link} in feed {feed_url} did not return 200, got {link_response.status_code}."
+                assert link_response.status_code == 200, msg

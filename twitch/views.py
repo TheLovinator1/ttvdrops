@@ -1883,7 +1883,7 @@ def export_campaigns_json(request: HttpRequest) -> HttpResponse:
     return response
 
 
-def export_games_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # noqa: ARG001
+def export_games_csv(request: HttpRequest) -> HttpResponse:
     """Export games to CSV format.
 
     Args:
@@ -1923,7 +1923,7 @@ def export_games_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # n
     return response
 
 
-def export_games_json(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # noqa: ARG001
+def export_games_json(request: HttpRequest) -> HttpResponse:
     """Export games to JSON format.
 
     Args:
@@ -1958,7 +1958,7 @@ def export_games_json(request: HttpRequest) -> HttpResponse:  # noqa: ARG001  # 
     return response
 
 
-def export_organizations_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG001
+def export_organizations_csv(request: HttpRequest) -> HttpResponse:
     """Export organizations to CSV format.
 
     Args:
@@ -1987,7 +1987,7 @@ def export_organizations_csv(request: HttpRequest) -> HttpResponse:  # noqa: ARG
     return response
 
 
-def export_organizations_json(request: HttpRequest) -> HttpResponse:  # noqa: ARG001
+def export_organizations_json(request: HttpRequest) -> HttpResponse:
     """Export organizations to JSON format.
 
     Args:

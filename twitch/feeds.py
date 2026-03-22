@@ -692,7 +692,7 @@ class OrganizationRSSFeed(TTVDropsBaseFeed):
     feed_type = BrowserFriendlyRss201rev2Feed
 
     title: str = "TTVDrops Twitch Organizations"
-    link: str = "/organizations/"
+    link: str = "/twitch/organizations/"
     description: str = "Latest organizations on TTVDrops"
 
     _limit: int | None = None
@@ -921,7 +921,7 @@ class DropCampaignFeed(TTVDropsBaseFeed):
     """RSS feed for latest drop campaigns."""
 
     title: str = "Twitch Drop Campaigns"
-    link: str = "/campaigns/"
+    link: str = "/"
     description: str = "Latest Twitch drop campaigns on TTVDrops"
     item_guid_is_permalink = True
 

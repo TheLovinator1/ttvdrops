@@ -5,7 +5,7 @@ from django.db import migrations
 from django.db import models
 
 
-def migrate_operation_name_to_list(apps, schema_editor) -> None:  # noqa: ANN001, ARG001
+def migrate_operation_name_to_list(apps, schema_editor) -> None:  # noqa: ANN001
     """Convert operation_name string values to operation_names list."""
     DropCampaign = apps.get_model("twitch", "DropCampaign")
     for campaign in DropCampaign.objects.all():
@@ -14,7 +14,7 @@ def migrate_operation_name_to_list(apps, schema_editor) -> None:  # noqa: ANN001
             campaign.save(update_fields=["operation_names"])
 
 
-def reverse_operation_names_to_string(apps, schema_editor) -> None:  # noqa: ARG001, ANN001
+def reverse_operation_names_to_string(apps, schema_editor) -> None:  # noqa: ANN001
     """Convert operation_names list back to operation_name string (first item only)."""
     DropCampaign = apps.get_model("twitch", "DropCampaign")
     for campaign in DropCampaign.objects.all():

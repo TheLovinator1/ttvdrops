@@ -5,14 +5,20 @@ description = "Get notified when a new drop is available on Twitch."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "celery[redis]",
     "colorama",
     "dateparser",
     "django-auto-prefetch",
+    "django-celery-beat",
+    "django-celery-results",
     "django-debug-toolbar",
     "django-silk",
     "django",
+    "flower",
     "gunicorn",
+    "hiredis",
     "httpx",
+    "index-now-for-python",
     "json-repair",
     "pillow",
     "platformdirs",
@@ -20,17 +26,11 @@ dependencies = [
     "pydantic",
     "pygments",
     "python-dotenv",
+    "redis",
     "sentry-sdk",
     "setproctitle",
-    "tqdm",
-    "index-now-for-python",
     "sitemap-parser",
-    "celery[redis]",
-    "django-celery-results",
-    "django-celery-beat",
-    "flower",
-    "hiredis",
-    "redis",
+    "tqdm",
 ]
 
 
@@ -41,9 +41,9 @@ dev = [
     "hypothesis[django]",
     "pytest-cov",
     "pytest-django",
+    "pytest-randomly",
     "pytest-xdist[psutil]",
     "pytest",
-    "pytest-randomly",
 ]
 
 [tool.pytest.ini_options]
