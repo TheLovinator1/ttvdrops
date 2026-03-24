@@ -36,7 +36,7 @@ sudo useradd --create-home --home-dir /home/ttvdrops --shell /bin/fish ttvdrops
 sudo passwd ttvdrops
 sudo usermod -aG wheel ttvdrops
 su - ttvdrops
-git clone https://github.com/TheLovinator1/ttvdrops.git
+git clone https://git.lovinator.space/TheLovinator/ttvdrops.git
 cd ttvdrops
 uv sync --no-dev
 
