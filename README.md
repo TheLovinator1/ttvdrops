@@ -58,7 +58,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now ttvdrops.socket
 sudo systemctl enable --now ttvdrops.service
 
-curl --unix-socket /run/ttvdrops/ttvdrops.sock http://ttvdrops.lovinator.space
+curl --unix-socket /run/ttvdrops/ttvdrops.sock https://ttvdrops.lovinator.space
 ```
 
 Install and enable timers:
