@@ -40,6 +40,7 @@ jobs:
           sudo -u ttvdrops uv run python /home/ttvdrops/ttvdrops/manage.py collectstatic --noinput
           sudo systemctl restart ttvdrops
       - name: Check if server is up
+        if : ${{ success() && github.ref == 'refs/heads/master' }}
         run: |
           sleep 2
           curl -f https://ttvdrops.lovinator.space/ || exit 1
