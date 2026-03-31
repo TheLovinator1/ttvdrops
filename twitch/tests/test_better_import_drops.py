@@ -620,7 +620,7 @@ class ExampleJsonImportTests(TestCase):
         command = Command()
 
         repo_root: Path = Path(__file__).resolve().parents[2]
-        example_path: Path = repo_root / "example.json"
+        example_path: Path = repo_root / "twitch" / "tests" / "example.json"
 
         responses = json.loads(example_path.read_text(encoding="utf-8"))
 

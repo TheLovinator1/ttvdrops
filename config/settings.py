@@ -140,10 +140,11 @@ INSTALLED_APPS: list[str] = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     # Internal apps
-    "twitch.apps.TwitchConfig",
-    "kick.apps.KickConfig",
-    "youtube.apps.YoutubeConfig",
+    "chzzk.apps.ChzzkConfig",
     "core.apps.CoreConfig",
+    "kick.apps.KickConfig",
+    "twitch.apps.TwitchConfig",
+    "youtube.apps.YoutubeConfig",
     # Third-party apps
     "django_celery_results",
     "django_celery_beat",
@@ -171,10 +172,35 @@ TEMPLATES: list[dict[str, Any]] = [
     },
 ]
 
-DATABASES: dict[str, dict[str, Any]] = (
-    {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}}
-    if TESTING
-    else {
+
+def configure_databases(*, testing: bool, base_dir: Path) -> dict[str, dict[str, Any]]:
+    """Configure Django databases based on environment variables and testing mode.
+
+    Args:
+        testing (bool): Whether the application is running in testing mode.
+        base_dir (Path): The base directory of the project, used for SQLite file location.
+
+    Returns:
+        dict[str, dict[str, Any]]: The DATABASES setting for Django.
+    """
+    use_sqlite: bool = env_bool("USE_SQLITE", default=False)
+
+    if testing:
+        return {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": ":memory:",
+            },
+        }
+    if use_sqlite:
+        return {
+            "default": {
+                "ENGINE": "django.db.backends.sqlite3",
+                "NAME": str(base_dir / "db.sqlite3"),
+            },
+        }
+    # Default: PostgreSQL
+    return {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.getenv("POSTGRES_DB", "ttvdrops"),
@@ -187,6 +213,11 @@ DATABASES: dict[str, dict[str, Any]] = (
             "OPTIONS": {"connect_timeout": env_int("DB_CONNECT_TIMEOUT", 10)},
         },
     }
+
+
+DATABASES: dict[str, dict[str, Any]] = configure_databases(
+    testing=TESTING,
+    base_dir=BASE_DIR,
 )
 
 if not TESTING:

@@ -1,0 +1,55 @@
+{
+    "code": 200,
+    "message": null,
+    "content": {
+        "campaignNo": 905,
+        "title": "붉은사막 드롭스 #2",
+        "imageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjRfMzcg/MDAxNzc0MzU4Mzk3MjM0.JQAXkEYe2ntJ5gvzr5U5egn78DalY24mi1hodGyPYcog.tko3iBzm7dOqDKdjZAZX2ozWrj-tKjVcN3v3ieQaNzQg.JPEG/KR_260319_sony_masterimage_2160x2160.jpg",
+        "description": "치지직에서 붉은사막 방송을 시청하고, 특별한 보상을 획득해 보세요.",
+        "categoryType": "GAME",
+        "categoryId": "CrimsonDesert",
+        "categoryValue": "붉은사막",
+        "pcLinkUrl": "https://event.pearlabyss.com/CrimsonDesert/Drops",
+        "mobileLinkUrl": "https://event.pearlabyss.com/CrimsonDesert/Drops",
+        "serviceId": "Pearl_Abyss_Event",
+        "state": "PROMOTED",
+        "startDate": "2026-03-26 09:00:00",
+        "endDate": "2026-04-02 08:59:00",
+        "rewardList": [
+            {
+                "rewardNo": 2521,
+                "imageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjRfMTIg/MDAxNzc0MzU4NTgxMTY5.WFRtLuWw0qciEmMlnm79culfGW1lj-KwvXTaZLkbzMIg.PxoTwZ6v_i1N7Vkyj--OxmeuEJsRvQDWgjT1sOB6kfog.PNG/Week-2-60-min.png",
+                "title": "푸른 정찰대 등자",
+                "rewardType": "IN_APP",
+                "conditionType": "TIME_BASED",
+                "conditionForMinutes": 60,
+                "iosBasedReward": false,
+                "codeRemainingCount": 0
+            },
+            {
+                "rewardNo": 2522,
+                "imageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjRfMTYw/MDAxNzc0MzU4NjEwODkz.6SMLoYofJ6A2a9Nd1IlKn_CC3JLyR8ecxkt8cO-rzcAg.kQSP_H08VoS1qXGiB_3BBMYT_0IT07YPz09n0lNmD1cg.PNG/Week-2-120-min.png",
+                "title": "푸른 정찰대 마면",
+                "rewardType": "IN_APP",
+                "conditionType": "TIME_BASED",
+                "conditionForMinutes": 120,
+                "iosBasedReward": false,
+                "codeRemainingCount": 0
+            },
+            {
+                "rewardNo": 2523,
+                "imageUrl": "https://nng-phinf.pstatic.net/MjAyNjAzMjRfMjU3/MDAxNzc0MzU4NjM5MDgw.7u6E8ybLp7x9MNESI3od1Sf3AE_6AobSMFfb18MhsNog.M5ZvA1SSjaOObB2TB-P9Rw2rtMcV8zXipL0i7adILdwg.PNG/Week-2-180-min.png",
+                "title": "푸른 정찰대 안장",
+                "rewardType": "IN_APP",
+                "conditionType": "TIME_BASED",
+                "conditionForMinutes": 180,
+                "iosBasedReward": false,
+                "codeRemainingCount": 0
+            }
+        ],
+        "hasIosBasedReward": false,
+        "dropsCampaignNotStarted": false,
+        "rewardType": "IN_APP",
+        "accountLinkUrl": "https://event.pearlabyss.com/CrimsonDesert/Drops"
+    }
+}
