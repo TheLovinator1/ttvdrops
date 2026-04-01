@@ -22,7 +22,6 @@
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Organization</th>
                         <th>Start</th>
                         <th>End</th>
                     </tr>
@@ -31,12 +30,7 @@
                     {% for c in campaigns %}
                         <tr>
                             <td>
-                                <a href="{% url 'chzzk:campaign_detail' c.pk %}">{{ c.title }}</a>
-                            </td>
-                            <td>
-                                {% if c.organization %}
-                                    <a href="{% url 'chzzk:organization_detail' c.organization.pk %}">{{ c.organization.name }}</a>
-                                {% endif %}
+                                <a href="{% url 'chzzk:campaign_detail' c.campaign_no %}">{{ c.title }}</a>
                             </td>
                             <td>
                                 {% if c.start_date %}
