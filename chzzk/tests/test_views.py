@@ -2,7 +2,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from django.test import TestCase
-from django.test.client import _MonkeyPatchedWSGIResponse
 from django.urls import reverse
 from django.utils import timezone
 
