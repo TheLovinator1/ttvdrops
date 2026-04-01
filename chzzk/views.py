@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from django.db.models.query import QuerySet
+from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
@@ -62,7 +63,8 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
     Returns:
         HttpResponse: The HTTP response containing the rendered campaign detail page.
     """
-    campaign: models.ChzzkCampaign = models.ChzzkCampaign.objects.get(
+    campaign: models.ChzzkCampaign = get_object_or_404(
+        models.ChzzkCampaign,
         campaign_no=campaign_no,
     )
     rewards: QuerySet[models.ChzzkReward, models.ChzzkReward] = campaign.rewards.all()  # pyright: ignore[reportAttributeAccessIssue]
