@@ -29,9 +29,10 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The HTTP response containing the rendered dashboard page.
     """
     active_campaigns: QuerySet[models.ChzzkCampaign, models.ChzzkCampaign] = (
-        models.ChzzkCampaign.objects.filter(end_date__gte=timezone.now()).order_by(
-            "-start_date",
-        )
+        models.ChzzkCampaign.objects
+        .filter(end_date__gte=timezone.now())
+        .exclude(status="TESTING")
+        .order_by("-start_date")
     )
     return render(
         request=request,
