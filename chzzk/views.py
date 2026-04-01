@@ -31,7 +31,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     active_campaigns: QuerySet[models.ChzzkCampaign, models.ChzzkCampaign] = (
         models.ChzzkCampaign.objects
         .filter(end_date__gte=timezone.now())
-        .exclude(status="TESTING")
+        .exclude(state="TESTING")
         .order_by("-start_date")
     )
     return render(
