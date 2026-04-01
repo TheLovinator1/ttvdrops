@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}
+    chzzk Campaigns
+{% endblock title %}
+{% block extra_head %}
+    <link rel="alternate"
+          type="application/rss+xml"
+          title="All chzzk campaigns (RSS)"
+          href="{% url 'chzzk:campaign_feed' %}" />
+{% endblock extra_head %}
+{% block content %}
+    <main>
+        <h1>chzzk campaigns</h1>
+        <nav>
+            <a href="{% url 'chzzk:dashboard' %}">chzzk</a> > Campaigns
+        </nav>
+        <!-- <div class="feeds">
+            <a href="{% url 'chzzk:campaign_feed' %}" title="RSS feed for all campaigns">[rss]</a>
+        </div> -->
+        {% if campaigns %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Organization</th>
+                        <th>Start</th>
+                        <th>End</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in campaigns %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'chzzk:campaign_detail' c.pk %}">{{ c.title }}</a>
+                            </td>
+                            <td>
+                                {% if c.organization %}
+                                    <a href="{% url 'chzzk:organization_detail' c.organization.pk %}">{{ c.organization.name }}</a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.start_date %}
+                                    <time datetime="{{ c.start_date|date:'c' }}">{{ c.start_date|date:'M d, Y' }}</time> ({{ c.start_date|timesince }} ago)
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.end_date %}
+                                    <time datetime="{{ c.end_date|date:'c' }}">{{ c.end_date|date:'M d, Y' }}</time> ({{ c.end_date|timesince }} ago)
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if is_paginated %}
+                {% include "includes/pagination.html" with page_obj=page_obj %}
+            {% endif %}
+        {% else %}
+            <p>No campaigns found.</p>
+        {% endif %}
+    </main>
+{% endblock content %}

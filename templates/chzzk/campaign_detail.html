@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}
+    {{ campaign.title }}
+{% endblock title %}
+{% block content %}
+    <main>
+        <h1>{{ campaign.title }}</h1>
+        <nav>
+            <a href="{% url 'chzzk:dashboard' %}">chzzk</a> &gt; <a href="{% url 'chzzk:campaign_list' %}">Campaigns</a> &gt; {{ campaign.title }}
+        </nav>
+        {% if campaign.image_url %}
+            <img src="{{ campaign.image_url }}"
+                 alt="{{ campaign.title }}"
+                 height="auto"
+                 width="auto"
+                 style="max-width:200px;
+                        height:auto;
+                        border-radius:8px" />
+        {% endif %}
+        {% if campaign.description %}
+            <section class="description">
+                {{ campaign.description|linebreaksbr }}
+            </section>
+        {% endif %}
+        <section class="times">
+            {% if campaign.starts_at %}
+                <div>
+                    Starts: <time datetime="{{ campaign.starts_at|date:'c' }}">{{ campaign.starts_at|date:'M d, Y H:i' }}</time>
+                </div>
+            {% endif %}
+            {% if campaign.ends_at %}
+                <div>
+                    Ends: <time datetime="{{ campaign.ends_at|date:'c' }}">{{ campaign.ends_at|date:'M d, Y H:i' }}</time>
+                </div>
+            {% endif %}
+        </section>
+        <hr />
+        <h2>Rewards</h2>
+        {% if rewards %}
+            <ul>
+                {% for r in rewards %}<li>{{ r.title }} — {{ r.condition_for_minutes }} minutes of watch time</li>{% endfor %}
+            </ul>
+        {% else %}
+            <p>No rewards available.</p>
+        {% endif %}
+        {% if campaign.external_url %}
+            <p>
+                <a class="btn" href="{{ campaign.external_url }}">View on chzzk</a>
+            </p>
+        {% endif %}
+    </main>
+{% endblock content %}

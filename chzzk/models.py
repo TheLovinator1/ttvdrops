@@ -26,12 +26,12 @@ class ChzzkCampaign(models.Model):
 
     # Scraping metadata
     scraped_at = models.DateTimeField(default=timezone.now)
-    source_api = models.CharField(max_length=16)  # 'v1' or 'v2'
+    source_api = models.CharField(max_length=16)
     scrape_status = models.CharField(max_length=32, default="success")
-    raw_json = models.JSONField()
+    raw_json_v1 = models.JSONField(null=True, blank=True)
+    raw_json_v2 = models.JSONField(null=True, blank=True)
 
     class Meta:
-        unique_together = ("campaign_no", "source_api")
         ordering = ["-start_date"]
 
     def __str__(self) -> str:

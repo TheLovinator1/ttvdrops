@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}
+    Chzzk Drops
+{% endblock title %}
+{% block extra_head %}
+    <link rel="alternate"
+          type="application/rss+xml"
+          title="All Chzzk campaigns (RSS)"
+          href="{% url 'chzzk:campaign_feed' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="All Chzzk campaigns (Atom)"
+          href="{% url 'chzzk:campaign_feed_atom' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="All Chzzk campaigns (Discord)"
+          href="{% url 'chzzk:campaign_feed_discord' %}" />
+{% endblock extra_head %}
+{% block content %}
+    <main>
+        <h1>Active Chzzk Drops</h1>
+        <div>CHZZK is South Korean alternative to Twitch.</div>
+        <!--RSS Feeds
+         <div>
+            <a href="{% url 'chzzk:campaign_feed' %}" title="RSS feed for all campaigns">[rss]</a>
+            <a href="{% url 'chzzk:campaign_feed_atom' %}" title="Atom feed for all campaigns">[atom]</a>
+            <a href="{% url 'chzzk:campaign_feed_discord' %}" title="Discord feed for all campaigns">[discord]</a>
+            <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
+        </div> -->
+        <hr />
+        {% if active_campaigns %}
+            {% for campaign in active_campaigns %}
+                <!-- {{ campaign }} -->
+                <article>
+                    <header>
+                        <h2>{{ campaign.category_value }}</h2>
+                        <div style="font-size: 0.9rem; color: #666;">Status: {{ campaign.state }} | Campaign #{{ campaign.campaign_no }}</div>
+                    </header>
+                    <div style="display: flex; gap: 1rem;">
+                        <div style="flex-shrink: 0;">
+                            {% if campaign.image_url %}
+                                <img src="{{ campaign.image_url }}"
+                                     width="200"
+                                     height="200"
+                                     alt="{{ campaign.title }} image"
+                                     style="width: 200px;
+                                            height: auto;
+                                            border-radius: 8px" />
+                            {% else %}
+                                <div style="width: 200px;
+                                            height: 200px;
+                                            background-color: #eee;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            border-radius: 8px">No Image</div>
+                            {% endif %}
+                        </div>
+                        <div style="flex: 1;">
+                            <h3>
+                                <a href="{% url 'chzzk:campaign_detail' campaign.campaign_no %}">{{ campaign.title }}</a>
+                            </h3>
+                            {% if campaign.description %}
+                                <p style="margin: 0.25rem 0; font-style: italic;">{{ campaign.description }}</p>
+                            {% endif %}
+                            <!-- Start -->
+                            {% if campaign.start_date %}
+                                <p style="margin: 0.25rem 0;">
+                                    <strong>Starts:</strong>
+                                    <time datetime="{{ campaign.start_date|date:'c' }}"
+                                          title="{{ campaign.start_date|date:'DATETIME_FORMAT' }}">
+                                        {{ campaign.start_date|date:"M d, Y H:i" }}
+                                    </time>
+                                    {% if campaign.start_date < now %}
+                                        (started {{ campaign.start_date|timesince }} ago)
+                                    {% else %}
+                                        (in {{ campaign.start_date|timeuntil }})
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                            <!-- End -->
+                            {% if campaign.end_date %}
+                                <p style="margin: 0.25rem 0;">
+                                    <strong>Ends:</strong>
+                                    <time datetime="{{ campaign.end_date|date:'c' }}"
+                                          title="{{ campaign.end_date|date:'DATETIME_FORMAT' }}">
+                                        {{ campaign.end_date|date:"M d, Y H:i" }}
+                                    </time>
+                                    {% if campaign.end_date < now %}
+                                        (ended {{ campaign.end_date|timesince }} ago)
+                                    {% else %}
+                                        (in {{ campaign.end_date|timeuntil }})
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                            {% if campaign.reward_type %}
+                                <p style="margin: 0.25rem 0;">
+                                    <strong>Reward Type:</strong> {{ campaign.reward_type }}
+                                </p>
+                            {% endif %}
+                            <p style="margin: 0.25rem 0;">
+                                {% if campaign.account_link_url %}<a href="{{ campaign.account_link_url }}">Connect account</a> |{% endif %}
+                                {% if campaign.pc_link_url %}<a href="{{ campaign.pc_link_url }}" target="_blank">View on Chzzk</a>{% endif %}
+                            </p>
+                            <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                                <strong>Participating channels:</strong>
+                                <p style="margin: 0.25rem 0 0 0;">{{ campaign.category_value }} is game wide.</p>
+                            </div>
+                            {% if campaign.rewards.all %}
+                                <div style="margin-top: 0.75rem;">
+                                    <strong>Rewards:</strong>
+                                    <ul style="margin: 0.25rem 0 0 0; padding-left: 1rem;">
+                                        {% for reward in campaign.rewards.all %}
+                                            <li>
+                                                {% if reward.image_url %}
+                                                    <img src="{{ reward.image_url }}"
+                                                         alt="{{ reward.title }}"
+                                                         width="56"
+                                                         height="56"
+                                                         style="vertical-align: middle;
+                                                                border-radius: 4px" />
+                                                {% endif %}
+                                                {{ reward.title }} ({{ reward.condition_for_minutes }} min)
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </article>
+            {% endfor %}
+        {% else %}
+            <p>No active Chzzk drop campaigns at the moment. Check back later!</p>
+        {% endif %}
+    </main>
+{% endblock content %}

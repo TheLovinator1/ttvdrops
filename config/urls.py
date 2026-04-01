@@ -49,6 +49,8 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path(route="twitch/", view=include("twitch.urls", namespace="twitch")),
     # Kick app
     path(route="kick/", view=include("kick.urls", namespace="kick")),
+    # Chzzk app
+    path(route="chzzk/", view=include("chzzk.urls", namespace="chzzk")),
     # YouTube app
     path(route="youtube/", view=include("youtube.urls", namespace="youtube")),
 ]
