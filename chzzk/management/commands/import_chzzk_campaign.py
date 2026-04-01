@@ -52,7 +52,17 @@ class Command(BaseCommand):
                 "User-Agent": USER_AGENT,
             },
         )
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except requests.HTTPError as e:
+            json_msg: str = ""
+            if resp.headers.get("Content-Type", "").startswith("application/json"):
+                error_data = resp.json()
+                json_msg = error_data.get("message", "")
+
+            msg: str = f"Failed to fetch campaign {campaign_no}: {e} - {json_msg}"
+            self.stdout.write(self.style.ERROR(msg))
+            return
         data: dict[str, Any] = resp.json()
 
         campaign_data: ChzzkCampaignV2
