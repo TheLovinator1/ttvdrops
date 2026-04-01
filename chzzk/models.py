@@ -7,13 +7,22 @@ class ChzzkCampaign(models.Model):
 
     campaign_no = models.BigIntegerField()
     title = models.TextField()
-    image_url = models.URLField()
+    image_url = models.URLField(
+        max_length=2000,
+        blank=True,
+    )
     description = models.TextField()
     category_type = models.TextField()
     category_id = models.TextField()
     category_value = models.TextField()
-    pc_link_url = models.URLField()
-    mobile_link_url = models.URLField()
+    pc_link_url = models.URLField(
+        max_length=2000,
+        blank=True,
+    )
+    mobile_link_url = models.URLField(
+        max_length=2000,
+        blank=True,
+    )
     service_id = models.TextField()
     state = models.TextField()
     start_date = models.DateTimeField()
@@ -22,7 +31,10 @@ class ChzzkCampaign(models.Model):
     drops_campaign_not_started = models.BooleanField()
     campaign_reward_type = models.TextField(blank=True, default="")
     reward_type = models.TextField(blank=True, default="")
-    account_link_url = models.URLField()
+    account_link_url = models.URLField(
+        max_length=2000,
+        blank=True,
+    )
 
     # Scraping metadata
     scraped_at = models.DateTimeField(default=timezone.now)
@@ -47,7 +59,10 @@ class ChzzkReward(models.Model):
         on_delete=models.CASCADE,
     )
     reward_no = models.BigIntegerField()
-    image_url = models.URLField()
+    image_url = models.URLField(
+        max_length=2000,
+        blank=True,
+    )
     title = models.TextField()
     reward_type = models.TextField()
     campaign_reward_type = models.TextField(blank=True, default="")
