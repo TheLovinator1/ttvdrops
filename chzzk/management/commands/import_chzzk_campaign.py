@@ -1,13 +1,6 @@
 from typing import TYPE_CHECKING
 from typing import Any
 
-if TYPE_CHECKING:
-    import argparse
-
-    from chzzk.schemas import ChzzkCampaignV2
-    from chzzk.schemas import ChzzkRewardV2
-
-
 import requests
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
@@ -16,6 +9,12 @@ from django.utils import timezone
 from chzzk.models import ChzzkCampaign
 from chzzk.models import ChzzkReward
 from chzzk.schemas import ChzzkApiResponseV2
+
+if TYPE_CHECKING:
+    import argparse
+
+    from chzzk.schemas import ChzzkCampaignV2
+    from chzzk.schemas import ChzzkRewardV2
 
 MAX_CAMPAIGN_OUTLIER_THRESHOLD: int = 100_000_000
 MAX_CAMPAIGN_OUTLIER_GAP: int = 1_000
