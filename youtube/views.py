@@ -5,6 +5,8 @@ from typing import Any
 
 from django.shortcuts import render
 
+from core.base_url import build_absolute_uri
+
 if TYPE_CHECKING:
     from django.http import HttpRequest
     from django.http import HttpResponse
@@ -136,7 +138,7 @@ def index(request: HttpRequest) -> HttpResponse:
         "@type": "ItemList",
         "name": PAGE_TITLE,
         "description": PAGE_DESCRIPTION,
-        "url": request.build_absolute_uri(),
+        "url": build_absolute_uri(request=request),
         "itemListElement": list_items,
     }
 

@@ -28,6 +28,7 @@ from django.utils import timezone
 from django.views.generic import DetailView
 from django.views.generic import ListView
 
+from core.base_url import build_absolute_uri
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -99,7 +100,7 @@ def _build_image_object(
 
     return {
         "@type": "ImageObject",
-        "contentUrl": request.build_absolute_uri(image_url),
+        "contentUrl": build_absolute_uri(image_url),
         "creditText": creator_name,
         "copyrightNotice": copyright_notice or creator_name,
         "creator": creator,
@@ -241,7 +242,7 @@ def _build_pagination_info(
             prev_url = f"{base_url}&page={page_obj.previous_page_number()}"
         pagination_links.append({
             "rel": "prev",
-            "url": request.build_absolute_uri(prev_url),
+            "url": build_absolute_uri(prev_url),
         })
 
     if page_obj.has_next():
@@ -251,7 +252,7 @@ def _build_pagination_info(
             next_url = f"{base_url}&page={page_obj.next_page_number()}"
         pagination_links.append({
             "rel": "next",
-            "url": request.build_absolute_uri(next_url),
+            "url": build_absolute_uri(next_url),
         })
 
     return pagination_links or None
@@ -320,7 +321,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
         "@type": "CollectionPage",
         "name": "Twitch Organizations",
         "description": "List of Twitch organizations.",
-        "url": request.build_absolute_uri("/organizations/"),
+        "url": build_absolute_uri("/organizations/"),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
@@ -363,7 +364,7 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     s: Literal["", "s"] = "" if games_count == 1 else "s"
     org_description: str = f"{org_name} has {games_count} game{s}."
 
-    url: str = request.build_absolute_uri(
+    url: str = build_absolute_uri(
         reverse("twitch:organization_detail", args=[organization.twitch_id]),
     )
     organization_node: dict[str, Any] = {
@@ -388,11 +389,11 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
 
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": request.build_absolute_uri("/")},
-        {"name": "Organizations", "url": request.build_absolute_uri("/organizations/")},
+        {"name": "Home", "url": build_absolute_uri("/")},
+        {"name": "Organizations", "url": build_absolute_uri("/organizations/")},
         {
             "name": org_name,
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse("twitch:organization_detail", args=[organization.twitch_id]),
             ),
         },
@@ -496,14 +497,14 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
         "@type": "CollectionPage",
         "name": title,
         "description": description,
-        "url": request.build_absolute_uri(base_url),
+        "url": build_absolute_uri(base_url),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=title,
         page_description=description,
         seo_meta={
-            "page_url": request.build_absolute_uri(base_url),
+            "page_url": build_absolute_uri(base_url),
             "pagination_info": pagination_info,
             "schema_data": collection_schema,
         },
@@ -636,7 +637,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         campaign.image_height if campaign.image_file else None
     )
 
-    url: str = request.build_absolute_uri(
+    url: str = build_absolute_uri(
         reverse("twitch:campaign_detail", args=[campaign.twitch_id]),
     )
 
@@ -667,7 +668,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         else "Twitch"
     )
     campaign_owner_url: str = (
-        request.build_absolute_uri(
+        build_absolute_uri(
             reverse("twitch:organization_detail", args=[campaign_owner.twitch_id]),
         )
         if campaign_owner
@@ -701,17 +702,17 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         campaign.game.display_name or campaign.game.name or campaign.game.twitch_id
     )
     breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": request.build_absolute_uri("/")},
-        {"name": "Games", "url": request.build_absolute_uri("/games/")},
+        {"name": "Home", "url": build_absolute_uri("/")},
+        {"name": "Games", "url": build_absolute_uri("/games/")},
         {
             "name": game_name,
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse("twitch:game_detail", args=[campaign.game.twitch_id]),
             ),
         },
         {
             "name": campaign_name,
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse("twitch:campaign_detail", args=[campaign.twitch_id]),
             ),
         },
@@ -821,7 +822,7 @@ class GamesGridView(ListView):
             "@type": "CollectionPage",
             "name": "Twitch Games",
             "description": "Twitch games that had or have Twitch drops.",
-            "url": self.request.build_absolute_uri("/games/"),
+            "url": build_absolute_uri("/games/"),
         }
 
         seo_context: dict[str, Any] = _build_seo_context(
@@ -977,7 +978,7 @@ class GameDetailView(DetailView):
             "@type": "VideoGame",
             "name": game_name,
             "description": game_description,
-            "url": self.request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse("twitch:game_detail", args=[game.twitch_id]),
             ),
         }
@@ -992,7 +993,7 @@ class GameDetailView(DetailView):
             else "Twitch"
         )
         owner_url: str = (
-            self.request.build_absolute_uri(
+            build_absolute_uri(
                 reverse("twitch:organization_detail", args=[preferred_owner.twitch_id]),
             )
             if preferred_owner
@@ -1014,11 +1015,11 @@ class GameDetailView(DetailView):
 
         # Breadcrumb schema
         breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-            {"name": "Home", "url": self.request.build_absolute_uri("/")},
-            {"name": "Games", "url": self.request.build_absolute_uri("/games/")},
+            {"name": "Home", "url": build_absolute_uri("/")},
+            {"name": "Games", "url": build_absolute_uri("/games/")},
             {
                 "name": game_name,
-                "url": self.request.build_absolute_uri(
+                "url": build_absolute_uri(
                     reverse("twitch:game_detail", args=[game.twitch_id]),
                 ),
             },
@@ -1114,12 +1115,12 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "ttvdrops",
-        "url": request.build_absolute_uri("/"),
+        "url": build_absolute_uri("/"),
         "potentialAction": {
             "@type": "SearchAction",
             "target": {
                 "@type": "EntryPoint",
-                "urlTemplate": request.build_absolute_uri(
+                "urlTemplate": build_absolute_uri(
                     "/search/?q={search_term_string}",
                 ),
             },
@@ -1219,14 +1220,14 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
         "@type": "CollectionPage",
         "name": title,
         "description": description,
-        "url": request.build_absolute_uri(base_url),
+        "url": build_absolute_uri(base_url),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=title,
         page_description=description,
         seo_meta={
-            "page_url": request.build_absolute_uri(base_url),
+            "page_url": build_absolute_uri(base_url),
             "pagination_info": pagination_info,
             "schema_data": collection_schema,
         },
@@ -1275,7 +1276,7 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         else f"{campaign_name}"
     )
 
-    reward_url: str = request.build_absolute_uri(
+    reward_url: str = build_absolute_uri(
         reverse("twitch:reward_campaign_detail", args=[reward_campaign.twitch_id]),
     )
 
@@ -1316,14 +1317,14 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
 
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": request.build_absolute_uri("/")},
+        {"name": "Home", "url": build_absolute_uri("/")},
         {
             "name": "Reward Campaigns",
-            "url": request.build_absolute_uri("/reward-campaigns/"),
+            "url": build_absolute_uri("/reward-campaigns/"),
         },
         {
             "name": campaign_name,
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse(
                     "twitch:reward_campaign_detail",
                     args=[reward_campaign.twitch_id],
@@ -1418,14 +1419,14 @@ class ChannelListView(ListView):
             "@type": "CollectionPage",
             "name": "Twitch Channels",
             "description": "List of Twitch channels participating in drop campaigns.",
-            "url": self.request.build_absolute_uri("/channels/"),
+            "url": build_absolute_uri("/channels/"),
         }
 
         seo_context: dict[str, Any] = _build_seo_context(
             page_title="Twitch Channels",
             page_description="List of Twitch channels participating in drop campaigns.",
             seo_meta={
-                "page_url": self.request.build_absolute_uri(base_url),
+                "page_url": build_absolute_uri(base_url),
                 "pagination_info": pagination_info,
                 "schema_data": collection_schema,
             },
@@ -1542,7 +1543,7 @@ class ChannelDetailView(DetailView):
         if total_campaigns > 1:
             description += "s"
 
-        channel_url: str = self.request.build_absolute_uri(
+        channel_url: str = build_absolute_uri(
             reverse("twitch:channel_detail", args=[channel.twitch_id]),
         )
         channel_node: dict[str, Any] = {
@@ -1569,11 +1570,11 @@ class ChannelDetailView(DetailView):
 
         # Breadcrumb schema
         breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-            {"name": "Home", "url": self.request.build_absolute_uri("/")},
-            {"name": "Channels", "url": self.request.build_absolute_uri("/channels/")},
+            {"name": "Home", "url": build_absolute_uri("/")},
+            {"name": "Channels", "url": build_absolute_uri("/channels/")},
             {
                 "name": name,
-                "url": self.request.build_absolute_uri(
+                "url": build_absolute_uri(
                     reverse("twitch:channel_detail", args=[channel.twitch_id]),
                 ),
             },
@@ -1638,7 +1639,7 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
         "@type": "CollectionPage",
         "name": "Twitch chat badges",
         "description": "List of Twitch chat badges awarded through drop campaigns.",
-        "url": request.build_absolute_uri("/badges/"),
+        "url": build_absolute_uri("/badges/"),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
@@ -1722,7 +1723,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         "@type": "ItemList",
         "name": badge_set_name,
         "description": badge_set_description,
-        "url": request.build_absolute_uri(
+        "url": build_absolute_uri(
             reverse("twitch:badge_set_detail", args=[badge_set.set_id]),
         ),
     }

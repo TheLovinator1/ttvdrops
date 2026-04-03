@@ -1,9 +1,13 @@
 import logging
 import re
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 from typing import Literal
 
+import django.contrib.syndication.views as syndication_views
+from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import naturaltime
+from django.contrib.sites.shortcuts import get_current_site
 from django.contrib.syndication.views import Feed
 from django.db.models import Prefetch
 from django.db.models.query import QuerySet
@@ -16,6 +20,8 @@ from django.utils.html import format_html
 from django.utils.html import format_html_join
 from django.utils.safestring import SafeText
 
+from core.base_url import build_absolute_uri
+from core.base_url import get_current_site  # noqa: F811
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import DropCampaign
@@ -26,11 +32,15 @@ from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
     import datetime
+    from collections.abc import Callable
 
+    from django.contrib.sites.models import Site
+    from django.contrib.sites.requests import RequestSite
     from django.db.models import Model
     from django.db.models import QuerySet
     from django.http import HttpRequest
     from django.http import HttpResponse
+    from django.utils.feedgenerator import SyndicationFeed
     from django.utils.safestring import SafeString
 
     from twitch.models import DropBenefit
@@ -99,14 +109,14 @@ class TTVDropsBaseFeed(Feed):
         """
         if self._request is None:
             return url
-        return self._request.build_absolute_uri(url)
+        return build_absolute_uri(url, request=self._request)
 
     def _absolute_stylesheet_urls(self, request: HttpRequest) -> list[str]:
         """Return stylesheet URLs as absolute HTTP URLs for browser/file compatibility."""
         return [
             href
             if href.startswith(("http://", "https://"))
-            else request.build_absolute_uri(href)
+            else build_absolute_uri(href, request=request)
             for href in self.stylesheets
         ]
 
@@ -150,6 +160,41 @@ class TTVDropsBaseFeed(Feed):
             content = f"{stylesheet_pis}{content}"
 
         response.content = content.encode(encoding)
+
+    def get_feed(self, obj: object, request: HttpRequest) -> SyndicationFeed:
+        """Use deterministic BASE_URL handling for syndication feed generation.
+
+        Returns:
+            SyndicationFeed: The feed generator instance with the correct site and URL context for absolute URL generation.
+        """
+        # TODO(TheLovinator): Refactor to avoid this mess.  # noqa: TD003
+        try:
+            from django.contrib.sites import shortcuts as sites_shortcuts  # noqa: I001, PLC0415
+        except ImportError:
+            sites_shortcuts = None
+
+        original_get_current_site: Callable[..., Site | RequestSite] | None = (
+            sites_shortcuts.get_current_site if sites_shortcuts else None
+        )
+        original_is_secure: Callable[[], bool] = request.is_secure
+
+        if sites_shortcuts is not None:
+            sites_shortcuts.get_current_site = get_current_site
+
+        original_syndication_get_current_site: (
+            Callable[..., Site | RequestSite] | None
+        ) = syndication_views.get_current_site  # pyright: ignore[reportAttributeAccessIssue]
+        syndication_views.get_current_site = get_current_site  # pyright: ignore[reportAttributeAccessIssue]
+
+        request.is_secure = lambda: settings.BASE_URL.startswith("https://")
+
+        try:
+            return super().get_feed(obj, request)
+        finally:
+            if sites_shortcuts is not None and original_get_current_site is not None:
+                sites_shortcuts.get_current_site = original_get_current_site
+            syndication_views.get_current_site = original_syndication_get_current_site  # pyright: ignore[reportAttributeAccessIssue]
+            request.is_secure = original_is_secure
 
     def __call__(
         self,

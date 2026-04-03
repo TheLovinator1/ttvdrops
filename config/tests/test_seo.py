@@ -52,10 +52,10 @@ def test_meta_tags_use_request_absolute_url_for_og_url_and_canonical() -> None:
         _extract_meta_content(content, "og:url")
         == "https://ttvdrops.lovinator.space/drops/"
     )
-    assert (
-        '<link rel="canonical" href="https://ttvdrops.lovinator.space/drops/" />'
-        in content
+    canonical_pattern: re.Pattern[str] = re.compile(
+        r'<link\s+rel="canonical"\s+href="https://ttvdrops\.lovinator\.space/drops/"\s*/?>',
     )
+    assert canonical_pattern.search(content) is not None
 
 
 def test_meta_tags_use_explicit_page_url_for_og_url_and_canonical() -> None:
@@ -71,10 +71,10 @@ def test_meta_tags_use_explicit_page_url_for_og_url_and_canonical() -> None:
         _extract_meta_content(content, "og:url")
         == "https://ttvdrops.lovinator.space/custom-page/"
     )
-    assert (
-        '<link rel="canonical" href="https://ttvdrops.lovinator.space/custom-page/" />'
-        in content
+    canonical_pattern: re.Pattern[str] = re.compile(
+        r'<link\s+rel="canonical"\s+href="https://ttvdrops\.lovinator\.space/custom-page/"\s*/?>',
     )
+    assert canonical_pattern.search(content) is not None
 
 
 def test_meta_tags_twitter_card_is_summary_without_image() -> None:

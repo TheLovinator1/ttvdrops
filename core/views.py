@@ -26,6 +26,7 @@ from django.template.defaultfilters import filesizeformat
 from django.urls import reverse
 from django.utils import timezone
 
+from core.base_url import build_absolute_uri
 from kick.models import KickChannel
 from kick.models import KickDropCampaign
 from twitch.models import Channel
@@ -507,7 +508,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Feed Documentation",
         page_description="Documentation for the RSS feeds available on ttvdrops.lovinator.space, including how to use them and what data they contain.",
-        page_url=request.build_absolute_uri(reverse("core:docs_rss")),
+        page_url=build_absolute_uri(reverse("core:docs_rss")),
     )
 
     return render(
@@ -721,7 +722,7 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
         dataset_distributions.append({
             "@type": "DataDownload",
             "name": dataset["name"],
-            "contentUrl": request.build_absolute_uri(
+            "contentUrl": build_absolute_uri(
                 reverse("core:dataset_backup_download", args=[download_path]),
             ),
             "encodingFormat": "application/zstd",
@@ -731,9 +732,9 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
         "@context": "https://schema.org",
         "@type": "Dataset",
         "name": "Historical archive of Twitch and Kick drop data",
-        "identifier": request.build_absolute_uri(reverse("core:dataset_backups")),
+        "identifier": build_absolute_uri(reverse("core:dataset_backups")),
         "temporalCoverage": "2024-07-17/..",
-        "url": request.build_absolute_uri(reverse("core:dataset_backups")),
+        "url": build_absolute_uri(reverse("core:dataset_backups")),
         "license": "https://creativecommons.org/publicdomain/zero/1.0/",
         "isAccessibleForFree": True,
         "description": (
@@ -753,7 +754,7 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
         "includedInDataCatalog": {
             "@type": "DataCatalog",
             "name": "ttvdrops.lovinator.space",
-            "url": request.build_absolute_uri(reverse("core:dataset_backups")),
+            "url": build_absolute_uri(reverse("core:dataset_backups")),
         },
     }
     if dataset_distributions:
@@ -905,7 +906,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=page_title,
         page_description=page_description,
-        page_url=request.build_absolute_uri(reverse("core:search")),
+        page_url=build_absolute_uri(reverse("core:search")),
     )
     return render(
         request,
@@ -1006,12 +1007,12 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "ttvdrops",
-        "url": request.build_absolute_uri("/"),
+        "url": build_absolute_uri("/"),
         "potentialAction": {
             "@type": "SearchAction",
             "target": {
                 "@type": "EntryPoint",
-                "urlTemplate": request.build_absolute_uri(
+                "urlTemplate": build_absolute_uri(
                     "/search/?q={search_term_string}",
                 ),
             },

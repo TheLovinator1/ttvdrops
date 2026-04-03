@@ -15,6 +15,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
 
+from core.base_url import build_absolute_uri
 from kick.models import KickCategory
 from kick.models import KickDropCampaign
 from kick.models import KickOrganization
@@ -127,14 +128,14 @@ def _build_pagination_info(
     if page_obj.has_previous():
         links.append({
             "rel": "prev",
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 f"{base_url}{sep}page={page_obj.previous_page_number()}",
             ),
         })
     if page_obj.has_next():
         links.append({
             "rel": "next",
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 f"{base_url}{sep}page={page_obj.next_page_number()}",
             ),
         })
@@ -239,7 +240,7 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
     seo_context: dict[str, str] = _build_seo_context(
         page_title=title,
         page_description="Browse Kick drop campaigns.",
-        seo_meta={"page_url": request.build_absolute_uri(base_url)},
+        seo_meta={"page_url": build_absolute_uri(base_url)},
     )
     return render(
         request,
@@ -291,20 +292,20 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
     channels: list[KickChannel] = list(campaign.channels.select_related("user"))
 
     breadcrumb_schema: str = _build_breadcrumb_schema([
-        {"name": "Home", "url": request.build_absolute_uri("/")},
+        {"name": "Home", "url": build_absolute_uri("/")},
         {
             "name": "Kick Campaigns",
-            "url": request.build_absolute_uri(reverse("kick:campaign_list")),
+            "url": build_absolute_uri(reverse("kick:campaign_list")),
         },
         {
             "name": campaign.name,
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse("kick:campaign_detail", args=[campaign.kick_id]),
             ),
         },
     ])
 
-    campaign_url: str = request.build_absolute_uri(
+    campaign_url: str = build_absolute_uri(
         reverse("kick:campaign_detail", args=[campaign.kick_id]),
     )
     campaign_event: dict[str, Any] = {
@@ -431,20 +432,20 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
     ]
 
     breadcrumb_schema: str = _build_breadcrumb_schema([
-        {"name": "Home", "url": request.build_absolute_uri("/")},
+        {"name": "Home", "url": build_absolute_uri("/")},
         {
             "name": "Kick Games",
-            "url": request.build_absolute_uri(reverse("kick:game_list")),
+            "url": build_absolute_uri(reverse("kick:game_list")),
         },
         {
             "name": category.name,
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse("kick:game_detail", args=[category.kick_id]),
             ),
         },
     ])
 
-    category_url: str = request.build_absolute_uri(
+    category_url: str = build_absolute_uri(
         reverse("kick:game_detail", args=[category.kick_id]),
     )
     category_schema: dict[str, Any] = {
@@ -536,20 +537,20 @@ def organization_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse
     )
 
     breadcrumb_schema: str = _build_breadcrumb_schema([
-        {"name": "Home", "url": request.build_absolute_uri("/")},
+        {"name": "Home", "url": build_absolute_uri("/")},
         {
             "name": "Kick Organizations",
-            "url": request.build_absolute_uri(reverse("kick:organization_list")),
+            "url": build_absolute_uri(reverse("kick:organization_list")),
         },
         {
             "name": org.name,
-            "url": request.build_absolute_uri(
+            "url": build_absolute_uri(
                 reverse("kick:organization_detail", args=[org.kick_id]),
             ),
         },
     ])
 
-    org_url: str = request.build_absolute_uri(
+    org_url: str = build_absolute_uri(
         reverse("kick:organization_detail", args=[org.kick_id]),
     )
     organization_node: dict[str, Any] = {
