@@ -24,14 +24,14 @@ def _render_urlset_xml(sitemap_urls: list[dict[str, Any]]) -> str:
     Returns:
         str: Serialized XML for a <urlset> containing the provided URLs.
     """
-    urlset = Element("urlset")
+    urlset: Element[str] = Element("urlset")
     urlset.set("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9")
 
     for url_entry in sitemap_urls:
-        url = SubElement(urlset, "url")
-        loc = url_entry.get("loc")
+        url: Element[str] = SubElement(urlset, "url")
+        loc: str | None = url_entry.get("loc")
         if loc:
-            child = SubElement(url, "loc")
+            child: Element[str] = SubElement(url, "loc")
             child.text = loc
 
     return tostring(urlset, encoding="unicode")

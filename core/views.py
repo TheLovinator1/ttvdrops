@@ -141,7 +141,9 @@ def _render_urlset_xml(
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     for url_entry in url_entries:
         xml += "  <url>\n"
-        loc = url_entry.get("loc") or url_entry.get("url")  # Handle both keys
+        loc: str | None = url_entry.get("loc") or url_entry.get(
+            "url",
+        )  # Handle both keys
         if loc:
             xml += f"    <loc>{loc}</loc>\n"
         if "lastmod" in url_entry:

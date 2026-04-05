@@ -7,6 +7,8 @@ from urllib.parse import urlsplit
 from django.conf import settings
 
 if TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
     from django.http import HttpRequest
 
 
@@ -16,7 +18,7 @@ def _get_base_url() -> str:
     Returns:
         str: The configured BASE_URL without trailing slash.
     """
-    base_url = getattr(settings, "BASE_URL", "")
+    base_url: str = getattr(settings, "BASE_URL", "")
     return base_url.rstrip("/") if base_url else ""
 
 
@@ -33,7 +35,7 @@ def build_absolute_uri(
     Returns:
         str: Fully resolved absolute URL.
     """
-    base_url = _get_base_url()
+    base_url: str = _get_base_url()
 
     if location is None:
         if request is not None:
@@ -41,7 +43,7 @@ def build_absolute_uri(
         else:
             return f"{base_url}/" if base_url else "/"
 
-    parsed = urlsplit(location)
+    parsed: SplitResult = urlsplit(location)
     if parsed.scheme and parsed.netloc:
         return location
 
@@ -58,7 +60,7 @@ def build_absolute_uri(
 
 def is_secure() -> bool:
     """Return whether the configured BASE_URL uses HTTPS."""
-    base_url = _get_base_url()
+    base_url: str = _get_base_url()
     return base_url.startswith("https://") if base_url else False
 
 
@@ -69,9 +71,9 @@ class _TTVDropsSite:
 
 def get_current_site(request: object) -> _TTVDropsSite:
     """Return a site-like object with domain derived from BASE_URL."""
-    base_url = _get_base_url()
-    parts = urlsplit(base_url)
-    domain = parts.netloc or parts.path
+    base_url: str = _get_base_url()
+    parts: SplitResult = urlsplit(base_url)
+    domain: str = parts.netloc or parts.path
     return _TTVDropsSite(domain=domain)
 
 

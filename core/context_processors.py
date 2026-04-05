@@ -12,6 +12,4 @@ def base_url(request: HttpRequest) -> dict[str, str]:
     Returns:
         dict[str, str]: A dictionary containing the BASE_URL.
     """
-    return {
-        "BASE_URL": getattr(settings, "BASE_URL", ""),
-    }
+    return {"BASE_URL": getattr(settings, "BASE_URL", "")}
