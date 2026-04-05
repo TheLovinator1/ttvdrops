@@ -103,3 +103,67 @@ class ChzzkDashboardViewTests(TestCase):
         assert "watch" in content
         assert "100" in content
         assert "No" in content  # ios_based_reward=False
+
+    def test_campaign_feed_only_includes_campaigns_with_raw_json(self) -> None:
+        """Test that the RSS feed only includes campaigns with raw JSON data."""
+        now: datetime = timezone.now()
+
+        excluded: ChzzkCampaign = ChzzkCampaign.objects.create(
+            campaign_no=3001,
+            title="No JSON campaign",
+            description="Excluded because no raw JSON",
+            category_type="game",
+            category_id="1",
+            category_value="TestGame",
+            service_id="chzzk",
+            state="ACTIVE",
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+            has_ios_based_reward=False,
+            drops_campaign_not_started=False,
+            source_api="unit-test",
+        )
+
+        included_v1: ChzzkCampaign = ChzzkCampaign.objects.create(
+            campaign_no=3002,
+            title="JSON v1 campaign",
+            description="Included because raw_json_v1 is present",
+            category_type="game",
+            category_id="1",
+            category_value="TestGame",
+            service_id="chzzk",
+            state="ACTIVE",
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+            has_ios_based_reward=False,
+            drops_campaign_not_started=False,
+            source_api="unit-test",
+            raw_json_v1={"foo": "bar"},
+        )
+
+        included_v2: ChzzkCampaign = ChzzkCampaign.objects.create(
+            campaign_no=3003,
+            title="JSON v2 campaign",
+            description="Included because raw_json_v2 is present",
+            category_type="game",
+            category_id="1",
+            category_value="TestGame",
+            service_id="chzzk",
+            state="ACTIVE",
+            start_date=now - timedelta(days=2),
+            end_date=now + timedelta(days=2),
+            has_ios_based_reward=False,
+            drops_campaign_not_started=False,
+            source_api="unit-test",
+            raw_json_v2={"foo": "bar"},
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("chzzk:campaign_feed"),
+        )
+        assert response.status_code == 200
+
+        content: str = response.content.decode()
+        assert included_v1.title in content
+        assert included_v2.title in content
+        assert excluded.title not in content

@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
@@ -112,7 +113,9 @@ class ChzzkCampaignFeed(TTVDropsBaseFeed):
             QuerySet: A queryset of ChzzkCampaign objects.
         """
         limit: int = self._limit if self._limit is not None else 50
-        return models.ChzzkCampaign.objects.filter(raw_json__isnull=False).order_by(
+        return models.ChzzkCampaign.objects.filter(
+            Q(raw_json_v1__isnull=False) | Q(raw_json_v2__isnull=False),
+        ).order_by(
             "-start_date",
         )[:limit]
 
