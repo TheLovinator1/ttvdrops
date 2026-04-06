@@ -124,12 +124,10 @@ uv run python manage.py backup_db --output-dir "<path>" --prefix "ttvdrops"
 
 ```bash
 sudo chown -R ttvdrops:http /home/ttvdrops/.local/share/TTVDrops/media/
-sudo chgrp -R http /home/ttvdrops/.local/share/TTVDrops/media
 sudo find /home/ttvdrops/.local/share/TTVDrops/media -type d -exec chmod 2775 {} \;
 sudo find /home/ttvdrops/.local/share/TTVDrops/media -type f -exec chmod 664 {} \;
 
 sudo chown -R ttvdrops:http /home/ttvdrops/.local/share/TTVDrops/datasets/
-sudo chgrp -R http /home/ttvdrops/.local/share/TTVDrops/datasets/
 sudo find /home/ttvdrops/.local/share/TTVDrops/datasets -type d -exec chmod 2775 {} \;
 sudo find /home/ttvdrops/.local/share/TTVDrops/datasets -type f -exec chmod 664 {} \;
 ```
