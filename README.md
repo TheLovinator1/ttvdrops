@@ -83,10 +83,6 @@ uv run pytest
 
 ## Celery
 
-```bash
-
-```
-
 Start a worker:
 
 ```bash
