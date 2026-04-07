@@ -1,78 +1,40 @@
-# Django Guidelines
+# Project Guidelines
 
-## Python Best Practices
-- Follow PEP 8 with 120 character line limit
-- Use double quotes for Python strings
+## Code Style
+- Follow PEP 8 with a 120 character line limit.
+- Use double quotes for Python strings.
+- Keep comments focused on why, not what.
 
-## Django Best Practices
-- Follow Django's "batteries included" philosophy - use built-in features before third-party packages
-- Prioritize security and follow Django's security best practices
-- Use Django's ORM effectively
+## Build and Test
+- Install/update dependencies with `uv sync -U`.
+- Run tests with `uv run pytest`.
+- Run Django commands with `uv run python manage.py <command>`.
+- Typical local sequence: `uv run python manage.py makemigrations`, `uv run python manage.py migrate`, `uv run python manage.py runserver`.
+- Before finishing model changes, verify migrations with `uv run python manage.py makemigrations --check --dry-run`.
 
-## Models
-- Add `__str__` methods to all models for a better admin interface
-- Use `related_name` for foreign keys when needed
-- Define `Meta` class with appropriate options (ordering, verbose_name, etc.)
-- Use `blank=True` for optional form fields, `null=True` for optional database fields
+## Architecture
+- This is a Django multi-app project:
+  - `twitch/`, `kick/`, `chzzk/`, and `youtube/` hold platform-specific domain logic.
+  - `core/` holds shared cross-app utilities (base URL, SEO, shared views/helpers).
+  - `config/` holds settings, URLs, WSGI, and Celery app wiring.
+- Favor Django's batteries-included approach before adding new third-party dependencies.
+- Follow MTV with fat models and thin views; keep template logic simple.
 
-## Views
-- Always validate and sanitize user input
-- Handle exceptions gracefully with try/except blocks
-- Use `get_object_or_404` instead of manual exception handling
-- Implement proper pagination for list views
+## Conventions
+- Models should include `__str__` and explicit `Meta` options (ordering/indexes/verbose names) where relevant.
+- Use `blank=True` for optional form fields and `null=True` for optional database fields.
+- Prefer `get_object_or_404` over manual DoesNotExist handling in views.
+- URL patterns should use descriptive names and trailing slashes.
+- For schema models that parse external APIs, prefer Pydantic `extra="forbid"` and normalize variant payloads with validators.
+- Add tests for both positive and negative scenarios, especially when handling multiple upstream payload formats.
 
-## URLs
-- Use descriptive URL names for reverse URL lookups
-- Always end URL patterns with a trailing slash
+## Environment and Pitfalls
+- `DJANGO_SECRET_KEY` must be set; the app exits if it is missing.
+- Database defaults to PostgreSQL unless `USE_SQLITE=true`; tests use in-memory SQLite.
+- Redis is used for cache and Celery. Keep `REDIS_URL_CACHE` and `REDIS_URL_CELERY` configured in environments that run background tasks.
+- Static and media files are stored under the platform data directory configured in `config/settings.py`, not in the repo tree.
 
-## Templates
-- Use template inheritance with base templates
-- Use template tags and filters for common operations
-- Avoid complex logic in templates - move it to views or template tags
-- Use static files properly with `{% load static %}`
-- Avoid hiding controls with `<details>` or other collapse elements unless explicitly needed
-- Prioritize accessibility and discoverability of features
-
-## Settings
-- Use environment variables in a single `settings.py` file
-- Never commit secrets to version control
-
-## Database
-- Use migrations for all database changes
-- Optimize queries with `select_related` and `prefetch_related`
-- Use database indexes for frequently queried fields
-- Avoid N+1 query problems
-
-## Testing
-- Always write unit tests and check that they pass for new features
-- Test both positive and negative scenarios
-
-## Pydantic Schemas
-- Use `extra="forbid"` in model_config to catch API changes and new fields from external APIs
-- Explicitly document all optional fields from different API operation formats
-- This ensures validation failures alert you to API changes rather than silently ignoring new data
-- When supporting multiple API formats (e.g., ViewerDropsDashboard vs Inventory operations):
-  - Make fields optional that differ between formats
-  - Use field validators or model validators to normalize data between formats
-  - Write tests covering both operation formats to ensure backward compatibility
-
-## Architectural Patterns
-- Follow Django's MTV (Model-Template-View) paradigm; keep business logic in models/services and presentation in templates
-- Favor fat models and thin views; extract reusable business logic into services/helpers when complexity grows
-- Keep forms and serializers (if added) responsible for validation; avoid duplicating validation in views
-- Avoid circular dependencies; keep modules cohesive and decoupled
-- Use settings modules and environment variables to configure behavior, not hardcoded constants
-
-## Technology Stack
-- Python 3, Django, PostgreSQL, Redis (Valkey), Celery for background tasks
-- HTML templates with Django templating; static assets served from `static/` and collected to `staticfiles/`
-- Management commands in `twitch/management/commands/` for data import and maintenance tasks
-- Use `pyproject.toml` + uv for dependency and environment management
-- Use `uv run python manage.py <command>` to run Django management commands
-- Use `uv run pytest` to run tests
-
-## Documentation & Project Organization
-- Only create documentation files when explicitly requested by the user
-- Do not generate markdown files summarizing work or changes unless asked
-- Keep code comments focused on "why" not "what"; the code itself should be clear
-- Update existing documentation rather than creating new files
+## Documentation
+- Link to existing docs instead of duplicating them.
+- Use `README.md` as the source of truth for system setup, deployment, Celery, and management command examples.
+- Only create new documentation files when explicitly requested.
