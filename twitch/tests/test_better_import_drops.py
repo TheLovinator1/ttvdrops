@@ -1,13 +1,22 @@
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 from unittest import skipIf
+from unittest.mock import patch
 
 from django.db import connection
 from django.test import TestCase
 
 from twitch.management.commands.better_import_drops import Command
 from twitch.management.commands.better_import_drops import detect_error_only_response
+from twitch.management.commands.better_import_drops import detect_non_campaign_keyword
+from twitch.management.commands.better_import_drops import (
+    extract_operation_name_from_parsed,
+)
+from twitch.management.commands.better_import_drops import move_completed_file
+from twitch.management.commands.better_import_drops import move_file_to_broken_subdir
+from twitch.management.commands.better_import_drops import repair_partially_broken_json
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
@@ -425,6 +434,92 @@ class CampaignStructureDetectionTests(TestCase):
 
         structure: str | None = command._detect_campaign_structure(response)
         assert structure == "current_user_drop_campaigns"
+
+    def test_detects_user_drop_campaign_structure(self) -> None:
+        """Ensure user.dropCampaign structure is correctly detected."""
+        command = Command()
+
+        response: dict[str, object] = {
+            "data": {
+                "user": {
+                    "id": "123",
+                    "dropCampaign": {"id": "c1", "name": "Test Campaign"},
+                    "__typename": "User",
+                },
+            },
+        }
+
+        structure: str | None = command._detect_campaign_structure(response)
+        assert structure == "user_drop_campaign"
+
+    def test_detects_channel_viewer_campaigns_structure(self) -> None:
+        """Ensure channel.viewerDropCampaigns structure is correctly detected."""
+        command = Command()
+
+        response: dict[str, object] = {
+            "data": {
+                "channel": {
+                    "id": "123",
+                    "viewerDropCampaigns": [{"id": "c1", "name": "Test Campaign"}],
+                    "__typename": "Channel",
+                },
+            },
+        }
+
+        structure: str | None = command._detect_campaign_structure(response)
+        assert structure == "channel_viewer_campaigns"
+
+
+class FileMoveUtilityTests(TestCase):
+    """Tests for imported/broken file move utility helpers."""
+
+    def test_move_completed_file_sanitizes_operation_directory_name(self) -> None:
+        """Ensure operation names are sanitized and campaign structure subdir is respected."""
+        with TemporaryDirectory() as tmp_dir:
+            root_path = Path(tmp_dir)
+            imported_root = root_path / "imported"
+            source_file = root_path / "payload.json"
+            source_file.write_text("{}", encoding="utf-8")
+
+            with patch(
+                "twitch.management.commands.better_import_drops.get_imported_directory_root",
+                return_value=imported_root,
+            ):
+                target_dir = move_completed_file(
+                    file_path=source_file,
+                    operation_name="My Op/Name\\v1",
+                    campaign_structure="inventory_campaigns",
+                )
+
+            expected_dir = imported_root / "My_Op_Name_v1" / "inventory_campaigns"
+            assert target_dir == expected_dir
+            assert not source_file.exists()
+            assert (expected_dir / "payload.json").exists()
+
+    def test_move_file_to_broken_subdir_avoids_duplicate_operation_segment(
+        self,
+    ) -> None:
+        """Ensure matching reason and operation names do not create duplicate directories."""
+        with TemporaryDirectory() as tmp_dir:
+            root_path = Path(tmp_dir)
+            broken_root = root_path / "broken"
+            source_file = root_path / "broken_payload.json"
+            source_file.write_text("{}", encoding="utf-8")
+
+            with patch(
+                "twitch.management.commands.better_import_drops.get_broken_directory_root",
+                return_value=broken_root,
+            ):
+                broken_dir = move_file_to_broken_subdir(
+                    file_path=source_file,
+                    subdir="validation_failed",
+                    operation_name="validation_failed",
+                )
+
+            path_segments = broken_dir.as_posix().split("/")
+            assert path_segments.count("validation_failed") == 1
+            assert not source_file.exists()
+            assert (broken_dir / "broken_payload.json").exists()
 
 
 class OperationNameFilteringTests(TestCase):
@@ -864,3 +959,179 @@ class ErrorOnlyResponseDetectionTests(TestCase):
 
         result = detect_error_only_response(parsed_json)
         assert result == "error_only: unknown error"
+
+
+class NonCampaignKeywordDetectionTests(TestCase):
+    """Tests for non-campaign operation keyword detection."""
+
+    def test_detects_known_non_campaign_operation(self) -> None:
+        """Ensure known operationName values are detected as non-campaign payloads."""
+        raw_text = json.dumps({"extensions": {"operationName": "PlaybackAccessToken"}})
+
+        result = detect_non_campaign_keyword(raw_text)
+        assert result == "PlaybackAccessToken"
+
+    def test_returns_none_for_unknown_operation(self) -> None:
+        """Ensure unrelated operation names are not flagged."""
+        raw_text = json.dumps({"extensions": {"operationName": "DropCampaignDetails"}})
+
+        result = detect_non_campaign_keyword(raw_text)
+        assert result is None
+
+
+class OperationNameExtractionTests(TestCase):
+    """Tests for operation name extraction across supported payload shapes."""
+
+    def test_extracts_operation_name_from_json_repair_tuple(self) -> None:
+        """Ensure extraction supports tuple payloads returned by json_repair."""
+        payload = (
+            {"extensions": {"operationName": "ViewerDropsDashboard"}},
+            [{"json_repair": "log"}],
+        )
+
+        result = extract_operation_name_from_parsed(payload)
+        assert result == "ViewerDropsDashboard"
+
+    def test_extracts_operation_name_from_list_payload(self) -> None:
+        """Ensure extraction inspects the first response in list payloads."""
+        payload = [
+            {"extensions": {"operationName": "Inventory"}},
+            {"extensions": {"operationName": "IgnoredSecondItem"}},
+        ]
+
+        result = extract_operation_name_from_parsed(payload)
+        assert result == "Inventory"
+
+    def test_returns_none_for_empty_list_payload(self) -> None:
+        """Ensure extraction returns None for empty list payloads."""
+        result = extract_operation_name_from_parsed([])
+        assert result is None
+
+
+class JsonRepairTests(TestCase):
+    """Tests for partial JSON repair fallback behavior."""
+
+    def test_repair_filters_non_graphql_items_from_list(self) -> None:
+        """Ensure repaired list output only keeps GraphQL-like response objects."""
+        raw_text = '[{"foo": 1}, {"data": {"currentUser": {"id": "1"}}}]'
+
+        repaired = repair_partially_broken_json(raw_text)
+        parsed = json.loads(repaired)
+
+        assert parsed == [{"data": {"currentUser": {"id": "1"}}}]
+
+
+class ProcessFileWorkerTests(TestCase):
+    """Tests for process_file_worker early-return behaviors."""
+
+    def test_returns_reason_when_drop_campaign_key_missing(self) -> None:
+        """Ensure files without dropCampaign are marked failed with clear reason."""
+        command = Command()
+
+        repo_root: Path = Path(__file__).resolve().parents[2]
+        temp_path: Path = repo_root / "twitch" / "tests" / "tmp_no_drop_campaign.json"
+        temp_path.write_text(
+            json.dumps({"data": {"currentUser": {"id": "123"}}}),
+            encoding="utf-8",
+        )
+
+        try:
+            result = command.process_file_worker(
+                file_path=temp_path,
+                options={"crash_on_error": False, "skip_broken_moves": True},
+            )
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+        assert result["success"] is False
+        assert result["broken_dir"] == "(skipped)"
+        assert result["reason"] == "no dropCampaign present"
+
+    def test_returns_reason_for_error_only_response(self) -> None:
+        """Ensure error-only responses are marked failed with extracted reason."""
+        command = Command()
+
+        repo_root: Path = Path(__file__).resolve().parents[2]
+        temp_path: Path = repo_root / "twitch" / "tests" / "tmp_error_only.json"
+        temp_path.write_text(
+            json.dumps(
+                {
+                    "errors": [{"message": "service timeout"}],
+                    "data": None,
+                },
+            ),
+            encoding="utf-8",
+        )
+
+        try:
+            result = command.process_file_worker(
+                file_path=temp_path,
+                options={"crash_on_error": False, "skip_broken_moves": True},
+            )
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+        assert result["success"] is False
+        assert result["broken_dir"] == "(skipped)"
+        assert result["reason"] == "error_only: service timeout"
+
+    def test_returns_reason_for_known_non_campaign_keyword(self) -> None:
+        """Ensure known non-campaign operation payloads are rejected with reason."""
+        command = Command()
+
+        repo_root: Path = Path(__file__).resolve().parents[2]
+        temp_path: Path = (
+            repo_root / "twitch" / "tests" / "tmp_non_campaign_keyword.json"
+        )
+        temp_path.write_text(
+            json.dumps(
+                {
+                    "data": {"currentUser": {"id": "123"}},
+                    "extensions": {"operationName": "PlaybackAccessToken"},
+                },
+            ),
+            encoding="utf-8",
+        )
+
+        try:
+            result = command.process_file_worker(
+                file_path=temp_path,
+                options={"crash_on_error": False, "skip_broken_moves": True},
+            )
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
+
+        assert result["success"] is False
+        assert result["broken_dir"] == "(skipped)"
+        assert result["reason"] == "matched 'PlaybackAccessToken'"
+
+
+class NormalizeResponsesTests(TestCase):
+    """Tests for response normalization across supported payload formats."""
+
+    def test_normalizes_batched_responses_wrapper(self) -> None:
+        """Ensure batched payloads under responses key are unwrapped and filtered."""
+        command = Command()
+
+        parsed_json: dict[str, object] = {
+            "responses": [
+                {"data": {"currentUser": {"id": "1"}}},
+                "invalid-item",
+                {"extensions": {"operationName": "Inventory"}},
+            ],
+        }
+
+        normalized = command._normalize_responses(parsed_json)
+        assert len(normalized) == 2
+        assert normalized[0]["data"]["currentUser"]["id"] == "1"
+        assert normalized[1]["extensions"]["operationName"] == "Inventory"
+
+    def test_returns_empty_list_for_empty_tuple_payload(self) -> None:
+        """Ensure empty tuple payloads from json_repair produce no responses."""
+        command = Command()
+
+        normalized = command._normalize_responses(())  # type: ignore[arg-type]
+        assert normalized == []

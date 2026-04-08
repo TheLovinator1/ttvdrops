@@ -193,8 +193,8 @@ class Command(BaseCommand):
             img.mode == "P" and "transparency" in img.info
         ):
             # Create white background for transparency
-            background = Image.new("RGB", img.size, (255, 255, 255))
-            rgba_img = img.convert("RGBA") if img.mode == "P" else img
+            background: Image.Image = Image.new("RGB", img.size, (255, 255, 255))
+            rgba_img: Image.Image = img.convert("RGBA") if img.mode == "P" else img
             background.paste(
                 rgba_img,
                 mask=rgba_img.split()[-1] if rgba_img.mode in {"RGBA", "LA"} else None,

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import sentry_sdk
+from celery.schedules import crontab
 from dotenv import load_dotenv
 from platformdirs import user_data_dir
 
@@ -108,6 +109,8 @@ STATICFILES_DIRS: list[Path] = [BASE_DIR / "static"]
 
 TIME_ZONE = "UTC"
 WSGI_APPLICATION = "config.wsgi.application"
+
+TTVDROPS_PENDING_DIR: str = os.getenv("TTVDROPS_PENDING_DIR", "")
 
 INTERNAL_IPS: list[str] = []
 if DEBUG:
@@ -259,6 +262,63 @@ CELERY_BROKER_URL: str = REDIS_URL_CELERY
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_RESULT_EXTENDED = True
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+CELERY_TASK_SOFT_TIME_LIMIT: int = 3600  # warn at 1 h
+CELERY_TASK_TIME_LIMIT: int = 3900  # hard-kill at 1 h 5 min
+
+CELERY_TASK_ROUTES: dict[str, dict[str, str]] = {
+    "twitch.tasks.scan_pending_twitch_files": {"queue": "imports"},
+    "twitch.tasks.import_twitch_file": {"queue": "imports"},
+    "twitch.tasks.download_game_image": {"queue": "image-downloads"},
+    "twitch.tasks.download_campaign_image": {"queue": "image-downloads"},
+    "twitch.tasks.download_benefit_image": {"queue": "image-downloads"},
+    "twitch.tasks.download_reward_campaign_image": {"queue": "image-downloads"},
+    "twitch.tasks.download_all_images": {"queue": "image-downloads"},
+    "twitch.tasks.import_chat_badges": {"queue": "api-fetches"},
+    "twitch.tasks.backup_database": {"queue": "default"},
+    "kick.tasks.import_kick_drops": {"queue": "api-fetches"},
+    "chzzk.tasks.discover_chzzk_campaigns": {"queue": "api-fetches"},
+    "chzzk.tasks.import_chzzk_campaign_task": {"queue": "imports"},
+    "core.tasks.submit_indexnow_task": {"queue": "default"},
+}
+
+CELERY_BEAT_SCHEDULE: dict[str, Any] = {
+    # Scan for new Twitch JSON drops every 10 seconds.
+    "scan-pending-twitch-files": {
+        "task": "twitch.tasks.scan_pending_twitch_files",
+        "schedule": 10.0,
+        "options": {"queue": "imports"},
+    },
+    # Import Kick drops from the API (:01, :16, :31, :46 each hour).
+    "import-kick-drops": {
+        "task": "kick.tasks.import_kick_drops",
+        "schedule": crontab(minute="1,16,31,46"),
+        "options": {"queue": "api-fetches"},
+    },
+    # Backup database nightly at 02:15.
+    "backup-database": {
+        "task": "twitch.tasks.backup_database",
+        "schedule": crontab(hour=2, minute=15),
+        "options": {"queue": "default"},
+    },
+    # Discover new Chzzk campaigns every 2 hours at minute 0.
+    "discover-chzzk-campaigns": {
+        "task": "chzzk.tasks.discover_chzzk_campaigns",
+        "schedule": crontab(minute=0, hour="*/2"),
+        "options": {"queue": "api-fetches"},
+    },
+    # Weekly full image refresh (Sunday 04:00 UTC).
+    "download-all-images-weekly": {
+        "task": "twitch.tasks.download_all_images",
+        "schedule": crontab(hour=4, minute=0, day_of_week=0),
+        "options": {"queue": "image-downloads"},
+    },
+    # Weekly chat badge refresh (Sunday 03:00 UTC).
+    "import-chat-badges-weekly": {
+        "task": "twitch.tasks.import_chat_badges",
+        "schedule": crontab(hour=3, minute=0, day_of_week=0),
+        "options": {"queue": "api-fetches"},
+    },
+}
 
 # Define BASE_URL for dynamic URL generation
 BASE_URL: str = "https://ttvdrops.lovinator.space"

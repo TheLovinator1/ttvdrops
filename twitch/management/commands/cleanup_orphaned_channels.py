@@ -8,7 +8,8 @@ from twitch.models import Channel
 if TYPE_CHECKING:
     from argparse import ArgumentParser
 
-    from debug_toolbar.panels.templates.panel import QuerySet
+    from django.db.models import QuerySet
+
 
 SAMPLE_PREVIEW_COUNT = 10
 

@@ -36,3 +36,21 @@ class TwitchConfig(AppConfig):
             FieldFile.open = _safe_open
         except (AttributeError, TypeError) as exc:
             logger.debug("Failed to patch FieldFile.open: %s", exc)
+
+        # Register post_save signal handlers that dispatch image download tasks
+        # when new Twitch records are created.
+        from django.db.models.signals import post_save  # noqa: PLC0415
+
+        from twitch.models import DropBenefit  # noqa: PLC0415
+        from twitch.models import DropCampaign  # noqa: PLC0415
+        from twitch.models import Game  # noqa: PLC0415
+        from twitch.models import RewardCampaign  # noqa: PLC0415
+        from twitch.signals import on_drop_benefit_saved  # noqa: PLC0415
+        from twitch.signals import on_drop_campaign_saved  # noqa: PLC0415
+        from twitch.signals import on_game_saved  # noqa: PLC0415
+        from twitch.signals import on_reward_campaign_saved  # noqa: PLC0415
+
+        post_save.connect(on_game_saved, sender=Game)
+        post_save.connect(on_drop_campaign_saved, sender=DropCampaign)
+        post_save.connect(on_drop_benefit_saved, sender=DropBenefit)
+        post_save.connect(on_reward_campaign_saved, sender=RewardCampaign)

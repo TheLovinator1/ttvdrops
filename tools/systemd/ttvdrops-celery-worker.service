@@ -1,0 +1,31 @@
+[Unit]
+Description=TTVDrops Celery worker
+After=network-online.target valkey.service
+Wants=network-online.target valkey.service
+
+[Service]
+Type=simple
+User=ttvdrops
+Group=ttvdrops
+SupplementaryGroups=http
+UMask=0002
+WorkingDirectory=/home/ttvdrops/ttvdrops
+EnvironmentFile=/home/ttvdrops/ttvdrops/.env
+ExecStart=/usr/bin/uv run celery -A config worker \
+    --queues imports,api-fetches,default \
+    --concurrency 4 \
+    --loglevel INFO
+ExecStop=/bin/kill -s TERM $MAINPID
+ExecReload=/bin/kill -s HUP $MAINPID
+
+MemoryLimit=512M
+CPUQuota=75%
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ttvdrops-celery-worker
+
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target

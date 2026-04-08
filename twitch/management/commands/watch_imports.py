@@ -17,9 +17,16 @@ logger: logging.Logger = logging.getLogger("ttvdrops.watch_imports")
 
 
 class Command(BaseCommand):
-    """Watch for JSON files in a directory and import them automatically."""
+    """Watch for JSON files in a directory and import them automatically.
 
-    help = "Watch a directory for JSON files and import them automatically"
+    .. deprecated::
+        This command is superseded by the Celery Beat task
+        ``twitch.tasks.scan_pending_twitch_files`` (runs every 10 s via
+        ``ttvdrops-celery-beat.service``).  Keep this command for ad-hoc use
+        or in environments that run without a Celery worker.
+    """
+
+    help = "Watch a directory for JSON files and import them automatically (superseded by Celery Beat)"
     requires_migrations_checks = True
 
     def add_arguments(self, parser: CommandParser) -> None:

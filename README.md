@@ -61,13 +61,20 @@ sudo systemctl enable --now ttvdrops.service
 curl --unix-socket /run/ttvdrops/ttvdrops.sock https://ttvdrops.lovinator.space
 ```
 
-Install and enable timers:
+Enable Celery worker and Beat services:
 
 ```bash
-sudo install -m 0644 tools/systemd/ttvdrops-backup.{service,timer} /etc/systemd/system/
-sudo install -m 0644 tools/systemd/ttvdrops-import-drops.{service,timer} /etc/systemd/system/
+sudo install -m 0644 tools/systemd/ttvdrops-celery-worker.service /etc/systemd/system/
+sudo install -m 0644 tools/systemd/ttvdrops-celery-beat.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now ttvdrops-backup.timer ttvdrops-import-drops.timer
+sudo systemctl enable --now ttvdrops-celery-worker.service
+sudo systemctl enable --now ttvdrops-celery-beat.service
+```
+
+Set `TTVDROPS_PENDING_DIR` in `.env` to the directory where Twitch JSON drop files are dropped:
+
+```env
+TTVDROPS_PENDING_DIR=/mnt/fourteen/Data/Responses/pending
 ```
 
 ## Development
@@ -83,12 +90,39 @@ uv run pytest
 
 ## Celery
 
-Start a worker:
+Celery powers all periodic and background work. Three services are required:
+
+| Service file | Queues | Purpose |
+|---|---|---|
+| `ttvdrops-celery-worker.service` | `imports`, `api-fetches`, `default` | Twitch/Kick/Chzzk imports, backup |
+| `ttvdrops-celery-beat.service` | — | Periodic task scheduler (Beat) |
+
+Start workers manually during development:
 
 ```bash
-uv run celery -A config worker --loglevel=info
-uv run celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+# All-in-one worker (development)
+uv run celery -A config worker --queues imports,api-fetches,image-downloads,default --loglevel=info
+
+# Beat scheduler (requires database Beat tables — run migrate first)
+uv run celery -A config beat --scheduler django_celery_beat.schedulers:DatabaseScheduler --loglevel=info
+
+# Monitor tasks in the browser (optional)
+uv run celery -A config flower
 ```
+
+**Periodic tasks configured via `CELERY_BEAT_SCHEDULE`:**
+
+| Task | Schedule | Queue |
+|---|---|---|
+| `twitch.tasks.scan_pending_twitch_files` | every 10 s | `imports` |
+| `kick.tasks.import_kick_drops` | :01/:16/:31/:46 | `api-fetches` |
+| `chzzk.tasks.discover_chzzk_campaigns` | every 2 h | `api-fetches` |
+| `twitch.tasks.backup_database` | daily 02:15 UTC | `default` |
+| `twitch.tasks.download_all_images` | Sunday 04:00 UTC | `image-downloads` |
+| `twitch.tasks.import_chat_badges` | Sunday 03:00 UTC | `api-fetches` |
+
+Image downloads also run **immediately** on record creation via `post_save` signals
+(`Game`, `DropCampaign`, `DropBenefit`, `RewardCampaign`).
 
 ## Import Drops
 
