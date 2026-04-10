@@ -292,10 +292,19 @@ class KickDropCampaign(auto_prefetch.Model):
     def image_url(self) -> str:
         """Return the image URL for the campaign."""
         # Image from first drop
-        if self.rewards.exists():  # pyright: ignore[reportAttributeAccessIssue]
-            first_reward: KickReward | None = self.rewards.first()  # pyright: ignore[reportAttributeAccessIssue]
-            if first_reward and first_reward.image_url:
-                return first_reward.full_image_url
+        rewards_prefetched: list[KickReward] | None = getattr(
+            self,
+            "rewards_ordered",
+            None,
+        )
+        if rewards_prefetched is not None:
+            first_reward: KickReward | None = (
+                rewards_prefetched[0] if rewards_prefetched else None
+            )
+        else:
+            first_reward = self.rewards.first()  # pyright: ignore[reportAttributeAccessIssue]
+        if first_reward and first_reward.image_url:
+            return first_reward.full_image_url
 
         if self.category and self.category.image_url:
             return self.category.image_url

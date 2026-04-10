@@ -224,6 +224,10 @@ DATABASES: dict[str, dict[str, Any]] = configure_databases(
     base_dir=BASE_DIR,
 )
 
+if DEBUG:
+    INSTALLED_APPS.append("zeal")
+    MIDDLEWARE.append("zeal.middleware.zeal_middleware")
+
 if not TESTING:
     INSTALLED_APPS = [*INSTALLED_APPS, "debug_toolbar", "silk"]
     MIDDLEWARE = [

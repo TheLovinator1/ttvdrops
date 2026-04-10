@@ -438,7 +438,13 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     if game_filter:
         queryset = queryset.filter(game__twitch_id=game_filter)
 
-    queryset = queryset.prefetch_related("game__owners").order_by("-start_at")
+    queryset = queryset.prefetch_related(
+        "game__owners",
+        Prefetch(
+            "time_based_drops",
+            queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
+        ),
+    ).order_by("-start_at")
 
     # Optionally filter by status (active, upcoming, expired)
     now: datetime.datetime = timezone.now()
@@ -588,18 +594,18 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
                 queryset=Channel.objects.order_by("display_name"),
                 to_attr="channels_ordered",
             ),
+            Prefetch(
+                "time_based_drops",
+                queryset=TimeBasedDrop.objects.prefetch_related("benefits").order_by(
+                    "required_minutes_watched",
+                ),
+            ),
         ).get(twitch_id=twitch_id)
     except DropCampaign.DoesNotExist as exc:
         msg = "No campaign found matching the query"
         raise Http404(msg) from exc
 
-    drops: QuerySet[TimeBasedDrop] = (
-        TimeBasedDrop.objects
-        .filter(campaign=campaign)
-        .select_related("campaign")
-        .prefetch_related("benefits")
-        .order_by("required_minutes_watched")
-    )
+    drops: QuerySet[TimeBasedDrop] = campaign.time_based_drops.all()  # pyright: ignore[reportAttributeAccessIssue]
 
     now: datetime.datetime = timezone.now()
     enhanced_drops: list[dict[str, Any]] = _enhance_drops_with_context(drops, now)

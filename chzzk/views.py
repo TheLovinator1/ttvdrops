@@ -34,6 +34,7 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         models.ChzzkCampaign.objects
         .filter(end_date__gte=timezone.now())
         .exclude(state="TESTING")
+        .prefetch_related("rewards")
         .order_by("-start_date")
     )
     return render(

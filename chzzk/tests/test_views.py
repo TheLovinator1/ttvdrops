@@ -1,7 +1,9 @@
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -15,6 +17,75 @@ if TYPE_CHECKING:
 
 class ChzzkDashboardViewTests(TestCase):
     """Test cases for the dashboard view of the chzzk app."""
+
+    def test_dashboard_view_no_n_plus_one_on_rewards(self) -> None:
+        """Test that the dashboard view does not trigger an N+1 query for rewards."""
+        now = timezone.now()
+        base_kwargs = {
+            "category_type": "game",
+            "category_id": "1",
+            "category_value": "TestGame",
+            "service_id": "chzzk",
+            "state": "ACTIVE",
+            "start_date": now - timedelta(days=1),
+            "end_date": now + timedelta(days=1),
+            "has_ios_based_reward": False,
+            "drops_campaign_not_started": False,
+            "source_api": "unit-test",
+        }
+        reward_kwargs = {
+            "reward_type": "ITEM",
+            "campaign_reward_type": "Standard",
+            "condition_type": "watch",
+            "ios_based_reward": False,
+            "code_remaining_count": 100,
+        }
+
+        campaign1 = ChzzkCampaign.objects.create(
+            campaign_no=9001,
+            title="C1",
+            **base_kwargs,
+        )
+        campaign1.rewards.create(  # pyright: ignore[reportAttributeAccessIssue]
+            reward_no=901,
+            title="R1",
+            condition_for_minutes=10,
+            **reward_kwargs,
+        )  # pyright: ignore[reportAttributeAccessIssue]
+        campaign2 = ChzzkCampaign.objects.create(
+            campaign_no=9002,
+            title="C2",
+            **base_kwargs,
+        )
+        campaign2.rewards.create(  # pyright: ignore[reportAttributeAccessIssue]
+            reward_no=902,
+            title="R2",
+            condition_for_minutes=20,
+            **reward_kwargs,
+        )  # pyright: ignore[reportAttributeAccessIssue]
+
+        with CaptureQueriesContext(connection) as one_campaign_ctx:
+            self.client.get(reverse("chzzk:dashboard"))
+        query_count_two = len(one_campaign_ctx)
+
+        campaign3 = ChzzkCampaign.objects.create(
+            campaign_no=9003,
+            title="C3",
+            **base_kwargs,
+        )
+        campaign3.rewards.create(  # pyright: ignore[reportAttributeAccessIssue]
+            reward_no=903,
+            title="R3",
+            condition_for_minutes=30,
+            **reward_kwargs,
+        )  # pyright: ignore[reportAttributeAccessIssue]
+
+        with CaptureQueriesContext(connection) as three_campaign_ctx:
+            self.client.get(reverse("chzzk:dashboard"))
+        query_count_three = len(three_campaign_ctx)
+
+        # With prefetch_related, adding more campaigns should not add extra queries per campaign.
+        assert query_count_two == query_count_three
 
     def test_dashboard_view_excludes_testing_state_campaigns(self) -> None:
         """Test that the dashboard view excludes campaigns in the TESTING state."""
