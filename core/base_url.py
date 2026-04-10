@@ -69,7 +69,7 @@ class _TTVDropsSite:
     domain: str
 
 
-def get_current_site(request: object) -> _TTVDropsSite:
+def get_current_site(request: HttpRequest | None) -> _TTVDropsSite:
     """Return a site-like object with domain derived from BASE_URL."""
     base_url: str = _get_base_url()
     parts: SplitResult = urlsplit(base_url)

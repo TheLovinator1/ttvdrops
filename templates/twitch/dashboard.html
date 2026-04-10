@@ -69,7 +69,7 @@
                                         <div>
                                             <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}">
                                                 {% picture campaign_data.image_url alt="Image for "|add:campaign_data.campaign.name width=120 %}
-                                                <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign_data.campaign.clean_name }}</h4>
+                                                <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign_data.clean_name }}</h4>
                                             </a>
                                             <!-- End time -->
                                             <time datetime="{{ campaign_data.campaign.end_at|date:'c' }}"
@@ -114,11 +114,11 @@
                                                                 {% endfor %}
                                                             {% else %}
                                                                 <!-- No allowed channels means drops are available in any stream of the game's category -->
-                                                                {% if campaign.game.twitch_directory_url %}
+                                                                {% if campaign_data.game_twitch_directory_url %}
                                                                     <li>
-                                                                        <a href="{{ campaign.game.twitch_directory_url }}"
-                                                                           title="Open Twitch category page for {{ campaign_data.campaign.game.display_name }} with Drops filter">
-                                                                            Browse {{ campaign_data.campaign.game.display_name }} category
+                                                                        <a href="{{ campaign_data.game_twitch_directory_url }}"
+                                                                           title="Open Twitch category page for {{ campaign_data.game_display_name }} with Drops filter">
+                                                                            Browse {{ campaign_data.game_display_name }} category
                                                                         </a>
                                                                     </li>
                                                                 {% else %}
@@ -131,10 +131,10 @@
                                                                 </li>
                                                             {% endif %}
                                                         {% else %}
-                                                            {% if campaign_data.campaign.game.twitch_directory_url %}
+                                                            {% if campaign_data.game_twitch_directory_url %}
                                                                 <li>
-                                                                    <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
-                                                                       title="Find streamers playing {{ campaign_data.campaign.game.display_name }} with drops enabled">
+                                                                    <a href="{{ campaign_data.game_twitch_directory_url }}"
+                                                                       title="Find streamers playing {{ campaign_data.game_display_name }} with drops enabled">
                                                                         Go to a participating live channel
                                                                     </a>
                                                                 </li>

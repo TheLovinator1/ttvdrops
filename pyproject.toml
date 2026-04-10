@@ -52,6 +52,7 @@ dev = [
 DJANGO_SETTINGS_MODULE = "config.settings"
 python_files = ["test_*.py", "*_test.py"]
 addopts = "--tb=short -n auto --cov"
+markers = ["no_zeal: run test without zeal_context N+1 checks"]
 filterwarnings = [
     "ignore:Parsing dates involving a day of month without a year specified is ambiguous:DeprecationWarning",
 ]

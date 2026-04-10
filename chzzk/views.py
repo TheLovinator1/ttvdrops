@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 from django.db.models import Q
-from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import reverse
@@ -16,9 +15,9 @@ from twitch.feeds import TTVDropsBaseFeed
 if TYPE_CHECKING:
     import datetime
 
+    from django.db.models.query import QuerySet
     from django.http import HttpResponse
     from django.http.request import HttpRequest
-    from pytest_django.asserts import QuerySet
 
 
 def dashboard_view(request: HttpRequest) -> HttpResponse:

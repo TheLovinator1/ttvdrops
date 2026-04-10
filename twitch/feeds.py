@@ -161,7 +161,7 @@ class TTVDropsBaseFeed(Feed):
 
         response.content = content.encode(encoding)
 
-    def get_feed(self, obj: object, request: HttpRequest) -> SyndicationFeed:
+    def get_feed(self, obj: Model | None, request: HttpRequest) -> SyndicationFeed:
         """Use deterministic BASE_URL handling for syndication feed generation.
 
         Returns:
@@ -199,8 +199,8 @@ class TTVDropsBaseFeed(Feed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Return feed response with inline content disposition for browser display."""
         original_stylesheets: list[str] = self.stylesheets
@@ -745,8 +745,8 @@ class OrganizationRSSFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
@@ -822,8 +822,8 @@ class GameFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
@@ -975,8 +975,8 @@ class DropCampaignFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
@@ -1114,8 +1114,8 @@ class GameCampaignFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Override to capture limit parameter from request.
 
@@ -1293,8 +1293,8 @@ class RewardCampaignFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Override to capture limit parameter from request.
 

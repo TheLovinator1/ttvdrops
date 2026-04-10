@@ -7,6 +7,7 @@ from compression import zstd
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Protocol
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -17,6 +18,15 @@ from django.utils import timezone
 if TYPE_CHECKING:
     import sqlite3
     from argparse import ArgumentParser
+
+
+class SupportsStr(Protocol):
+    """Protocol for values that provide a string representation."""
+
+    def __str__(self) -> str: ...
+
+
+type SqlSerializable = bool | int | float | bytes | SupportsStr | None
 
 
 class Command(BaseCommand):
@@ -285,7 +295,7 @@ def _write_postgres_dump(output_path: Path, tables: list[str]) -> None:
         raise CommandError(msg)
 
 
-def _sql_literal(value: object) -> str:
+def _sql_literal(value: SqlSerializable) -> str:
     """Convert a Python value to a SQL literal.
 
     Args:
@@ -305,7 +315,7 @@ def _sql_literal(value: object) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def _json_default(value: object) -> str:
+def _json_default(value: bytes | SupportsStr) -> str:
     """Convert non-serializable values to JSON-compatible strings.
 
     Args:

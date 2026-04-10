@@ -5,6 +5,7 @@ from django.urls import reverse
 
 if TYPE_CHECKING:
     from django.test.client import Client
+    from pytest_django.fixtures import SettingsWrapper
 
 
 def _extract_locs(xml_bytes: bytes) -> list[str]:
@@ -15,7 +16,7 @@ def _extract_locs(xml_bytes: bytes) -> list[str]:
 
 def test_sitemap_static_contains_expected_links(
     client: Client,
-    settings: object,
+    settings: SettingsWrapper,
 ) -> None:
     """Ensure the static sitemap contains the main site links across apps.
 

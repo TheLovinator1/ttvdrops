@@ -2,6 +2,7 @@ import logging
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 import auto_prefetch
 from django.conf import settings
@@ -531,6 +532,8 @@ class DropCampaign(auto_prefetch.Model):
                 "name",
                 "image_url",
                 "image_file",
+                "image_width",
+                "image_height",
                 "start_at",
                 "end_at",
                 "allow_is_enabled",
@@ -540,6 +543,8 @@ class DropCampaign(auto_prefetch.Model):
                 "game__slug",
                 "game__box_art",
                 "game__box_art_file",
+                "game__box_art_width",
+                "game__box_art_height",
             )
             .select_related("game")
             .prefetch_related(
@@ -577,25 +582,89 @@ class DropCampaign(auto_prefetch.Model):
         """
         campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
-        for campaign in campaigns:
-            game: Game = campaign.game
-            game_id: str = game.twitch_id
+        campaigns_list: list[DropCampaign] = list(campaigns)
+        game_pks: list[int] = sorted({
+            cast("Any", campaign).game_id for campaign in campaigns_list
+        })
+        games: models.QuerySet[Game, Game] = (
+            Game.objects
+            .filter(pk__in=game_pks)
+            .only(
+                "pk",
+                "twitch_id",
+                "display_name",
+                "slug",
+                "box_art",
+                "box_art_file",
+                "box_art_width",
+                "box_art_height",
+            )
+            .prefetch_related(
+                models.Prefetch(
+                    "owners",
+                    queryset=Organization.objects.only("twitch_id", "name"),
+                ),
+            )
+        )
+        games_by_pk: dict[int, Game] = {game.pk: game for game in games}
+
+        def _clean_name(campaign_name: str, game_display_name: str) -> str:
+            if not game_display_name:
+                return campaign_name
+
+            game_variations: list[str] = [game_display_name]
+            if "&" in game_display_name:
+                game_variations.append(game_display_name.replace("&", "and"))
+            if "and" in game_display_name:
+                game_variations.append(game_display_name.replace("and", "&"))
+
+            for game_name in game_variations:
+                for separator in [" - ", " | ", " "]:
+                    prefix_to_check: str = game_name + separator
+                    if campaign_name.startswith(prefix_to_check):
+                        return campaign_name.removeprefix(prefix_to_check).strip()
+
+            return campaign_name
+
+        for campaign in campaigns_list:
+            game_pk: int = cast("Any", campaign).game_id
+            game: Game | None = games_by_pk.get(game_pk)
+            game_id: str = game.twitch_id if game else ""
+            game_display_name: str = game.display_name if game else ""
 
             if game_id not in campaigns_by_game:
                 campaigns_by_game[game_id] = {
-                    "name": game.display_name,
-                    "box_art": game.box_art_best_url,
-                    "owners": list(game.owners.all()),
+                    "name": game_display_name,
+                    "box_art": game.box_art_best_url if game else "",
+                    "owners": list(game.owners.all()) if game else [],
                     "campaigns": [],
                 }
 
             campaigns_by_game[game_id]["campaigns"].append({
                 "campaign": campaign,
+                "clean_name": _clean_name(campaign.name, game_display_name),
                 "image_url": campaign.listing_image_url,
                 "allowed_channels": getattr(campaign, "channels_ordered", []),
+                "game_display_name": game_display_name,
+                "game_twitch_directory_url": game.twitch_directory_url if game else "",
             })
 
         return campaigns_by_game
+
+    @classmethod
+    def campaigns_by_game_for_dashboard(
+        cls,
+        now: datetime.datetime,
+    ) -> OrderedDict[str, dict[str, Any]]:
+        """Return active campaigns grouped by game for dashboard rendering.
+
+        Args:
+            now: Current timestamp used to evaluate active campaigns.
+
+        Returns:
+            Ordered mapping keyed by game twitch_id.
+        """
+        return cls.grouped_by_game(cls.active_for_dashboard(now))
 
     @property
     def is_active(self) -> bool:

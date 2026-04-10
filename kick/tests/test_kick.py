@@ -669,20 +669,25 @@ class KickDashboardViewTest(TestCase):
 class KickCampaignListViewTest(TestCase):
     """Tests for the kick campaign list view."""
 
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Set up shared test data for campaign list view tests."""
+        cls.org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-list",
+            name="List Org",
+        )
+        cls.cat: KickCategory = KickCategory.objects.create(
+            kick_id=300,
+            name="List Cat",
+            slug="list-cat",
+        )
+
     def _make_campaign(
         self,
         kick_id: str,
         name: str,
         status: str = "active",
     ) -> KickDropCampaign:
-        org, _ = KickOrganization.objects.get_or_create(
-            kick_id="org-list",
-            defaults={"name": "List Org"},
-        )
-        cat, _ = KickCategory.objects.get_or_create(
-            kick_id=300,
-            defaults={"name": "List Cat", "slug": "list-cat"},
-        )
         # Set dates so the active/expired filter works correctly
         if status == "active":
             starts_at = dt(2020, 1, 1, tzinfo=UTC)
@@ -696,8 +701,8 @@ class KickCampaignListViewTest(TestCase):
             status=status,
             starts_at=starts_at,
             ends_at=ends_at,
-            organization=org,
-            category=cat,
+            organization=self.org,
+            category=self.cat,
             rule_id=1,
             rule_name="Watch to redeem",
             is_fully_imported=True,

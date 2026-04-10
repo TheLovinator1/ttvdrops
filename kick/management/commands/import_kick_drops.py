@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import httpx
@@ -14,6 +17,8 @@ from kick.models import KickUser
 from kick.schemas import KickDropsResponseSchema
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from django.core.management.base import CommandParser
 
     from kick.schemas import KickCategorySchema
@@ -22,6 +27,26 @@ if TYPE_CHECKING:
     from kick.schemas import KickUserSchema
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
+
+type KickImportModel = (
+    KickOrganization
+    | KickCategory
+    | KickDropCampaign
+    | KickUser
+    | KickChannel
+    | KickReward
+)
+type KickFieldValue = (
+    str
+    | bool
+    | int
+    | datetime
+    | KickOrganization
+    | KickCategory
+    | KickDropCampaign
+    | KickUser
+    | None
+)
 
 KICK_DROPS_API_URL = "https://web.kick.com/api/v1/drops/campaigns"
 
@@ -48,7 +73,26 @@ class Command(BaseCommand):
             help="API endpoint to fetch (default: %(default)s).",
         )
 
-    def handle(self, *args: object, **options: object) -> None:  # noqa: ARG002
+    @staticmethod
+    def _save_if_changed(
+        obj: KickImportModel,
+        defaults: Mapping[str, KickFieldValue],
+    ) -> None:
+        """Persist only changed fields to avoid unnecessary updates."""
+        changed_fields: list[str] = []
+        for field, new_value in defaults.items():
+            if getattr(obj, field, None) != new_value:
+                setattr(obj, field, new_value)
+                changed_fields.append(field)
+
+        if changed_fields:
+            obj.save(update_fields=changed_fields)
+
+    def handle(
+        self,
+        *_args: str,
+        **options: str | bool | int | None,
+    ) -> None:
         """Main entry point for the command."""
         url: str = str(options["url"])
         self.stdout.write(f"Fetching Kick drops from {url} ...")
@@ -99,54 +143,75 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"Imported {imported}/{len(campaigns)} campaign(s)."),
         )
 
-    def _import_campaign(self, data: KickDropCampaignSchema) -> None:
+    def _import_campaign(self, data: KickDropCampaignSchema) -> None:  # noqa: PLR0914, PLR0915
         """Import a single campaign and all its related objects."""
-        # Organisation
+        # Organization
         org_data: KickOrganizationSchema = data.organization
-        org, created = KickOrganization.objects.update_or_create(
+        org_defaults: dict[str, str | bool] = {
+            "name": org_data.name,
+            "logo_url": org_data.logo_url,
+            "url": org_data.url,
+            "restricted": org_data.restricted,
+        }
+        org: KickOrganization | None = KickOrganization.objects.filter(
             kick_id=org_data.id,
-            defaults={
-                "name": org_data.name,
-                "logo_url": org_data.logo_url,
-                "url": org_data.url,
-                "restricted": org_data.restricted,
-            },
-        )
+        ).first()
+        created: bool = org is None
+        if org is None:
+            org = KickOrganization.objects.create(kick_id=org_data.id, **org_defaults)
+        else:
+            self._save_if_changed(org, org_defaults)
         if created:
             logger.info("Created new organization: %s", org.kick_id)
 
         # Category
         cat_data: KickCategorySchema = data.category
-        category, created = KickCategory.objects.update_or_create(
+        category_defaults: dict[str, KickFieldValue] = {
+            "name": cat_data.name,
+            "slug": cat_data.slug,
+            "image_url": cat_data.image_url,
+        }
+        category: KickCategory | None = KickCategory.objects.filter(
             kick_id=cat_data.id,
-            defaults={
-                "name": cat_data.name,
-                "slug": cat_data.slug,
-                "image_url": cat_data.image_url,
-            },
-        )
+        ).first()
+        created = category is None
+        if category is None:
+            category = KickCategory.objects.create(
+                kick_id=cat_data.id,
+                **category_defaults,
+            )
+        else:
+            self._save_if_changed(category, category_defaults)
         if created:
             logger.info("Created new category: %s", category.kick_id)
 
         # Campaign
-        campaign, created = KickDropCampaign.objects.update_or_create(
+        campaign_defaults: dict[str, KickFieldValue] = {
+            "name": data.name,
+            "status": data.status,
+            "starts_at": data.starts_at,
+            "ends_at": data.ends_at,
+            "connect_url": data.connect_url,
+            "url": data.url,
+            "rule_id": data.rule.id,
+            "rule_name": data.rule.name,
+            "organization": org,
+            "category": category,
+            "created_at": data.created_at,
+            "api_updated_at": data.updated_at,
+            "is_fully_imported": True,
+        }
+        campaign: KickDropCampaign | None = KickDropCampaign.objects.filter(
             kick_id=data.id,
-            defaults={
-                "name": data.name,
-                "status": data.status,
-                "starts_at": data.starts_at,
-                "ends_at": data.ends_at,
-                "connect_url": data.connect_url,
-                "url": data.url,
-                "rule_id": data.rule.id,
-                "rule_name": data.rule.name,
-                "organization": org,
-                "category": category,
-                "created_at": data.created_at,
-                "api_updated_at": data.updated_at,
-                "is_fully_imported": True,
-            },
-        )
+        ).first()
+        created = campaign is None
+        if campaign is None:
+            campaign = KickDropCampaign.objects.create(
+                kick_id=data.id,
+                **campaign_defaults,
+            )
+        else:
+            self._save_if_changed(campaign, campaign_defaults)
         if created:
             logger.info("Created new campaign: %s", campaign.kick_id)
 
@@ -154,25 +219,38 @@ class Command(BaseCommand):
         channel_objs: list[KickChannel] = []
         for ch_data in data.channels:
             user_data: KickUserSchema = ch_data.user
-            user, created = KickUser.objects.update_or_create(
+            user_defaults: dict[str, KickFieldValue] = {
+                "username": user_data.username,
+                "profile_picture": user_data.profile_picture,
+            }
+            user: KickUser | None = KickUser.objects.filter(
                 kick_id=user_data.id,
-                defaults={
-                    "username": user_data.username,
-                    "profile_picture": user_data.profile_picture,
-                },
-            )
+            ).first()
+            created = user is None
+            if user is None:
+                user = KickUser.objects.create(kick_id=user_data.id, **user_defaults)
+            else:
+                self._save_if_changed(user, user_defaults)
             if created:
                 logger.info("Created new user: %s", user.kick_id)
 
-            channel, created = KickChannel.objects.update_or_create(
+            channel_defaults: dict[str, KickFieldValue] = {
+                "slug": ch_data.slug,
+                "description": ch_data.description,
+                "banner_picture_url": ch_data.banner_picture_url,
+                "user": user,
+            }
+            channel: KickChannel | None = KickChannel.objects.filter(
                 kick_id=ch_data.id,
-                defaults={
-                    "slug": ch_data.slug,
-                    "description": ch_data.description,
-                    "banner_picture_url": ch_data.banner_picture_url,
-                    "user": user,
-                },
-            )
+            ).first()
+            created = channel is None
+            if channel is None:
+                channel = KickChannel.objects.create(
+                    kick_id=ch_data.id,
+                    **channel_defaults,
+                )
+            else:
+                self._save_if_changed(channel, channel_defaults)
             if created:
                 logger.info("Created new channel: %s", channel.kick_id)
 
@@ -184,36 +262,46 @@ class Command(BaseCommand):
             # Resolve reward's category (may differ from campaign category)
             reward_category: KickCategory = category
             if reward_data.category_id != cat_data.id:
-                reward_category, created = KickCategory.objects.get_or_create(
+                reward_category = KickCategory.objects.filter(
                     kick_id=reward_data.category_id,
-                    defaults={"name": "", "slug": "", "image_url": ""},
+                ).first() or KickCategory.objects.create(
+                    kick_id=reward_data.category_id,
+                    name="",
+                    slug="",
+                    image_url="",
                 )
+                created = not reward_category.name and not reward_category.slug
                 if created:
                     logger.info("Created new category: %s", reward_category.kick_id)
 
             # Resolve reward's organization (may differ from campaign org)
             reward_org: KickOrganization = org
             if reward_data.organization_id != org_data.id:
-                reward_org, created = KickOrganization.objects.get_or_create(
+                reward_org = KickOrganization.objects.filter(
                     kick_id=reward_data.organization_id,
-                    defaults={
-                        "name": "",
-                        "logo_url": "",
-                        "url": "",
-                        "restricted": False,
-                    },
+                ).first() or KickOrganization.objects.create(
+                    kick_id=reward_data.organization_id,
+                    name="",
+                    logo_url="",
+                    url="",
+                    restricted=False,
                 )
+                created = not reward_org.name and not reward_org.url
                 if created:
                     logger.info("Created new organization: %s", reward_org.kick_id)
 
-            KickReward.objects.update_or_create(
+            reward_defaults: dict[str, KickFieldValue] = {
+                "name": reward_data.name,
+                "image_url": reward_data.image_url,
+                "required_units": reward_data.required_units,
+                "campaign": campaign,
+                "category": reward_category,
+                "organization": reward_org,
+            }
+            reward: KickReward | None = KickReward.objects.filter(
                 kick_id=reward_data.id,
-                defaults={
-                    "name": reward_data.name,
-                    "image_url": reward_data.image_url,
-                    "required_units": reward_data.required_units,
-                    "campaign": campaign,
-                    "category": reward_category,
-                    "organization": reward_org,
-                },
-            )
+            ).first()
+            if reward is None:
+                KickReward.objects.create(kick_id=reward_data.id, **reward_defaults)
+            else:
+                self._save_if_changed(reward, reward_defaults)

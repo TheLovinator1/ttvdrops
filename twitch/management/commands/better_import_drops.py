@@ -583,16 +583,31 @@ class Command(BaseCommand):
         Returns:
             Organization instance.
         """
-        org_obj, created = Organization.objects.get_or_create(
+        cache: dict[str, Organization] = getattr(self, "_org_cache", {})
+        if not hasattr(self, "_org_cache"):
+            self._org_cache = cache
+
+        cached_org: Organization | None = cache.get(org_data.twitch_id)
+        if cached_org is not None:
+            self._save_if_changed(cached_org, {"name": org_data.name})
+            return cached_org
+
+        org_obj: Organization | None = Organization.objects.filter(
             twitch_id=org_data.twitch_id,
-            defaults={"name": org_data.name},
-        )
-        if not created:
-            self._save_if_changed(org_obj, {"name": org_data.name})
-        else:
+        ).first()
+        _created: bool = org_obj is None
+        if org_obj is None:
+            org_obj = Organization.objects.create(
+                twitch_id=org_data.twitch_id,
+                name=org_data.name,
+            )
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created new organization: {org_data.name}",
             )
+        else:
+            self._save_if_changed(org_obj, {"name": org_data.name})
+
+        cache[org_data.twitch_id] = org_obj
 
         return org_obj
 
@@ -621,6 +636,10 @@ class Command(BaseCommand):
         if campaign_org_obj:
             owner_orgs.add(campaign_org_obj)
 
+        cache: dict[str, Game] = getattr(self, "_game_cache", {})
+        if not hasattr(self, "_game_cache"):
+            self._game_cache = cache
+
         defaults: dict[str, object] = {
             "display_name": game_data.display_name or (game_data.name or ""),
             "name": game_data.name or "",
@@ -628,10 +647,22 @@ class Command(BaseCommand):
             "box_art": game_data.box_art_url or "",
         }
 
-        game_obj, created = Game.objects.get_or_create(
+        cached_game: Game | None = cache.get(game_data.twitch_id)
+        if cached_game is not None:
+            if owner_orgs:
+                cached_game.owners.add(*owner_orgs)
+            self._save_if_changed(cached_game, defaults)
+            return cached_game
+
+        game_obj: Game | None = Game.objects.filter(
             twitch_id=game_data.twitch_id,
-            defaults=defaults,
-        )
+        ).first()
+        created: bool = game_obj is None
+        if game_obj is None:
+            game_obj = Game.objects.create(
+                twitch_id=game_data.twitch_id,
+                **defaults,
+            )
         # Set owners (ManyToMany)
         if created or owner_orgs:
             game_obj.owners.add(*owner_orgs)
@@ -642,6 +673,7 @@ class Command(BaseCommand):
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}",
             )
         self._download_game_box_art(game_obj, game_obj.box_art)
+        cache[game_data.twitch_id] = game_obj
         return game_obj
 
     def _download_game_box_art(self, game_obj: Game, box_art_url: str | None) -> None:
@@ -701,7 +733,7 @@ class Command(BaseCommand):
 
         return channel_obj
 
-    def process_responses(
+    def process_responses(  # noqa: PLR0915
         self,
         responses: list[dict[str, Any]],
         file_path: Path,
@@ -792,13 +824,18 @@ class Command(BaseCommand):
                     "account_link_url": drop_campaign.account_link_url,
                 }
 
-                campaign_obj, created = DropCampaign.objects.get_or_create(
+                campaign_obj: DropCampaign | None = DropCampaign.objects.filter(
                     twitch_id=drop_campaign.twitch_id,
-                    defaults=defaults,
-                )
-                if not created:
-                    self._save_if_changed(campaign_obj, defaults)
+                ).first()
+                created: bool = campaign_obj is None
+                if campaign_obj is None:
+                    campaign_obj = DropCampaign.objects.create(
+                        twitch_id=drop_campaign.twitch_id,
+                        **defaults,
+                    )
                 else:
+                    self._save_if_changed(campaign_obj, defaults)
+                if created:
                     tqdm.write(
                         f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}",
                     )
@@ -882,13 +919,18 @@ class Command(BaseCommand):
             if end_at_dt is not None:
                 drop_defaults["end_at"] = end_at_dt
 
-            drop_obj, created = TimeBasedDrop.objects.get_or_create(
+            drop_obj: TimeBasedDrop | None = TimeBasedDrop.objects.filter(
                 twitch_id=drop_schema.twitch_id,
-                defaults=drop_defaults,
-            )
-            if not created:
-                self._save_if_changed(drop_obj, drop_defaults)
+            ).first()
+            created: bool = drop_obj is None
+            if drop_obj is None:
+                drop_obj = TimeBasedDrop.objects.create(
+                    twitch_id=drop_schema.twitch_id,
+                    **drop_defaults,
+                )
             else:
+                self._save_if_changed(drop_obj, drop_defaults)
+            if created:
                 tqdm.write(
                     f"{Fore.GREEN}✓{Style.RESET_ALL} Created TimeBasedDrop: {drop_schema.name}",
                 )
@@ -900,6 +942,10 @@ class Command(BaseCommand):
 
     def _get_or_update_benefit(self, benefit_schema: DropBenefitSchema) -> DropBenefit:
         """Return a DropBenefit, creating or updating as needed."""
+        cache: dict[str, DropBenefit] = getattr(self, "_benefit_cache", {})
+        if not hasattr(self, "_benefit_cache"):
+            self._benefit_cache = cache
+
         distribution_type: str = (benefit_schema.distribution_type or "").strip()
         benefit_defaults: dict[str, str | int | datetime | bool | None] = {
             "name": benefit_schema.name,
@@ -914,16 +960,28 @@ class Command(BaseCommand):
             if created_at_dt:
                 benefit_defaults["created_at"] = created_at_dt
 
-        benefit_obj, created = DropBenefit.objects.get_or_create(
+        cached_benefit: DropBenefit | None = cache.get(benefit_schema.twitch_id)
+        if cached_benefit is not None:
+            self._save_if_changed(cached_benefit, benefit_defaults)
+            return cached_benefit
+
+        benefit_obj: DropBenefit | None = DropBenefit.objects.filter(
             twitch_id=benefit_schema.twitch_id,
-            defaults=benefit_defaults,
-        )
+        ).first()
+        created: bool = benefit_obj is None
+        if benefit_obj is None:
+            benefit_obj = DropBenefit.objects.create(
+                twitch_id=benefit_schema.twitch_id,
+                **benefit_defaults,
+            )
         if not created:
             self._save_if_changed(benefit_obj, benefit_defaults)
         else:
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}",
             )
+
+        cache[benefit_schema.twitch_id] = benefit_obj
 
         return benefit_obj
 
@@ -946,11 +1004,17 @@ class Command(BaseCommand):
             )
 
             defaults = {"entitlement_limit": edge_schema.entitlement_limit}
-            edge_obj, created = DropBenefitEdge.objects.get_or_create(
+            edge_obj: DropBenefitEdge | None = DropBenefitEdge.objects.filter(
                 drop=drop_obj,
                 benefit=benefit_obj,
-                defaults=defaults,
-            )
+            ).first()
+            created: bool = edge_obj is None
+            if edge_obj is None:
+                edge_obj = DropBenefitEdge.objects.create(
+                    drop=drop_obj,
+                    benefit=benefit_obj,
+                    **defaults,
+                )
             if not created:
                 self._save_if_changed(edge_obj, defaults)
             else:

@@ -196,9 +196,12 @@ class Command(BaseCommand):
         Returns:
             Tuple of (ChatBadgeSet instance, created flag)
         """
-        badge_set_obj, created = ChatBadgeSet.objects.get_or_create(
+        badge_set_obj: ChatBadgeSet | None = ChatBadgeSet.objects.filter(
             set_id=badge_set_schema.set_id,
-        )
+        ).first()
+        created: bool = badge_set_obj is None
+        if badge_set_obj is None:
+            badge_set_obj = ChatBadgeSet.objects.create(set_id=badge_set_schema.set_id)
 
         if created:
             self.stdout.write(
@@ -258,11 +261,25 @@ class Command(BaseCommand):
             "click_url": version_schema.click_url,
         }
 
-        _badge_obj, created = ChatBadge.objects.update_or_create(
+        badge_obj: ChatBadge | None = ChatBadge.objects.filter(
             badge_set=badge_set_obj,
             badge_id=version_schema.badge_id,
-            defaults=defaults,
-        )
+        ).first()
+        created: bool = badge_obj is None
+        if badge_obj is None:
+            badge_obj = ChatBadge.objects.create(
+                badge_set=badge_set_obj,
+                badge_id=version_schema.badge_id,
+                **defaults,
+            )
+        else:
+            changed_fields: list[str] = []
+            for field, value in defaults.items():
+                if getattr(badge_obj, field) != value:
+                    setattr(badge_obj, field, value)
+                    changed_fields.append(field)
+            if changed_fields:
+                badge_obj.save(update_fields=changed_fields)
 
         if created:
             msg: str = (

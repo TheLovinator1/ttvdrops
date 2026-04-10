@@ -15,11 +15,9 @@ from django.db.models import Max
 from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import Q
-from django.db.models import QuerySet
 from django.db.models.functions import Trim
 from django.http import FileResponse
 from django.http import Http404
-from django.http import HttpRequest
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.template.defaultfilters import filesizeformat

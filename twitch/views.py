@@ -875,7 +875,7 @@ class GameDetailView(DetailView):
 
         return game
 
-    def get_context_data(self, **kwargs: object) -> dict[str, Any]:  # noqa: PLR0914
+    def get_context_data(self, **kwargs) -> dict[str, Any]:  # noqa: PLR0914
         """Add additional context data.
 
         Args:
@@ -1071,9 +1071,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered dashboard template.
     """
     now: datetime.datetime = timezone.now()
-    active_campaigns: QuerySet[DropCampaign] = DropCampaign.active_for_dashboard(now)
-    campaigns_by_game: OrderedDict[str, dict[str, Any]] = DropCampaign.grouped_by_game(
-        active_campaigns,
+    campaigns_by_game: OrderedDict[str, dict[str, Any]] = (
+        DropCampaign.campaigns_by_game_for_dashboard(now)
     )
 
     # Get active reward campaigns (Quest rewards)
@@ -1112,7 +1111,6 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         request,
         "twitch/dashboard.html",
         {
-            "active_campaigns": active_campaigns,
             "campaigns_by_game": campaigns_by_game,
             "active_reward_campaigns": active_reward_campaigns,
             "now": now,
@@ -1441,7 +1439,7 @@ class ChannelDetailView(DetailView):
 
         return channel
 
-    def get_context_data(self, **kwargs: object) -> dict[str, Any]:  # noqa: PLR0914
+    def get_context_data(self, **kwargs) -> dict[str, Any]:  # noqa: PLR0914
         """Add additional context data.
 
         Args:

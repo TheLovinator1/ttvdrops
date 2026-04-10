@@ -206,8 +206,8 @@ class KickOrganizationFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Capture optional ?limit query parameter.
 
@@ -283,8 +283,8 @@ class KickCategoryFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Capture optional ?limit query parameter.
 
@@ -372,8 +372,8 @@ class KickCampaignFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Capture optional ?limit query parameter.
 
@@ -481,8 +481,8 @@ class KickCategoryCampaignFeed(TTVDropsBaseFeed):
     def __call__(
         self,
         request: HttpRequest,
-        *args: object,
-        **kwargs: object,
+        *args: str | int,
+        **kwargs: str | int,
     ) -> HttpResponse:
         """Capture optional ?limit query parameter.
 

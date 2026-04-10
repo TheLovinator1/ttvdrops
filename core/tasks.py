@@ -5,7 +5,7 @@ import logging
 from celery import shared_task
 from django.core.management import call_command
 
-logger = logging.getLogger("ttvdrops.tasks")
+logger: logging.Logger = logging.getLogger("ttvdrops.tasks")
 
 
 @shared_task(bind=True, queue="default", max_retries=3, default_retry_delay=300)

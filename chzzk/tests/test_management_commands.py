@@ -136,7 +136,7 @@ class ImportChzzkCampaignRangeCommandTest(TestCase):
         stdout = StringIO()
         stderr = StringIO()
 
-        def side_effect(command: str, *args: str, **kwargs: object) -> None:
+        def side_effect(command: str, *args: str, **kwargs: StringIO) -> None:
             if "4" in args:
                 msg = "Campaign 4 not found"
                 raise CommandError(msg)

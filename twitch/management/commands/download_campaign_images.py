@@ -50,10 +50,14 @@ class Command(BaseCommand):
             help="Re-download even if a local image file already exists.",
         )
 
-    def handle(self, *_args: object, **options: object) -> None:
+    def handle(
+        self,
+        *_args: str,
+        **options: str | bool | int | None,
+    ) -> None:
         """Download images for campaigns, benefits, and/or rewards."""
         model_choice: str = str(options.get("model", "all"))
-        limit_value: object | None = options.get("limit")
+        limit_value: str | bool | int | None = options.get("limit")
         limit: int | None = limit_value if isinstance(limit_value, int) else None
         force: bool = bool(options.get("force"))
 
