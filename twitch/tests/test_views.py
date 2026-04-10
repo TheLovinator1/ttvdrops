@@ -651,6 +651,97 @@ class TestChannelListView:
         assert rewards_uses_index, reward_plan
 
     @pytest.mark.django_db
+    def test_dashboard_query_plans_reference_expected_index_names(self) -> None:
+        """Dashboard active-window plans should mention concrete index names."""
+        now: datetime.datetime = timezone.now()
+
+        org: Organization = Organization.objects.create(
+            twitch_id="org_index_name_test",
+            name="Org Index Name Test",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_index_name_test",
+            name="Game Index Name Test",
+            display_name="Game Index Name Test",
+        )
+        game.owners.add(org)
+
+        DropCampaign.objects.create(
+            twitch_id="active_for_dashboard_index_name_test",
+            name="Active campaign index-name test",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        RewardCampaign.objects.create(
+            twitch_id="reward_active_for_dashboard_index_name_test",
+            name="Active reward campaign index-name test",
+            game=game,
+            starts_at=now - timedelta(hours=1),
+            ends_at=now + timedelta(hours=1),
+        )
+
+        # Keep this assertion scoped to engines whose plans typically include index names.
+        if connection.vendor not in {"sqlite", "postgresql"}:
+            pytest.skip(
+                f"Unsupported DB vendor for index-name plan assertion: {connection.vendor}",
+            )
+
+        def _index_names(table_name: str) -> set[str]:
+            with connection.cursor() as cursor:
+                constraints = connection.introspection.get_constraints(
+                    cursor,
+                    table_name,
+                )
+
+            names: set[str] = set()
+            for name, meta in constraints.items():
+                if not meta.get("index"):
+                    continue
+                names.add(name)
+            return names
+
+        expected_drop_indexes: set[str] = {
+            "tw_drop_start_desc_idx",
+            "tw_drop_start_end_idx",
+            "tw_drop_start_end_game_idx",
+        }
+        expected_reward_indexes: set[str] = {
+            "tw_reward_starts_desc_idx",
+            "tw_reward_starts_ends_idx",
+        }
+
+        drop_index_names: set[str] = _index_names(DropCampaign._meta.db_table)
+        reward_index_names: set[str] = _index_names(RewardCampaign._meta.db_table)
+
+        missing_drop_indexes: set[str] = expected_drop_indexes - drop_index_names
+        missing_reward_indexes: set[str] = expected_reward_indexes - reward_index_names
+
+        assert not missing_drop_indexes, (
+            "Missing expected DropCampaign dashboard indexes: "
+            f"{sorted(missing_drop_indexes)}"
+        )
+        assert not missing_reward_indexes, (
+            "Missing expected RewardCampaign dashboard indexes: "
+            f"{sorted(missing_reward_indexes)}"
+        )
+
+        campaigns_plan: str = DropCampaign.active_for_dashboard(now).explain().lower()
+        reward_plan: str = RewardCampaign.active_for_dashboard(now).explain().lower()
+
+        assert any(name.lower() in campaigns_plan for name in expected_drop_indexes), (
+            "DropCampaign active-for-dashboard plan did not reference an expected "
+            "named dashboard index. "
+            f"Expected one of {sorted(expected_drop_indexes)}. Plan={campaigns_plan}"
+        )
+        assert any(name.lower() in reward_plan for name in expected_reward_indexes), (
+            "RewardCampaign active-for-dashboard plan did not reference an expected "
+            "named dashboard index. "
+            f"Expected one of {sorted(expected_reward_indexes)}. Plan={reward_plan}"
+        )
+
+    @pytest.mark.django_db
     def test_dashboard_query_count_stays_flat_with_more_data(
         self,
         client: Client,
@@ -756,6 +847,57 @@ class TestChannelListView:
         assert scaled_select_count <= baseline_select_count + 2, (
             "Dashboard SELECT query count grew with data volume; possible N+1 regression. "
             f"baseline={baseline_select_count}, scaled={scaled_select_count}"
+        )
+
+    @pytest.mark.django_db
+    def test_dashboard_grouping_reuses_selected_game_relation(self) -> None:
+        """Dashboard grouping should not issue extra standalone Game queries."""
+        now: datetime.datetime = timezone.now()
+
+        org: Organization = Organization.objects.create(
+            twitch_id="org_grouping_no_extra_game_select",
+            name="Org Grouping No Extra Game Select",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_grouping_no_extra_game_select",
+            name="game_grouping_no_extra_game_select",
+            display_name="Game Grouping No Extra Game Select",
+        )
+        game.owners.add(org)
+
+        campaigns: list[DropCampaign] = [
+            DropCampaign(
+                twitch_id=f"grouping_campaign_{i}",
+                name=f"Grouping campaign {i}",
+                game=game,
+                operation_names=["DropCampaignDetails"],
+                start_at=now - timedelta(hours=1),
+                end_at=now + timedelta(hours=1),
+            )
+            for i in range(5)
+        ]
+        DropCampaign.objects.bulk_create(campaigns)
+
+        with CaptureQueriesContext(connection) as queries:
+            grouped: dict[str, dict[str, Any]] = (
+                DropCampaign.campaigns_by_game_for_dashboard(now)
+            )
+
+        assert game.twitch_id in grouped
+        assert len(grouped[game.twitch_id]["campaigns"]) == 5
+
+        game_select_queries: list[str] = [
+            query_info["sql"]
+            for query_info in queries.captured_queries
+            if query_info["sql"].lstrip().upper().startswith("SELECT")
+            and 'from "twitch_game"' in query_info["sql"].lower()
+            and " join " not in query_info["sql"].lower()
+        ]
+
+        assert not game_select_queries, (
+            "Dashboard grouping should reuse DropCampaign.active_for_dashboard() "
+            "select_related game rows instead of standalone Game SELECTs. "
+            f"Queries: {game_select_queries}"
         )
 
     @pytest.mark.django_db

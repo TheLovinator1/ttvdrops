@@ -2,7 +2,6 @@ import logging
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import cast
 
 import auto_prefetch
 from django.conf import settings
@@ -492,7 +491,7 @@ class DropCampaign(auto_prefetch.Model):
     class Meta(auto_prefetch.Model.Meta):
         ordering = ["-start_at"]
         indexes = [
-            models.Index(fields=["-start_at"]),
+            models.Index(fields=["-start_at"], name="tw_drop_start_desc_idx"),
             models.Index(fields=["end_at"]),
             models.Index(fields=["game"]),
             models.Index(fields=["twitch_id"]),
@@ -504,9 +503,12 @@ class DropCampaign(auto_prefetch.Model):
             models.Index(fields=["updated_at"]),
             # Composite indexes for common queries
             models.Index(fields=["game", "-start_at"]),
-            models.Index(fields=["start_at", "end_at"]),
+            models.Index(fields=["start_at", "end_at"], name="tw_drop_start_end_idx"),
             # For dashboard and game_detail active campaign filtering
-            models.Index(fields=["start_at", "end_at", "game"]),
+            models.Index(
+                fields=["start_at", "end_at", "game"],
+                name="tw_drop_start_end_game_idx",
+            ),
             models.Index(fields=["end_at", "-start_at"]),
         ]
 
@@ -584,71 +586,28 @@ class DropCampaign(auto_prefetch.Model):
         """
         campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
-        campaigns_list: list[DropCampaign] = list(campaigns)
-        game_pks: list[int] = sorted({
-            cast("Any", campaign).game_id for campaign in campaigns_list
-        })
-        games: models.QuerySet[Game, Game] = (
-            Game.objects
-            .filter(pk__in=game_pks)
-            .only(
-                "pk",
-                "twitch_id",
-                "display_name",
-                "slug",
-                "box_art",
-                "box_art_file",
-                "box_art_width",
-                "box_art_height",
-            )
-            .prefetch_related(
-                models.Prefetch(
-                    "owners",
-                    queryset=Organization.objects.only("twitch_id", "name"),
-                ),
-            )
-        )
-        games_by_pk: dict[int, Game] = {game.pk: game for game in games}
+        for campaign in campaigns:
+            game: Game = campaign.game
+            game_id: str = game.twitch_id
+            game_display_name: str = game.display_name
 
-        def _clean_name(campaign_name: str, game_display_name: str) -> str:
-            if not game_display_name:
-                return campaign_name
-
-            game_variations: list[str] = [game_display_name]
-            if "&" in game_display_name:
-                game_variations.append(game_display_name.replace("&", "and"))
-            if "and" in game_display_name:
-                game_variations.append(game_display_name.replace("and", "&"))
-
-            for game_name in game_variations:
-                for separator in [" - ", " | ", " "]:
-                    prefix_to_check: str = game_name + separator
-                    if campaign_name.startswith(prefix_to_check):
-                        return campaign_name.removeprefix(prefix_to_check).strip()
-
-            return campaign_name
-
-        for campaign in campaigns_list:
-            game_pk: int = cast("Any", campaign).game_id
-            game: Game | None = games_by_pk.get(game_pk)
-            game_id: str = game.twitch_id if game else ""
-            game_display_name: str = game.display_name if game else ""
-
-            if game_id not in campaigns_by_game:
-                campaigns_by_game[game_id] = {
+            game_bucket: dict[str, Any] = campaigns_by_game.setdefault(
+                game_id,
+                {
                     "name": game_display_name,
-                    "box_art": game.box_art_best_url if game else "",
-                    "owners": list(game.owners.all()) if game else [],
+                    "box_art": game.box_art_best_url,
+                    "owners": list(game.owners.all()),
                     "campaigns": [],
-                }
+                },
+            )
 
-            campaigns_by_game[game_id]["campaigns"].append({
+            game_bucket["campaigns"].append({
                 "campaign": campaign,
-                "clean_name": _clean_name(campaign.name, game_display_name),
+                "clean_name": campaign.clean_name,
                 "image_url": campaign.listing_image_url,
                 "allowed_channels": getattr(campaign, "channels_ordered", []),
                 "game_display_name": game_display_name,
-                "game_twitch_directory_url": game.twitch_directory_url if game else "",
+                "game_twitch_directory_url": game.twitch_directory_url,
             })
 
         return campaigns_by_game
@@ -1165,7 +1124,7 @@ class RewardCampaign(auto_prefetch.Model):
     class Meta(auto_prefetch.Model.Meta):
         ordering = ["-starts_at"]
         indexes = [
-            models.Index(fields=["-starts_at"]),
+            models.Index(fields=["-starts_at"], name="tw_reward_starts_desc_idx"),
             models.Index(fields=["ends_at"]),
             models.Index(fields=["twitch_id"]),
             models.Index(fields=["name"]),
@@ -1176,7 +1135,10 @@ class RewardCampaign(auto_prefetch.Model):
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
             # Composite indexes for common queries
-            models.Index(fields=["starts_at", "ends_at"]),
+            models.Index(
+                fields=["starts_at", "ends_at"],
+                name="tw_reward_starts_ends_idx",
+            ),
             models.Index(fields=["status", "-starts_at"]),
         ]
 
