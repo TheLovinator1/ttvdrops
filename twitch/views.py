@@ -14,11 +14,9 @@ from django.core.paginator import EmptyPage
 from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
-from django.db.models import Case
 from django.db.models import Count
 from django.db.models import Prefetch
 from django.db.models import Q
-from django.db.models import When
 from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import HttpResponse
@@ -1585,22 +1583,12 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered badge list page.
     """
-    badge_sets: QuerySet[ChatBadgeSet] = (
-        ChatBadgeSet.objects
-        .all()
-        .prefetch_related(
-            Prefetch("badges", queryset=ChatBadge.objects.order_by("badge_id")),
-        )
-        .order_by("set_id")
-    )
-
-    # Group badges by set for easier display
     badge_data: list[dict[str, Any]] = [
         {
             "set": badge_set,
             "badges": list(badge_set.badges.all()),  # pyright: ignore[reportAttributeAccessIssue]
         }
-        for badge_set in badge_sets
+        for badge_set in ChatBadgeSet.for_list_view()
     ]
 
     # CollectionPage schema for badges list
@@ -1618,7 +1606,6 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
         seo_meta={"schema_data": collection_schema},
     )
     context: dict[str, Any] = {
-        "badge_sets": badge_sets,
         "badge_data": badge_data,
         **seo_context,
     }
@@ -1641,52 +1628,30 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
         Http404: If the badge set is not found.
     """
     try:
-        badge_set: ChatBadgeSet = ChatBadgeSet.objects.prefetch_related(
-            Prefetch("badges", queryset=ChatBadge.objects.order_by("badge_id")),
-        ).get(set_id=set_id)
+        badge_set: ChatBadgeSet = ChatBadgeSet.for_detail_view(set_id)
     except ChatBadgeSet.DoesNotExist as exc:
         msg = "No badge set found matching the query"
         raise Http404(msg) from exc
 
-    def get_sorted_badges(badge_set: ChatBadgeSet) -> QuerySet[ChatBadge]:
-        badges = badge_set.badges.all()  # pyright: ignore[reportAttributeAccessIssue]
+    # Sort badges treating pure-numeric badge_ids as integers, strings alphabetically after
+    badges: list[ChatBadge] = sorted(
+        badge_set.badges.all(),  # pyright: ignore[reportAttributeAccessIssue]
+        key=lambda b: (0, int(b.badge_id)) if b.badge_id.isdigit() else (1, b.badge_id),
+    )
 
-        def sort_badges(badge: ChatBadge) -> tuple:
-            """Sort badges by badge_id, treating numeric IDs as integers.
-
-            Args:
-                badge: The ChatBadge to sort.
-
-            Returns:
-                A tuple used for sorting, where numeric badge_ids are sorted as integers.
-            """
-            try:
-                return (int(badge.badge_id),)
-            except ValueError:
-                return (badge.badge_id,)
-
-        sorted_badges: list[ChatBadge] = sorted(badges, key=sort_badges)
-        badge_ids: list[int] = [badge.pk for badge in sorted_badges]
-        preserved_order = Case(
-            *[When(pk=pk, then=pos) for pos, pk in enumerate(badge_ids)],
-        )
-        return ChatBadge.objects.filter(pk__in=badge_ids).order_by(preserved_order)
-
-    badges: QuerySet[ChatBadge, ChatBadge] = get_sorted_badges(badge_set)
-
-    # Attach award_campaigns attribute to each badge for template use
+    # Batch-fetch award campaigns for all badge titles (2 queries regardless of badge count)
+    award_map: dict[str, list[DropCampaign]] = ChatBadge.award_campaigns_by_title(
+        [b.title for b in badges],
+    )
     for badge in badges:
-        benefits: QuerySet[DropBenefit, DropBenefit] = DropBenefit.objects.filter(
-            distribution_type="BADGE",
-            name=badge.title,
-        )
-        campaigns: QuerySet[DropCampaign, DropCampaign] = DropCampaign.objects.filter(
-            time_based_drops__benefits__in=benefits,
-        ).distinct()
-        badge.award_campaigns = list(campaigns)  # pyright: ignore[reportAttributeAccessIssue]
+        badge.award_campaigns = award_map.get(badge.title, [])  # pyright: ignore[reportAttributeAccessIssue]
 
     badge_set_name: str = badge_set.set_id
-    badge_set_description: str = f"Twitch chat badge set {badge_set_name} with {len(badges)} badge{'s' if len(badges) != 1 else ''} awarded through drop campaigns."
+    badge_count: int = len(badges)
+    badge_set_description: str = (
+        f"Twitch chat badge set {badge_set_name} with {badge_count} "
+        f"badge{'s' if badge_count != 1 else ''} awarded through drop campaigns."
+    )
 
     badge_schema: dict[str, Any] = {
         "@context": "https://schema.org",

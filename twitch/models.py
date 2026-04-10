@@ -8,6 +8,7 @@ import auto_prefetch
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import Prefetch
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -17,6 +18,7 @@ from twitch.utils import normalize_twitch_box_art_url
 if TYPE_CHECKING:
     import datetime
 
+    from django.db.models import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
 
@@ -882,6 +884,8 @@ class DropBenefit(auto_prefetch.Model):
             models.Index(fields=["is_ios_available"]),
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
+            # Composite index for badge award lookups (distribution_type="BADGE", name__in=titles)
+            models.Index(fields=["distribution_type", "name"]),
         ]
 
     def __str__(self) -> str:
@@ -1261,6 +1265,20 @@ class ChatBadgeSet(auto_prefetch.Model):
         """Return a string representation of the badge set."""
         return self.set_id
 
+    @classmethod
+    def for_list_view(cls) -> QuerySet[ChatBadgeSet]:
+        """Return all badge sets with badges prefetched, ordered by set_id."""
+        return cls.objects.prefetch_related(
+            Prefetch("badges", queryset=ChatBadge.objects.order_by("badge_id")),
+        ).order_by("set_id")
+
+    @classmethod
+    def for_detail_view(cls, set_id: str) -> ChatBadgeSet:
+        """Return a single badge set with badges prefetched."""
+        return cls.objects.prefetch_related(
+            Prefetch("badges", queryset=ChatBadge.objects.order_by("badge_id")),
+        ).get(set_id=set_id)
+
 
 # MARK: ChatBadge
 class ChatBadge(auto_prefetch.Model):
@@ -1355,3 +1373,43 @@ class ChatBadge(auto_prefetch.Model):
     def __str__(self) -> str:
         """Return a string representation of the badge."""
         return f"{self.badge_set.set_id}/{self.badge_id}: {self.title}"
+
+    @staticmethod
+    def award_campaigns_by_title(titles: list[str]) -> dict[str, list[DropCampaign]]:
+        """Batch-fetch DropCampaigns that award badges matching the given titles.
+
+        Avoids N+1 queries: one query traverses DropBenefit → TimeBasedDrop → DropCampaign
+        to get (benefit_name, campaign_pk) pairs, then one more query fetches the campaigns.
+
+        Returns:
+            Mapping of badge title to a list of DropCampaigns awarding it.
+            Titles with no matching campaigns are omitted.
+        """
+        if not titles:
+            return {}
+
+        # Single JOIN query: (benefit_name, campaign_pk) via the M2M chain
+        # DropBenefit -> DropBenefitEdge -> TimeBasedDrop -> DropCampaign (FK column)
+        pairs: list[tuple[str, int | None]] = list(
+            DropBenefit.objects
+            .filter(distribution_type="BADGE", name__in=titles)
+            .values_list("name", "drops__campaign_id")
+            .distinct(),
+        )
+
+        title_to_campaign_pks: dict[str, set[int]] = {}
+        for name, campaign_pk in pairs:
+            if campaign_pk is not None:
+                title_to_campaign_pks.setdefault(name, set()).add(campaign_pk)
+
+        if not title_to_campaign_pks:
+            return {}
+
+        all_campaign_pks = {pk for pks in title_to_campaign_pks.values() for pk in pks}
+        campaigns_by_pk: dict[int, DropCampaign] = {
+            c.pk: c for c in DropCampaign.objects.filter(pk__in=all_campaign_pks)
+        }
+        return {
+            title: [campaigns_by_pk[pk] for pk in sorted(pks) if pk in campaigns_by_pk]
+            for title, pks in title_to_campaign_pks.items()
+        }

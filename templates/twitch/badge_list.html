@@ -4,11 +4,11 @@
     Chat Badges
 {% endblock title %}
 {% block content %}
-    <h1>{{ badge_sets.count }} Twitch Chat Badges</h1>
+    <h1>{{ badge_data|length }} Twitch Chat Badges</h1>
     <div>
         <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Badges
     </div>
-    {% if badge_sets %}
+    {% if badge_data %}
         {% for data in badge_data %}
             <h2>
                 <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">{{ data.set.set_id }}</a>

@@ -2761,3 +2761,347 @@ class TestImageObjectStructuredData:
         schema: dict[str, Any] = json.loads(response.context["schema_data"])
         assert schema["image"]["creditText"] == "Real Campaign Publisher"
         assert schema["organizer"]["name"] == "Real Campaign Publisher"
+
+
+@pytest.mark.django_db
+class TestBadgeListView:
+    """Tests for the badge_list_view function."""
+
+    def test_badge_list_returns_200(self, client: Client) -> None:
+        """Badge list view renders successfully with no badge sets."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:badge_list"))
+        assert response.status_code == 200
+
+    def test_badge_list_context_has_badge_data(self, client: Client) -> None:
+        """Badge list view passes badge_data list (not badge_sets queryset) to template."""
+        badge_set: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="test_vip")
+        ChatBadge.objects.create(
+            badge_set=badge_set,
+            badge_id="1",
+            image_url_1x="https://example.com/1x.png",
+            image_url_2x="https://example.com/2x.png",
+            image_url_4x="https://example.com/4x.png",
+            title="VIP",
+            description="VIP badge",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:badge_list"))
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        assert "badge_data" in context
+        assert len(context["badge_data"]) == 1
+        assert context["badge_data"][0]["set"].set_id == "test_vip"
+        assert len(context["badge_data"][0]["badges"]) == 1
+        assert "badge_sets" not in context
+
+    def test_badge_list_query_count_stays_flat(self, client: Client) -> None:
+        """badge_list_view should not issue N+1 queries as badge set count grows."""
+        for i in range(3):
+            bs: ChatBadgeSet = ChatBadgeSet.objects.create(set_id=f"set_flat_{i}")
+            for j in range(4):
+                ChatBadge.objects.create(
+                    badge_set=bs,
+                    badge_id=str(j),
+                    image_url_1x="https://example.com/1x.png",
+                    image_url_2x="https://example.com/2x.png",
+                    image_url_4x="https://example.com/4x.png",
+                    title=f"Badge {i}-{j}",
+                    description="desc",
+                )
+
+        def _count_selects() -> int:
+            with CaptureQueriesContext(connection) as ctx:
+                resp: _MonkeyPatchedWSGIResponse = client.get(
+                    reverse("twitch:badge_list"),
+                )
+                assert resp.status_code == 200
+            return sum(
+                1
+                for q in ctx.captured_queries
+                if q["sql"].lstrip().upper().startswith("SELECT")
+            )
+
+        baseline: int = _count_selects()
+
+        # Add 10 more badge sets with badges
+        for i in range(3, 13):
+            bs = ChatBadgeSet.objects.create(set_id=f"set_flat_{i}")
+            for j in range(4):
+                ChatBadge.objects.create(
+                    badge_set=bs,
+                    badge_id=str(j),
+                    image_url_1x="https://example.com/1x.png",
+                    image_url_2x="https://example.com/2x.png",
+                    image_url_4x="https://example.com/4x.png",
+                    title=f"Badge {i}-{j}",
+                    description="desc",
+                )
+
+        scaled: int = _count_selects()
+        assert scaled <= baseline + 1, (
+            f"badge_list_view SELECT count grew with data; possible N+1. "
+            f"baseline={baseline}, scaled={scaled}"
+        )
+
+
+@pytest.mark.django_db
+class TestBadgeSetDetailView:
+    """Tests for the badge_set_detail_view function."""
+
+    @pytest.fixture
+    def badge_set_with_badges(self) -> dict[str, Any]:
+        """Create a badge set with numeric badge IDs and a campaign awarding one badge.
+
+        Returns:
+            Dict with badge_set, badge1-3, campaign, and benefit instances.
+        """
+        org: Organization = Organization.objects.create(
+            twitch_id="org_badge_test",
+            name="Badge Test Org",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_badge_test",
+            name="badge_test_game",
+            display_name="Badge Test Game",
+        )
+        game.owners.add(org)
+
+        badge_set: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="drops")
+        badge1: ChatBadge = ChatBadge.objects.create(
+            badge_set=badge_set,
+            badge_id="1",
+            image_url_1x="https://example.com/1x.png",
+            image_url_2x="https://example.com/2x.png",
+            image_url_4x="https://example.com/4x.png",
+            title="Drop 1",
+            description="First drop badge",
+        )
+        badge2: ChatBadge = ChatBadge.objects.create(
+            badge_set=badge_set,
+            badge_id="10",
+            image_url_1x="https://example.com/1x.png",
+            image_url_2x="https://example.com/2x.png",
+            image_url_4x="https://example.com/4x.png",
+            title="Drop 10",
+            description="Tenth drop badge",
+        )
+        badge3: ChatBadge = ChatBadge.objects.create(
+            badge_set=badge_set,
+            badge_id="2",
+            image_url_1x="https://example.com/1x.png",
+            image_url_2x="https://example.com/2x.png",
+            image_url_4x="https://example.com/4x.png",
+            title="Drop 2",
+            description="Second drop badge",
+        )
+
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="badge_test_campaign",
+            name="Badge Test Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="badge_test_drop",
+            name="Badge Test Drop",
+            campaign=campaign,
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="badge_test_benefit",
+            name="Drop 1",
+            distribution_type="BADGE",
+        )
+        drop.benefits.add(benefit)
+
+        return {
+            "badge_set": badge_set,
+            "badge1": badge1,
+            "badge2": badge2,
+            "badge3": badge3,
+            "campaign": campaign,
+            "benefit": benefit,
+        }
+
+    def test_badge_set_detail_returns_200(
+        self,
+        client: Client,
+        badge_set_with_badges: dict[str, Any],
+    ) -> None:
+        """Badge set detail view renders successfully."""
+        set_id: str = badge_set_with_badges["badge_set"].set_id
+        url: str = reverse("twitch:badge_set_detail", args=[set_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 200
+
+    def test_badge_set_detail_404_for_missing_set(self, client: Client) -> None:
+        """Badge set detail view returns 404 for unknown set_id."""
+        url: str = reverse("twitch:badge_set_detail", args=["nonexistent"])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        assert response.status_code == 404
+
+    def test_badges_sorted_numerically(
+        self,
+        client: Client,
+        badge_set_with_badges: dict[str, Any],
+    ) -> None:
+        """Numeric badge_ids should be sorted as integers (1, 2, 10) not strings (1, 10, 2)."""
+        set_id: str = badge_set_with_badges["badge_set"].set_id
+        url: str = reverse("twitch:badge_set_detail", args=[set_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        badge_ids: list[str] = [b.badge_id for b in context["badges"]]
+        assert badge_ids == ["1", "2", "10"], (
+            f"Expected numeric sort order [1, 2, 10], got {badge_ids}"
+        )
+
+    def test_award_campaigns_attached_to_badges(
+        self,
+        client: Client,
+        badge_set_with_badges: dict[str, Any],
+    ) -> None:
+        """Badges with matching BADGE benefits should have award_campaigns populated."""
+        set_id: str = badge_set_with_badges["badge_set"].set_id
+        url: str = reverse("twitch:badge_set_detail", args=[set_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        badges: list[ChatBadge] = list(context["badges"])
+        badge_titled_drop1: ChatBadge = next(b for b in badges if b.title == "Drop 1")
+        badge_titled_drop2: ChatBadge = next(b for b in badges if b.title == "Drop 2")
+
+        assert len(badge_titled_drop1.award_campaigns) == 1  # pyright: ignore[reportAttributeAccessIssue]
+        assert badge_titled_drop1.award_campaigns[0].twitch_id == "badge_test_campaign"  # pyright: ignore[reportAttributeAccessIssue]
+        assert len(badge_titled_drop2.award_campaigns) == 0  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_badge_set_detail_avoids_n_plus_one(
+        self,
+        client: Client,
+    ) -> None:
+        """badge_set_detail_view should not issue per-badge queries for award campaigns."""
+        org: Organization = Organization.objects.create(
+            twitch_id="org_n1_badge",
+            name="N+1 Badge Org",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_n1_badge",
+            name="game_n1_badge",
+            display_name="N+1 Badge Game",
+        )
+        game.owners.add(org)
+
+        badge_set: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="n1_test")
+
+        def _make_badge_and_campaign(idx: int) -> None:
+            badge: ChatBadge = ChatBadge.objects.create(
+                badge_set=badge_set,
+                badge_id=str(idx),
+                image_url_1x="https://example.com/1x.png",
+                image_url_2x="https://example.com/2x.png",
+                image_url_4x="https://example.com/4x.png",
+                title=f"N1 Badge {idx}",
+                description="desc",
+            )
+            campaign: DropCampaign = DropCampaign.objects.create(
+                twitch_id=f"n1_campaign_{idx}",
+                name=f"N+1 Campaign {idx}",
+                game=game,
+                operation_names=["DropCampaignDetails"],
+            )
+            drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+                twitch_id=f"n1_drop_{idx}",
+                name=f"N+1 Drop {idx}",
+                campaign=campaign,
+            )
+            benefit: DropBenefit = DropBenefit.objects.create(
+                twitch_id=f"n1_benefit_{idx}",
+                name=badge.title,
+                distribution_type="BADGE",
+            )
+            drop.benefits.add(benefit)
+
+        for i in range(3):
+            _make_badge_and_campaign(i)
+
+        url: str = reverse("twitch:badge_set_detail", args=[badge_set.set_id])
+
+        def _count_selects() -> int:
+            with CaptureQueriesContext(connection) as ctx:
+                resp: _MonkeyPatchedWSGIResponse = client.get(url)
+                assert resp.status_code == 200
+            return sum(
+                1
+                for q in ctx.captured_queries
+                if q["sql"].lstrip().upper().startswith("SELECT")
+            )
+
+        baseline: int = _count_selects()
+
+        # Add 10 more badges, each with their own campaigns
+        for i in range(3, 13):
+            _make_badge_and_campaign(i)
+
+        scaled: int = _count_selects()
+        assert scaled <= baseline + 1, (
+            f"badge_set_detail_view SELECT count grew with badge count; possible N+1. "
+            f"baseline={baseline}, scaled={scaled}"
+        )
+
+    def test_drop_benefit_index_used_for_badge_award_lookup(self) -> None:
+        """DropBenefit queries filtering by distribution_type+name should use indexes."""
+        org: Organization = Organization.objects.create(
+            twitch_id="org_benefit_idx",
+            name="Benefit Index Org",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_benefit_idx",
+            name="game_benefit_idx",
+            display_name="Benefit Index Game",
+        )
+        game.owners.add(org)
+
+        # Create enough non-BADGE benefits so the planner has reason to use an index
+        for i in range(300):
+            DropBenefit.objects.create(
+                twitch_id=f"non_badge_{i}",
+                name=f"Emote {i}",
+                distribution_type="EMOTE",
+            )
+
+        badge_titles: list[str] = []
+        for i in range(5):
+            DropBenefit.objects.create(
+                twitch_id=f"badge_benefit_idx_{i}",
+                name=f"Badge Title {i}",
+                distribution_type="BADGE",
+            )
+            badge_titles.append(f"Badge Title {i}")
+
+        qs = DropBenefit.objects.filter(
+            distribution_type="BADGE",
+            name__in=badge_titles,
+        )
+        plan: str = qs.explain()
+
+        if connection.vendor == "sqlite":
+            uses_index: bool = "USING INDEX" in plan.upper()
+        elif connection.vendor == "postgresql":
+            uses_index = (
+                "INDEX SCAN" in plan.upper()
+                or "BITMAP INDEX SCAN" in plan.upper()
+                or "INDEX ONLY SCAN" in plan.upper()
+            )
+        else:
+            pytest.skip(
+                f"Unsupported DB vendor for index-plan assertion: {connection.vendor}",
+            )
+
+        assert uses_index, (
+            f"DropBenefit query on (distribution_type, name) did not use an index.\n{plan}"
+        )
