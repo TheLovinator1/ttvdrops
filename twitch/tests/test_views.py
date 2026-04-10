@@ -9,8 +9,10 @@ from typing import Literal
 import pytest
 from django.core.handlers.wsgi import WSGIRequest
 from django.core.paginator import Paginator
+from django.db import connection
 from django.db.models import Max
 from django.test import RequestFactory
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -34,6 +36,7 @@ from twitch.views import _truncate_description
 
 if TYPE_CHECKING:
     from django.core.handlers.wsgi import WSGIRequest
+    from django.db.models import QuerySet
     from django.test import Client
     from django.test.client import _MonkeyPatchedWSGIResponse
     from django.test.utils import ContextList
@@ -536,6 +539,225 @@ class TestChannelListView:
         assert "campaigns_by_game" in context
         assert game.twitch_id in context["campaigns_by_game"]
         assert len(context["campaigns_by_game"][game.twitch_id]["campaigns"]) == 1
+
+    @pytest.mark.django_db
+    def test_dashboard_queries_use_indexes(self) -> None:
+        """Dashboard source queries should use indexes for active-window filtering."""
+        now: datetime.datetime = timezone.now()
+
+        org: Organization = Organization.objects.create(
+            twitch_id="org_index_test",
+            name="Org Index Test",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_index_test",
+            name="Game Index Test",
+            display_name="Game Index Test",
+        )
+        game.owners.add(org)
+
+        # Add enough rows so the query planner has a reason to pick indexes.
+        campaigns: list[DropCampaign] = []
+        for i in range(250):
+            campaigns.extend((
+                DropCampaign(
+                    twitch_id=f"inactive_old_{i}",
+                    name=f"Inactive old {i}",
+                    game=game,
+                    operation_names=["DropCampaignDetails"],
+                    start_at=now - timedelta(days=60),
+                    end_at=now - timedelta(days=30),
+                ),
+                DropCampaign(
+                    twitch_id=f"inactive_future_{i}",
+                    name=f"Inactive future {i}",
+                    game=game,
+                    operation_names=["DropCampaignDetails"],
+                    start_at=now + timedelta(days=30),
+                    end_at=now + timedelta(days=60),
+                ),
+            ))
+        campaigns.append(
+            DropCampaign(
+                twitch_id="active_for_dashboard_index_test",
+                name="Active campaign",
+                game=game,
+                operation_names=["DropCampaignDetails"],
+                start_at=now - timedelta(hours=1),
+                end_at=now + timedelta(hours=1),
+            ),
+        )
+        DropCampaign.objects.bulk_create(campaigns)
+
+        reward_campaigns: list[RewardCampaign] = []
+        for i in range(250):
+            reward_campaigns.extend((
+                RewardCampaign(
+                    twitch_id=f"reward_inactive_old_{i}",
+                    name=f"Reward inactive old {i}",
+                    game=game,
+                    starts_at=now - timedelta(days=60),
+                    ends_at=now - timedelta(days=30),
+                ),
+                RewardCampaign(
+                    twitch_id=f"reward_inactive_future_{i}",
+                    name=f"Reward inactive future {i}",
+                    game=game,
+                    starts_at=now + timedelta(days=30),
+                    ends_at=now + timedelta(days=60),
+                ),
+            ))
+        reward_campaigns.append(
+            RewardCampaign(
+                twitch_id="reward_active_for_dashboard_index_test",
+                name="Active reward campaign",
+                game=game,
+                starts_at=now - timedelta(hours=1),
+                ends_at=now + timedelta(hours=1),
+            ),
+        )
+        RewardCampaign.objects.bulk_create(reward_campaigns)
+
+        active_campaigns_qs: QuerySet[DropCampaign] = DropCampaign.active_for_dashboard(
+            now,
+        )
+        active_reward_campaigns_qs: QuerySet[RewardCampaign] = (
+            RewardCampaign.objects
+            .filter(starts_at__lte=now, ends_at__gte=now)
+            .select_related("game")
+            .order_by("-starts_at")
+        )
+
+        campaigns_plan: str = active_campaigns_qs.explain()
+        reward_plan: str = active_reward_campaigns_qs.explain()
+
+        if connection.vendor == "sqlite":
+            campaigns_uses_index: bool = "USING INDEX" in campaigns_plan.upper()
+            rewards_uses_index: bool = "USING INDEX" in reward_plan.upper()
+        elif connection.vendor == "postgresql":
+            campaigns_uses_index = (
+                "INDEX SCAN" in campaigns_plan.upper()
+                or "BITMAP INDEX SCAN" in campaigns_plan.upper()
+            )
+            rewards_uses_index = (
+                "INDEX SCAN" in reward_plan.upper()
+                or "BITMAP INDEX SCAN" in reward_plan.upper()
+            )
+        else:
+            pytest.skip(
+                f"Unsupported DB vendor for index-plan assertion: {connection.vendor}",
+            )
+
+        assert campaigns_uses_index, campaigns_plan
+        assert rewards_uses_index, reward_plan
+
+    @pytest.mark.django_db
+    def test_dashboard_query_count_stays_flat_with_more_data(
+        self,
+        client: Client,
+    ) -> None:
+        """Dashboard should avoid N+1 queries as campaign volume grows."""
+        now: datetime.datetime = timezone.now()
+
+        org: Organization = Organization.objects.create(
+            twitch_id="org_query_count",
+            name="Org Query Count",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_query_count",
+            name="game_query_count",
+            display_name="Game Query Count",
+        )
+        game.owners.add(org)
+
+        def _capture_dashboard_select_count() -> int:
+            with CaptureQueriesContext(connection) as queries:
+                response: _MonkeyPatchedWSGIResponse = client.get(
+                    reverse("twitch:dashboard"),
+                )
+                assert response.status_code == 200
+
+            select_queries: list[str] = [
+                query_info["sql"]
+                for query_info in queries.captured_queries
+                if query_info["sql"].lstrip().upper().startswith("SELECT")
+            ]
+            return len(select_queries)
+
+        # Baseline: one active drop campaign and one active reward campaign.
+        base_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="baseline_campaign",
+            name="Baseline campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        base_channel: Channel = Channel.objects.create(
+            twitch_id="baseline_channel",
+            name="baselinechannel",
+            display_name="BaselineChannel",
+        )
+        base_campaign.allow_channels.add(base_channel)
+
+        RewardCampaign.objects.create(
+            twitch_id="baseline_reward_campaign",
+            name="Baseline reward campaign",
+            game=game,
+            starts_at=now - timedelta(hours=1),
+            ends_at=now + timedelta(hours=1),
+            summary="Baseline summary",
+            external_url="https://example.com/reward/baseline",
+        )
+
+        baseline_select_count: int = _capture_dashboard_select_count()
+
+        # Scale up active dashboard data substantially.
+        extra_campaigns: list[DropCampaign] = [
+            DropCampaign(
+                twitch_id=f"scaled_campaign_{i}",
+                name=f"Scaled campaign {i}",
+                game=game,
+                operation_names=["DropCampaignDetails"],
+                start_at=now - timedelta(hours=2),
+                end_at=now + timedelta(hours=2),
+            )
+            for i in range(12)
+        ]
+        DropCampaign.objects.bulk_create(extra_campaigns)
+
+        for i, campaign in enumerate(
+            DropCampaign.objects.filter(
+                twitch_id__startswith="scaled_campaign_",
+            ).order_by("twitch_id"),
+        ):
+            channel: Channel = Channel.objects.create(
+                twitch_id=f"scaled_channel_{i}",
+                name=f"scaledchannel{i}",
+                display_name=f"ScaledChannel{i}",
+            )
+            campaign.allow_channels.add(channel)
+
+        extra_rewards: list[RewardCampaign] = [
+            RewardCampaign(
+                twitch_id=f"scaled_reward_{i}",
+                name=f"Scaled reward {i}",
+                game=game,
+                starts_at=now - timedelta(hours=2),
+                ends_at=now + timedelta(hours=2),
+                summary=f"Scaled summary {i}",
+                external_url=f"https://example.com/reward/{i}",
+            )
+            for i in range(12)
+        ]
+        RewardCampaign.objects.bulk_create(extra_rewards)
+
+        scaled_select_count: int = _capture_dashboard_select_count()
+
+        assert scaled_select_count <= baseline_select_count + 2, (
+            "Dashboard SELECT query count grew with data volume; possible N+1 regression. "
+            f"baseline={baseline_select_count}, scaled={scaled_select_count}"
+        )
 
     @pytest.mark.django_db
     def test_debug_view(self, client: Client) -> None:

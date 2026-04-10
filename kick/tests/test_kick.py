@@ -12,8 +12,10 @@ from unittest.mock import patch
 import httpx
 import pytest
 from django.core.management import call_command
+from django.db import connection
 from django.test import Client
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from pydantic import ValidationError
@@ -414,6 +416,37 @@ class KickDropCampaignMergedRewardsTest(TestCase):
         assert len(merged) == 1
         assert merged[0].name == "9th Anniversary Cake & Confetti"
 
+    def test_uses_prefetched_rewards_without_extra_queries(self) -> None:
+        """When rewards are prefetched, merged_rewards should not hit the database again."""
+        campaign: KickDropCampaign = self._make_campaign()
+        KickReward.objects.create(
+            kick_id="reward-prefetch-a",
+            name="Alpha Reward",
+            image_url="drops/reward-image/alpha.png",
+            required_units=10,
+            campaign=campaign,
+            category=campaign.category,
+            organization=campaign.organization,
+        )
+        KickReward.objects.create(
+            kick_id="reward-prefetch-b",
+            name="Alpha Reward (Con)",
+            image_url="drops/reward-image/alpha-con.png",
+            required_units=10,
+            campaign=campaign,
+            category=campaign.category,
+            organization=campaign.organization,
+        )
+
+        campaign = KickDropCampaign.objects.prefetch_related("rewards").get(
+            pk=campaign.pk,
+        )
+        with self.assertNumQueries(0):
+            merged: list[KickReward] = campaign.merged_rewards
+
+        assert len(merged) == 1
+        assert merged[0].name == "Alpha Reward"
+
 
 # MARK: Management command tests
 class ImportKickDropsCommandTest(TestCase):
@@ -545,6 +578,92 @@ class KickDashboardViewTest(TestCase):
             reverse("kick:dashboard"),
         )
         assert campaign.name in response.content.decode()
+
+    def test_dashboard_query_count_stays_flat_with_more_campaigns(self) -> None:
+        """Dashboard SELECT query count should stay flat as active campaign count grows."""
+
+        def _create_active_campaign(index: int) -> KickDropCampaign:
+            org: KickOrganization = KickOrganization.objects.create(
+                kick_id=f"org-qc-{index}",
+                name=f"Org QC {index}",
+            )
+            cat: KickCategory = KickCategory.objects.create(
+                kick_id=10000 + index,
+                name=f"Cat QC {index}",
+                slug=f"cat-qc-{index}",
+            )
+            campaign: KickDropCampaign = KickDropCampaign.objects.create(
+                kick_id=f"camp-qc-{index}",
+                name=f"Campaign QC {index}",
+                status="active",
+                starts_at=dt(2020, 1, 1, tzinfo=UTC),
+                ends_at=dt(2099, 12, 31, tzinfo=UTC),
+                organization=org,
+                category=cat,
+                rule_id=1,
+                rule_name="Watch to redeem",
+                is_fully_imported=True,
+            )
+
+            user: KickUser = KickUser.objects.create(
+                kick_id=3000000 + index,
+                username=f"qcuser{index}",
+            )
+            channel: KickChannel = KickChannel.objects.create(
+                kick_id=2000000 + index,
+                slug=f"qc-channel-{index}",
+                user=user,
+            )
+            campaign.channels.add(channel)
+
+            KickReward.objects.create(
+                kick_id=f"reward-qc-{index}-a",
+                name="Alpha Reward",
+                image_url="drops/reward-image/alpha.png",
+                required_units=30,
+                campaign=campaign,
+                category=cat,
+                organization=org,
+            )
+            KickReward.objects.create(
+                kick_id=f"reward-qc-{index}-b",
+                name="Alpha Reward (Con)",
+                image_url="drops/reward-image/alpha-con.png",
+                required_units=30,
+                campaign=campaign,
+                category=cat,
+                organization=org,
+            )
+
+            return campaign
+
+        def _capture_dashboard_select_count() -> int:
+            with CaptureQueriesContext(connection) as queries:
+                response: _MonkeyPatchedWSGIResponse = self.client.get(
+                    reverse("kick:dashboard"),
+                )
+                assert response.status_code == 200
+
+            select_queries: list[str] = [
+                query_info["sql"]
+                for query_info in queries.captured_queries
+                if query_info["sql"].lstrip().upper().startswith("SELECT")
+            ]
+            return len(select_queries)
+
+        _create_active_campaign(1)
+        baseline_select_count: int = _capture_dashboard_select_count()
+
+        for i in range(2, 12):
+            _create_active_campaign(i)
+
+        scaled_select_count: int = _capture_dashboard_select_count()
+
+        assert scaled_select_count <= baseline_select_count + 2, (
+            "Kick dashboard SELECT query count grew with campaign volume; "
+            f"possible N+1 regression. baseline={baseline_select_count}, "
+            f"scaled={scaled_select_count}"
+        )
 
 
 class KickCampaignListViewTest(TestCase):
@@ -811,6 +930,95 @@ class KickOrganizationDetailViewTest(TestCase):
         )
         assert response.status_code == 404
 
+    def test_organization_detail_query_count_stays_flat_with_more_campaigns(
+        self,
+    ) -> None:
+        """Organization detail SELECT query count should stay flat as campaign count grows."""
+        org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-orgdet-qc",
+            name="Orgdet Query Count",
+        )
+
+        def _create_org_campaign(index: int) -> None:
+            cat: KickCategory = KickCategory.objects.create(
+                kick_id=17000 + index,
+                name=f"Orgdet QC Cat {index}",
+                slug=f"orgdet-qc-cat-{index}",
+            )
+            campaign: KickDropCampaign = KickDropCampaign.objects.create(
+                kick_id=f"camp-orgdet-qc-{index}",
+                name=f"Orgdet QC Campaign {index}",
+                status="active",
+                starts_at=dt(2020, 1, 1, tzinfo=UTC),
+                ends_at=dt(2099, 12, 31, tzinfo=UTC),
+                organization=org,
+                category=cat,
+                rule_id=1,
+                rule_name="Watch to redeem",
+                is_fully_imported=True,
+            )
+
+            user: KickUser = KickUser.objects.create(
+                kick_id=3700000 + index,
+                username=f"orgdetqcuser{index}",
+            )
+            channel: KickChannel = KickChannel.objects.create(
+                kick_id=2700000 + index,
+                slug=f"orgdet-qc-channel-{index}",
+                user=user,
+            )
+            campaign.channels.add(channel)
+
+            KickReward.objects.create(
+                kick_id=f"reward-orgdet-qc-{index}-a",
+                name="Org Reward",
+                image_url="drops/reward-image/org.png",
+                required_units=30,
+                campaign=campaign,
+                category=cat,
+                organization=org,
+            )
+            KickReward.objects.create(
+                kick_id=f"reward-orgdet-qc-{index}-b",
+                name="Org Reward (Con)",
+                image_url="drops/reward-image/org-con.png",
+                required_units=30,
+                campaign=campaign,
+                category=cat,
+                organization=org,
+            )
+
+        def _capture_org_detail_select_count() -> int:
+            with CaptureQueriesContext(connection) as queries:
+                response: _MonkeyPatchedWSGIResponse = self.client.get(
+                    reverse(
+                        "kick:organization_detail",
+                        kwargs={"kick_id": org.kick_id},
+                    ),
+                )
+                assert response.status_code == 200
+
+            select_queries: list[str] = [
+                query_info["sql"]
+                for query_info in queries.captured_queries
+                if query_info["sql"].lstrip().upper().startswith("SELECT")
+            ]
+            return len(select_queries)
+
+        _create_org_campaign(1)
+        baseline_select_count: int = _capture_org_detail_select_count()
+
+        for i in range(2, 12):
+            _create_org_campaign(i)
+
+        scaled_select_count: int = _capture_org_detail_select_count()
+
+        assert scaled_select_count <= baseline_select_count + 2, (
+            "Organization detail SELECT query count grew with campaign volume; "
+            f"possible N+1 regression. baseline={baseline_select_count}, "
+            f"scaled={scaled_select_count}"
+        )
+
 
 class KickFeedsTest(TestCase):
     """Tests for Kick RSS/Atom/Discord feed endpoints."""
@@ -940,6 +1148,109 @@ class KickFeedsTest(TestCase):
         assert result.startswith("&lt;t:")
         assert result.endswith(":R&gt;")
         assert not str(discord_timestamp(None))
+
+
+class KickEndpointCoverageTest(TestCase):
+    """Endpoint smoke coverage for all Kick routes in kick.urls."""
+
+    def setUp(self) -> None:
+        """Create shared fixtures used by detail and feed endpoints."""
+        self.org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-endpoint-1",
+            name="Endpoint Org",
+            logo_url="https://example.com/org-endpoint.png",
+        )
+        self.category: KickCategory = KickCategory.objects.create(
+            kick_id=9123,
+            name="Endpoint Category",
+            slug="endpoint-category",
+            image_url="https://example.com/endpoint-category.png",
+        )
+        self.campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-endpoint-1",
+            name="Endpoint Campaign",
+            status="active",
+            starts_at=timezone.now() - timedelta(days=1),
+            ends_at=timezone.now() + timedelta(days=1),
+            organization=self.org,
+            category=self.category,
+            connect_url="https://example.com/connect",
+            url="https://example.com/campaign",
+            rule_id=1,
+            rule_name="Watch to redeem",
+            is_fully_imported=True,
+        )
+
+        user: KickUser = KickUser.objects.create(
+            kick_id=5551001,
+            username="endpointuser",
+        )
+        channel: KickChannel = KickChannel.objects.create(
+            kick_id=5551002,
+            slug="endpointchannel",
+            user=user,
+        )
+        self.campaign.channels.add(channel)
+
+        KickReward.objects.create(
+            kick_id="reward-endpoint-1",
+            name="Endpoint Reward",
+            image_url="drops/reward-image/endpoint.png",
+            required_units=20,
+            campaign=self.campaign,
+            category=self.category,
+            organization=self.org,
+        )
+
+    def test_all_kick_html_endpoints_return_success(self) -> None:
+        """All Kick HTML endpoints should render successfully with populated fixtures."""
+        html_routes: list[tuple[str, dict[str, str | int]]] = [
+            ("kick:dashboard", {}),
+            ("kick:campaign_list", {}),
+            ("kick:campaign_detail", {"kick_id": self.campaign.kick_id}),
+            ("kick:game_list", {}),
+            ("kick:game_detail", {"kick_id": self.category.kick_id}),
+            ("kick:category_list", {}),
+            ("kick:category_detail", {"kick_id": self.category.kick_id}),
+            ("kick:organization_list", {}),
+            ("kick:organization_detail", {"kick_id": self.org.kick_id}),
+        ]
+
+        for route_name, kwargs in html_routes:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(
+                reverse(route_name, kwargs=kwargs),
+            )
+            assert response.status_code == 200, route_name
+
+    def test_all_kick_feed_endpoints_return_success(self) -> None:
+        """All Kick RSS/Atom/Discord feed endpoints should return XML responses."""
+        feed_routes: list[tuple[str, dict[str, int]]] = [
+            ("kick:campaign_feed", {}),
+            ("kick:game_feed", {}),
+            ("kick:game_campaign_feed", {"kick_id": self.category.kick_id}),
+            ("kick:category_feed", {}),
+            ("kick:category_campaign_feed", {"kick_id": self.category.kick_id}),
+            ("kick:organization_feed", {}),
+            ("kick:campaign_feed_atom", {}),
+            ("kick:game_feed_atom", {}),
+            ("kick:game_campaign_feed_atom", {"kick_id": self.category.kick_id}),
+            ("kick:category_feed_atom", {}),
+            ("kick:category_campaign_feed_atom", {"kick_id": self.category.kick_id}),
+            ("kick:organization_feed_atom", {}),
+            ("kick:campaign_feed_discord", {}),
+            ("kick:game_feed_discord", {}),
+            ("kick:game_campaign_feed_discord", {"kick_id": self.category.kick_id}),
+            ("kick:category_feed_discord", {}),
+            ("kick:category_campaign_feed_discord", {"kick_id": self.category.kick_id}),
+            ("kick:organization_feed_discord", {}),
+        ]
+
+        for route_name, kwargs in feed_routes:
+            response: _MonkeyPatchedWSGIResponse = self.client.get(
+                reverse(route_name, kwargs=kwargs),
+            )
+            assert response.status_code == 200, route_name
+            assert response["Content-Type"] == "application/xml; charset=utf-8"
 
 
 class KickDropCampaignFullyImportedTest(TestCase):

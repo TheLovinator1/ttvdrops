@@ -361,7 +361,24 @@ class KickDropCampaign(auto_prefetch.Model):
         If both a base reward and a "(Con)" variant exist, prefer the base reward name.
         """
         rewards_by_name: dict[str, KickReward] = {}
-        for reward in self.rewards.all().order_by("required_units", "name", "kick_id"):  # pyright: ignore[reportAttributeAccessIssue]
+        prefetched_rewards: list[KickReward] | None = getattr(
+            self,
+            "_prefetched_objects_cache",
+            {},
+        ).get("rewards")
+        if prefetched_rewards is not None:
+            rewards_iterable = sorted(
+                prefetched_rewards,
+                key=lambda reward: (reward.required_units, reward.name, reward.kick_id),
+            )
+        else:
+            rewards_iterable = self.rewards.all().order_by(  # pyright: ignore[reportAttributeAccessIssue]
+                "required_units",
+                "name",
+                "kick_id",
+            )
+
+        for reward in rewards_iterable:
             key: str = self._normalized_reward_name(reward.name)
             existing: KickReward | None = rewards_by_name.get(key)
             if existing is None:

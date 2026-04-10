@@ -1,5 +1,7 @@
 import logging
+from collections import OrderedDict
 from typing import TYPE_CHECKING
+from typing import Any
 
 import auto_prefetch
 from django.conf import settings
@@ -508,6 +510,93 @@ class DropCampaign(auto_prefetch.Model):
     def __str__(self) -> str:
         return self.name
 
+    @classmethod
+    def active_for_dashboard(
+        cls,
+        now: datetime.datetime,
+    ) -> models.QuerySet[DropCampaign]:
+        """Return active campaigns with relations needed by the dashboard.
+
+        Args:
+            now: Current timestamp used to evaluate active campaigns.
+
+        Returns:
+            QuerySet of active campaigns ordered by newest start date.
+        """
+        return (
+            cls.objects
+            .filter(start_at__lte=now, end_at__gte=now)
+            .only(
+                "twitch_id",
+                "name",
+                "image_url",
+                "image_file",
+                "start_at",
+                "end_at",
+                "allow_is_enabled",
+                "game",
+                "game__twitch_id",
+                "game__display_name",
+                "game__slug",
+                "game__box_art",
+                "game__box_art_file",
+            )
+            .select_related("game")
+            .prefetch_related(
+                models.Prefetch(
+                    "game__owners",
+                    queryset=Organization.objects.only("twitch_id", "name"),
+                ),
+                models.Prefetch(
+                    "allow_channels",
+                    queryset=Channel.objects.only(
+                        "twitch_id",
+                        "name",
+                        "display_name",
+                    ).order_by("display_name"),
+                    to_attr="channels_ordered",
+                ),
+            )
+            .order_by("-start_at")
+        )
+
+    @staticmethod
+    def grouped_by_game(
+        campaigns: models.QuerySet[DropCampaign],
+    ) -> OrderedDict[str, dict[str, Any]]:
+        """Group campaigns by game for dashboard rendering.
+
+        The grouping keeps insertion order and avoids duplicate per-game cards when
+        games have multiple owners.
+
+        Args:
+            campaigns: Campaign queryset from active_for_dashboard().
+
+        Returns:
+            Ordered mapping keyed by game twitch_id.
+        """
+        campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+        for campaign in campaigns:
+            game: Game = campaign.game
+            game_id: str = game.twitch_id
+
+            if game_id not in campaigns_by_game:
+                campaigns_by_game[game_id] = {
+                    "name": game.display_name,
+                    "box_art": game.box_art_best_url,
+                    "owners": list(game.owners.all()),
+                    "campaigns": [],
+                }
+
+            campaigns_by_game[game_id]["campaigns"].append({
+                "campaign": campaign,
+                "image_url": campaign.listing_image_url,
+                "allowed_channels": getattr(campaign, "channels_ordered", []),
+            })
+
+        return campaigns_by_game
+
     @property
     def is_active(self) -> bool:
         """Check if the campaign is currently active."""
@@ -526,19 +615,21 @@ class DropCampaign(auto_prefetch.Model):
             "Skull & Bones - Closed Beta" -> "Closed Beta" (& is replaced
             with "and")
         """
-        if not self.game or not self.game.display_name:
+        self_game: Game | None = self.game
+
+        if not self_game or not self_game.display_name:
             return self.name
 
-        game_variations = [self.game.display_name]
-        if "&" in self.game.display_name:
-            game_variations.append(self.game.display_name.replace("&", "and"))
-        if "and" in self.game.display_name:
-            game_variations.append(self.game.display_name.replace("and", "&"))
+        game_variations: list[str] = [self_game.display_name]
+        if "&" in self_game.display_name:
+            game_variations.append(self_game.display_name.replace("&", "and"))
+        if "and" in self_game.display_name:
+            game_variations.append(self_game.display_name.replace("and", "&"))
 
         for game_name in game_variations:
             # Check for different separators after the game name
             for separator in [" - ", " | ", " "]:
-                prefix_to_check = game_name + separator
+                prefix_to_check: str = game_name + separator
 
                 name: str = self.name
                 if name.startswith(prefix_to_check):
@@ -572,6 +663,20 @@ class DropCampaign(auto_prefetch.Model):
                     return benefit_image_url
 
         return ""
+
+    @property
+    def listing_image_url(self) -> str:
+        """Return a campaign image URL optimized for list views.
+
+        This intentionally avoids traversing drops/benefits to prevent N+1 queries
+        in list pages that render many campaigns.
+        """
+        try:
+            if self.image_file and getattr(self.image_file, "url", None):
+                return self.image_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
+        return self.image_url or ""
 
     @property
     def duration_iso(self) -> str:
@@ -1005,6 +1110,32 @@ class RewardCampaign(auto_prefetch.Model):
     def __str__(self) -> str:
         """Return a string representation of the reward campaign."""
         return f"{self.brand}: {self.name}" if self.brand else self.name
+
+    @classmethod
+    def active_for_dashboard(
+        cls,
+        now: datetime.datetime,
+    ) -> models.QuerySet[RewardCampaign]:
+        """Return active reward campaigns with only dashboard-needed fields."""
+        return (
+            cls.objects
+            .filter(starts_at__lte=now, ends_at__gte=now)
+            .only(
+                "twitch_id",
+                "name",
+                "brand",
+                "summary",
+                "external_url",
+                "starts_at",
+                "ends_at",
+                "is_sitewide",
+                "game",
+                "game__twitch_id",
+                "game__display_name",
+            )
+            .select_related("game")
+            .order_by("-starts_at")
+        )
 
     @property
     def is_active(self) -> bool:

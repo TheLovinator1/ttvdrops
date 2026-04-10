@@ -532,7 +532,7 @@ def organization_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse
         KickDropCampaign.objects
         .filter(organization=org)
         .select_related("category")
-        .prefetch_related("rewards")
+        .prefetch_related("rewards", "channels__user")
         .order_by("-starts_at"),
     )
 

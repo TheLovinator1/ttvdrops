@@ -1071,48 +1071,14 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered dashboard template.
     """
     now: datetime.datetime = timezone.now()
-    active_campaigns: QuerySet[DropCampaign] = (
-        DropCampaign.objects
-        .filter(start_at__lte=now, end_at__gte=now)
-        .select_related("game")
-        .prefetch_related("game__owners")
-        .prefetch_related(
-            Prefetch(
-                "allow_channels",
-                queryset=Channel.objects.order_by("display_name"),
-                to_attr="channels_ordered",
-            ),
-        )
-        .order_by("-start_at")
+    active_campaigns: QuerySet[DropCampaign] = DropCampaign.active_for_dashboard(now)
+    campaigns_by_game: OrderedDict[str, dict[str, Any]] = DropCampaign.grouped_by_game(
+        active_campaigns,
     )
-
-    # Preserve insertion order (newest campaigns first).
-    # Group by game so games with multiple owners don't render duplicate campaign cards.
-    campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
-
-    for campaign in active_campaigns:
-        game: Game = campaign.game
-        game_id: str = game.twitch_id
-
-        if game_id not in campaigns_by_game:
-            campaigns_by_game[game_id] = {
-                "name": game.display_name,
-                "box_art": game.box_art_best_url,
-                "owners": list(game.owners.all()),
-                "campaigns": [],
-            }
-
-        campaigns_by_game[game_id]["campaigns"].append({
-            "campaign": campaign,
-            "allowed_channels": getattr(campaign, "channels_ordered", []),
-        })
 
     # Get active reward campaigns (Quest rewards)
     active_reward_campaigns: QuerySet[RewardCampaign] = (
-        RewardCampaign.objects
-        .filter(starts_at__lte=now, ends_at__gte=now)
-        .select_related("game")
-        .order_by("-starts_at")
+        RewardCampaign.active_for_dashboard(now)
     )
 
     # WebSite schema with SearchAction for sitelinks search box

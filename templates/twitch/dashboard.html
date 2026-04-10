@@ -68,7 +68,7 @@
                                                     flex-shrink: 0">
                                         <div>
                                             <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}">
-                                                {% picture campaign_data.campaign.image_best_url|default:campaign_data.campaign.image_url alt="Image for "|add:campaign_data.campaign.name width=120 %}
+                                                {% picture campaign_data.image_url alt="Image for "|add:campaign_data.campaign.name width=120 %}
                                                 <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign_data.campaign.clean_name }}</h4>
                                             </a>
                                             <!-- End time -->
