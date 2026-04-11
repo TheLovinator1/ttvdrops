@@ -417,7 +417,7 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
 
 
 # MARK: /campaigns/
-def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0914, PLR0915
+def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0914
     """Function-based view for drop campaigns list.
 
     Args:
@@ -429,29 +429,13 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     game_filter: str | None = request.GET.get("game")
     status_filter: str | None = request.GET.get("status")
     per_page: int = 100
-    queryset: QuerySet[DropCampaign] = DropCampaign.objects.filter(
-        is_fully_imported=True,
-    )
-
-    if game_filter:
-        queryset = queryset.filter(game__twitch_id=game_filter)
-
-    queryset = queryset.prefetch_related(
-        "game__owners",
-        Prefetch(
-            "time_based_drops",
-            queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
-        ),
-    ).order_by("-start_at")
-
-    # Optionally filter by status (active, upcoming, expired)
     now: datetime.datetime = timezone.now()
-    if status_filter == "active":
-        queryset = queryset.filter(start_at__lte=now, end_at__gte=now)
-    elif status_filter == "upcoming":
-        queryset = queryset.filter(start_at__gt=now)
-    elif status_filter == "expired":
-        queryset = queryset.filter(end_at__lt=now)
+
+    queryset: QuerySet[DropCampaign] = DropCampaign.for_campaign_list(
+        now,
+        game_twitch_id=game_filter,
+        status=status_filter,
+    )
 
     paginator: Paginator[DropCampaign] = Paginator(queryset, per_page)
     page: str | Literal[1] = request.GET.get("page") or 1
@@ -462,30 +446,34 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     except EmptyPage:
         campaigns = paginator.page(paginator.num_pages)
 
+    status_descriptions: dict[str, str] = {
+        "active": "Browse active Twitch drops.",
+        "upcoming": "View upcoming Twitch drops starting soon.",
+        "expired": "Browse expired Twitch drops.",
+    }
     title = "Twitch Drops"
+    description = "Browse Twitch drops"
     if status_filter:
         title += f" ({status_filter.capitalize()})"
+        description = status_descriptions.get(status_filter, description)
     if game_filter:
         try:
-            game: Game = Game.objects.get(twitch_id=game_filter)
-            title += f" - {game.display_name}"
+            game_name: str = (
+                Game.objects
+                .only("display_name")
+                .values_list("display_name", flat=True)
+                .get(twitch_id=game_filter)
+            )
+            title += f" - {game_name}"
         except Game.DoesNotExist:
             pass
 
-    description = "Browse Twitch drops"
-    if status_filter == "active":
-        description = "Browse active Twitch drops."
-    elif status_filter == "upcoming":
-        description = "View upcoming Twitch drops starting soon."
-    elif status_filter == "expired":
-        description = "Browse expired Twitch drops."
-
     # Build base URL for pagination
     base_url = "/campaigns/"
-    if status_filter:
+    if status_filter and game_filter:
+        base_url += f"?status={status_filter}&game={game_filter}"
+    elif status_filter:
         base_url += f"?status={status_filter}"
-        if game_filter:
-            base_url += f"&game={game_filter}"
     elif game_filter:
         base_url += f"?game={game_filter}"
 
@@ -495,7 +483,6 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
         base_url,
     )
 
-    # CollectionPage schema for campaign list
     collection_schema: dict[str, str] = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",

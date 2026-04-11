@@ -510,10 +510,61 @@ class DropCampaign(auto_prefetch.Model):
                 name="tw_drop_start_end_game_idx",
             ),
             models.Index(fields=["end_at", "-start_at"]),
+            # For campaign list view: is_fully_imported filter + ordering
+            models.Index(
+                fields=["is_fully_imported", "-start_at"],
+                name="tw_drop_imported_start_idx",
+            ),
+            # For campaign list view: is_fully_imported + active-window filter
+            models.Index(
+                fields=["is_fully_imported", "start_at", "end_at"],
+                name="tw_drop_imported_start_end_idx",
+            ),
         ]
 
     def __str__(self) -> str:
         return self.name
+
+    @classmethod
+    def for_campaign_list(
+        cls,
+        now: datetime.datetime,
+        *,
+        game_twitch_id: str | None = None,
+        status: str | None = None,
+    ) -> models.QuerySet[DropCampaign]:
+        """Return fully-imported campaigns with relations needed by the campaign list view.
+
+        Args:
+            now: Current timestamp used to evaluate status filters.
+            game_twitch_id: Optional Twitch game ID to filter campaigns by.
+            status: Optional status filter; one of "active", "upcoming", or "expired".
+
+        Returns:
+            QuerySet of campaigns ordered by newest start date.
+        """
+        queryset = (
+            cls.objects
+            .filter(is_fully_imported=True)
+            .select_related("game")
+            .prefetch_related(
+                "game__owners",
+                models.Prefetch(
+                    "time_based_drops",
+                    queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
+                ),
+            )
+            .order_by("-start_at")
+        )
+        if game_twitch_id:
+            queryset = queryset.filter(game__twitch_id=game_twitch_id)
+        if status == "active":
+            queryset = queryset.filter(start_at__lte=now, end_at__gte=now)
+        elif status == "upcoming":
+            queryset = queryset.filter(start_at__gt=now)
+        elif status == "expired":
+            queryset = queryset.filter(end_at__lt=now)
+        return queryset
 
     @classmethod
     def active_for_dashboard(

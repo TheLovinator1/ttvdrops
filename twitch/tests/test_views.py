@@ -3247,3 +3247,228 @@ class TestBadgeSetDetailView:
         assert uses_index, (
             f"DropBenefit query on (distribution_type, name) did not use an index.\n{plan}"
         )
+
+
+@pytest.mark.django_db
+class TestDropCampaignListView:
+    """Tests for drop_campaign_list_view index usage and fat-model delegation."""
+
+    @pytest.fixture
+    def game_with_campaigns(self) -> dict[str, Any]:
+        """Create a game with a mix of imported/not-imported campaigns.
+
+        Returns:
+            Dict with 'org' and 'game' keys for the created Organization and Game.
+        """
+        org: Organization = Organization.objects.create(
+            twitch_id="org_list_test",
+            name="List Test Org",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_list_test",
+            name="game_list_test",
+            display_name="List Test Game",
+        )
+        game.owners.add(org)
+        return {"org": org, "game": game}
+
+    def test_campaign_list_returns_200(self, client: Client) -> None:
+        """Campaign list view loads successfully."""
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list"),
+        )
+        assert response.status_code == 200
+
+    def test_only_fully_imported_campaigns_shown(
+        self,
+        client: Client,
+        game_with_campaigns: dict[str, Any],
+    ) -> None:
+        """Only campaigns with is_fully_imported=True appear in the list."""
+        game: Game = game_with_campaigns["game"]
+        imported: DropCampaign = DropCampaign.objects.create(
+            twitch_id="cl_imported",
+            name="Imported Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
+        )
+        DropCampaign.objects.create(
+            twitch_id="cl_not_imported",
+            name="Not Imported Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            is_fully_imported=False,
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list"),
+        )
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        campaign_ids = {c.twitch_id for c in context["campaigns"].object_list}
+        assert imported.twitch_id in campaign_ids
+        assert "cl_not_imported" not in campaign_ids
+
+    def test_status_filter_active(
+        self,
+        client: Client,
+        game_with_campaigns: dict[str, Any],
+    ) -> None:
+        """Status=active returns only currently-running campaigns."""
+        game: Game = game_with_campaigns["game"]
+        now = timezone.now()
+        active: DropCampaign = DropCampaign.objects.create(
+            twitch_id="cl_active",
+            name="Active",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        DropCampaign.objects.create(
+            twitch_id="cl_expired",
+            name="Expired",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?status=active",
+        )
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        campaign_ids = {c.twitch_id for c in context["campaigns"].object_list}
+        assert active.twitch_id in campaign_ids
+        assert "cl_expired" not in campaign_ids
+
+    def test_campaign_list_indexes_exist(self) -> None:
+        """Required composite indexes for the campaign list query must exist on DropCampaign."""
+        expected: set[str] = {
+            "tw_drop_imported_start_idx",
+            "tw_drop_imported_start_end_idx",
+        }
+        with connection.cursor() as cursor:
+            constraints = connection.introspection.get_constraints(
+                cursor,
+                DropCampaign._meta.db_table,
+            )
+        actual: set[str] = {
+            name for name, meta in constraints.items() if meta.get("index")
+        }
+        missing = expected - actual
+        assert not missing, (
+            f"Missing expected DropCampaign campaign-list indexes: {sorted(missing)}"
+        )
+
+    @pytest.mark.django_db
+    def test_campaign_list_query_uses_index(self) -> None:
+        """for_campaign_list() should use an index when filtering is_fully_imported."""
+        now: datetime.datetime = timezone.now()
+        game: Game = Game.objects.create(
+            twitch_id="game_cl_idx",
+            name="game_cl_idx",
+            display_name="CL Idx Game",
+        )
+        # Bulk-create enough rows to give the query planner a reason to use indexes.
+        rows: list[DropCampaign] = [
+            DropCampaign(
+                twitch_id=f"cl_idx_not_imported_{i}",
+                name=f"Not imported {i}",
+                game=game,
+                operation_names=[],
+                is_fully_imported=False,
+                start_at=now - timedelta(days=i + 1),
+                end_at=now + timedelta(days=1),
+            )
+            for i in range(300)
+        ]
+        rows.append(
+            DropCampaign(
+                twitch_id="cl_idx_imported",
+                name="Imported",
+                game=game,
+                operation_names=[],
+                is_fully_imported=True,
+                start_at=now - timedelta(hours=1),
+                end_at=now + timedelta(hours=1),
+            ),
+        )
+        DropCampaign.objects.bulk_create(rows)
+
+        plan: str = DropCampaign.for_campaign_list(now).explain()
+
+        if connection.vendor == "sqlite":
+            uses_index: bool = "USING INDEX" in plan.upper()
+        elif connection.vendor == "postgresql":
+            uses_index = (
+                "INDEX SCAN" in plan.upper()
+                or "BITMAP INDEX SCAN" in plan.upper()
+                or "INDEX ONLY SCAN" in plan.upper()
+            )
+        else:
+            pytest.skip(
+                f"Unsupported DB vendor for index assertion: {connection.vendor}",
+            )
+
+        assert uses_index, f"for_campaign_list() did not use an index.\n{plan}"
+
+    def test_campaign_list_query_count_stays_flat(self, client: Client) -> None:
+        """Campaign list should not issue N+1 queries as campaign volume grows."""
+        game: Game = Game.objects.create(
+            twitch_id="game_cl_flat",
+            name="game_cl_flat",
+            display_name="CL Flat Game",
+        )
+        now = timezone.now()
+
+        def _select_count() -> int:
+            with CaptureQueriesContext(connection) as ctx:
+                resp: _MonkeyPatchedWSGIResponse = client.get(
+                    reverse("twitch:campaign_list"),
+                )
+                assert resp.status_code == 200
+            return sum(
+                1
+                for q in ctx.captured_queries
+                if q["sql"].lstrip().upper().startswith("SELECT")
+            )
+
+        DropCampaign.objects.create(
+            twitch_id="cl_flat_base",
+            name="Base campaign",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        baseline: int = _select_count()
+
+        extra = [
+            DropCampaign(
+                twitch_id=f"cl_flat_extra_{i}",
+                name=f"Extra {i}",
+                game=game,
+                operation_names=[],
+                is_fully_imported=True,
+                start_at=now - timedelta(hours=2),
+                end_at=now + timedelta(hours=2),
+            )
+            for i in range(15)
+        ]
+        DropCampaign.objects.bulk_create(extra)
+        scaled: int = _select_count()
+
+        assert scaled <= baseline + 2, (
+            f"Campaign list SELECT count grew; possible N+1. "
+            f"baseline={baseline}, scaled={scaled}"
+        )
