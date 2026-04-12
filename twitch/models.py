@@ -9,9 +9,11 @@ import auto_prefetch
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import Exists
 from django.db.models import F
 from django.db.models import Prefetch
 from django.db.models import Q
+from django.db.models.functions import Coalesce
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -241,6 +243,102 @@ class Game(auto_prefetch.Model):
     def dashboard_box_art_url(self) -> str:
         """Return dashboard-safe box art URL without touching deferred image fields."""
         return normalize_twitch_box_art_url(self.box_art or "")
+
+    @classmethod
+    def with_campaign_counts(
+        cls,
+        now: datetime.datetime,
+        *,
+        with_campaigns_only: bool = False,
+    ) -> models.QuerySet[Game]:
+        """Return games annotated with total/active campaign counts.
+
+        Args:
+            now: Current timestamp used to evaluate active campaigns.
+            with_campaigns_only: If True, include only games with at least one campaign.
+
+        Returns:
+            QuerySet optimized for games list/grid rendering.
+        """
+        campaigns_for_game = DropCampaign.objects.filter(
+            game_id=models.OuterRef("pk"),
+        )
+        campaign_count_subquery = (
+            campaigns_for_game
+            .order_by()
+            .values("game_id")
+            .annotate(total=models.Count("id"))
+            .values("total")[:1]
+        )
+        active_count_subquery = (
+            campaigns_for_game
+            .filter(start_at__lte=now, end_at__gte=now)
+            .order_by()
+            .values("game_id")
+            .annotate(total=models.Count("id"))
+            .values("total")[:1]
+        )
+
+        queryset: models.QuerySet[Game] = (
+            cls.objects
+            .only(
+                "twitch_id",
+                "display_name",
+                "name",
+                "slug",
+                "box_art",
+                "box_art_file",
+                "box_art_width",
+                "box_art_height",
+            )
+            .prefetch_related(
+                Prefetch(
+                    "owners",
+                    queryset=Organization.objects.only("twitch_id", "name").order_by(
+                        "name",
+                    ),
+                ),
+            )
+            .annotate(
+                campaign_count=Coalesce(
+                    models.Subquery(
+                        campaign_count_subquery,
+                        output_field=models.IntegerField(),
+                    ),
+                    models.Value(0),
+                ),
+                active_count=Coalesce(
+                    models.Subquery(
+                        active_count_subquery,
+                        output_field=models.IntegerField(),
+                    ),
+                    models.Value(0),
+                ),
+            )
+            .order_by("display_name")
+        )
+        if with_campaigns_only:
+            queryset = queryset.filter(Exists(campaigns_for_game))
+        return queryset
+
+    @staticmethod
+    def grouped_by_owner_for_grid(
+        games: models.QuerySet[Game],
+    ) -> OrderedDict[Organization, list[dict[str, Game]]]:
+        """Group games by owner organization for games grid/list pages.
+
+        Args:
+            games: QuerySet of games with prefetched owners.
+
+        Returns:
+            Ordered mapping of organizations to game dictionaries.
+        """
+        grouped: OrderedDict[Organization, list[dict[str, Game]]] = OrderedDict()
+        for game in games:
+            for owner in game.owners.all():
+                grouped.setdefault(owner, []).append({"game": game})
+
+        return OrderedDict(sorted(grouped.items(), key=lambda item: item[0].name))
 
 
 # MARK: TwitchGame

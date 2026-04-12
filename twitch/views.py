@@ -4,8 +4,6 @@ import csv
 import datetime
 import json
 import logging
-from collections import OrderedDict
-from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -15,9 +13,7 @@ from django.core.paginator import EmptyPage
 from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
-from django.db.models import Count
 from django.db.models import Prefetch
-from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import HttpResponse
@@ -654,23 +650,9 @@ class GamesGridView(ListView):
         Returns:
             QuerySet: Annotated games queryset.
         """
-        now: datetime.datetime = timezone.now()
-        return (
-            super()
-            .get_queryset()
-            .prefetch_related("owners")
-            .annotate(
-                campaign_count=Count("drop_campaigns", distinct=True),
-                active_count=Count(
-                    "drop_campaigns",
-                    filter=Q(
-                        drop_campaigns__start_at__lte=now,
-                        drop_campaigns__end_at__gte=now,
-                    ),
-                    distinct=True,
-                ),
-            )
-            .order_by("display_name")
+        return Game.with_campaign_counts(
+            timezone.now(),
+            with_campaigns_only=True,
         )
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
@@ -685,35 +667,9 @@ class GamesGridView(ListView):
             dict: Context data with games grouped by organization.
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
-        now: datetime.datetime = timezone.now()
-
-        games_with_campaigns: QuerySet[Game] = (
-            Game.objects
-            .filter(drop_campaigns__isnull=False)
-            .prefetch_related("owners")
-            .annotate(
-                campaign_count=Count("drop_campaigns", distinct=True),
-                active_count=Count(
-                    "drop_campaigns",
-                    filter=Q(
-                        drop_campaigns__start_at__lte=now,
-                        drop_campaigns__end_at__gte=now,
-                    ),
-                    distinct=True,
-                ),
-            )
-            .order_by("display_name")
-        )
-
-        games_by_org: defaultdict[Organization, list[dict[str, Game]]] = defaultdict(
-            list,
-        )
-        for game in games_with_campaigns:
-            for org in game.owners.all():
-                games_by_org[org].append({"game": game})
-
-        context["games_by_org"] = OrderedDict(
-            sorted(games_by_org.items(), key=lambda item: item[0].name),
+        games: QuerySet[Game] = context["games"]
+        context["games_by_org"] = Game.grouped_by_owner_for_grid(
+            games,
         )
 
         # CollectionPage schema for games list

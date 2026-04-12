@@ -2152,6 +2152,70 @@ class TestChannelListView:
         assert "games" in response.context
 
     @pytest.mark.django_db
+    def test_games_grid_view_groups_only_games_with_campaigns(
+        self,
+        client: Client,
+    ) -> None:
+        """Games grid should group only games that actually have campaigns."""
+        now: datetime.datetime = timezone.now()
+
+        org_with_campaign: Organization = Organization.objects.create(
+            twitch_id="org-games-grid-with-campaign",
+            name="Org Games Grid With Campaign",
+        )
+        org_without_campaign: Organization = Organization.objects.create(
+            twitch_id="org-games-grid-without-campaign",
+            name="Org Games Grid Without Campaign",
+        )
+
+        game_with_campaign: Game = Game.objects.create(
+            twitch_id="game-games-grid-with-campaign",
+            name="Game Games Grid With Campaign",
+            display_name="Game Games Grid With Campaign",
+        )
+        game_with_campaign.owners.add(org_with_campaign)
+
+        game_without_campaign: Game = Game.objects.create(
+            twitch_id="game-games-grid-without-campaign",
+            name="Game Games Grid Without Campaign",
+            display_name="Game Games Grid Without Campaign",
+        )
+        game_without_campaign.owners.add(org_without_campaign)
+
+        DropCampaign.objects.create(
+            twitch_id="campaign-games-grid-with-campaign",
+            name="Campaign Games Grid With Campaign",
+            game=game_with_campaign,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:games_grid"))
+        assert response.status_code == 200
+
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        games: list[Game] = list(context["games"])
+        games_by_org: OrderedDict[Organization, list[dict[str, Game]]] = context[
+            "games_by_org"
+        ]
+
+        game_ids: set[str] = {game.twitch_id for game in games}
+        assert game_with_campaign.twitch_id in game_ids
+        assert game_without_campaign.twitch_id not in game_ids
+
+        grouped_ids: set[str] = {
+            item["game"].twitch_id
+            for grouped_games in games_by_org.values()
+            for item in grouped_games
+        }
+        assert game_with_campaign.twitch_id in grouped_ids
+        assert game_without_campaign.twitch_id not in grouped_ids
+
+    @pytest.mark.django_db
     def test_games_list_view(self, client: Client) -> None:
         """Test games list view returns 200 and has games in context."""
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:games_list"))
