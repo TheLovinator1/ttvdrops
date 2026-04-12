@@ -9,6 +9,7 @@ from collections import defaultdict
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
+from urllib.parse import urlencode
 
 from django.core.paginator import EmptyPage
 from django.core.paginator import Page
@@ -1253,19 +1254,8 @@ class ChannelListView(ListView):
         Returns:
             QuerySet: Filtered channels.
         """
-        queryset: QuerySet[Channel] = super().get_queryset()
         search_query: str | None = self.request.GET.get("search")
-
-        if search_query:
-            queryset = queryset.filter(
-                Q(name__icontains=search_query)
-                | Q(display_name__icontains=search_query),
-            )
-
-        return queryset.annotate(campaign_count=Count("allowed_campaigns")).order_by(
-            "-campaign_count",
-            "name",
-        )
+        return Channel.for_list_view(search_query)
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add additional context data.
@@ -1277,12 +1267,11 @@ class ChannelListView(ListView):
             dict: Context data.
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
-        search_query: str = self.request.GET.get("search", "")
+        search_query: str = self.request.GET.get("search", "").strip()
 
         # Build pagination info
-        base_url = "/channels/"
-        if search_query:
-            base_url += f"?search={search_query}"
+        query_string: str = urlencode({"search": search_query}) if search_query else ""
+        base_url: str = f"/channels/?{query_string}" if query_string else "/channels/"
 
         page_obj: Page | None = context.get("page_obj")
         pagination_info: list[dict[str, str]] | None = (

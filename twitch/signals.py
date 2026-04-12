@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from django.db.models import Count
+
 logger = logging.getLogger("ttvdrops.signals")
 
 
@@ -63,3 +65,65 @@ def on_reward_campaign_saved(
         from twitch.tasks import download_reward_campaign_image  # noqa: PLC0415
 
         _dispatch(download_reward_campaign_image, instance.pk)
+
+
+def _refresh_allowed_campaign_counts(channel_ids: set[int]) -> None:
+    """Recompute and persist cached campaign counters for the given channels."""
+    if not channel_ids:
+        return
+
+    from twitch.models import Channel  # noqa: PLC0415
+    from twitch.models import DropCampaign  # noqa: PLC0415
+
+    through_model: type[Channel] = DropCampaign.allow_channels.through
+    counts_by_channel: dict[int, int] = {
+        row["channel_id"]: row["campaign_count"]
+        for row in (
+            through_model.objects
+            .filter(channel_id__in=channel_ids)
+            .values("channel_id")
+            .annotate(campaign_count=Count("dropcampaign_id"))
+        )
+    }
+
+    channels = list(
+        Channel.objects.filter(pk__in=channel_ids).only("pk", "allowed_campaign_count"),
+    )
+    for channel in channels:
+        channel.allowed_campaign_count = counts_by_channel.get(channel.pk, 0)
+
+    if channels:
+        Channel.objects.bulk_update(channels, ["allowed_campaign_count"])
+
+
+def on_drop_campaign_allow_channels_changed(  # noqa: PLR0913, PLR0917
+    sender: Any,  # noqa: ANN401
+    instance: Any,  # noqa: ANN401
+    action: str,
+    reverse: bool,  # noqa: FBT001
+    model: Any,  # noqa: ANN401
+    pk_set: set[int] | None,
+    **kwargs: Any,  # noqa: ANN401
+) -> None:
+    """Keep Channel.allowed_campaign_count in sync for allow_channels M2M changes."""
+    if action == "pre_clear" and not reverse:
+        # post_clear does not expose removed channel IDs; snapshot before clearing.
+        instance._pre_clear_channel_ids = set(  # pyright: ignore[reportAttributeAccessIssue]  # noqa: SLF001
+            instance.allow_channels.values_list("pk", flat=True),  # pyright: ignore[reportAttributeAccessIssue]
+        )
+        return
+
+    if action not in {"post_add", "post_remove", "post_clear"}:
+        return
+
+    channel_ids: set[int] = set()
+    if reverse:
+        channel_pk: int | None = getattr(instance, "pk", None)
+        if isinstance(channel_pk, int):
+            channel_ids.add(channel_pk)
+    elif action == "post_clear":
+        channel_ids = set(getattr(instance, "_pre_clear_channel_ids", set()))
+    else:
+        channel_ids = set(pk_set or set())
+
+    _refresh_allowed_campaign_counts(channel_ids)

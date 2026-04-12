@@ -494,6 +494,115 @@ class TestChannelListView:
         assert len(channels) == 1
         assert channels[0].twitch_id == channel.twitch_id
 
+    def test_channel_list_queryset_only_selects_rendered_fields(self) -> None:
+        """Channel list queryset should defer non-rendered fields."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_minimal_fields",
+            name="channelminimalfields",
+            display_name="Channel Minimal Fields",
+        )
+
+        queryset: QuerySet[Channel] = Channel.for_list_view()
+        fetched_channel: Channel | None = queryset.filter(
+            twitch_id=channel.twitch_id,
+        ).first()
+
+        assert fetched_channel is not None
+        assert hasattr(fetched_channel, "campaign_count")
+
+        deferred_fields: set[str] = fetched_channel.get_deferred_fields()
+        assert "added_at" in deferred_fields
+        assert "updated_at" in deferred_fields
+        assert "name" not in deferred_fields
+        assert "display_name" not in deferred_fields
+        assert "twitch_id" not in deferred_fields
+
+    def test_channel_list_queryset_uses_counter_cache_without_join(self) -> None:
+        """Channel list SQL should use cached count and avoid campaign join/grouping."""
+        sql: str = str(Channel.for_list_view().query).upper()
+
+        assert "TWITCH_DROPCAMPAIGN_ALLOW_CHANNELS" not in sql
+        assert "GROUP BY" not in sql
+        assert "ALLOWED_CAMPAIGN_COUNT" in sql
+
+    def test_channel_allowed_campaign_count_updates_on_add_remove_clear(self) -> None:
+        """Counter cache should stay in sync when campaign-channel links change."""
+        game: Game = Game.objects.create(
+            twitch_id="counter_cache_game",
+            name="Counter Cache Game",
+            display_name="Counter Cache Game",
+        )
+
+        channel: Channel = Channel.objects.create(
+            twitch_id="counter_cache_channel",
+            name="countercachechannel",
+            display_name="Counter Cache Channel",
+        )
+        campaign1: DropCampaign = DropCampaign.objects.create(
+            twitch_id="counter_cache_campaign_1",
+            name="Counter Cache Campaign 1",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+        campaign2: DropCampaign = DropCampaign.objects.create(
+            twitch_id="counter_cache_campaign_2",
+            name="Counter Cache Campaign 2",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+
+        campaign1.allow_channels.add(channel)
+        channel.refresh_from_db()
+        assert channel.allowed_campaign_count == 1
+
+        campaign2.allow_channels.add(channel)
+        channel.refresh_from_db()
+        assert channel.allowed_campaign_count == 2
+
+        campaign1.allow_channels.remove(channel)
+        channel.refresh_from_db()
+        assert channel.allowed_campaign_count == 1
+
+        campaign2.allow_channels.clear()
+        channel.refresh_from_db()
+        assert channel.allowed_campaign_count == 0
+
+    def test_channel_allowed_campaign_count_updates_on_set(self) -> None:
+        """Counter cache should stay in sync when allow_channels.set(...) is used."""
+        game: Game = Game.objects.create(
+            twitch_id="counter_cache_set_game",
+            name="Counter Cache Set Game",
+            display_name="Counter Cache Set Game",
+        )
+        channel1: Channel = Channel.objects.create(
+            twitch_id="counter_cache_set_channel_1",
+            name="countercachesetchannel1",
+            display_name="Counter Cache Set Channel 1",
+        )
+        channel2: Channel = Channel.objects.create(
+            twitch_id="counter_cache_set_channel_2",
+            name="countercachesetchannel2",
+            display_name="Counter Cache Set Channel 2",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="counter_cache_set_campaign",
+            name="Counter Cache Set Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+
+        campaign.allow_channels.set([channel1, channel2])
+        channel1.refresh_from_db()
+        channel2.refresh_from_db()
+        assert channel1.allowed_campaign_count == 1
+        assert channel2.allowed_campaign_count == 1
+
+        campaign.allow_channels.set([channel2])
+        channel1.refresh_from_db()
+        channel2.refresh_from_db()
+        assert channel1.allowed_campaign_count == 0
+        assert channel2.allowed_campaign_count == 1
+
     @pytest.mark.django_db
     def test_dashboard_view(self, client: Client) -> None:
         """Test dashboard view returns 200 and has grouped campaign data in context."""

@@ -2,12 +2,15 @@ import logging
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Self
 
 import auto_prefetch
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import F
 from django.db.models import Prefetch
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
@@ -347,6 +350,11 @@ class Channel(auto_prefetch.Model):
         auto_now=True,
     )
 
+    allowed_campaign_count = models.PositiveIntegerField(
+        help_text="Cached number of drop campaigns that allow this channel.",
+        default=0,
+    )
+
     class Meta(auto_prefetch.Model.Meta):
         ordering = ["display_name"]
         indexes = [
@@ -355,11 +363,46 @@ class Channel(auto_prefetch.Model):
             models.Index(fields=["twitch_id"]),
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
+            models.Index(
+                fields=["-allowed_campaign_count", "name"],
+                name="tw_chan_cc_name_idx",
+            ),
         ]
 
     def __str__(self) -> str:
         """Return a string representation of the channel."""
         return self.display_name or self.name or self.twitch_id
+
+    @classmethod
+    def for_list_view(
+        cls,
+        search_query: str | None = None,
+    ) -> models.QuerySet[Channel]:
+        """Return channels for list view with campaign counts.
+
+        Args:
+            search_query: Optional free-text search for username/display name.
+
+        Returns:
+            QuerySet optimized for channel list rendering.
+        """
+        queryset: models.QuerySet[Self, Self] = cls.objects.only(
+            "twitch_id",
+            "name",
+            "display_name",
+            "allowed_campaign_count",
+        )
+
+        normalized_query: str = (search_query or "").strip()
+        if normalized_query:
+            queryset = queryset.filter(
+                Q(name__icontains=normalized_query)
+                | Q(display_name__icontains=normalized_query),
+            )
+
+        return queryset.annotate(
+            campaign_count=F("allowed_campaign_count"),
+        ).order_by("-campaign_count", "name")
 
 
 # MARK: DropCampaign
