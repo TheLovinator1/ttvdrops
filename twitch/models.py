@@ -595,6 +595,7 @@ class DropCampaign(auto_prefetch.Model):
                 "game",
                 "game__twitch_id",
                 "game__display_name",
+                "game__name",
                 "game__slug",
                 "game__box_art",
                 "game__box_art_file",
@@ -606,6 +607,7 @@ class DropCampaign(auto_prefetch.Model):
                 models.Prefetch(
                     "game__owners",
                     queryset=Organization.objects.only("twitch_id", "name"),
+                    to_attr="owners_for_dashboard",
                 ),
                 models.Prefetch(
                     "allow_channels",
@@ -640,14 +642,14 @@ class DropCampaign(auto_prefetch.Model):
         for campaign in campaigns:
             game: Game = campaign.game
             game_id: str = game.twitch_id
-            game_display_name: str = game.display_name
+            game_display_name: str = game.get_game_name
 
             game_bucket: dict[str, Any] = campaigns_by_game.setdefault(
                 game_id,
                 {
                     "name": game_display_name,
                     "box_art": game.box_art_best_url,
-                    "owners": list(game.owners.all()),
+                    "owners": list(getattr(game, "owners_for_dashboard", [])),
                     "campaigns": [],
                 },
             )
@@ -1189,6 +1191,10 @@ class RewardCampaign(auto_prefetch.Model):
             models.Index(
                 fields=["starts_at", "ends_at"],
                 name="tw_reward_starts_ends_idx",
+            ),
+            models.Index(
+                fields=["ends_at", "-starts_at"],
+                name="tw_reward_ends_starts_idx",
             ),
             models.Index(fields=["status", "-starts_at"]),
         ]

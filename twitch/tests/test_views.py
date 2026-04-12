@@ -710,6 +710,7 @@ class TestChannelListView:
         expected_reward_indexes: set[str] = {
             "tw_reward_starts_desc_idx",
             "tw_reward_starts_ends_idx",
+            "tw_reward_ends_starts_idx",
         }
 
         drop_index_names: set[str] = _index_names(DropCampaign._meta.db_table)
@@ -847,6 +848,90 @@ class TestChannelListView:
         assert scaled_select_count <= baseline_select_count + 2, (
             "Dashboard SELECT query count grew with data volume; possible N+1 regression. "
             f"baseline={baseline_select_count}, scaled={scaled_select_count}"
+        )
+
+    @pytest.mark.django_db
+    def test_dashboard_field_access_after_prefetch_has_no_extra_selects(self) -> None:
+        """Dashboard-accessed fields should not trigger deferred model SELECT queries."""
+        now: datetime.datetime = timezone.now()
+
+        org: Organization = Organization.objects.create(
+            twitch_id="org_dashboard_field_access",
+            name="Org Dashboard Field Access",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_dashboard_field_access",
+            name="Game Dashboard Field Access",
+            display_name="Game Dashboard Field Access",
+            slug="game-dashboard-field-access",
+            box_art="https://example.com/game-box-art.jpg",
+        )
+        game.owners.add(org)
+
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="campaign_dashboard_field_access",
+            name="Campaign Dashboard Field Access",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            image_url="https://example.com/campaign.jpg",
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_dashboard_field_access",
+            name="channeldashboardfieldaccess",
+            display_name="Channel Dashboard Field Access",
+        )
+        campaign.allow_channels.add(channel)
+
+        RewardCampaign.objects.create(
+            twitch_id="reward_dashboard_field_access",
+            name="Reward Dashboard Field Access",
+            brand="Brand",
+            summary="Reward summary",
+            is_sitewide=False,
+            game=game,
+            starts_at=now - timedelta(hours=1),
+            ends_at=now + timedelta(hours=1),
+        )
+
+        dashboard_rewards_qs: QuerySet[RewardCampaign] = (
+            RewardCampaign.active_for_dashboard(now)
+        )
+        dashboard_campaigns_qs: QuerySet[DropCampaign] = (
+            DropCampaign.active_for_dashboard(now)
+        )
+
+        rewards_list: list[RewardCampaign] = list(dashboard_rewards_qs)
+        list(dashboard_campaigns_qs)
+
+        with CaptureQueriesContext(connection) as queries:
+            # Use pre-evaluated queryset to avoid capturing initial SELECT queries
+            grouped = DropCampaign.grouped_by_game(dashboard_campaigns_qs)
+
+            for reward in rewards_list:
+                _ = reward.twitch_id
+                _ = reward.name
+                _ = reward.brand
+                _ = reward.summary
+                _ = reward.starts_at
+                _ = reward.ends_at
+                _ = reward.is_sitewide
+                _ = reward.is_active
+                if reward.game:
+                    _ = reward.game.twitch_id
+                    _ = reward.game.display_name
+
+        assert game.twitch_id in grouped
+
+        deferred_selects: list[str] = [
+            query_info["sql"]
+            for query_info in queries.captured_queries
+            if query_info["sql"].lstrip().upper().startswith("SELECT")
+        ]
+        assert not deferred_selects, (
+            "Dashboard model field access triggered unexpected deferred SELECT queries. "
+            f"Queries: {deferred_selects}"
         )
 
     @pytest.mark.django_db
