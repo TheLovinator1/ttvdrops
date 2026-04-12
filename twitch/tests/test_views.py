@@ -3819,6 +3819,200 @@ class TestBadgeSetDetailView:
 
 
 @pytest.mark.django_db
+class TestEmoteGalleryView:
+    """Tests for emote gallery model delegation and query safety."""
+
+    def test_emote_gallery_view_uses_model_helper(
+        self,
+        client: Client,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Emote gallery view should delegate data loading to the model layer."""
+        game: Game = Game.objects.create(
+            twitch_id="emote_gallery_delegate_game",
+            name="Emote Delegate Game",
+            display_name="Emote Delegate Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="emote_gallery_delegate_campaign",
+            name="Emote Delegate Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+        expected: list[dict[str, str | DropCampaign]] = [
+            {
+                "image_url": "https://example.com/emote.png",
+                "campaign": campaign,
+            },
+        ]
+
+        calls: dict[str, int] = {"count": 0}
+
+        def _fake_emotes_for_gallery(
+            _cls: type[DropBenefit],
+        ) -> list[dict[str, str | DropCampaign]]:
+            calls["count"] += 1
+            return expected
+
+        monkeypatch.setattr(
+            DropBenefit,
+            "emotes_for_gallery",
+            classmethod(_fake_emotes_for_gallery),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:emote_gallery"),
+        )
+        assert response.status_code == 200
+
+        context: ContextList | dict[str, Any] = response.context
+        if isinstance(context, list):
+            context = context[-1]
+
+        assert calls["count"] == 1
+        assert context["emotes"] == expected
+
+    def test_emotes_for_gallery_uses_prefetched_fields_without_extra_queries(
+        self,
+    ) -> None:
+        """Accessing template-used fields should not issue follow-up SELECT queries."""
+        now: datetime.datetime = timezone.now()
+
+        game: Game = Game.objects.create(
+            twitch_id="emote_gallery_fields_game",
+            name="Emote Fields Game",
+            display_name="Emote Fields Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="emote_gallery_fields_campaign",
+            name="Emote Fields Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="emote_gallery_fields_drop",
+            name="Emote Fields Drop",
+            campaign=campaign,
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="emote_gallery_fields_benefit",
+            name="Emote Fields Benefit",
+            distribution_type="EMOTE",
+            image_asset_url="https://example.com/emote_fields.png",
+        )
+        drop.benefits.add(benefit)
+
+        emotes: list[dict[str, str | DropCampaign]] = DropBenefit.emotes_for_gallery()
+        assert len(emotes) == 1
+
+        with CaptureQueriesContext(connection) as capture:
+            for emote in emotes:
+                _ = emote["image_url"]
+                campaign_obj = emote["campaign"]
+                assert isinstance(campaign_obj, DropCampaign)
+                _ = campaign_obj.twitch_id
+                _ = campaign_obj.name
+
+        assert len(capture) == 0
+
+    def test_emotes_for_gallery_skips_emotes_without_campaign_link(self) -> None:
+        """Gallery should only include EMOTE benefits reachable from a campaign drop."""
+        game: Game = Game.objects.create(
+            twitch_id="emote_gallery_skip_game",
+            name="Emote Skip Game",
+            display_name="Emote Skip Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="emote_gallery_skip_campaign",
+            name="Emote Skip Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="emote_gallery_skip_drop",
+            name="Emote Skip Drop",
+            campaign=campaign,
+        )
+
+        included: DropBenefit = DropBenefit.objects.create(
+            twitch_id="emote_gallery_included_benefit",
+            name="Included Emote",
+            distribution_type="EMOTE",
+            image_asset_url="https://example.com/included-emote.png",
+        )
+        orphaned: DropBenefit = DropBenefit.objects.create(
+            twitch_id="emote_gallery_orphaned_benefit",
+            name="Orphaned Emote",
+            distribution_type="EMOTE",
+            image_asset_url="https://example.com/orphaned-emote.png",
+        )
+
+        drop.benefits.add(included)
+
+        emotes: list[dict[str, str | DropCampaign]] = DropBenefit.emotes_for_gallery()
+
+        image_urls: list[str] = [str(item["image_url"]) for item in emotes]
+        campaign_ids: list[str] = [
+            campaign_obj.twitch_id
+            for campaign_obj in (item["campaign"] for item in emotes)
+            if isinstance(campaign_obj, DropCampaign)
+        ]
+
+        assert included.image_asset_url in image_urls
+        assert orphaned.image_asset_url not in image_urls
+        assert campaign.twitch_id in campaign_ids
+
+    def test_emote_gallery_view_renders_only_campaign_linked_emotes(
+        self,
+        client: Client,
+    ) -> None:
+        """Emote gallery page should not render EMOTE benefits without campaign-linked drops."""
+        game: Game = Game.objects.create(
+            twitch_id="emote_gallery_view_game",
+            name="Emote View Game",
+            display_name="Emote View Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="emote_gallery_view_campaign",
+            name="Emote View Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="emote_gallery_view_drop",
+            name="Emote View Drop",
+            campaign=campaign,
+        )
+
+        linked: DropBenefit = DropBenefit.objects.create(
+            twitch_id="emote_gallery_view_linked",
+            name="Linked Emote",
+            distribution_type="EMOTE",
+            image_asset_url="https://example.com/linked-view-emote.png",
+        )
+        orphaned: DropBenefit = DropBenefit.objects.create(
+            twitch_id="emote_gallery_view_orphaned",
+            name="Orphaned View Emote",
+            distribution_type="EMOTE",
+            image_asset_url="https://example.com/orphaned-view-emote.png",
+        )
+
+        drop.benefits.add(linked)
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:emote_gallery"),
+        )
+        assert response.status_code == 200
+
+        html: str = response.content.decode("utf-8")
+        assert linked.image_asset_url in html
+        assert orphaned.image_asset_url not in html
+        assert reverse("twitch:campaign_detail", args=[campaign.twitch_id]) in html
+
+
+@pytest.mark.django_db
 class TestDropCampaignListView:
     """Tests for drop_campaign_list_view index usage and fat-model delegation."""
 

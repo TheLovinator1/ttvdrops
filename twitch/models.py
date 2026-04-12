@@ -1247,6 +1247,50 @@ class DropBenefit(auto_prefetch.Model):
         """Return a string representation of the drop benefit."""
         return self.name
 
+    @classmethod
+    def emotes_for_gallery(cls) -> list[dict[str, str | DropCampaign]]:
+        """Return emote gallery entries with only fields needed by the template.
+
+        The emote gallery needs benefit image URL and campaign name/twitch_id.
+        """
+        emote_benefits: QuerySet[DropBenefit, DropBenefit] = (
+            cls.objects
+            .filter(distribution_type="EMOTE")
+            .only("twitch_id", "image_asset_url", "image_file")
+            .prefetch_related(
+                Prefetch(
+                    "drops",
+                    queryset=(
+                        TimeBasedDrop.objects.select_related("campaign").only(
+                            "campaign_id",
+                            "campaign__twitch_id",
+                            "campaign__name",
+                        )
+                    ),
+                    to_attr="_emote_drops_for_gallery",
+                ),
+            )
+        )
+
+        emotes: list[dict[str, str | DropCampaign]] = []
+        for benefit in emote_benefits:
+            drop: TimeBasedDrop | None = next(
+                (
+                    drop
+                    for drop in getattr(benefit, "_emote_drops_for_gallery", [])
+                    if drop.campaign_id
+                ),
+                None,
+            )
+            if not drop:
+                continue
+            emotes.append({
+                "image_url": benefit.image_best_url,
+                "campaign": drop.campaign,
+            })
+
+        return emotes
+
     @property
     def image_best_url(self) -> str:
         """Return the best URL for the benefit image (local first)."""
