@@ -1056,14 +1056,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered dashboard template.
     """
     now: datetime.datetime = timezone.now()
-    campaigns_by_game: OrderedDict[str, dict[str, Any]] = (
-        DropCampaign.campaigns_by_game_for_dashboard(now)
-    )
-
-    # Get active reward campaigns (Quest rewards)
-    active_reward_campaigns: QuerySet[RewardCampaign] = (
-        RewardCampaign.active_for_dashboard(now)
-    )
+    dashboard_data: dict[str, Any] = DropCampaign.dashboard_context(now)
 
     # WebSite schema with SearchAction for sitelinks search box
     # TODO(TheLovinator): Should this be on all pages instead of just the dashboard?  # noqa: TD003
@@ -1096,9 +1089,8 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         request,
         "twitch/dashboard.html",
         {
-            "campaigns_by_game": campaigns_by_game,
-            "active_reward_campaigns": active_reward_campaigns,
             "now": now,
+            **dashboard_data,
             **seo_context,
         },
     )

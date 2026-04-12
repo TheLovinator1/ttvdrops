@@ -36,6 +36,8 @@ from twitch.views import _build_seo_context
 from twitch.views import _truncate_description
 
 if TYPE_CHECKING:
+    from collections import OrderedDict
+
     from django.core.handlers.wsgi import WSGIRequest
     from django.db.models import QuerySet
     from django.test import Client
@@ -543,7 +545,7 @@ class TestChannelListView:
         assert len(context["campaigns_by_game"][game.twitch_id]["campaigns"]) == 1
 
     @pytest.mark.django_db
-    def test_dashboard_queries_use_indexes(self) -> None:
+    def test_dashboard_queries_use_indexes(self, client: Client) -> None:
         """Dashboard source queries should use indexes for active-window filtering."""
         now: datetime.datetime = timezone.now()
 
@@ -627,6 +629,9 @@ class TestChannelListView:
             RewardCampaign.active_for_dashboard(now)
         )
 
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
+        assert response.status_code == 200
+
         campaigns_plan: str = active_campaigns_qs.explain()
         reward_plan: str = active_reward_campaigns_qs.explain()
 
@@ -649,6 +654,76 @@ class TestChannelListView:
 
         assert campaigns_uses_index, campaigns_plan
         assert rewards_uses_index, reward_plan
+
+    @pytest.mark.django_db
+    def test_dashboard_context_uses_prefetched_data_without_n_plus_one(self) -> None:
+        """Dashboard context should not trigger extra queries when rendering-used attrs are accessed."""
+        now: datetime.datetime = timezone.now()
+
+        org: Organization = Organization.objects.create(
+            twitch_id="org_dashboard_prefetch",
+            name="Org Dashboard Prefetch",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="game_dashboard_prefetch",
+            name="Game Dashboard Prefetch",
+            display_name="Game Dashboard Prefetch",
+        )
+        game.owners.add(org)
+
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_dashboard_prefetch",
+            name="channeldashboardprefetch",
+            display_name="Channel Dashboard Prefetch",
+        )
+
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="campaign_dashboard_prefetch",
+            name="Campaign Dashboard Prefetch",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        campaign.allow_channels.add(channel)
+
+        RewardCampaign.objects.create(
+            twitch_id="reward_dashboard_prefetch",
+            name="Reward Dashboard Prefetch",
+            game=game,
+            starts_at=now - timedelta(hours=1),
+            ends_at=now + timedelta(hours=1),
+        )
+
+        dashboard_data: dict[str, Any] = DropCampaign.dashboard_context(now)
+        campaigns_by_game: OrderedDict[str, dict[str, Any]] = dashboard_data[
+            "campaigns_by_game"
+        ]
+        reward_campaigns: list[RewardCampaign] = list(
+            dashboard_data["active_reward_campaigns"],
+        )
+
+        with CaptureQueriesContext(connection) as capture:
+            game_bucket: dict[str, Any] = campaigns_by_game[game.twitch_id]
+            _ = game_bucket["name"]
+            _ = game_bucket["box_art"]
+            _ = [owner.name for owner in game_bucket["owners"]]
+
+            campaign_entry: dict[str, Any] = game_bucket["campaigns"][0]
+            campaign_obj: DropCampaign = campaign_entry["campaign"]
+
+            _ = campaign_obj.clean_name
+            _ = campaign_obj.duration_iso
+            _ = campaign_obj.start_at
+            _ = campaign_obj.end_at
+            _ = campaign_entry["image_url"]
+            _ = campaign_entry["game_twitch_directory_url"]
+            _ = [c.display_name for c in campaign_entry["allowed_channels"]]
+
+            _ = [r.is_active for r in reward_campaigns]
+            _ = [r.game.display_name if r.game else None for r in reward_campaigns]
+
+        assert len(capture) == 0
 
     @pytest.mark.django_db
     def test_dashboard_query_plans_reference_expected_index_names(self) -> None:

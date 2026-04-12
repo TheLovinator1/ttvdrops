@@ -235,6 +235,11 @@ class Game(auto_prefetch.Model):
         """Alias for box_art_best_url to provide a common interface with benefits."""
         return self.box_art_best_url
 
+    @property
+    def dashboard_box_art_url(self) -> str:
+        """Return dashboard-safe box art URL without touching deferred image fields."""
+        return normalize_twitch_box_art_url(self.box_art or "")
+
 
 # MARK: TwitchGame
 class TwitchGameData(auto_prefetch.Model):
@@ -586,9 +591,6 @@ class DropCampaign(auto_prefetch.Model):
                 "twitch_id",
                 "name",
                 "image_url",
-                "image_file",
-                "image_width",
-                "image_height",
                 "start_at",
                 "end_at",
                 "allow_is_enabled",
@@ -598,9 +600,6 @@ class DropCampaign(auto_prefetch.Model):
                 "game__name",
                 "game__slug",
                 "game__box_art",
-                "game__box_art_file",
-                "game__box_art_width",
-                "game__box_art_height",
             )
             .select_related("game")
             .prefetch_related(
@@ -648,7 +647,7 @@ class DropCampaign(auto_prefetch.Model):
                 game_id,
                 {
                     "name": game_display_name,
-                    "box_art": game.box_art_best_url,
+                    "box_art": game.dashboard_box_art_url,
                     "owners": list(getattr(game, "owners_for_dashboard", [])),
                     "campaigns": [],
                 },
@@ -657,7 +656,7 @@ class DropCampaign(auto_prefetch.Model):
             game_bucket["campaigns"].append({
                 "campaign": campaign,
                 "clean_name": campaign.clean_name,
-                "image_url": campaign.listing_image_url,
+                "image_url": campaign.dashboard_image_url,
                 "allowed_channels": getattr(campaign, "channels_ordered", []),
                 "game_display_name": game_display_name,
                 "game_twitch_directory_url": game.twitch_directory_url,
@@ -679,6 +678,24 @@ class DropCampaign(auto_prefetch.Model):
             Ordered mapping keyed by game twitch_id.
         """
         return cls.grouped_by_game(cls.active_for_dashboard(now))
+
+    @classmethod
+    def dashboard_context(
+        cls,
+        now: datetime.datetime,
+    ) -> dict[str, Any]:
+        """Return dashboard data assembled by model-layer query helpers.
+
+        Args:
+            now: Current timestamp used for active-window filtering.
+
+        Returns:
+            Dict with grouped drop campaigns and active reward campaigns.
+        """
+        return {
+            "campaigns_by_game": cls.campaigns_by_game_for_dashboard(now),
+            "active_reward_campaigns": RewardCampaign.active_for_dashboard(now),
+        }
 
     @property
     def is_active(self) -> bool:
@@ -759,6 +776,11 @@ class DropCampaign(auto_prefetch.Model):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
+        return self.image_url or ""
+
+    @property
+    def dashboard_image_url(self) -> str:
+        """Return dashboard-safe campaign image URL without touching deferred image fields."""
         return self.image_url or ""
 
     @property
