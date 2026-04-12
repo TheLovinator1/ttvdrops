@@ -256,7 +256,6 @@ def sitemap_static_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered sitemap XML.
     """
-    # `request` is unused but required by Django's view signature.
     base_url: str = _build_base_url().rstrip("/")
     sitemap_urls: list[dict[str, str]] = [
         {"loc": f"{base_url}{reverse('core:dashboard')}"},
@@ -327,14 +326,16 @@ def sitemap_twitch_channels_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered sitemap XML.
     """
-    # `request` is unused but required by Django's view signature.
-    base_url: str = _build_base_url()
+    base_url: str = _build_base_url().rstrip("/")
+    channel_detail_prefix: str = reverse("twitch:channel_list")
     sitemap_urls: list[dict[str, str]] = []
 
-    channels: QuerySet[Channel] = Channel.objects.all()
+    channels: QuerySet[Channel] = Channel.objects.only(
+        "twitch_id",
+        "updated_at",
+    ).order_by()
     for channel in channels:
-        resource_url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
-        full_url: str = f"{base_url}{resource_url}"
+        full_url: str = f"{base_url}{channel_detail_prefix}{channel.twitch_id}/"
         entry: dict[str, str] = {"loc": full_url}
         if channel.updated_at:
             entry["lastmod"] = channel.updated_at.isoformat()
@@ -354,29 +355,34 @@ def sitemap_twitch_drops_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered sitemap XML.
     """
-    # `request` is unused but required by Django's view signature.
-    base_url: str = _build_base_url()
+    base_url: str = _build_base_url().rstrip("/")
+    campaign_detail_prefix: str = reverse("twitch:campaign_list")
+    reward_campaign_detail_prefix: str = reverse("twitch:reward_campaign_list")
     sitemap_urls: list[dict[str, str]] = []
 
-    campaigns: QuerySet[DropCampaign] = DropCampaign.objects.filter(
-        is_fully_imported=True,
+    campaigns: QuerySet[DropCampaign] = (
+        DropCampaign.objects
+        .filter(
+            is_fully_imported=True,
+        )
+        .only("twitch_id", "updated_at")
+        .order_by()
     )
     for campaign in campaigns:
-        resource_url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
-        full_url: str = f"{base_url}{resource_url}"
+        full_url: str = f"{base_url}{campaign_detail_prefix}{campaign.twitch_id}/"
         campaign_url_entry: dict[str, str] = {"loc": full_url}
         if campaign.updated_at:
             campaign_url_entry["lastmod"] = campaign.updated_at.isoformat()
         sitemap_urls.append(campaign_url_entry)
 
-    reward_campaigns: QuerySet[RewardCampaign] = RewardCampaign.objects.all()
+    reward_campaigns: QuerySet[RewardCampaign] = RewardCampaign.objects.only(
+        "twitch_id",
+        "updated_at",
+    ).order_by()
     for reward_campaign in reward_campaigns:
-        resource_url = reverse(
-            "twitch:reward_campaign_detail",
-            args=[reward_campaign.twitch_id],
+        full_url = (
+            f"{base_url}{reward_campaign_detail_prefix}{reward_campaign.twitch_id}/"
         )
-
-        full_url: str = f"{base_url}{resource_url}"
         reward_campaign_url_entry: dict[str, str] = {"loc": full_url}
         if reward_campaign.updated_at:
             reward_campaign_url_entry["lastmod"] = (
@@ -399,14 +405,15 @@ def sitemap_twitch_others_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered sitemap XML.
     """
-    # `request` is unused but required by Django's view signature.
-    base_url: str = _build_base_url()
+    base_url: str = _build_base_url().rstrip("/")
+    game_detail_prefix: str = reverse("twitch:games_grid")
+    organization_detail_prefix: str = reverse("twitch:org_list")
+    badge_set_detail_prefix: str = reverse("twitch:badge_list")
     sitemap_urls: list[dict[str, str]] = []
 
-    games: QuerySet[Game] = Game.objects.all()
+    games: QuerySet[Game] = Game.objects.only("twitch_id", "updated_at").order_by()
     for game in games:
-        resource_url: str = reverse("twitch:game_detail", args=[game.twitch_id])
-        full_url: str = f"{base_url}{resource_url}"
+        full_url: str = f"{base_url}{game_detail_prefix}{game.twitch_id}/"
         entry: dict[str, str] = {"loc": full_url}
 
         if game.updated_at:
@@ -414,10 +421,12 @@ def sitemap_twitch_others_view(request: HttpRequest) -> HttpResponse:
 
         sitemap_urls.append(entry)
 
-    orgs: QuerySet[Organization] = Organization.objects.all()
+    orgs: QuerySet[Organization] = Organization.objects.only(
+        "twitch_id",
+        "updated_at",
+    ).order_by()
     for org in orgs:
-        resource_url: str = reverse("twitch:organization_detail", args=[org.twitch_id])
-        full_url: str = f"{base_url}{resource_url}"
+        full_url: str = f"{base_url}{organization_detail_prefix}{org.twitch_id}/"
         entry: dict[str, str] = {"loc": full_url}
 
         if org.updated_at:
@@ -425,10 +434,9 @@ def sitemap_twitch_others_view(request: HttpRequest) -> HttpResponse:
 
         sitemap_urls.append(entry)
 
-    badge_sets: QuerySet[ChatBadgeSet] = ChatBadgeSet.objects.all()
+    badge_sets: QuerySet[ChatBadgeSet] = ChatBadgeSet.objects.only("set_id").order_by()
     for badge_set in badge_sets:
-        resource_url = reverse("twitch:badge_set_detail", args=[badge_set.set_id])
-        full_url = f"{base_url}{resource_url}"
+        full_url = f"{base_url}{badge_set_detail_prefix}{badge_set.set_id}/"
         sitemap_urls.append({"loc": full_url})
 
     # Emotes currently don't have individual detail pages, but keep a listing here.
@@ -448,16 +456,20 @@ def sitemap_kick_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered sitemap XML.
     """
-    # `request` is unused but required by Django's view signature.
-    base_url: str = _build_base_url()
+    base_url: str = _build_base_url().rstrip("/")
+    kick_campaign_detail_prefix: str = reverse("kick:campaign_list")
     sitemap_urls: list[dict[str, str]] = []
 
-    kick_campaigns: QuerySet[KickDropCampaign] = KickDropCampaign.objects.filter(
-        is_fully_imported=True,
+    kick_campaigns: QuerySet[KickDropCampaign] = (
+        KickDropCampaign.objects
+        .filter(
+            is_fully_imported=True,
+        )
+        .only("kick_id", "updated_at")
+        .order_by()
     )
     for campaign in kick_campaigns:
-        resource_url: str = reverse("kick:campaign_detail", args=[campaign.kick_id])
-        full_url: str = f"{base_url}{resource_url}"
+        full_url: str = f"{base_url}{kick_campaign_detail_prefix}{campaign.kick_id}/"
         entry: dict[str, str] = {"loc": full_url}
         if campaign.updated_at:
             entry["lastmod"] = campaign.updated_at.isoformat()
@@ -477,7 +489,6 @@ def sitemap_youtube_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered sitemap XML.
     """
-    # `request` is unused but required by Django's view signature.
     base_url: str = _build_base_url()
     sitemap_urls: list[dict[str, str]] = [
         {"loc": f"{base_url}{reverse('youtube:index')}"},
