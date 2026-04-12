@@ -946,6 +946,16 @@ class TestChannelListView:
         if connection.vendor == "sqlite":
             campaigns_uses_index: bool = "USING INDEX" in campaigns_plan.upper()
             rewards_uses_index: bool = "USING INDEX" in reward_plan.upper()
+            campaigns_uses_expected_index: bool = (
+                "tw_drop_start_end_idx" in campaigns_plan
+                or "tw_drop_start_end_game_idx" in campaigns_plan
+                or "tw_drop_start_desc_idx" in campaigns_plan
+            )
+            rewards_uses_expected_index: bool = (
+                "tw_reward_starts_ends_idx" in reward_plan
+                or "tw_reward_ends_starts_idx" in reward_plan
+                or "tw_reward_starts_desc_idx" in reward_plan
+            )
         elif connection.vendor == "postgresql":
             campaigns_uses_index = (
                 "INDEX SCAN" in campaigns_plan.upper()
@@ -957,6 +967,16 @@ class TestChannelListView:
                 or "BITMAP INDEX SCAN" in reward_plan.upper()
                 or "INDEX ONLY SCAN" in reward_plan.upper()
             )
+            campaigns_uses_expected_index = (
+                "tw_drop_start_end_idx" in campaigns_plan
+                or "tw_drop_start_end_game_idx" in campaigns_plan
+                or "tw_drop_start_desc_idx" in campaigns_plan
+            )
+            rewards_uses_expected_index = (
+                "tw_reward_starts_ends_idx" in reward_plan
+                or "tw_reward_ends_starts_idx" in reward_plan
+                or "tw_reward_starts_desc_idx" in reward_plan
+            )
         else:
             pytest.skip(
                 f"Unsupported DB vendor for index-plan assertion: {connection.vendor}",
@@ -964,6 +984,8 @@ class TestChannelListView:
 
         assert campaigns_uses_index, campaigns_plan
         assert rewards_uses_index, reward_plan
+        assert campaigns_uses_expected_index, campaigns_plan
+        assert rewards_uses_expected_index, reward_plan
 
     @pytest.mark.django_db
     def test_dashboard_context_uses_prefetched_data_without_n_plus_one(self) -> None:
@@ -2341,6 +2363,30 @@ class TestChannelListView:
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:org_list"))
         assert response.status_code == 200
         assert "orgs" in response.context
+
+    @pytest.mark.django_db
+    def test_org_list_queryset_only_selects_rendered_fields(self) -> None:
+        """Organization list queryset should defer non-rendered fields."""
+        org: Organization = Organization.objects.create(
+            twitch_id="org_list_fields",
+            name="Org List Fields",
+        )
+
+        fetched_org: Organization | None = (
+            Organization
+            .for_list_view()
+            .filter(
+                twitch_id=org.twitch_id,
+            )
+            .first()
+        )
+
+        assert fetched_org is not None
+        deferred_fields: set[str] = fetched_org.get_deferred_fields()
+        assert "added_at" in deferred_fields
+        assert "updated_at" in deferred_fields
+        assert "twitch_id" not in deferred_fields
+        assert "name" not in deferred_fields
 
     @pytest.mark.django_db
     def test_organization_detail_view(self, client: Client, db: None) -> None:

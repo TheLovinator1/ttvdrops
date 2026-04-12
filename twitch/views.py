@@ -284,7 +284,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered organization list page.
     """
-    orgs: QuerySet[Organization] = Organization.objects.all().order_by("name")
+    orgs: QuerySet[Organization] = Organization.for_list_view()
 
     # CollectionPage schema for organizations list
     collection_schema: dict[str, str] = {
@@ -300,10 +300,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
         page_description="List of Twitch organizations.",
         seo_meta={"schema_data": collection_schema},
     )
-    context: dict[str, Any] = {
-        "orgs": orgs,
-        **seo_context,
-    }
+    context: dict[str, Any] = {"orgs": orgs, **seo_context}
 
     return render(request, "twitch/org_list.html", context)
 

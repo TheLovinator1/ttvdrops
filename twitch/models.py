@@ -70,6 +70,11 @@ class Organization(auto_prefetch.Model):
         """Return a string representation of the organization."""
         return self.name or self.twitch_id
 
+    @classmethod
+    def for_list_view(cls) -> models.QuerySet[Organization]:
+        """Return organizations with only fields needed by the org list page."""
+        return cls.objects.only("twitch_id", "name").order_by("name")
+
     def feed_description(self: Organization) -> str:
         """Return a description of the organization for RSS feeds."""
         name: str = self.name or "Unknown Organization"
