@@ -268,7 +268,7 @@ def _active_reward_campaigns(
     return queryset.filter(starts_at__lte=now, ends_at__gte=now)
 
 
-def genereate_details_link_html(item: DropCampaign) -> list[SafeText]:
+def generate_details_link_html(item: DropCampaign) -> list[SafeText]:
     """Helper method to append a details link to the description if available.
 
     Args:
@@ -1017,7 +1017,7 @@ class DropCampaignFeed(TTVDropsBaseFeed):
         parts.extend(generate_date_html(item=item))
         parts.extend(generate_drops_summary_html(item=item))
         parts.extend(generate_channels_html(item))
-        parts.extend(genereate_details_link_html(item))
+        parts.extend(generate_details_link_html(item))
 
         return SafeText("".join(str(p) for p in parts))
 
@@ -1556,7 +1556,7 @@ class DropCampaignDiscordFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
         parts.extend(generate_discord_date_html(item=item))
         parts.extend(generate_drops_summary_html(item=item))
         parts.extend(generate_channels_html(item))
-        parts.extend(genereate_details_link_html(item))
+        parts.extend(generate_details_link_html(item))
 
         return SafeText("".join(str(p) for p in parts))
 
