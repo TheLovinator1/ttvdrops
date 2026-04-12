@@ -1,3 +1,4 @@
+import datetime
 import logging
 from collections import OrderedDict
 from typing import TYPE_CHECKING
@@ -18,8 +19,6 @@ from django.utils.html import format_html
 from twitch.utils import normalize_twitch_box_art_url
 
 if TYPE_CHECKING:
-    import datetime
-
     from django.db.models import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
@@ -404,6 +403,27 @@ class Channel(auto_prefetch.Model):
             campaign_count=F("allowed_campaign_count"),
         ).order_by("-campaign_count", "name")
 
+    @classmethod
+    def for_detail_view(cls) -> models.QuerySet[Channel]:
+        """Return channels with only fields needed by the channel detail view."""
+        return cls.objects.only(
+            "twitch_id",
+            "name",
+            "display_name",
+            "added_at",
+            "updated_at",
+        )
+
+    @property
+    def preferred_name(self) -> str:
+        """Return display name fallback used by channel-facing pages."""
+        return self.display_name or self.name or self.twitch_id
+
+    def detail_description(self, total_campaigns: int) -> str:
+        """Return a short channel-detail description with pluralization."""
+        suffix: str = "s" if total_campaigns != 1 else ""
+        return f"{self.preferred_name} participates in {total_campaigns} drop campaign{suffix}"
+
 
 # MARK: DropCampaign
 class DropCampaign(auto_prefetch.Model):
@@ -684,6 +704,8 @@ class DropCampaign(auto_prefetch.Model):
                                 "distribution_type",
                                 "image_asset_url",
                                 "image_file",
+                                "image_width",
+                                "image_height",
                             ),
                         ),
                     )
@@ -692,6 +714,98 @@ class DropCampaign(auto_prefetch.Model):
             )
             .get(twitch_id=twitch_id)
         )
+
+    @classmethod
+    def for_channel_detail(cls, channel: Channel) -> models.QuerySet[DropCampaign]:
+        """Return campaigns with only channel-detail-required relations/fields.
+
+        Args:
+            channel: Channel used for allow-list filtering.
+
+        Returns:
+            QuerySet ordered by newest start date.
+        """
+        return (
+            cls.objects
+            .filter(allow_channels=channel)
+            .select_related("game")
+            .only(
+                "twitch_id",
+                "name",
+                "start_at",
+                "end_at",
+                "game",
+                "game__twitch_id",
+                "game__name",
+                "game__display_name",
+            )
+            .prefetch_related(
+                Prefetch(
+                    "time_based_drops",
+                    queryset=TimeBasedDrop.objects.only(
+                        "twitch_id",
+                        "campaign_id",
+                    ).prefetch_related(
+                        Prefetch(
+                            "benefits",
+                            queryset=DropBenefit.objects.only(
+                                "twitch_id",
+                                "name",
+                                "image_asset_url",
+                                "image_file",
+                                "image_width",
+                                "image_height",
+                            ).order_by("name"),
+                        ),
+                    ),
+                ),
+            )
+            .order_by("-start_at")
+        )
+
+    @staticmethod
+    def split_for_channel_detail(
+        campaigns: list[DropCampaign],
+        now: datetime.datetime,
+    ) -> tuple[list[DropCampaign], list[DropCampaign], list[DropCampaign]]:
+        """Split channel campaigns into active, upcoming, and expired buckets.
+
+        Args:
+            campaigns: List of campaigns to split.
+            now: Current datetime for comparison.
+
+        Returns:
+            Tuple containing lists of active, upcoming, and expired campaigns.
+        """
+        sentinel: datetime.datetime = datetime.datetime.max.replace(
+            tzinfo=datetime.UTC,
+        )
+
+        active_campaigns: list[DropCampaign] = sorted(
+            [
+                campaign
+                for campaign in campaigns
+                if campaign.start_at is not None
+                and campaign.start_at <= now
+                and campaign.end_at is not None
+                and campaign.end_at >= now
+            ],
+            key=lambda campaign: campaign.end_at or sentinel,
+        )
+        upcoming_campaigns: list[DropCampaign] = sorted(
+            [
+                campaign
+                for campaign in campaigns
+                if campaign.start_at is not None and campaign.start_at > now
+            ],
+            key=lambda campaign: campaign.start_at or sentinel,
+        )
+        expired_campaigns: list[DropCampaign] = [
+            campaign
+            for campaign in campaigns
+            if campaign.end_at is not None and campaign.end_at < now
+        ]
+        return active_campaigns, upcoming_campaigns, expired_campaigns
 
     @staticmethod
     def _countdown_text_for_drop(
@@ -1137,8 +1251,12 @@ class DropBenefit(auto_prefetch.Model):
     def image_best_url(self) -> str:
         """Return the best URL for the benefit image (local first)."""
         try:
-            if self.image_file and getattr(self.image_file, "url", None):
-                return self.image_file.url
+            if self.image_file:
+                file_name: str = getattr(self.image_file, "name", "")
+                if file_name and self.image_file.storage.exists(file_name):
+                    file_url: str | None = getattr(self.image_file, "url", None)
+                    if file_url:
+                        return file_url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve DropBenefit.image_file url: %s", exc)
         return self.image_asset_url or ""

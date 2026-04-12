@@ -21,6 +21,7 @@ from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils import timezone
@@ -1320,20 +1321,10 @@ class ChannelDetailView(DetailView):
 
         Returns:
             Channel: The channel object.
-
-        Raises:
-            Http404: If the channel is not found.
         """
-        if queryset is None:
-            queryset = self.get_queryset()
-
-        twitch_id: str | None = self.kwargs.get("twitch_id")
-        try:
-            channel: Channel = queryset.get(twitch_id=twitch_id)
-        except Channel.DoesNotExist as exc:
-            msg = "No channel found matching the query"
-            raise Http404(msg) from exc
-
+        queryset = queryset or Channel.for_detail_view()
+        twitch_id: str = str(self.kwargs.get("twitch_id", ""))
+        channel: Channel = get_object_or_404(queryset, twitch_id=twitch_id)
         return channel
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:  # noqa: PLR0914
@@ -1349,66 +1340,16 @@ class ChannelDetailView(DetailView):
         channel: Channel = self.object  # pyright: ignore[reportAssignmentType]
 
         now: datetime.datetime = timezone.now()
-        all_campaigns: QuerySet[DropCampaign] = (
-            DropCampaign.objects
-            .filter(allow_channels=channel)
-            .select_related("game")
-            .prefetch_related(
-                Prefetch(
-                    "time_based_drops",
-                    queryset=TimeBasedDrop.objects.prefetch_related(
-                        Prefetch(
-                            "benefits",
-                            queryset=DropBenefit.objects.order_by("name"),
-                        ),
-                    ),
-                ),
-            )
-            .order_by("-start_at")
+        campaigns_list: list[DropCampaign] = list(
+            DropCampaign.for_channel_detail(channel),
+        )
+        active_campaigns, upcoming_campaigns, expired_campaigns = (
+            DropCampaign.split_for_channel_detail(campaigns_list, now)
         )
 
-        campaigns_list: list[DropCampaign] = list(all_campaigns)
-
-        active_campaigns: list[DropCampaign] = [
-            campaign
-            for campaign in campaigns_list
-            if campaign.start_at is not None
-            and campaign.start_at <= now
-            and campaign.end_at is not None
-            and campaign.end_at >= now
-        ]
-        active_campaigns.sort(
-            key=lambda c: (
-                c.end_at
-                if c.end_at is not None
-                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
-            ),
-        )
-
-        upcoming_campaigns: list[DropCampaign] = [
-            campaign
-            for campaign in campaigns_list
-            if campaign.start_at is not None and campaign.start_at > now
-        ]
-        upcoming_campaigns.sort(
-            key=lambda c: (
-                c.start_at
-                if c.start_at is not None
-                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
-            ),
-        )
-
-        expired_campaigns: list[DropCampaign] = [
-            campaign
-            for campaign in campaigns_list
-            if campaign.end_at is not None and campaign.end_at < now
-        ]
-
-        name: str = channel.display_name or channel.name or channel.twitch_id
+        name: str = channel.preferred_name
         total_campaigns: int = len(campaigns_list)
-        description: str = f"{name} participates in {total_campaigns} drop campaign"
-        if total_campaigns > 1:
-            description += "s"
+        description: str = channel.detail_description(total_campaigns)
 
         channel_url: str = build_absolute_uri(
             reverse("twitch:channel_detail", args=[channel.twitch_id]),

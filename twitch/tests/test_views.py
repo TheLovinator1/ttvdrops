@@ -525,6 +525,205 @@ class TestChannelListView:
         assert "GROUP BY" not in sql
         assert "ALLOWED_CAMPAIGN_COUNT" in sql
 
+    def test_channel_detail_queryset_only_selects_rendered_fields(self) -> None:
+        """Channel detail queryset should defer fields not used by the template/SEO."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_detail_fields",
+            name="channeldetailfields",
+            display_name="Channel Detail Fields",
+        )
+
+        fetched_channel: Channel | None = (
+            Channel
+            .for_detail_view()
+            .filter(
+                twitch_id=channel.twitch_id,
+            )
+            .first()
+        )
+
+        assert fetched_channel is not None
+        deferred_fields: set[str] = fetched_channel.get_deferred_fields()
+        assert "allowed_campaign_count" in deferred_fields
+        assert "name" not in deferred_fields
+        assert "display_name" not in deferred_fields
+        assert "twitch_id" not in deferred_fields
+        assert "added_at" not in deferred_fields
+        assert "updated_at" not in deferred_fields
+
+    def test_channel_detail_campaign_queryset_only_selects_rendered_fields(
+        self,
+    ) -> None:
+        """Channel detail campaign queryset should avoid loading unused campaign fields."""
+        now: datetime.datetime = timezone.now()
+
+        game: Game = Game.objects.create(
+            twitch_id="channel_detail_game_fields",
+            name="Channel Detail Game Fields",
+            display_name="Channel Detail Game Fields",
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_detail_campaign_fields",
+            name="channeldetailcampaignfields",
+            display_name="Channel Detail Campaign Fields",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="channel_detail_campaign",
+            name="Channel Detail Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        campaign.allow_channels.add(channel)
+
+        fetched_campaign: DropCampaign | None = DropCampaign.for_channel_detail(
+            channel,
+        ).first()
+
+        assert fetched_campaign is not None
+        deferred_fields: set[str] = fetched_campaign.get_deferred_fields()
+        assert "description" in deferred_fields
+        assert "details_url" in deferred_fields
+        assert "account_link_url" in deferred_fields
+        assert "name" not in deferred_fields
+        assert "start_at" not in deferred_fields
+        assert "end_at" not in deferred_fields
+
+    def test_channel_detail_prefetch_avoids_dropbenefit_refresh_n_plus_one(
+        self,
+    ) -> None:
+        """Channel detail prefetch should not refresh each DropBenefit row for image dimensions."""
+        now: datetime.datetime = timezone.now()
+
+        game: Game = Game.objects.create(
+            twitch_id="channel_detail_n_plus_one_game",
+            name="Channel Detail N+1 Game",
+            display_name="Channel Detail N+1 Game",
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_detail_n_plus_one_channel",
+            name="channeldetailnplusone",
+            display_name="Channel Detail N+1",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="channel_detail_n_plus_one_campaign",
+            name="Channel Detail N+1 Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        campaign.allow_channels.add(channel)
+
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="channel_detail_n_plus_one_drop",
+            name="Channel Detail N+1 Drop",
+            campaign=campaign,
+        )
+
+        png_1x1: bytes = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
+            b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
+            b"\x00\x00\x00\x0bIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
+            b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+        benefits: list[DropBenefit] = []
+        for i in range(3):
+            benefit: DropBenefit = DropBenefit.objects.create(
+                twitch_id=f"channel_detail_n_plus_one_benefit_{i}",
+                name=f"Benefit {i}",
+                image_asset_url=f"https://example.com/benefit_{i}.png",
+            )
+            assert benefit.image_file is not None
+            benefit.image_file.save(
+                f"channel_detail_n_plus_one_benefit_{i}.png",
+                ContentFile(png_1x1),
+                save=True,
+            )
+            benefits.append(benefit)
+
+        drop.benefits.add(*benefits)
+
+        with CaptureQueriesContext(connection) as queries:
+            campaigns: list[DropCampaign] = list(
+                DropCampaign.for_channel_detail(channel),
+            )
+            assert campaigns
+            _ = [
+                benefit.name
+                for campaign_row in campaigns
+                for drop_row in campaign_row.time_based_drops.all()  # pyright: ignore[reportAttributeAccessIssue]
+                for benefit in drop_row.benefits.all()
+            ]
+
+        refresh_queries: list[str] = [
+            query_info["sql"]
+            for query_info in queries.captured_queries
+            if query_info["sql"].lstrip().upper().startswith("SELECT")
+            and 'from "twitch_dropbenefit"' in query_info["sql"].lower()
+            and 'where "twitch_dropbenefit"."id" =' in query_info["sql"].lower()
+        ]
+
+        assert not refresh_queries, (
+            "Channel detail queryset triggered per-benefit refresh SELECTs. "
+            f"Queries: {refresh_queries}"
+        )
+
+    def test_channel_detail_uses_asset_url_when_local_benefit_file_is_missing(
+        self,
+        client: Client,
+    ) -> None:
+        """Channel detail should avoid broken local image URLs when cached files are missing."""
+        now: datetime.datetime = timezone.now()
+
+        game: Game = Game.objects.create(
+            twitch_id="channel_detail_missing_local_file_game",
+            name="Channel Detail Missing Local File Game",
+            display_name="Channel Detail Missing Local File Game",
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel_detail_missing_local_file_channel",
+            name="missinglocalfilechannel",
+            display_name="Missing Local File Channel",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="channel_detail_missing_local_file_campaign",
+            name="Channel Detail Missing Local File Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        campaign.allow_channels.add(channel)
+
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="channel_detail_missing_local_file_drop",
+            name="Channel Detail Missing Local File Drop",
+            campaign=campaign,
+        )
+
+        remote_asset_url: str = "https://example.com/benefit-missing-local-file.png"
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="channel_detail_missing_local_file_benefit",
+            name="Benefit Missing Local File",
+            image_asset_url=remote_asset_url,
+        )
+        DropBenefit.objects.filter(pk=benefit.pk).update(
+            image_file="benefits/images/does-not-exist.png",
+        )
+        drop.benefits.add(benefit)
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:channel_detail", args=[channel.twitch_id]),
+        )
+        assert response.status_code == 200
+
+        html: str = response.content.decode("utf-8")
+        assert remote_asset_url in html
+        assert "benefits/images/does-not-exist.png" not in html
+
     def test_channel_allowed_campaign_count_updates_on_add_remove_clear(self) -> None:
         """Counter cache should stay in sync when campaign-channel links change."""
         game: Game = Game.objects.create(
@@ -927,6 +1126,36 @@ class TestChannelListView:
             "named dashboard index. "
             f"Expected one of {sorted(expected_reward_indexes)}. Plan={reward_plan}"
         )
+
+    @pytest.mark.django_db
+    def test_dashboard_active_window_composite_indexes_exist(self) -> None:
+        """Dashboard active-window filters should have supporting composite indexes."""
+        with connection.cursor() as cursor:
+            drop_constraints = connection.introspection.get_constraints(
+                cursor,
+                DropCampaign._meta.db_table,
+            )
+            reward_constraints = connection.introspection.get_constraints(
+                cursor,
+                RewardCampaign._meta.db_table,
+            )
+
+        def _index_columns(constraints: dict[str, Any]) -> list[tuple[str, ...]]:
+            columns: list[tuple[str, ...]] = []
+            for meta in constraints.values():
+                if not meta.get("index"):
+                    continue
+                index_columns: list[str] = meta.get("columns") or []
+                columns.append(tuple(index_columns))
+            return columns
+
+        drop_index_columns: list[tuple[str, ...]] = _index_columns(drop_constraints)
+        reward_index_columns: list[tuple[str, ...]] = _index_columns(
+            reward_constraints,
+        )
+
+        assert ("start_at", "end_at") in drop_index_columns
+        assert ("starts_at", "ends_at") in reward_index_columns
 
     @pytest.mark.django_db
     def test_dashboard_query_count_stays_flat_with_more_data(
