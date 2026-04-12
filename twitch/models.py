@@ -75,6 +75,27 @@ class Organization(auto_prefetch.Model):
         """Return organizations with only fields needed by the org list page."""
         return cls.objects.only("twitch_id", "name").order_by("name")
 
+    @classmethod
+    def for_detail_view(cls) -> models.QuerySet[Organization]:
+        """Return organizations with only fields and relations needed by detail page."""
+        return cls.objects.only(
+            "twitch_id",
+            "name",
+            "added_at",
+            "updated_at",
+        ).prefetch_related(
+            models.Prefetch(
+                "games",
+                queryset=Game.objects.only(
+                    "twitch_id",
+                    "name",
+                    "display_name",
+                    "slug",
+                ).order_by("display_name"),
+                to_attr="games_for_detail",
+            ),
+        )
+
     def feed_description(self: Organization) -> str:
         """Return a description of the organization for RSS feeds."""
         name: str = self.name or "Unknown Organization"

@@ -316,21 +316,18 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     Returns:
         HttpResponse: The rendered organization detail page.
 
-    Raises:
-        Http404: If the organization is not found.
     """
-    try:
-        organization: Organization = Organization.objects.get(twitch_id=twitch_id)
-    except Organization.DoesNotExist as exc:
-        msg = "No organization found matching the query"
-        raise Http404(msg) from exc
+    organization: Organization = get_object_or_404(
+        Organization.for_detail_view(),
+        twitch_id=twitch_id,
+    )
 
-    games: QuerySet[Game] = organization.games.all()  # pyright: ignore[reportAttributeAccessIssue]
+    games: list[Game] = list(getattr(organization, "games_for_detail", []))
 
     org_name: str = organization.name or organization.twitch_id
-    games_count: int = games.count()
-    s: Literal["", "s"] = "" if games_count == 1 else "s"
-    org_description: str = f"{org_name} has {games_count} game{s}."
+    games_count: int = len(games)
+    noun: str = "game" if games_count == 1 else "games"
+    org_description: str = f"{org_name} has {games_count} {noun}."
 
     url: str = build_absolute_uri(
         reverse("twitch:organization_detail", args=[organization.twitch_id]),

@@ -2398,6 +2398,73 @@ class TestChannelListView:
         assert "organization" in response.context
 
     @pytest.mark.django_db
+    def test_organization_detail_queryset_only_selects_rendered_fields(self) -> None:
+        """Organization detail queryset should defer non-rendered organization fields."""
+        org: Organization = Organization.objects.create(
+            twitch_id="org_detail_fields",
+            name="Org Detail Fields",
+        )
+        Game.objects.create(
+            twitch_id="org_detail_game_fields",
+            name="Org Detail Game Fields",
+            display_name="Org Detail Game Fields",
+        ).owners.add(org)
+
+        fetched_org: Organization | None = (
+            Organization.for_detail_view().filter(twitch_id=org.twitch_id).first()
+        )
+
+        assert fetched_org is not None
+        deferred_fields: set[str] = fetched_org.get_deferred_fields()
+        assert "twitch_id" not in deferred_fields
+        assert "name" not in deferred_fields
+        assert "added_at" not in deferred_fields
+        assert "updated_at" not in deferred_fields
+
+    @pytest.mark.django_db
+    def test_organization_detail_prefetched_games_do_not_trigger_extra_queries(
+        self,
+    ) -> None:
+        """Organization detail should prefetch games used by the template."""
+        org: Organization = Organization.objects.create(
+            twitch_id="org_detail_prefetch",
+            name="Org Detail Prefetch",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="org_detail_prefetch_game",
+            name="Org Detail Prefetch Game",
+            display_name="Org Detail Prefetch Game",
+            slug="org-detail-prefetch-game",
+        )
+        game.owners.add(org)
+
+        fetched_org: Organization = Organization.for_detail_view().get(
+            twitch_id=org.twitch_id,
+        )
+
+        games_for_detail: list[Game] = list(
+            getattr(fetched_org, "games_for_detail", []),
+        )
+        assert len(games_for_detail) == 1
+
+        with CaptureQueriesContext(connection) as queries:
+            game_row: Game = games_for_detail[0]
+            _ = game_row.twitch_id
+            _ = game_row.display_name
+            _ = game_row.name
+            _ = str(game_row)
+
+        select_queries: list[str] = [
+            query_info["sql"]
+            for query_info in queries.captured_queries
+            if query_info["sql"].lstrip().upper().startswith("SELECT")
+        ]
+        assert not select_queries, (
+            "Organization detail prefetched games triggered unexpected SELECT queries. "
+            f"Queries: {select_queries}"
+        )
+
+    @pytest.mark.django_db
     def test_channel_detail_view(self, client: Client, db: None) -> None:
         """Test channel detail view returns 200 and has channel in context."""
         channel: Channel = Channel.objects.create(
