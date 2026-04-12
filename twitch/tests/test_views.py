@@ -2236,6 +2236,58 @@ class TestChannelListView:
         assert "game" in response.context
 
     @pytest.mark.django_db
+    def test_game_detail_campaign_query_plan_uses_game_end_index(self) -> None:
+        """Game-detail campaign list query should use the game/end_at composite index."""
+        now: datetime.datetime = timezone.now()
+
+        game: Game = Game.objects.create(
+            twitch_id="game_detail_idx_game",
+            name="Game Detail Index Game",
+            display_name="Game Detail Index Game",
+        )
+
+        campaigns: list[DropCampaign] = []
+        for i in range(200):
+            campaigns.extend((
+                DropCampaign(
+                    twitch_id=f"game_detail_idx_old_{i}",
+                    name=f"Old campaign {i}",
+                    game=game,
+                    operation_names=["DropCampaignDetails"],
+                    start_at=now - timedelta(days=90),
+                    end_at=now - timedelta(days=60),
+                ),
+                DropCampaign(
+                    twitch_id=f"game_detail_idx_future_{i}",
+                    name=f"Future campaign {i}",
+                    game=game,
+                    operation_names=["DropCampaignDetails"],
+                    start_at=now + timedelta(days=60),
+                    end_at=now + timedelta(days=90),
+                ),
+            ))
+        campaigns.append(
+            DropCampaign(
+                twitch_id="game_detail_idx_active",
+                name="Active campaign",
+                game=game,
+                operation_names=["DropCampaignDetails"],
+                start_at=now - timedelta(hours=1),
+                end_at=now + timedelta(hours=1),
+            ),
+        )
+        DropCampaign.objects.bulk_create(campaigns)
+
+        plan: str = DropCampaign.for_game_detail(game).explain().lower()
+
+        if connection.vendor in {"sqlite", "postgresql"}:
+            assert "tw_drop_game_end_desc_idx" in plan, plan
+        else:
+            pytest.skip(
+                f"Unsupported DB vendor for index-name plan assertion: {connection.vendor}",
+            )
+
+    @pytest.mark.django_db
     def test_game_detail_image_aspect_ratio(self, client: Client, db: None) -> None:
         """Box art should render with a width attribute only, preserving aspect ratio."""
         game: Game = Game.objects.create(

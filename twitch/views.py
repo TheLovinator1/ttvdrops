@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import datetime
 import json
 import logging
 from typing import TYPE_CHECKING
@@ -13,7 +12,6 @@ from django.core.paginator import EmptyPage
 from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
-from django.db.models import Prefetch
 from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import HttpResponse
@@ -33,9 +31,10 @@ from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import RewardCampaign
-from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
+    import datetime
+
     from django.db.models import QuerySet
     from django.http import HttpRequest
 
@@ -698,32 +697,12 @@ class GameDetailView(DetailView):
     model = Game
     template_name = "twitch/game_detail.html"
     context_object_name = "game"
-    lookup_field = "twitch_id"
+    slug_field = "twitch_id"
+    slug_url_kwarg = "twitch_id"
 
-    def get_object(self, queryset: QuerySet[Game] | None = None) -> Game:
-        """Get the game object using twitch_id as the primary key lookup.
-
-        Args:
-            queryset: Optional queryset to use.
-
-        Returns:
-            Game: The game object.
-
-        Raises:
-            Http404: If the game is not found.
-        """
-        if queryset is None:
-            queryset = self.get_queryset()
-
-        # Use twitch_id as the lookup field since it's the primary key
-        twitch_id: str | None = self.kwargs.get("twitch_id")
-        try:
-            game: Game = queryset.get(twitch_id=twitch_id)
-        except Game.DoesNotExist as exc:
-            msg = "No game found matching the query"
-            raise Http404(msg) from exc
-
-        return game
+    def get_queryset(self) -> QuerySet[Game]:
+        """Return game queryset optimized for the game detail page."""
+        return Game.for_detail_view()
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:  # noqa: PLR0914
         """Add additional context data.
@@ -740,88 +719,13 @@ class GameDetailView(DetailView):
         game: Game = self.object  # pyright: ignore[reportAssignmentType]
 
         now: datetime.datetime = timezone.now()
-        all_campaigns: QuerySet[DropCampaign] = (
-            DropCampaign.objects
-            .filter(game=game)
-            .select_related("game")
-            .prefetch_related(
-                Prefetch(
-                    "time_based_drops",
-                    queryset=TimeBasedDrop.objects.prefetch_related(
-                        Prefetch(
-                            "benefits",
-                            queryset=DropBenefit.objects.order_by("name"),
-                        ),
-                    ),
-                ),
-            )
-            .order_by("-end_at")
+        campaigns_list: list[DropCampaign] = list(DropCampaign.for_game_detail(game))
+        active_campaigns, upcoming_campaigns, expired_campaigns = (
+            DropCampaign.split_for_channel_detail(campaigns_list, now)
         )
+        owners: list[Organization] = list(getattr(game, "owners_for_detail", []))
 
-        campaigns_list: list[DropCampaign] = list(all_campaigns)
-
-        # For each drop, find awarded badge (distribution_type BADGE)
-        drop_awarded_badges: dict[str, ChatBadge] = {}
-        benefit_badge_titles: set[str] = set()
-        for campaign in campaigns_list:
-            for drop in campaign.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
-                for benefit in drop.benefits.all():
-                    if benefit.distribution_type == "BADGE" and benefit.name:
-                        benefit_badge_titles.add(benefit.name)
-
-        # Bulk-load all matching ChatBadge instances to avoid N+1 queries
-        badges_by_title: dict[str, ChatBadge] = {
-            badge.title: badge
-            for badge in ChatBadge.objects.filter(title__in=benefit_badge_titles)
-        }
-
-        for campaign in campaigns_list:
-            for drop in campaign.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
-                for benefit in drop.benefits.all():
-                    if benefit.distribution_type == "BADGE":
-                        badge: ChatBadge | None = badges_by_title.get(benefit.name)
-                        if badge:
-                            drop_awarded_badges[drop.twitch_id] = badge
-
-        active_campaigns: list[DropCampaign] = [
-            campaign
-            for campaign in campaigns_list
-            if campaign.start_at is not None
-            and campaign.start_at <= now
-            and campaign.end_at is not None
-            and campaign.end_at >= now
-        ]
-        active_campaigns.sort(
-            key=lambda c: (
-                c.end_at
-                if c.end_at is not None
-                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
-            ),
-        )
-
-        upcoming_campaigns: list[DropCampaign] = [
-            campaign
-            for campaign in campaigns_list
-            if campaign.start_at is not None and campaign.start_at > now
-        ]
-
-        upcoming_campaigns.sort(
-            key=lambda c: (
-                c.start_at
-                if c.start_at is not None
-                else datetime.datetime.max.replace(tzinfo=datetime.UTC)
-            ),
-        )
-
-        expired_campaigns: list[DropCampaign] = [
-            campaign
-            for campaign in campaigns_list
-            if campaign.end_at is not None and campaign.end_at < now
-        ]
-
-        owners: list[Organization] = list(game.owners.all())
-
-        game_name: str = game.display_name or game.name or game.twitch_id
+        game_name: str = game.get_game_name
         game_description: str = f"Twitch drops for {game_name}."
         game_image: str | None = game.box_art_best_url
         game_image_width: int | None = game.box_art_width if game.box_art_file else None
@@ -902,7 +806,6 @@ class GameDetailView(DetailView):
             "expired_campaigns": expired_campaigns,
             "owner": owners[0] if owners else None,
             "owners": owners,
-            "drop_awarded_badges": drop_awarded_badges,
             "now": now,
             **seo_context,
         })

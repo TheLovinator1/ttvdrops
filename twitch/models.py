@@ -245,6 +245,30 @@ class Game(auto_prefetch.Model):
         return normalize_twitch_box_art_url(self.box_art or "")
 
     @classmethod
+    def for_detail_view(cls) -> models.QuerySet[Game]:
+        """Return games with only fields/relations needed by game detail view."""
+        return cls.objects.only(
+            "twitch_id",
+            "slug",
+            "name",
+            "display_name",
+            "box_art",
+            "box_art_file",
+            "box_art_width",
+            "box_art_height",
+            "added_at",
+            "updated_at",
+        ).prefetch_related(
+            Prefetch(
+                "owners",
+                queryset=Organization.objects.only("twitch_id", "name").order_by(
+                    "name",
+                ),
+                to_attr="owners_for_detail",
+            ),
+        )
+
+    @classmethod
     def with_campaign_counts(
         cls,
         now: datetime.datetime,
@@ -686,6 +710,11 @@ class DropCampaign(auto_prefetch.Model):
                 fields=["is_fully_imported", "start_at", "end_at"],
                 name="tw_drop_imported_start_end_idx",
             ),
+            # For game detail campaigns listing by game with end date ordering.
+            models.Index(
+                fields=["game", "-end_at"],
+                name="tw_drop_game_end_desc_idx",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -731,6 +760,48 @@ class DropCampaign(auto_prefetch.Model):
         elif status == "expired":
             queryset = queryset.filter(end_at__lt=now)
         return queryset
+
+    @classmethod
+    def for_game_detail(
+        cls,
+        game: Game,
+    ) -> models.QuerySet[DropCampaign]:
+        """Return campaigns with only game-detail-needed relations/fields loaded."""
+        return (
+            cls.objects
+            .filter(game=game)
+            .select_related("game")
+            .only(
+                "twitch_id",
+                "name",
+                "start_at",
+                "end_at",
+                "game",
+                "game__display_name",
+            )
+            .prefetch_related(
+                Prefetch(
+                    "time_based_drops",
+                    queryset=TimeBasedDrop.objects.only(
+                        "twitch_id",
+                        "campaign_id",
+                    ).prefetch_related(
+                        Prefetch(
+                            "benefits",
+                            queryset=DropBenefit.objects.only(
+                                "twitch_id",
+                                "name",
+                                "image_asset_url",
+                                "image_file",
+                                "image_width",
+                                "image_height",
+                            ).order_by("name"),
+                        ),
+                    ),
+                ),
+            )
+            .order_by("-end_at")
+        )
 
     @classmethod
     def for_detail_view(cls, twitch_id: str) -> DropCampaign:
