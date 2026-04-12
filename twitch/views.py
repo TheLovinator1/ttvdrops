@@ -515,48 +515,6 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
     return render(request, "twitch/campaign_list.html", context)
 
 
-def _enhance_drops_with_context(
-    drops: QuerySet[TimeBasedDrop],
-    now: datetime.datetime,
-) -> list[dict[str, Any]]:
-    """Helper to enhance drops with countdown and context.
-
-    Args:
-        drops: QuerySet of TimeBasedDrop objects.
-        now: Current datetime.
-
-    Returns:
-        List of dicts with drop and additional context for display.
-    """
-    enhanced: list[dict[str, Any]] = []
-    for drop in drops:
-        if drop.end_at and drop.end_at > now:
-            time_diff: datetime.timedelta = drop.end_at - now
-            days: int = time_diff.days
-            hours, remainder = divmod(time_diff.seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            if days > 0:
-                countdown_text: str = f"{days}d {hours}h {minutes}m"
-            elif hours > 0:
-                countdown_text = f"{hours}h {minutes}m"
-            elif minutes > 0:
-                countdown_text = f"{minutes}m {seconds}s"
-            else:
-                countdown_text = f"{seconds}s"
-        elif drop.start_at and drop.start_at > now:
-            countdown_text = "Not started"
-        else:
-            countdown_text = "Expired"
-        enhanced.append({
-            "drop": drop,
-            "local_start": drop.start_at,
-            "local_end": drop.end_at,
-            "timezone_name": "UTC",
-            "countdown_text": countdown_text,
-        })
-    return enhanced
-
-
 # MARK: /campaigns/<twitch_id>/
 def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # noqa: PLR0914
     """Function-based view for a drop campaign detail.
@@ -572,45 +530,20 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         Http404: If the campaign is not found.
     """
     try:
-        campaign: DropCampaign = DropCampaign.objects.prefetch_related(
-            "game__owners",
-            Prefetch(
-                "allow_channels",
-                queryset=Channel.objects.order_by("display_name"),
-                to_attr="channels_ordered",
-            ),
-            Prefetch(
-                "time_based_drops",
-                queryset=TimeBasedDrop.objects.prefetch_related("benefits").order_by(
-                    "required_minutes_watched",
-                ),
-            ),
-        ).get(twitch_id=twitch_id)
+        campaign: DropCampaign = DropCampaign.for_detail_view(twitch_id)
     except DropCampaign.DoesNotExist as exc:
         msg = "No campaign found matching the query"
         raise Http404(msg) from exc
 
-    drops: QuerySet[TimeBasedDrop] = campaign.time_based_drops.all()  # pyright: ignore[reportAttributeAccessIssue]
-
     now: datetime.datetime = timezone.now()
-    enhanced_drops: list[dict[str, Any]] = _enhance_drops_with_context(drops, now)
-    # Attach awarded_badge to each drop in enhanced_drops
-    for enhanced_drop in enhanced_drops:
-        drop = enhanced_drop["drop"]
-        awarded_badge = None
-        for benefit in drop.benefits.all():
-            if benefit.distribution_type == "BADGE":
-                awarded_badge: ChatBadge | None = ChatBadge.objects.filter(
-                    title=benefit.name,
-                ).first()
-                break
-        enhanced_drop["awarded_badge"] = awarded_badge
+    owners: list[Organization] = list(getattr(campaign.game, "owners_for_detail", []))
+    enhanced_drops: list[dict[str, Any]] = campaign.enhanced_drops_for_detail(now)
 
     context: dict[str, Any] = {
         "campaign": campaign,
         "now": now,
         "drops": enhanced_drops,
-        "owners": list(campaign.game.owners.all()),
+        "owners": owners,
         "allowed_channels": getattr(campaign, "channels_ordered", []),
     }
 
@@ -650,9 +583,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         campaign_event["startDate"] = campaign.start_at.isoformat()
     if campaign.end_at:
         campaign_event["endDate"] = campaign.end_at.isoformat()
-    campaign_owner: Organization | None = (
-        _pick_owner(list(campaign.game.owners.all())) if campaign.game else None
-    )
+    campaign_owner: Organization | None = _pick_owner(owners) if owners else None
     campaign_owner_name: str = (
         (campaign_owner.name or campaign_owner.twitch_id)
         if campaign_owner

@@ -572,6 +572,170 @@ class DropCampaign(auto_prefetch.Model):
         return queryset
 
     @classmethod
+    def for_detail_view(cls, twitch_id: str) -> DropCampaign:
+        """Return a campaign with only detail-view-required relations/fields loaded.
+
+        Args:
+            twitch_id: Campaign Twitch ID.
+
+        Returns:
+            Campaign object with game, owners, channels, drops, and benefits preloaded.
+        """
+        return (
+            cls.objects
+            .select_related("game")
+            .only(
+                "twitch_id",
+                "name",
+                "description",
+                "details_url",
+                "account_link_url",
+                "image_url",
+                "image_file",
+                "image_width",
+                "image_height",
+                "start_at",
+                "end_at",
+                "added_at",
+                "updated_at",
+                "game__twitch_id",
+                "game__name",
+                "game__display_name",
+                "game__slug",
+            )
+            .prefetch_related(
+                Prefetch(
+                    "game__owners",
+                    queryset=Organization.objects.only("twitch_id", "name").order_by(
+                        "name",
+                    ),
+                    to_attr="owners_for_detail",
+                ),
+                Prefetch(
+                    "allow_channels",
+                    queryset=Channel.objects.only(
+                        "twitch_id",
+                        "name",
+                        "display_name",
+                    ).order_by("display_name"),
+                    to_attr="channels_ordered",
+                ),
+                Prefetch(
+                    "time_based_drops",
+                    queryset=TimeBasedDrop.objects
+                    .only(
+                        "twitch_id",
+                        "name",
+                        "required_minutes_watched",
+                        "required_subs",
+                        "start_at",
+                        "end_at",
+                        "campaign_id",
+                    )
+                    .prefetch_related(
+                        Prefetch(
+                            "benefits",
+                            queryset=DropBenefit.objects.only(
+                                "twitch_id",
+                                "name",
+                                "distribution_type",
+                                "image_asset_url",
+                                "image_file",
+                            ),
+                        ),
+                    )
+                    .order_by("required_minutes_watched"),
+                ),
+            )
+            .get(twitch_id=twitch_id)
+        )
+
+    @staticmethod
+    def _countdown_text_for_drop(
+        drop: TimeBasedDrop,
+        now: datetime.datetime,
+    ) -> str:
+        """Return a display countdown for a detail-view drop row."""
+        if drop.end_at and drop.end_at > now:
+            time_diff: datetime.timedelta = drop.end_at - now
+            days: int = time_diff.days
+            hours, remainder = divmod(time_diff.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            if days > 0:
+                return f"{days}d {hours}h {minutes}m"
+            if hours > 0:
+                return f"{hours}h {minutes}m"
+            if minutes > 0:
+                return f"{minutes}m {seconds}s"
+            return f"{seconds}s"
+        if drop.start_at and drop.start_at > now:
+            return "Not started"
+        return "Expired"
+
+    def awarded_badges_by_drop_twitch_id(
+        self,
+    ) -> dict[str, ChatBadge]:
+        """Return the first awarded badge per drop keyed by drop Twitch ID."""
+        drops: list[TimeBasedDrop] = list(self.time_based_drops.all())  # pyright: ignore[reportAttributeAccessIssue]
+
+        badge_titles: set[str] = {
+            benefit.name
+            for drop in drops
+            for benefit in drop.benefits.all()
+            if benefit.distribution_type == "BADGE" and benefit.name
+        }
+
+        if not badge_titles:
+            return {}
+
+        badges_by_title: dict[str, ChatBadge] = {
+            badge.title: badge
+            for badge in (
+                ChatBadge.objects
+                .select_related("badge_set")
+                .only(
+                    "title",
+                    "description",
+                    "image_url_2x",
+                    "badge_set__set_id",
+                )
+                .filter(title__in=badge_titles)
+            )
+        }
+
+        awarded_badges: dict[str, ChatBadge] = {}
+        for drop in drops:
+            for benefit in drop.benefits.all():
+                if benefit.distribution_type != "BADGE":
+                    continue
+                badge: ChatBadge | None = badges_by_title.get(benefit.name)
+                if badge:
+                    awarded_badges[drop.twitch_id] = badge
+                break
+
+        return awarded_badges
+
+    def enhanced_drops_for_detail(
+        self,
+        now: datetime.datetime,
+    ) -> list[dict[str, Any]]:
+        """Return campaign drops with detail-view presentation metadata."""
+        drops: list[TimeBasedDrop] = list(self.time_based_drops.all())  # pyright: ignore[reportAttributeAccessIssue]
+        awarded_badges: dict[str, ChatBadge] = self.awarded_badges_by_drop_twitch_id()
+
+        return [
+            {
+                "drop": drop,
+                "local_start": drop.start_at,
+                "local_end": drop.end_at,
+                "timezone_name": "UTC",
+                "countdown_text": self._countdown_text_for_drop(drop, now),
+                "awarded_badge": awarded_badges.get(drop.twitch_id),
+            }
+            for drop in drops
+        ]
+
+    @classmethod
     def active_for_dashboard(
         cls,
         now: datetime.datetime,

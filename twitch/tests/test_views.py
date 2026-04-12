@@ -642,10 +642,12 @@ class TestChannelListView:
             campaigns_uses_index = (
                 "INDEX SCAN" in campaigns_plan.upper()
                 or "BITMAP INDEX SCAN" in campaigns_plan.upper()
+                or "INDEX ONLY SCAN" in campaigns_plan.upper()
             )
             rewards_uses_index = (
                 "INDEX SCAN" in reward_plan.upper()
                 or "BITMAP INDEX SCAN" in reward_plan.upper()
+                or "INDEX ONLY SCAN" in reward_plan.upper()
             )
         else:
             pytest.skip(
@@ -1734,6 +1736,75 @@ class TestChannelListView:
         # The campaign detail page prints a syntax-highlighted JSON block; the badge description should be present.
         html = response.content.decode("utf-8")
         assert "This badge was earned by subscribing." in html
+
+    @pytest.mark.django_db
+    def test_drop_campaign_detail_badge_queries_stay_flat(self, client: Client) -> None:
+        """Campaign detail should avoid N+1 ChatBadge lookups across many badge drops."""
+        now: datetime.datetime = timezone.now()
+        game: Game = Game.objects.create(
+            twitch_id="g-badge-flat",
+            name="Game",
+            display_name="Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="c-badge-flat",
+            name="Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+
+        badge_set = ChatBadgeSet.objects.create(set_id="badge-flat")
+
+        def _create_badge_drop(i: int) -> None:
+            drop = TimeBasedDrop.objects.create(
+                twitch_id=f"flat-drop-{i}",
+                name=f"Drop {i}",
+                campaign=campaign,
+                required_minutes_watched=i,
+                required_subs=0,
+                start_at=now - timedelta(hours=2),
+                end_at=now + timedelta(hours=2),
+            )
+            title = f"Badge {i}"
+            benefit = DropBenefit.objects.create(
+                twitch_id=f"flat-benefit-{i}",
+                name=title,
+                distribution_type="BADGE",
+            )
+            drop.benefits.add(benefit)
+            ChatBadge.objects.create(
+                badge_set=badge_set,
+                badge_id=str(i),
+                image_url_1x=f"https://example.com/{i}/1x.png",
+                image_url_2x=f"https://example.com/{i}/2x.png",
+                image_url_4x=f"https://example.com/{i}/4x.png",
+                title=title,
+                description=f"Badge description {i}",
+            )
+
+        def _select_count() -> int:
+            url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+            with CaptureQueriesContext(connection) as capture:
+                response: _MonkeyPatchedWSGIResponse = client.get(url)
+                assert response.status_code == 200
+            return sum(
+                1
+                for query in capture.captured_queries
+                if query["sql"].lstrip().upper().startswith("SELECT")
+            )
+
+        _create_badge_drop(1)
+        baseline_selects: int = _select_count()
+
+        for i in range(2, 22):
+            _create_badge_drop(i)
+
+        expanded_selects: int = _select_count()
+
+        # Query volume should remain effectively constant as badge-drop count grows.
+        assert expanded_selects <= baseline_selects + 2
 
     @pytest.mark.django_db
     def test_games_grid_view(self, client: Client) -> None:
