@@ -104,6 +104,90 @@ class RSSFeedTestCase(TestCase):
             game=self.game,
         )
 
+    def _create_mixed_paid_and_free_campaign(self) -> DropCampaign:
+        """Create an active campaign containing both free and subscription-gated drops.
+
+        Returns:
+            DropCampaign: The mixed campaign fixture.
+        """
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="mixed-campaign-123",
+            name="Mixed Watch And Subscription Campaign",
+            game=self.game,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(days=7),
+            operation_names=["DropCampaignDetails"],
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id="mixed-channel-123",
+            name="mixedchannel",
+            display_name="MixedChannel",
+        )
+        campaign.allow_channels.add(channel)
+
+        free_drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="free-drop-123",
+            name="Watch Drop",
+            campaign=campaign,
+            required_minutes_watched=30,
+            required_subs=0,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=1),
+        )
+        paid_drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="paid-drop-123",
+            name="Subscription Required Drop",
+            campaign=campaign,
+            required_minutes_watched=0,
+            required_subs=1,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=1),
+        )
+        free_benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="free-benefit-123",
+            name="Free Benefit",
+            distribution_type="ITEM",
+        )
+        paid_benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="paid-benefit-123",
+            name="Paid Benefit",
+            distribution_type="ITEM",
+        )
+        free_drop.benefits.add(free_benefit)
+        paid_drop.benefits.add(paid_benefit)
+        return campaign
+
+    def _create_paid_only_campaign(self) -> DropCampaign:
+        """Create an active campaign where every drop requires a subscription.
+
+        Returns:
+            DropCampaign: The paid-only campaign fixture.
+        """
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="paid-only-campaign-123",
+            name="Paid Only Campaign",
+            game=self.game,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(days=7),
+            operation_names=["DropCampaignDetails"],
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="paid-only-drop-123",
+            name="Paid Only Drop",
+            campaign=campaign,
+            required_minutes_watched=0,
+            required_subs=1,
+            start_at=timezone.now(),
+            end_at=timezone.now() + timedelta(hours=1),
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="paid-only-benefit-123",
+            name="Paid Only Benefit",
+            distribution_type="ITEM",
+        )
+        drop.benefits.add(benefit)
+        return campaign
+
     def test_organization_feed(self) -> None:
         """Test organization feed returns 200."""
         url: str = reverse("core:organization_feed")
@@ -493,6 +577,43 @@ class RSSFeedTestCase(TestCase):
         assert "Test Campaign" in content
         assert "Past Campaign" not in content
         assert "Upcoming Campaign" not in content
+
+    def test_campaign_feeds_can_hide_paid_drops(self) -> None:
+        """Campaign feeds should support ?hide_paid=1 for subscription-gated drops."""
+        mixed_campaign: DropCampaign = self._create_mixed_paid_and_free_campaign()
+        paid_only_campaign: DropCampaign = self._create_paid_only_campaign()
+
+        feed_urls: list[str] = [
+            reverse("core:campaign_feed"),
+            reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:campaign_feed_atom"),
+            reverse("core:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("core:campaign_feed_discord"),
+            reverse("core:game_campaign_feed_discord", args=[self.game.twitch_id]),
+        ]
+
+        for url in feed_urls:
+            hidden_response: _MonkeyPatchedWSGIResponse = self.client.get(
+                url,
+                {"hide_paid": "1"},
+            )
+            assert hidden_response.status_code == 200
+            hidden_content: str = hidden_response.content.decode("utf-8")
+            assert mixed_campaign.name in hidden_content
+            assert paid_only_campaign.name not in hidden_content
+            assert "Free Benefit" in hidden_content
+            assert "Paid Only Benefit" not in hidden_content
+            assert "30 minutes watched" in hidden_content
+            assert "1 sub required" not in hidden_content
+            assert "MixedChannel" in hidden_content
+
+            default_response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+            assert default_response.status_code == 200
+            default_content: str = default_response.content.decode("utf-8")
+            assert mixed_campaign.name in default_content
+            assert paid_only_campaign.name in default_content
+            assert "Paid Only Benefit" in default_content
+            assert "1 sub required" in default_content
 
     def test_campaign_feed_enclosure_helpers(self) -> None:
         """Helper methods for campaigns should respect new fields."""

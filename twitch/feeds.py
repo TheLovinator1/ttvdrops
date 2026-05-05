@@ -9,6 +9,8 @@ from django.conf import settings
 from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.contrib.sites.shortcuts import get_current_site
 from django.contrib.syndication.views import Feed
+from django.db.models import Exists
+from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models.query import QuerySet
 from django.http.request import HttpRequest
@@ -47,6 +49,23 @@ if TYPE_CHECKING:
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
 RSS_STYLESHEETS: list[str] = [static("rss_styles.xslt")]
+TRUE_QUERY_VALUES: frozenset[str] = frozenset({"1", "true", "yes", "on"})
+
+
+def _query_bool(request: HttpRequest, name: str) -> bool:
+    """Return True when a query parameter is present with a truthy value."""
+    return request.GET.get(name, "").strip().casefold() in TRUE_QUERY_VALUES
+
+
+def _query_limit(request: HttpRequest) -> int | None:
+    """Return an integer ?limit value, or None when it is missing/invalid."""
+    value: str | None = request.GET.get("limit")
+    if not value:
+        return None
+    try:
+        return int(value)
+    except TypeError, ValueError:
+        return None
 
 
 def discord_timestamp(dt: datetime.datetime | None) -> SafeText:
@@ -256,6 +275,21 @@ def _active_drop_campaigns(queryset: QuerySet[DropCampaign]) -> QuerySet[DropCam
     return queryset.filter(start_at__lte=now, end_at__gte=now)
 
 
+def _campaigns_with_free_drops(
+    queryset: QuerySet[DropCampaign],
+) -> QuerySet[DropCampaign]:
+    """Keep campaigns that contain at least one drop without a sub requirement.
+
+    Returns:
+        QuerySet[DropCampaign]: Campaigns that have at least one free drop.
+    """
+    free_drops: QuerySet[TimeBasedDrop] = TimeBasedDrop.objects.filter(
+        campaign_id=OuterRef("pk"),
+        required_subs=0,
+    )
+    return queryset.filter(Exists(free_drops))
+
+
 def _active_reward_campaigns(
     queryset: QuerySet[RewardCampaign],
 ) -> QuerySet[RewardCampaign]:
@@ -450,11 +484,16 @@ def generate_discord_date_html(item: Model) -> list[SafeText]:
     return parts
 
 
-def generate_drops_summary_html(item: DropCampaign) -> list[SafeString]:
+def generate_drops_summary_html(
+    item: DropCampaign,
+    *,
+    hide_paid: bool = False,
+) -> list[SafeString]:
     """Generate HTML summary for drops and append to parts list.
 
     Args:
         item (DropCampaign): The drop campaign item containing the drops to summarize.
+        hide_paid: Exclude drops that require paid subscriptions from the summary.
 
     Returns:
         list[SafeString]: A list of SafeText elements summarizing the drops, or empty if no drops.
@@ -467,7 +506,7 @@ def generate_drops_summary_html(item: DropCampaign) -> list[SafeString]:
 
     drops: QuerySet[TimeBasedDrop] | None = getattr(item, "time_based_drops", None)
     if drops:
-        drops_data = _build_drops_data(drops.all())
+        drops_data = _build_drops_data(drops.all(), hide_paid=hide_paid)
 
     if drops_data:
         parts.append(
@@ -480,13 +519,14 @@ def generate_drops_summary_html(item: DropCampaign) -> list[SafeString]:
     return parts
 
 
-def generate_channels_html(item: Model) -> list[SafeText]:
+def generate_channels_html(item: Model, *, hide_paid: bool = False) -> list[SafeText]:
     """Generate HTML for the list of channels associated with a drop campaign, if applicable.
 
     Only generates channel links if the drop is not subscription-only. If it is subscription-only, it will skip channel links to avoid confusion.
 
     Args:
         item (Model): The campaign item which may have an 'is_subscription_only' attribute.
+        hide_paid: Treat paid drops as hidden when deciding whether to show channels.
 
     Returns:
         list[SafeText]: A list containing the HTML for the channels section, or empty if subscription-only or no channels.
@@ -498,7 +538,7 @@ def generate_channels_html(item: Model) -> list[SafeText]:
     if not channels:
         return parts
 
-    if getattr(item, "is_subscription_only", False):
+    if not hide_paid and getattr(item, "is_subscription_only", False):
         return parts
 
     game: Game | None = getattr(item, "game", None)
@@ -599,7 +639,11 @@ def create_channel_list_html(
     parts.append(format_html("<p>Channels with this drop:</p>{}", html))
 
 
-def _build_drops_data(drops_qs: QuerySet[TimeBasedDrop]) -> list[dict]:
+def _build_drops_data(
+    drops_qs: QuerySet[TimeBasedDrop],
+    *,
+    hide_paid: bool = False,
+) -> list[dict]:
     """Build a simplified data structure for rendering drops in a template.
 
     Returns:
@@ -611,6 +655,8 @@ def _build_drops_data(drops_qs: QuerySet[TimeBasedDrop]) -> list[dict]:
         requirements: str = ""
         required_minutes: int | None = getattr(drop, "required_minutes_watched", None)
         required_subs: int = getattr(drop, "required_subs", 0) or 0
+        if hide_paid and required_subs > 0:
+            continue
         if required_minutes:
             requirements = f"{required_minutes} minutes watched"
         if required_subs > 0:
@@ -971,6 +1017,7 @@ class DropCampaignFeed(TTVDropsBaseFeed):
     item_guid_is_permalink = True
 
     _limit: int | None = None
+    _hide_paid: bool = False
 
     def __call__(
         self,
@@ -978,29 +1025,28 @@ class DropCampaignFeed(TTVDropsBaseFeed):
         *args: str | int,
         **kwargs: str | int,
     ) -> HttpResponse:
-        """Override to capture limit parameter from request.
+        """Override to capture supported feed query parameters from request.
 
         Args:
-            request (HttpRequest): The incoming HTTP request, potentially containing a 'limit' query parameter.
+            request (HttpRequest): The incoming HTTP request, potentially containing 'limit' and 'hide_paid' query parameters.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
 
         Returns:
             HttpResponse: The HTTP response generated by the parent Feed class after processing the request.
         """
-        if request.GET.get("limit"):
-            try:
-                self._limit = int(request.GET.get("limit", 200))
-            except ValueError, TypeError:
-                self._limit = None
+        self._limit = _query_limit(request)
+        self._hide_paid = _query_bool(request, "hide_paid")
         return super().__call__(request, *args, **kwargs)
 
     def items(self) -> list[DropCampaign]:
-        """Return the latest drop campaigns ordered by most recent start date (default 200, or limited by ?limit query param)."""
+        """Return latest active drop campaigns."""
         limit: int = self._limit if self._limit is not None else 200
         queryset: QuerySet[DropCampaign] = _active_drop_campaigns(
             DropCampaign.objects.order_by("-start_at"),
         )
+        if self._hide_paid:
+            queryset = _campaigns_with_free_drops(queryset)
         return list(_with_campaign_related(queryset)[:limit])
 
     def item_title(self, item: DropCampaign) -> SafeText:
@@ -1015,8 +1061,8 @@ class DropCampaignFeed(TTVDropsBaseFeed):
         parts.extend(generate_item_image(item))
         parts.extend(generate_description_html(item=item))
         parts.extend(generate_date_html(item=item))
-        parts.extend(generate_drops_summary_html(item=item))
-        parts.extend(generate_channels_html(item))
+        parts.extend(generate_drops_summary_html(item=item, hide_paid=self._hide_paid))
+        parts.extend(generate_channels_html(item, hide_paid=self._hide_paid))
         parts.extend(generate_details_link_html(item))
 
         return SafeText("".join(str(p) for p in parts))
@@ -1110,6 +1156,7 @@ class GameCampaignFeed(TTVDropsBaseFeed):
 
     item_guid_is_permalink = True
     _limit: int | None = None
+    _hide_paid: bool = False
 
     def __call__(
         self,
@@ -1117,21 +1164,18 @@ class GameCampaignFeed(TTVDropsBaseFeed):
         *args: str | int,
         **kwargs: str | int,
     ) -> HttpResponse:
-        """Override to capture limit parameter from request.
+        """Override to capture supported feed query parameters from request.
 
         Args:
-            request (HttpRequest): The incoming HTTP request, potentially containing a 'limit' query parameter
+            request (HttpRequest): The incoming HTTP request, potentially containing 'limit' and 'hide_paid' query parameters.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
 
         Returns:
             HttpResponse: The HTTP response generated by the parent Feed class after processing the request.
         """
-        if request.GET.get("limit"):
-            try:
-                self._limit = int(request.GET.get("limit", 200))
-            except ValueError, TypeError:
-                self._limit = None
+        self._limit = _query_limit(request)
+        self._hide_paid = _query_bool(request, "hide_paid")
         return super().__call__(request, *args, **kwargs)
 
     def get_object(self, request: HttpRequest, twitch_id: str) -> Game:  # noqa: ARG002
@@ -1159,13 +1203,15 @@ class GameCampaignFeed(TTVDropsBaseFeed):
         return f"Latest drop campaigns for {obj.display_name}"
 
     def items(self, obj: Game) -> list[DropCampaign]:
-        """Return the latest drop campaigns for this game, ordered by most recent start date (default 200, or limited by ?limit query param)."""
+        """Return latest active drop campaigns for this game."""
         limit: int = self._limit if self._limit is not None else 200
         queryset: QuerySet[DropCampaign] = _active_drop_campaigns(
             DropCampaign.objects.filter(
                 game=obj,
             ).order_by("-start_at"),
         )
+        if self._hide_paid:
+            queryset = _campaigns_with_free_drops(queryset)
         return list(_with_campaign_related(queryset)[:limit])
 
     def item_title(self, item: DropCampaign) -> SafeText:
@@ -1180,8 +1226,8 @@ class GameCampaignFeed(TTVDropsBaseFeed):
         parts.extend(generate_item_image_tag(item))
         parts.extend(generate_details_link(item))
         parts.extend(generate_date_html(item))
-        parts.extend(generate_drops_summary_html(item))
-        parts.extend(generate_channels_html(item))
+        parts.extend(generate_drops_summary_html(item, hide_paid=self._hide_paid))
+        parts.extend(generate_channels_html(item, hide_paid=self._hide_paid))
 
         return SafeText("".join(str(p) for p in parts))
 
@@ -1554,8 +1600,8 @@ class DropCampaignDiscordFeed(TTVDropsAtomBaseFeed, DropCampaignFeed):
         parts.extend(generate_item_image(item))
         parts.extend(generate_description_html(item=item))
         parts.extend(generate_discord_date_html(item=item))
-        parts.extend(generate_drops_summary_html(item=item))
-        parts.extend(generate_channels_html(item))
+        parts.extend(generate_drops_summary_html(item=item, hide_paid=self._hide_paid))
+        parts.extend(generate_channels_html(item, hide_paid=self._hide_paid))
         parts.extend(generate_details_link_html(item))
 
         return SafeText("".join(str(p) for p in parts))
@@ -1575,8 +1621,8 @@ class GameCampaignDiscordFeed(TTVDropsAtomBaseFeed, GameCampaignFeed):
         parts.extend(generate_item_image_tag(item))
         parts.extend(generate_details_link(item))
         parts.extend(generate_discord_date_html(item))
-        parts.extend(generate_drops_summary_html(item))
-        parts.extend(generate_channels_html(item))
+        parts.extend(generate_drops_summary_html(item, hide_paid=self._hide_paid))
+        parts.extend(generate_channels_html(item, hide_paid=self._hide_paid))
 
         return SafeText("".join(str(p) for p in parts))
 
