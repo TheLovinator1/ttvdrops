@@ -12,7 +12,9 @@ dependencies = [
     "django-celery-beat",
     "django-celery-results",
     "django-debug-toolbar",
+    "django-ninja",
     "django-silk",
+    "django-zeal",
     "django",
     "flower",
     "gunicorn",
@@ -31,7 +33,6 @@ dependencies = [
     "setproctitle",
     "sitemap-parser",
     "tqdm",
-    "django-zeal>=2.1.0",
 ]
 
 

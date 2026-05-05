@@ -2505,6 +2505,227 @@ class TestChannelListView:
 
 
 @pytest.mark.django_db
+class TestRewardCampaignViews:
+    """Tests for Twitch reward campaign list and detail views."""
+
+    def _create_game(self, twitch_id: str, display_name: str) -> Game:
+        game: Game = Game.objects.create(
+            twitch_id=twitch_id,
+            slug=twitch_id,
+            name=display_name,
+            display_name=display_name,
+            box_art=f"https://example.com/{twitch_id}.png",
+        )
+        org: Organization = Organization.objects.create(
+            twitch_id=f"{twitch_id}-org",
+            name=f"{display_name} Org",
+        )
+        game.owners.add(org)
+        return game
+
+    def _create_reward_campaign(  # noqa: PLR0913
+        self,
+        twitch_id: str,
+        *,
+        brand: str,
+        name: str,
+        game: Game | None,
+        starts_delta: timedelta,
+        ends_delta: timedelta,
+    ) -> RewardCampaign:
+        now: datetime.datetime = timezone.now()
+        return RewardCampaign.objects.create(
+            twitch_id=twitch_id,
+            brand=brand,
+            name=name,
+            summary=f"{name} summary",
+            instructions=f"{name} instructions",
+            external_url=f"https://example.com/{twitch_id}/external",
+            about_url=f"https://example.com/{twitch_id}/about",
+            image_url=f"https://example.com/{twitch_id}.png",
+            starts_at=now + starts_delta,
+            ends_at=now + ends_delta,
+            status="ACTIVE",
+            is_sitewide=game is None,
+            game=game,
+        )
+
+    def test_reward_campaign_list_renders_expired_campaigns(
+        self,
+        client: Client,
+    ) -> None:
+        """Render expired reward campaigns with feed and API links."""
+        game: Game = self._create_game("reward-list-game", "Reward List Game")
+        expired = self._create_reward_campaign(
+            "reward-list-expired",
+            brand="Expired Brand",
+            name="Expired Reward",
+            game=game,
+            starts_delta=-timedelta(days=4),
+            ends_delta=-timedelta(days=1),
+        )
+        self._create_reward_campaign(
+            "reward-list-active",
+            brand="Active Brand",
+            name="Active Reward",
+            game=game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:reward_campaign_list"),
+        )
+
+        assert response.status_code == 200
+        content: str = response.content.decode()
+        assert "Expired Brand: Expired Reward" in content
+        assert (
+            reverse("twitch:reward_campaign_detail", args=[expired.twitch_id])
+            in content
+        )
+        assert reverse("twitch:game_detail", args=[game.twitch_id]) in content
+        assert reverse("core:reward_campaign_feed") in content
+        assert reverse("twitch:twitch-api-v1:list_reward_campaigns") in content
+        assert response.context["reward_campaigns"].paginator.count == 2
+
+    def test_reward_campaign_list_filters_status_and_game(
+        self,
+        client: Client,
+    ) -> None:
+        """Filter reward campaign context by status and game."""
+        selected_game: Game = self._create_game("reward-filter-game", "Reward Filter")
+        other_game: Game = self._create_game("reward-filter-other", "Reward Other")
+        active = self._create_reward_campaign(
+            "reward-filter-active",
+            brand="Filter Brand",
+            name="Active Filter Reward",
+            game=selected_game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+        self._create_reward_campaign(
+            "reward-filter-other-active",
+            brand="Other Brand",
+            name="Other Active Reward",
+            game=other_game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+        self._create_reward_campaign(
+            "reward-filter-expired",
+            brand="Expired Brand",
+            name="Expired Filter Reward",
+            game=selected_game,
+            starts_delta=-timedelta(days=4),
+            ends_delta=-timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:reward_campaign_list")
+            + f"?status=active&game={selected_game.twitch_id}",
+        )
+
+        assert response.status_code == 200
+        campaigns = list(response.context["reward_campaigns"])
+        assert campaigns == [active]
+        assert response.context["selected_status"] == "active"
+        assert response.context["selected_game"] == selected_game.twitch_id
+
+    def test_reward_campaign_detail_renders_campaign_data(
+        self,
+        client: Client,
+    ) -> None:
+        """Render reward campaign detail fields and resource links."""
+        game: Game = self._create_game("reward-detail-game", "Reward Detail Game")
+        reward = self._create_reward_campaign(
+            "reward-detail",
+            brand="Detail Brand",
+            name="Detail Reward",
+            game=game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:reward_campaign_detail", args=[reward.twitch_id]),
+        )
+
+        assert response.status_code == 200
+        content: str = response.content.decode()
+        assert "Detail Brand: Detail Reward" in content
+        assert "Detail Reward summary" in content
+        assert "Detail Reward instructions" in content
+        assert reverse("twitch:game_detail", args=[game.twitch_id]) in content
+        assert (
+            reverse(
+                "twitch:twitch-api-v1:get_reward_campaign",
+                args=[reward.twitch_id],
+            )
+            in content
+        )
+        assert reward.external_url in content
+        assert reward.about_url in content
+        assert response.context["is_active"] is True
+
+    def test_reward_campaign_detail_404_for_missing_campaign(
+        self,
+        client: Client,
+    ) -> None:
+        """Return 404 for missing reward campaign detail pages."""
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:reward_campaign_detail", args=["missing-reward"]),
+        )
+
+        assert response.status_code == 404
+
+    def test_reward_campaign_list_query_count_stays_flat(
+        self,
+        client: Client,
+    ) -> None:
+        """Reward campaign list should not issue N+1 queries as rows grow."""
+        game: Game = self._create_game("reward-flat-game", "Reward Flat Game")
+
+        def _select_count() -> int:
+            with CaptureQueriesContext(connection) as ctx:
+                response: _MonkeyPatchedWSGIResponse = client.get(
+                    reverse("twitch:reward_campaign_list"),
+                )
+                assert response.status_code == 200
+            return sum(
+                1
+                for query in ctx.captured_queries
+                if query["sql"].lstrip().upper().startswith("SELECT")
+            )
+
+        self._create_reward_campaign(
+            "reward-flat-base",
+            brand="Flat Brand",
+            name="Flat Base Reward",
+            game=game,
+            starts_delta=-timedelta(days=4),
+            ends_delta=-timedelta(days=1),
+        )
+        baseline: int = _select_count()
+
+        for index in range(10):
+            self._create_reward_campaign(
+                f"reward-flat-extra-{index}",
+                brand="Flat Brand",
+                name=f"Flat Extra Reward {index}",
+                game=game,
+                starts_delta=-timedelta(days=4),
+                ends_delta=-timedelta(days=1),
+            )
+
+        scaled: int = _select_count()
+        assert scaled <= baseline + 2, (
+            "Reward campaign list SELECT count grew; possible N+1. "
+            f"baseline={baseline}, scaled={scaled}"
+        )
+
+
+@pytest.mark.django_db
 class TestSEOHelperFunctions:
     """Tests for SEO helper functions."""
 

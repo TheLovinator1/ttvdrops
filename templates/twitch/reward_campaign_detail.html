@@ -110,6 +110,8 @@
                    title="Atom feed for all reward campaigns">[atom]</a>
                 <a href="{% url 'core:reward_campaign_feed_discord' %}"
                    title="Discord feed for all reward campaigns">[discord]</a>
+                <a href="{% url 'twitch:twitch-api-v1:get_reward_campaign' reward_campaign.twitch_id %}"
+                   title="Twitch reward campaign API">[api]</a>
                 <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                 {% if reward_campaign.external_url %}
                     <a href="{{ reward_campaign.external_url }}"

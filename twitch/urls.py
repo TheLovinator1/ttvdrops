@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from django.urls import path
 
 from twitch import views
+from twitch.api import api as twitch_api_v1
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
@@ -12,6 +13,8 @@ app_name = "twitch"
 
 
 urlpatterns: list[URLPattern | URLResolver] = [
+    # /twitch/api/v1/
+    path("api/v1/", twitch_api_v1.urls),
     # /twitch/
     path("", views.dashboard, name="dashboard"),
     # /twitch/badges/

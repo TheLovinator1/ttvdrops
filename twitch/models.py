@@ -91,6 +91,10 @@ class Organization(auto_prefetch.Model):
                     "name",
                     "display_name",
                     "slug",
+                    "box_art",
+                    "box_art_file",
+                    "box_art_width",
+                    "box_art_height",
                 ).order_by("display_name"),
                 to_attr="games_for_detail",
             ),
@@ -340,6 +344,8 @@ class Game(auto_prefetch.Model):
                 "box_art_file",
                 "box_art_width",
                 "box_art_height",
+                "added_at",
+                "updated_at",
             )
             .prefetch_related(
                 Prefetch(
@@ -803,6 +809,8 @@ class DropCampaign(auto_prefetch.Model):
                 "start_at",
                 "end_at",
                 "game",
+                "game__twitch_id",
+                "game__name",
                 "game__display_name",
             )
             .prefetch_related(
@@ -854,12 +862,19 @@ class DropCampaign(auto_prefetch.Model):
                 "image_height",
                 "start_at",
                 "end_at",
+                "allow_is_enabled",
+                "operation_names",
                 "added_at",
                 "updated_at",
+                "is_fully_imported",
                 "game__twitch_id",
                 "game__name",
                 "game__display_name",
                 "game__slug",
+                "game__box_art",
+                "game__box_art_file",
+                "game__box_art_width",
+                "game__box_art_height",
             )
             .prefetch_related(
                 Prefetch(

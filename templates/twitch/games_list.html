@@ -30,6 +30,8 @@
                title="Atom feed for all games">[atom]</a>
             <a href="{% url 'core:game_feed_discord' %}"
                title="Discord feed for all games">[discord]</a>
+            <a href="{% url 'twitch:twitch-api-v1:list_games' %}"
+               title="Twitch games API">[api]</a>
             <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
             <a href="{% url 'twitch:export_games_csv' %}"
                title="Export all games as CSV">[csv]</a>
