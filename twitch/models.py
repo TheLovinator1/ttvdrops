@@ -600,21 +600,21 @@ class DropCampaign(auto_prefetch.Model):
 
     details_url = models.URLField(
         help_text="URL with campaign details.",
-        max_length=500,
+        max_length=2000,
         blank=True,
         default="",
     )
 
     account_link_url = models.URLField(
         help_text="URL to link a Twitch account for the campaign.",
-        max_length=500,
+        max_length=2000,
         blank=True,
         default="",
     )
 
     image_url = models.URLField(
         help_text="URL to an image representing the campaign.",
-        max_length=500,
+        max_length=2000,
         blank=True,
         default="",
     )

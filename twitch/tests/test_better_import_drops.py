@@ -857,6 +857,64 @@ class ImporterRobustnessTests(TestCase):
         campaign = DropCampaign.objects.get(twitch_id="campaign-null-image")
         assert not campaign.image_url
 
+    def test_allows_long_campaign_account_link_url(self) -> None:
+        """Ensure long Twitch accountLinkURL values fit the campaign schema."""
+        command = Command()
+        long_account_link_url = (
+            "https://example.com/link?"
+            "redirect=https%3A%2F%2Fexample.com%2Fcallback&state=" + ("x" * 520)
+        )
+
+        assert len(long_account_link_url) > 500
+        assert DropCampaign._meta.get_field("account_link_url").max_length == 2000  # pyright: ignore[reportAttributeAccessIssue]
+        assert DropCampaign._meta.get_field("details_url").max_length == 2000  # pyright: ignore[reportAttributeAccessIssue]
+        assert DropCampaign._meta.get_field("image_url").max_length == 2000  # pyright: ignore[reportAttributeAccessIssue]
+
+        payload: dict[str, object] = {
+            "data": {
+                "user": {
+                    "id": "123",
+                    "dropCampaign": {
+                        "id": "campaign-long-account-link",
+                        "name": "Long Account Link Campaign",
+                        "description": "",
+                        "startAt": "2026-05-01T00:00:00Z",
+                        "endAt": "2026-05-02T00:00:00Z",
+                        "accountLinkURL": long_account_link_url,
+                        "detailsURL": "https://example.com/details",
+                        "imageURL": "",
+                        "status": "ACTIVE",
+                        "self": {
+                            "isAccountConnected": False,
+                            "__typename": "DropCampaignSelfEdge",
+                        },
+                        "game": {
+                            "id": "g-long-account-link",
+                            "displayName": "Test Game",
+                            "boxArtURL": "https://example.com/box.png",
+                            "__typename": "Game",
+                        },
+                        "timeBasedDrops": [],
+                        "__typename": "DropCampaign",
+                    },
+                    "__typename": "User",
+                },
+            },
+            "extensions": {"operationName": "DropCampaignDetails"},
+        }
+
+        success, broken_dir = command.process_responses(
+            responses=[payload],
+            file_path=Path("long_account_link.json"),
+            options={},
+        )
+
+        assert success is True
+        assert broken_dir is None
+
+        campaign = DropCampaign.objects.get(twitch_id="campaign-long-account-link")
+        assert campaign.account_link_url == long_account_link_url
+
 
 class ErrorOnlyResponseDetectionTests(TestCase):
     """Tests for detecting responses that only contain GraphQL errors without data."""
