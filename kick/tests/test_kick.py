@@ -1,5 +1,6 @@
 import datetime
 import re
+from copy import deepcopy
 from datetime import UTC
 from datetime import datetime as dt
 from datetime import timedelta
@@ -193,6 +194,17 @@ class KickDropsResponseSchemaTest(TestCase):
             SINGLE_CAMPAIGN_JSON,
         )
         assert result.data[0].channels == []
+
+    def test_missing_campaign_category(self) -> None:
+        """Schema accepts campaigns where Kick omits the category object."""
+        payload: dict[str, Any] = deepcopy(SINGLE_CAMPAIGN_JSON)
+        del payload["data"][0]["category"]
+
+        result: KickDropsResponseSchema = KickDropsResponseSchema.model_validate(
+            payload,
+        )
+
+        assert result.data[0].category is None
 
     def test_extra_fields_rejected(self) -> None:
         """Extra fields in the API response cause a ValidationError."""
@@ -452,7 +464,7 @@ class KickDropCampaignMergedRewardsTest(TestCase):
 class ImportKickDropsCommandTest(TestCase):
     """Tests for the import_kick_drops management command."""
 
-    def _run_command(self, json_payload: dict) -> tuple[str, str]:
+    def _run_command(self, json_payload: dict, **options: Any) -> tuple[str, str]:  # noqa: ANN401
 
         mock_response = MagicMock()
         mock_response.json.return_value = json_payload
@@ -464,7 +476,7 @@ class ImportKickDropsCommandTest(TestCase):
             "kick.management.commands.import_kick_drops.httpx.get",
             return_value=mock_response,
         ):
-            call_command("import_kick_drops", stdout=stdout, stderr=stderr)
+            call_command("import_kick_drops", stdout=stdout, stderr=stderr, **options)
         return stdout.getvalue(), stderr.getvalue()
 
     def test_imports_single_campaign(self) -> None:
@@ -493,6 +505,33 @@ class ImportKickDropsCommandTest(TestCase):
         slugs: set[str] = set(campaign.channels.values_list("slug", flat=True))
         assert slugs == {"ricoy", "dilanzito"}
 
+    def test_imports_campaign_without_category(self) -> None:
+        """Command imports campaigns where Kick omits the category object."""
+        payload: dict[str, Any] = deepcopy(SINGLE_CAMPAIGN_JSON)
+        del payload["data"][0]["category"]
+
+        self._run_command(payload)
+
+        campaign: KickDropCampaign = KickDropCampaign.objects.get()
+        reward: KickReward = KickReward.objects.get()
+        assert campaign.category is None
+        assert reward.category is not None
+        assert reward.category.kick_id == 53
+
+    def test_imports_campaign_without_category_and_zero_reward_category(self) -> None:
+        """Command treats reward category_id=0 as no category."""
+        payload: dict[str, Any] = deepcopy(SINGLE_CAMPAIGN_JSON)
+        del payload["data"][0]["category"]
+        payload["data"][0]["rewards"][0]["category_id"] = 0
+
+        self._run_command(payload)
+
+        campaign: KickDropCampaign = KickDropCampaign.objects.get()
+        reward: KickReward = KickReward.objects.get()
+        assert campaign.category is None
+        assert reward.category is None
+        assert KickCategory.objects.count() == 0
+
     def test_import_is_idempotent(self) -> None:
         """Running the import twice does not duplicate records."""
         self._run_command(SINGLE_CAMPAIGN_JSON)
@@ -500,6 +539,67 @@ class ImportKickDropsCommandTest(TestCase):
         assert KickDropCampaign.objects.count() == 1
         assert KickOrganization.objects.count() == 1
         assert KickReward.objects.count() == 1
+
+    def test_reimport_clears_existing_kick_data_before_import(self) -> None:
+        """Reimport mode clears existing Kick records before importing."""
+        org: KickOrganization = KickOrganization.objects.create(
+            kick_id="old-org",
+            name="Old Org",
+        )
+        category: KickCategory = KickCategory.objects.create(
+            kick_id=0,
+            name="",
+        )
+        user: KickUser = KickUser.objects.create(
+            kick_id=999,
+            username="olduser",
+        )
+        channel: KickChannel = KickChannel.objects.create(
+            kick_id=999,
+            slug="oldchannel",
+            user=user,
+        )
+        campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="old-campaign",
+            name="Old Campaign",
+            organization=org,
+            category=category,
+            rule_id=1,
+            rule_name="Watch to redeem",
+        )
+        campaign.channels.add(channel)
+        KickReward.objects.create(
+            kick_id="old-reward",
+            name="Old Reward",
+            campaign=campaign,
+            category=category,
+            organization=org,
+        )
+
+        stdout, _ = self._run_command(SINGLE_CAMPAIGN_JSON, reimport=True)
+
+        assert "Reimport requested" in stdout
+        assert set(KickDropCampaign.objects.values_list("kick_id", flat=True)) == {
+            "01KKBNEM8TZG7ASRG42TK7RKRB",
+        }
+        assert set(KickCategory.objects.values_list("kick_id", flat=True)) == {53}
+        assert not KickOrganization.objects.filter(kick_id="old-org").exists()
+        assert not KickUser.objects.filter(kick_id=999).exists()
+        assert not KickChannel.objects.filter(kick_id=999).exists()
+        assert not KickReward.objects.filter(kick_id="old-reward").exists()
+
+    def test_reimport_does_not_clear_existing_data_when_validation_fails(self) -> None:
+        """Reimport mode validates the fetched response before deleting records."""
+        KickOrganization.objects.create(
+            kick_id="kept-org",
+            name="Kept Org",
+        )
+
+        stdout, stderr = self._run_command({"totally": "wrong"}, reimport=True)
+
+        assert "Reimport requested" not in stdout
+        assert "validation failed" in stderr
+        assert KickOrganization.objects.filter(kick_id="kept-org").exists()
 
     def test_http_error_is_handled_gracefully(self) -> None:
         """HTTP error during fetch writes to stderr and does not crash."""

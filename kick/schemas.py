@@ -102,7 +102,7 @@ class KickDropCampaignSchema(BaseModel):
     updated_at: datetime | None = None
     connect_url: str = ""
     url: str = ""
-    category: KickCategorySchema
+    category: KickCategorySchema | None = None
     organization: KickOrganizationSchema
     channels: list[KickChannelSchema] = Field(default_factory=list)
     rewards: list[KickRewardSchema] = Field(default_factory=list)
