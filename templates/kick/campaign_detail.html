@@ -136,12 +136,14 @@
                     </p>
                 {% endif %}
                 <div>
-                    <a href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
-                       title="RSS feed for {{ campaign.category.name }} campaigns">[rss]</a>
-                    <a href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
-                       title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
-                    <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
-                       title="Discord feed for {{ campaign.category.name }} campaigns">[discord]</a>
+                    {% if campaign.category %}
+                        <a href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
+                           title="RSS feed for {{ campaign.category.name }} campaigns">[rss]</a>
+                        <a href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
+                           title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
+                        <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
+                           title="Discord feed for {{ campaign.category.name }} campaigns">[discord]</a>
+                    {% endif %}
                     <a href="{% url 'core:docs_rss' %}" title="RSS documentation">[explain]</a>
                     {% if campaign.connect_url %}
                         <a href="{{ campaign.connect_url }}"
@@ -149,7 +151,9 @@
                     {% endif %}
                     {% if campaign.url %}<a href="{{ campaign.url }}" title="About URL for {{ campaign.name }}">[about]</a>{% endif %}
                     {% if campaign.channels.count == 0 %}
-                        {% if campaign.rule_name == "Watch to redeem" %}<a href="{{ campaign.category.kick_url }}">[watch]</a>{% endif %}
+                        {% if campaign.category and campaign.rule_name == "Watch to redeem" %}
+                            <a href="{{ campaign.category.kick_url }}">[watch]</a>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

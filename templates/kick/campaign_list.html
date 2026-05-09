@@ -77,7 +77,11 @@
                                 <a href="{% url 'kick:campaign_detail' campaign.kick_id %}">{{ campaign.name }}</a>
                             </td>
                             <td>
-                                <a href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a>
+                                {% if campaign.category %}
+                                    <a href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a>
+                                {% else %}
+                                    Unknown game
+                                {% endif %}
                             </td>
                             <td>
                                 <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}">{{ campaign.organization.name }}</a>

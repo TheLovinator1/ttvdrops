@@ -679,6 +679,34 @@ class KickDashboardViewTest(TestCase):
         )
         assert campaign.name in response.content.decode()
 
+    def test_dashboard_handles_campaign_without_category(self) -> None:
+        """Dashboard should render active campaigns with no category."""
+        org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-view-no-category",
+            name="Org No Category",
+        )
+        campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-view-no-category",
+            name="Active No Category Campaign",
+            status="active",
+            starts_at=dt(2020, 1, 1, tzinfo=UTC),
+            ends_at=dt(2099, 12, 31, tzinfo=UTC),
+            organization=org,
+            category=None,
+            rule_id=1,
+            rule_name="Watch to redeem",
+            is_fully_imported=True,
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("kick:dashboard"),
+        )
+
+        content: str = response.content.decode()
+        assert response.status_code == 200
+        assert campaign.name in content
+        assert "Unknown game" in content
+
     def test_dashboard_query_count_stays_flat_with_more_campaigns(self) -> None:
         """Dashboard SELECT query count should stay flat as active campaign count grows."""
 
@@ -823,6 +851,30 @@ class KickCampaignListViewTest(TestCase):
         )
         assert campaign.name in response.content.decode()
 
+    def test_campaign_list_handles_campaign_without_category(self) -> None:
+        """Campaign list should render campaigns with no category."""
+        campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-list-no-category",
+            name="List No Category Campaign",
+            status="active",
+            starts_at=dt(2020, 1, 1, tzinfo=UTC),
+            ends_at=dt(2099, 12, 31, tzinfo=UTC),
+            organization=self.org,
+            category=None,
+            rule_id=1,
+            rule_name="Watch to redeem",
+            is_fully_imported=True,
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("kick:campaign_list"),
+        )
+
+        content: str = response.content.decode()
+        assert response.status_code == 200
+        assert campaign.name in content
+        assert "Unknown game" in content
+
     def test_campaign_list_status_filter(self) -> None:
         """Filtering by status should show only campaigns with that status."""
         active: KickDropCampaign = self._make_campaign(
@@ -884,6 +936,28 @@ class KickCampaignDetailViewTest(TestCase):
         response: _MonkeyPatchedWSGIResponse = self.client.get(
             reverse("kick:campaign_detail", kwargs={"kick_id": campaign.kick_id}),
         )
+        assert campaign.name in response.content.decode()
+
+    def test_campaign_detail_handles_campaign_without_category(self) -> None:
+        """Campaign detail should render campaigns with no category."""
+        org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-det-no-category",
+            name="Detail Org No Category",
+        )
+        campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-det-no-category",
+            name="Detail No Category Campaign",
+            organization=org,
+            category=None,
+            rule_id=1,
+            rule_name="Watch to redeem",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("kick:campaign_detail", kwargs={"kick_id": campaign.kick_id}),
+        )
+
+        assert response.status_code == 200
         assert campaign.name in response.content.decode()
 
     def test_campaign_detail_404_for_unknown(self) -> None:
