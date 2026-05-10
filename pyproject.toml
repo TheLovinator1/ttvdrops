@@ -13,7 +13,6 @@ dependencies = [
     "django-celery-results",
     "django-debug-toolbar",
     "django-ninja",
-    "django-silk",
     "django-zeal",
     "django",
     "flower",

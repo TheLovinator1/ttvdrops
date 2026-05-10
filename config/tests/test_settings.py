@@ -316,18 +316,16 @@ def test_debug_tools_installed_only_when_not_testing(
     monkeypatch: pytest.MonkeyPatch,
     reload_settings_module: Callable[..., ModuleType],
 ) -> None:
-    """`debug_toolbar` and `silk` are only added when not TESTING."""
+    """`debug_toolbar` is only added when not TESTING."""
     # Not testing -> tools should be present
     monkeypatch.setattr("sys.argv", ["manage.py", "runserver"])
     monkeypatch.delenv("PYTEST_VERSION", raising=False)
     not_testing: ModuleType = reload_settings_module(TESTING=None, PYTEST_VERSION=None)
     assert "debug_toolbar" in not_testing.INSTALLED_APPS
-    assert "silk" in not_testing.INSTALLED_APPS
 
     # Testing -> tools should not be present
     testing: ModuleType = reload_settings_module(PYTEST_VERSION="7.0.0")
     assert "debug_toolbar" not in testing.INSTALLED_APPS
-    assert "silk" not in testing.INSTALLED_APPS
 
 
 def test_logging_configuration_structure() -> None:

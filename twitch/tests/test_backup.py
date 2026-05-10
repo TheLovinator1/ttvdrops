@@ -109,11 +109,10 @@ class TestBackupCommand:
         ):
             content: str = handle.read()
 
-        # Should NOT contain django admin, silk, or debug toolbar tables
+        # Should NOT contain django admin or debug toolbar tables
         assert "django_session" not in content
         assert "django_migrations" not in content
         assert "django_content_type" not in content
-        assert "silk_" not in content
         assert "debug_toolbar_" not in content
         assert "django_admin_log" not in content
         assert "auth_" not in content
@@ -215,9 +214,8 @@ class TestBackupHelperFunctions:
         # Use Django's connection to access the test database
         tables = _get_allowed_tables("twitch_")
 
-        # Should not include django, silk, or debug toolbar tables
+        # Should not include django or debug toolbar tables
         assert not any(table.startswith("django_") for table in tables)
-        assert not any(table.startswith("silk_") for table in tables)
         assert not any(table.startswith("debug_toolbar_") for table in tables)
 
     def test_sql_literal_handles_none(self) -> None:

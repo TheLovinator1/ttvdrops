@@ -49,11 +49,10 @@ def test_top_level_named_routes_available() -> None:
 
 
 def test_debug_tools_not_present_while_testing() -> None:
-    """`silk` and Django Debug Toolbar URL patterns are not present while running tests."""
+    """Django Debug Toolbar URL patterns are not present while running tests."""
     # Default test environment should *not* expose debug routes.
     mod = _reload_urls_with(TESTING=True)
     patterns = list(_pattern_strings(mod))
-    assert not any("silk" in p for p in patterns)
     assert not any("__debug__" in p or "debug" in p for p in patterns)
 
 
@@ -90,8 +89,7 @@ def test_media_serving_in_development() -> None:
         assert any("MEDIA_URL" in str(pattern) for pattern in urlpatterns)
 
 
-def test_debug_toolbar_and_silk_urls() -> None:
-    """Test that debug toolbar and Silk URLs are included when appropriate."""
+def test_debug_toolbar_urls() -> None:
+    """Test that debug toolbar URLs are included when appropriate."""
     if not settings.TESTING:
-        assert any("silk.urls" in str(pattern) for pattern in urlpatterns)
         assert any("debug_toolbar" in str(pattern) for pattern in urlpatterns)

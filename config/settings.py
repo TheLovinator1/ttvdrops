@@ -229,10 +229,9 @@ if DEBUG or TESTING:
     MIDDLEWARE.append("zeal.middleware.zeal_middleware")
 
 if not TESTING:
-    INSTALLED_APPS = [*INSTALLED_APPS, "debug_toolbar", "silk"]
+    INSTALLED_APPS.append("debug_toolbar")
     MIDDLEWARE = [
         "debug_toolbar.middleware.DebugToolbarMiddleware",
-        "silk.middleware.SilkyMiddleware",
         *MIDDLEWARE,
     ]
 

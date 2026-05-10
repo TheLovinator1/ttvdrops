@@ -62,5 +62,4 @@ if settings.DEBUG:
 if not settings.TESTING:
     from debug_toolbar.toolbar import debug_toolbar_urls
 
-    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
     urlpatterns = [*urlpatterns, *debug_toolbar_urls()]
