@@ -580,7 +580,7 @@ class Channel(auto_prefetch.Model):
 
 
 # MARK: DropCampaign
-class DropCampaign(auto_prefetch.Model):
+class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
     """Represents a Twitch drop campaign."""
 
     twitch_id = models.TextField(
@@ -1148,6 +1148,21 @@ class DropCampaign(auto_prefetch.Model):
                     ).order_by("display_name"),
                     to_attr="channels_ordered",
                 ),
+                Prefetch(
+                    "time_based_drops",
+                    queryset=TimeBasedDrop.objects.only(
+                        "twitch_id",
+                        "campaign_id",
+                    ).prefetch_related(
+                        Prefetch(
+                            "benefits",
+                            queryset=DropBenefit.objects.only(
+                                "twitch_id",
+                                "image_asset_url",
+                            ),
+                        ),
+                    ),
+                ),
             )
             .order_by("-start_at")
         )
@@ -1269,6 +1284,38 @@ class DropCampaign(auto_prefetch.Model):
         return self.name
 
     @property
+    def single_reward_benefit(self) -> DropBenefit | None:
+        """Return the only unique reward benefit for this campaign, if it has one."""
+        benefits: list[DropBenefit] = []
+        seen_benefit_keys: set[int | str] = set()
+
+        for drop in self.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
+            for benefit in drop.benefits.all():  # pyright: ignore[reportAttributeAccessIssue]
+                benefit_key: int | str = benefit.pk or benefit.twitch_id
+                if benefit_key in seen_benefit_keys:
+                    continue
+
+                seen_benefit_keys.add(benefit_key)
+                benefits.append(benefit)
+                if len(benefits) > 1:
+                    return None
+
+        return benefits[0] if benefits else None
+
+    @property
+    def single_reward_image_best_url(self) -> str:
+        """Return the best image URL for a campaign that has exactly one reward."""
+        benefit: DropBenefit | None = self.single_reward_benefit
+        if not benefit:
+            return ""
+        return benefit.image_best_url
+
+    @property
+    def meta_image_url(self) -> str:
+        """Return the preferred campaign image URL for SEO metadata."""
+        return self.single_reward_image_best_url or self.image_best_url
+
+    @property
     def image_best_url(self) -> str:
         """Return the best URL for the campaign image.
 
@@ -1311,7 +1358,10 @@ class DropCampaign(auto_prefetch.Model):
 
     @property
     def dashboard_image_url(self) -> str:
-        """Return dashboard-safe campaign image URL without touching deferred image fields."""
+        """Return dashboard-safe campaign or single-reward image URL."""
+        benefit: DropBenefit | None = self.single_reward_benefit
+        if benefit and benefit.image_asset_url:
+            return benefit.image_asset_url
         return self.image_url or ""
 
     @property

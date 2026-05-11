@@ -520,13 +520,17 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         if campaign.description
         else f"Twitch drop campaign: {campaign_name}"
     )
-    campaign_image: str | None = campaign.image_best_url
-    campaign_image_width: int | None = (
-        campaign.image_width if campaign.image_file else None
-    )
-    campaign_image_height: int | None = (
-        campaign.image_height if campaign.image_file else None
-    )
+    single_reward: DropBenefit | None = campaign.single_reward_benefit
+    single_reward_image: str = single_reward.image_best_url if single_reward else ""
+    campaign_image: str | None = single_reward_image or campaign.image_best_url
+    campaign_image_width: int | None = None
+    campaign_image_height: int | None = None
+    if single_reward_image and single_reward and single_reward.image_file:
+        campaign_image_width = single_reward.image_width
+        campaign_image_height = single_reward.image_height
+    elif campaign.image_file:
+        campaign_image_width = campaign.image_width
+        campaign_image_height = campaign.image_height
 
     url: str = build_absolute_uri(
         reverse("twitch:campaign_detail", args=[campaign.twitch_id]),

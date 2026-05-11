@@ -1058,6 +1058,46 @@ class TestChannelListView:
         assert len(capture) == 0
 
     @pytest.mark.django_db
+    def test_dashboard_uses_single_reward_image_for_campaign_card(self) -> None:
+        """Dashboard campaign cards should show the reward image for one-reward campaigns."""
+        now: datetime.datetime = timezone.now()
+
+        game: Game = Game.objects.create(
+            twitch_id="game_dashboard_single_reward_image",
+            name="game_dashboard_single_reward_image",
+            display_name="Game Dashboard Single Reward Image",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="campaign_dashboard_single_reward_image",
+            name="Campaign Dashboard Single Reward Image",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            image_url="https://example.com/campaign.png",
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit_dashboard_single_reward_image",
+            name="Benefit Dashboard Single Reward Image",
+            image_asset_url="https://example.com/benefit.png",
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop_dashboard_single_reward_image",
+            name="Drop Dashboard Single Reward Image",
+            campaign=campaign,
+        )
+        drop.benefits.add(benefit)
+
+        campaigns_by_game: OrderedDict[str, dict[str, Any]] = (
+            DropCampaign.campaigns_by_game_for_dashboard(now)
+        )
+
+        assert (
+            campaigns_by_game[game.twitch_id]["campaigns"][0]["image_url"]
+            == "https://example.com/benefit.png"
+        )
+
+    @pytest.mark.django_db
     def test_dashboard_query_plans_reference_expected_index_names(self) -> None:
         """Dashboard active-window plans should mention concrete index names."""
         now: datetime.datetime = timezone.now()
@@ -2939,6 +2979,31 @@ class TestSEOMetaTags:
         assert "modified_date" in response.context
         assert response.context["modified_date"] is not None
 
+    def test_campaign_detail_meta_image_uses_single_reward_image(
+        self,
+        client: Client,
+        game_with_campaign: dict[str, Any],
+    ) -> None:
+        """Campaign detail SEO image should prefer the reward image for one-reward campaigns."""
+        campaign: DropCampaign = game_with_campaign["campaign"]
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="seo-single-reward-benefit",
+            name="SEO Single Reward Benefit",
+            image_asset_url="https://example.com/seo-benefit.png",
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="seo-single-reward-drop",
+            name="SEO Single Reward Drop",
+            campaign=campaign,
+        )
+        drop.benefits.add(benefit)
+
+        url = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        assert response.status_code == 200
+        assert response.context["page_image"] == "https://example.com/seo-benefit.png"
+
     def test_game_detail_view_has_seo_context(
         self,
         client: Client,
@@ -3505,6 +3570,65 @@ class TestDropCampaignImageFallback:
 
         # Should return campaign image, not benefit image
         assert campaign.image_best_url == "https://example.com/campaign.png"
+
+    def test_meta_image_url_prefers_single_reward_image(self) -> None:
+        """Meta image should use the reward image when a campaign has one reward."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url="https://example.com/campaign.png",
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit1",
+            name="Test Benefit",
+            image_asset_url="https://example.com/benefit.png",
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop1",
+            name="Test Drop",
+            campaign=campaign,
+        )
+        drop.benefits.add(benefit)
+
+        assert campaign.meta_image_url == "https://example.com/benefit.png"
+
+    def test_meta_image_url_uses_campaign_image_with_multiple_rewards(self) -> None:
+        """Meta image should keep the campaign image when a campaign has many rewards."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url="https://example.com/campaign.png",
+        )
+        first_benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit1",
+            name="Test Benefit 1",
+            image_asset_url="https://example.com/benefit-1.png",
+        )
+        second_benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit2",
+            name="Test Benefit 2",
+            image_asset_url="https://example.com/benefit-2.png",
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop1",
+            name="Test Drop",
+            campaign=campaign,
+        )
+        drop.benefits.add(first_benefit, second_benefit)
+
+        assert campaign.meta_image_url == "https://example.com/campaign.png"
 
     def test_image_best_url_returns_empty_when_no_images(self) -> None:
         """Test that image_best_url returns empty string when no images available."""
