@@ -1062,7 +1062,13 @@ def dashboard(request: HttpRequest) -> HttpResponse:
                 "image": game_image,
                 "kick_id": game_kick_id,
                 "campaigns": [],
+                "organizations": [],
             }
+
+        if campaign.organization:
+            org = campaign.organization
+            if org not in kick_campaigns_by_game[game_key]["organizations"]:
+                kick_campaigns_by_game[game_key]["organizations"].append(org)
 
         kick_campaigns_by_game[game_key]["campaigns"].append({
             "campaign": campaign,

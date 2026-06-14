@@ -203,6 +203,15 @@
                                             {% endif %}
                                         </a>
                                     </h3>
+                                    {% if campaign.ends_at %}
+                                        <p style="margin: 0.25rem 0;">
+                                            <strong>Ends:</strong>
+                                            <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                                                {{ campaign.ends_at|date:"M d, Y H:i" }}
+                                            </time>
+                                        </p>
+                                    {% endif %}
                                     {% if campaign.game %}
                                         <p style="margin: 0.25rem 0;">
                                             <strong>Game:</strong>
@@ -211,15 +220,6 @@
                                     {% elif campaign.is_sitewide %}
                                         <p style="margin: 0.25rem 0;">
                                             <strong>Type:</strong> Site-wide reward campaign
-                                        </p>
-                                    {% endif %}
-                                    {% if campaign.ends_at %}
-                                        <p style="margin: 0.25rem 0;">
-                                            <strong>Ends:</strong>
-                                            <time datetime="{{ campaign.ends_at|date:'c' }}"
-                                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
-                                                {{ campaign.ends_at|date:"M d, Y H:i" }}
-                                            </time>
                                         </p>
                                     {% endif %}
                                     {% if campaign.summary %}
@@ -254,10 +254,24 @@
                                 <h3 style="margin: 0 0 0.5rem 0;">
                                     {% if game_data.kick_id %}
                                         <a href="{% url 'kick:game_detail' game_data.kick_id %}">{{ game_data.name }}</a>
+                                    {% elif game_data.organizations %}
+                                        {% for org in game_data.organizations %}
+                                            <a href="{% url 'kick:organization_detail' org.kick_id %}">{{ org.name }}</a>
+                                            {% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
                                     {% else %}
                                         {{ game_data.name }}
                                     {% endif %}
                                 </h3>
+                                {% if game_data.kick_id and game_data.organizations %}
+                                    <div style="font-size: 0.9rem; color: #666;">
+                                        Organization:
+                                        {% for org in game_data.organizations %}
+                                            <a href="{% url 'kick:organization_detail' org.kick_id %}">{{ org.name }}</a>
+                                            {% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             </header>
                             <div style="display: flex; gap: 1rem;">
                                 <div style="flex-shrink: 0;">
@@ -315,12 +329,6 @@
                                                                  text-align: left">
                                                         Started {{ campaign_data.campaign.starts_at|timesince }} ago
                                                     </time>
-                                                    {% if campaign_data.campaign.organization %}
-                                                        <p style="margin: 0.25rem 0; font-size: 0.9rem; text-align: left;">
-                                                            <strong>Organization:</strong>
-                                                            <a href="{% url 'kick:organization_detail' campaign_data.campaign.organization.kick_id %}">{{ campaign_data.campaign.organization.name }}</a>
-                                                        </p>
-                                                    {% endif %}
                                                     <div style="margin-top: 0.5rem; font-size: 0.8rem;">
                                                         <strong>Channels:</strong>
                                                         <ul style="margin: 0.25rem 0 0 0;
