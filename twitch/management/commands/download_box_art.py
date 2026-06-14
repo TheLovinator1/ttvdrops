@@ -139,45 +139,48 @@ class Command(BaseCommand):
             image_path: Absolute path to the downloaded image file
         """
         try:
-            source_path = Path(image_path)
-            if not source_path.exists() or source_path.suffix.lower() not in {
-                ".jpg",
-                ".jpeg",
-                ".png",
-            }:
-                return
-
-            base_path = source_path.with_suffix("")
-            webp_path = base_path.with_suffix(".webp")
-            avif_path = base_path.with_suffix(".avif")
-
-            with Image.open(source_path) as img:
-                # Convert to RGB if needed
-                if img.mode in {"RGBA", "LA"} or (
-                    img.mode == "P" and "transparency" in img.info
-                ):
-                    background = Image.new("RGB", img.size, (255, 255, 255))
-                    rgba_img = img.convert("RGBA") if img.mode == "P" else img
-                    background.paste(
-                        rgba_img,
-                        mask=rgba_img.split()[-1]
-                        if rgba_img.mode in {"RGBA", "LA"}
-                        else None,
-                    )
-                    rgb_img = background
-                elif img.mode != "RGB":
-                    rgb_img = img.convert("RGB")
-                else:
-                    rgb_img = img
-
-                # Save WebP
-                rgb_img.save(webp_path, "WEBP", quality=85, method=6)
-
-                # Save AVIF
-                rgb_img.save(avif_path, "AVIF", quality=85, speed=4)
-
+            self._perform_image_conversion(image_path)
         except (OSError, ValueError) as e:
             # Don't fail the download if conversion fails
             self.stdout.write(
                 self.style.WARNING(f"Failed to convert {image_path}: {e}"),
             )
+
+    def _perform_image_conversion(self, image_path: str) -> None:
+        """Perform the actual image conversion to WebP and AVIF."""
+        source_path = Path(image_path)
+        if not source_path.exists() or source_path.suffix.lower() not in {
+            ".jpg",
+            ".jpeg",
+            ".png",
+        }:
+            return
+
+        base_path = source_path.with_suffix("")
+        webp_path = base_path.with_suffix(".webp")
+        avif_path = base_path.with_suffix(".avif")
+
+        with Image.open(source_path) as img:
+            # Convert to RGB if needed
+            if img.mode in {"RGBA", "LA"} or (
+                img.mode == "P" and "transparency" in img.info
+            ):
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                rgba_img = img.convert("RGBA") if img.mode == "P" else img
+                background.paste(
+                    rgba_img,
+                    mask=rgba_img.split()[-1]
+                    if rgba_img.mode in {"RGBA", "LA"}
+                    else None,
+                )
+                rgb_img = background
+            elif img.mode != "RGB":
+                rgb_img = img.convert("RGB")
+            else:
+                rgb_img = img
+
+            # Save WebP
+            rgb_img.save(webp_path, "WEBP", quality=85, method=6)
+
+            # Save AVIF
+            rgb_img.save(avif_path, "AVIF", quality=85, speed=4)

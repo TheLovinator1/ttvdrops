@@ -23,10 +23,10 @@
     <div>
         <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Reward Campaigns
     </div>
-    <p>This is an archive of old Twitch reward campaigns because we currently do not scrape them.</p>
     <p>
-        Feel free to submit a pull request on <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a>
-        with a working implementation :-).
+        Data is scraped from <a href="https://github.com/SunkwiBOT/twitch-drops-api"
+    target="_blank"
+    rel="noopener">SunkwiBOT/twitch-drops-api</a> every 15 minutes.
     </p>
     <!-- RSS Feeds -->
     <div>
@@ -36,84 +36,81 @@
            title="Atom feed for all reward campaigns">[atom]</a>
         <a href="{% url 'core:reward_campaign_feed_discord' %}"
            title="Discord feed for all reward campaigns">[discord]</a>
+        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
         <a href="{% url 'twitch:twitch-api-v1:list_reward_campaigns' %}"
            title="Twitch reward campaigns API">[api]</a>
-        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
     </div>
     {% if reward_campaigns %}
-        {% comment %}
-        <h5>Active Reward Campaigns</h5>
-        <table>
-            <tbody>
-                {% for campaign in reward_campaigns %}
-                    {% if campaign.starts_at <= now and campaign.ends_at >= now %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
-                                    {% if campaign.brand %}
-                                        {{ campaign.brand }}: {{ campaign.name }}
-                                    {% else %}
-                                        {{ campaign.name }}
+        {% with active_campaigns=reward_campaigns|dictsortreversed:"ends_at" %}
+            <h5>Active Reward Campaigns</h5>
+            <table>
+                <tbody>
+                    {% for campaign in active_campaigns %}
+                        {% if campaign.starts_at <= now and campaign.ends_at >= now %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                                        {% if campaign.brand %}
+                                            {{ campaign.brand }}: {{ campaign.name }}
+                                        {% else %}
+                                            {{ campaign.name }}
+                                        {% endif %}
+                                    </a>
+                                    {% if campaign.summary %}
+                                        <br />
+                                        <small>{{ campaign.summary }}</small>
                                     {% endif %}
-                                </a>
-                                {% if campaign.summary %}
-                                    <br />
-                                    <small>{{ campaign.summary }}</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if campaign.game %}
-                                    <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
-                                {% elif campaign.is_sitewide %}
-                                    Site-wide
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span title="{{ campaign.ends_at|date:'M d, Y H:i' }}">Ends in {{ campaign.ends_at|timeuntil }}</span>
-                            </td>
-                        </tr>
-                    {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endcomment %}
-        {% comment %}
-        <h5>Upcoming Reward Campaigns</h5>
-        <table>
-            <tbody>
-                {% for campaign in reward_campaigns %}
-
-                    {% if campaign.starts_at > now %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
-                                    {% if campaign.brand %}
-                                        {{ campaign.brand }}: {{ campaign.name }}
-                                    {% else %}
-                                        {{ campaign.name }}
+                                </td>
+                                <td>
+                                    {% if campaign.game %}
+                                        <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                                    {% elif campaign.is_sitewide %}
+                                        Site-wide
                                     {% endif %}
-                                </a>
-                                {% if campaign.summary %}
-                                    <br />
-                                    <small>{{ campaign.summary }}</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if campaign.game %}
-                                    <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
-                                {% elif campaign.is_sitewide %}
-                                    Site-wide
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span title="Starts on {{ campaign.starts_at|date:'M d, Y H:i' }}">Starts in {{ campaign.starts_at|timeuntil }}</span>
-                            </td>
-                        </tr>
-                    {% endif %}
-                {% endfor %}
-            </tbody>
-        </table>
-        {% endcomment %}
+                                </td>
+                                <td>
+                                    <span title="{{ campaign.ends_at|date:'M d, Y H:i' }}">Ends in {{ campaign.ends_at|timeuntil }}</span>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            <h5>Upcoming Reward Campaigns</h5>
+            <table>
+                <tbody>
+                    {% for campaign in active_campaigns %}
+                        {% if campaign.starts_at > now %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                                        {% if campaign.brand %}
+                                            {{ campaign.brand }}: {{ campaign.name }}
+                                        {% else %}
+                                            {{ campaign.name }}
+                                        {% endif %}
+                                    </a>
+                                    {% if campaign.summary %}
+                                        <br />
+                                        <small>{{ campaign.summary }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if campaign.game %}
+                                        <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                                    {% elif campaign.is_sitewide %}
+                                        Site-wide
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span title="Starts on {{ campaign.starts_at|date:'M d, Y H:i' }}">Starts in {{ campaign.starts_at|timeuntil }}</span>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endwith %}
         <h5>Past Reward Campaigns</h5>
         <table>
             <tbody>

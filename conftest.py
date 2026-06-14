@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse=True)  # noqa: RUF076 — intentional: project-wide N+1 detection with @pytest.mark.no_zeal escape hatch
 def use_zeal(request: pytest.FixtureRequest) -> Generator[None]:
     """Enable Zeal N+1 detection context for each pytest test.
 

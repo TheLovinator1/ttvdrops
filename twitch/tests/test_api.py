@@ -190,6 +190,106 @@ class TwitchApiV1TestCase(TestCase):
         assert data["items"][0]["status"] == "active"
         assert data["items"][0]["game"]["twitch_id"] == "game123"
 
+    def test_v1_campaign_list_filters_by_game(self) -> None:
+        """Filter campaigns by game twitch_id."""
+        response = self.client.get(
+            f"/twitch/api/v1/campaigns/?game={self.game.twitch_id}",
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["twitch_id"] == "campaign123"
+
+    def test_v1_campaign_list_game_filter_with_no_matches(self) -> None:
+        """Return empty list when game filter matches no campaigns."""
+        response = self.client.get("/twitch/api/v1/campaigns/?game=nonexistent")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["items"] == []
+
+    def test_v1_campaign_list_status_upcoming(self) -> None:
+        """Filter campaigns by status=upcoming."""
+        now = timezone.now()
+        DropCampaign.objects.create(
+            twitch_id="upcoming_campaign",
+            name="Upcoming Campaign",
+            game=self.game,
+            start_at=now + timedelta(days=1),
+            end_at=now + timedelta(days=2),
+            operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
+        )
+
+        response = self.client.get("/twitch/api/v1/campaigns/?status=upcoming")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["status"] == "upcoming"
+
+    def test_v1_campaign_list_status_expired(self) -> None:
+        """Filter campaigns by status=expired."""
+        now = timezone.now()
+        DropCampaign.objects.create(
+            twitch_id="expired_campaign",
+            name="Expired Campaign",
+            game=self.game,
+            start_at=now - timedelta(days=3),
+            end_at=now - timedelta(days=1),
+            operation_names=["DropCampaignDetails"],
+            is_fully_imported=True,
+        )
+
+        response = self.client.get("/twitch/api/v1/campaigns/?status=expired")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["status"] == "expired"
+
+    def test_v1_campaign_list_default_page_size(self) -> None:
+        """Return all campaigns when no page_size is specified."""
+        response = self.client.get("/twitch/api/v1/campaigns/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        assert data["page"] == 1
+
+    def test_v1_campaign_list_page_size_param(self) -> None:
+        """Respect custom page_size parameter."""
+        response = self.client.get("/twitch/api/v1/campaigns/?page_size=1")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["page_size"] == 1
+        assert len(data["items"]) == 1
+
+    def test_v1_campaign_list_summary_fields(self) -> None:
+        """Return correct field shape for campaign summary items."""
+        response = self.client.get("/twitch/api/v1/campaigns/")
+
+        assert response.status_code == 200
+        data = response.json()
+        item = data["items"][0]
+        assert item["twitch_id"] == "campaign123"
+        assert item["name"] == "Test Campaign"
+        assert item["description"] == "A test campaign"
+        assert item["status"] == "active"
+        assert item["image_url"] == "https://example.com/campaign.png"
+        assert item["details_url"] == "https://example.com/details"
+        assert item["account_link_url"] == "https://example.com/link"
+        assert item["allow_is_enabled"] is True
+        assert item["is_fully_imported"] is True
+        assert "start_at" in item
+        assert "end_at" in item
+        assert "added_at" in item
+        assert "updated_at" in item
+        assert item["game"]["twitch_id"] == "game123"
+
     def test_v1_campaign_detail(self) -> None:
         """Return nested campaign detail data from the v1 endpoint."""
         response = self.client.get("/twitch/api/v1/campaigns/campaign123/")
@@ -227,6 +327,35 @@ class TwitchApiV1TestCase(TestCase):
         assert response.status_code == 200
         data = response.json()
         assert data["game"]["box_art_url"] == self.game.box_art_file.url
+
+    def test_v1_campaign_detail_avoids_n_plus_one_on_benefits(self) -> None:
+        """Fetch campaign detail without N+1 queries on DropBenefit fields.
+
+        Regression test: _serialize_benefit accesses created_at,
+        entitlement_limit, and is_ios_available; these must be included
+        in the Prefetch .only() in DropCampaign.for_detail_view to avoid
+        one extra query per benefit.
+        """
+        with CaptureQueriesContext(connection) as capture:
+            response = self.client.get("/twitch/api/v1/campaigns/campaign123/")
+
+        assert response.status_code == 200
+        data = response.json()
+        benefits = data["drops"][0]["benefits"]
+        assert len(benefits) == 1
+        assert benefits[0]["created_at"] is None
+        assert benefits[0]["entitlement_limit"] == 1
+        assert benefits[0]["is_ios_available"] is False
+
+        # Expect 7 queries (5 core prefetches + 2 campaign COUNTs):
+        #   1. campaign + game (select_related)
+        #   2. game owners (Prefetch → owners_for_detail)
+        #   3. allow_channels (Prefetch → channels_ordered)
+        #   4. time_based_drops (Prefetch)
+        #   5. benefits through DropBenefitEdge (Prefetch)
+        #   6. campaign count for game
+        #   7. active campaign count for game
+        assert len(capture) <= 7
 
     def test_v1_all_endpoints_handle_multiple_rows(self) -> None:
         """Exercise all v1 routes with enough rows to catch deferred loads."""
@@ -436,3 +565,263 @@ class TwitchApiV1TestCase(TestCase):
         )
         assert f'href="{campaign_api_url}"' in content
         assert 'title="Twitch campaign API">[api]</a>' in content
+
+    # ── Games ──────────────────────────────────────────────────────────
+
+    def test_v1_game_list_fields(self) -> None:
+        """Return correct field shape for game list items."""
+        response = self.client.get("/twitch/api/v1/games/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        item = data["items"][0]
+        assert item["twitch_id"] == "game123"
+        assert item["slug"] == "test-game"
+        assert item["name"] == "Test Game"
+        assert item["display_name"] == "Test Game"
+        assert isinstance(item["box_art_url"], str)
+        assert isinstance(item["organizations"], list)
+        assert item["organizations"][0]["twitch_id"] == "org123"
+        assert item["campaign_count"] >= 1
+        assert item["active_campaign_count"] >= 1
+        assert "added_at" in item
+        assert "updated_at" in item
+
+    def test_v1_game_list_pagination(self) -> None:
+        """Paginate game list results."""
+        response = self.client.get("/twitch/api/v1/games/?page_size=1")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["page_size"] == 1
+        assert len(data["items"]) == 1
+
+    def test_v1_game_detail_campaigns_and_owners(self) -> None:
+        """Return campaigns and organizations in game detail."""
+        response = self.client.get("/twitch/api/v1/games/game123/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["campaigns"][0]["twitch_id"] == "campaign123"
+        assert data["campaigns"][0]["status"] == "active"
+        assert data["organizations"][0]["twitch_id"] == "org123"
+
+    def test_v1_game_detail_not_found(self) -> None:
+        """Return 404 for missing game."""
+        response = self.client.get("/twitch/api/v1/games/nonexistent/")
+
+        assert response.status_code == 404
+
+    # ── Organizations ───────────────────────────────────────────────────
+
+    def test_v1_organization_list_fields(self) -> None:
+        """Return correct field shape for organization list items."""
+        response = self.client.get("/twitch/api/v1/organizations/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        item = data["items"][0]
+        assert item["twitch_id"] == "org123"
+        assert item["name"] == "Test Organization"
+        assert "added_at" in item
+        assert "updated_at" in item
+
+    def test_v1_organization_detail_not_found(self) -> None:
+        """Return 404 for missing organization."""
+        response = self.client.get("/twitch/api/v1/organizations/nonexistent/")
+
+        assert response.status_code == 404
+
+    # ── Channels ────────────────────────────────────────────────────────
+
+    def test_v1_channel_list_search(self) -> None:
+        """Filter channels by search query."""
+        response = self.client.get("/twitch/api/v1/channels/?search=testchannel")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["twitch_id"] == "channel123"
+
+    def test_v1_channel_list_search_no_match(self) -> None:
+        """Return empty list when search matches no channels."""
+        response = self.client.get("/twitch/api/v1/channels/?search=zzzzz")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["items"] == []
+
+    def test_v1_channel_list_fields(self) -> None:
+        """Return correct field shape for channel list items."""
+        response = self.client.get("/twitch/api/v1/channels/")
+
+        assert response.status_code == 200
+        data = response.json()
+        item = data["items"][0]
+        assert item["twitch_id"] == "channel123"
+        assert item["name"] == "testchannel"
+        assert item["display_name"] == "TestChannel"
+        assert item["allowed_campaign_count"] == 1
+        assert "added_at" in item
+        assert "updated_at" in item
+
+    def test_v1_channel_detail_campaigns(self) -> None:
+        """Return campaign summaries in channel detail."""
+        response = self.client.get("/twitch/api/v1/channels/channel123/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["campaigns"]) == 1
+        assert data["campaigns"][0]["twitch_id"] == "campaign123"
+        assert data["campaigns"][0]["game"]["twitch_id"] == "game123"
+
+    def test_v1_channel_detail_not_found(self) -> None:
+        """Return 404 for missing channel."""
+        response = self.client.get("/twitch/api/v1/channels/nonexistent/")
+
+        assert response.status_code == 404
+
+    # ── Reward Campaigns ────────────────────────────────────────────────
+
+    def test_v1_reward_campaign_list_filters_by_game(self) -> None:
+        """Filter reward campaigns by game twitch_id."""
+        response = self.client.get(
+            f"/twitch/api/v1/reward-campaigns/?game={self.game.twitch_id}",
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["twitch_id"] == "reward123"
+
+    def test_v1_reward_campaign_list_status_active(self) -> None:
+        """Filter reward campaigns by status=active."""
+        response = self.client.get("/twitch/api/v1/reward-campaigns/?status=active")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["computed_status"] == "active"
+
+    def test_v1_reward_campaign_list_status_expired(self) -> None:
+        """Filter reward campaigns by status=expired."""
+        now = timezone.now()
+        RewardCampaign.objects.create(
+            twitch_id="expired_reward",
+            name="Expired Reward",
+            brand="Expired Brand",
+            starts_at=now - timedelta(days=3),
+            ends_at=now - timedelta(days=1),
+            status="ACTIVE",
+            summary="Expired summary",
+        )
+
+        response = self.client.get("/twitch/api/v1/reward-campaigns/?status=expired")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 1
+        assert data["items"][0]["computed_status"] == "expired"
+
+    def test_v1_reward_campaign_list_fields(self) -> None:
+        """Return correct field shape for reward campaign list items."""
+        response = self.client.get("/twitch/api/v1/reward-campaigns/")
+
+        assert response.status_code == 200
+        data = response.json()
+        item = data["items"][0]
+        assert item["twitch_id"] == "reward123"
+        assert item["name"] == "Test Reward"
+        assert item["brand"] == "Test Brand"
+        assert item["status"] == "ACTIVE"
+        assert item["computed_status"] == "active"
+        assert item["summary"] == "Reward summary"
+        assert item["is_sitewide"] is False
+        assert item["game"]["twitch_id"] == "game123"
+        assert "starts_at" in item
+        assert "ends_at" in item
+        assert "added_at" in item
+        assert "updated_at" in item
+
+    def test_v1_reward_campaign_detail_fields(self) -> None:
+        """Return correct field shape for reward campaign detail."""
+        response = self.client.get("/twitch/api/v1/reward-campaigns/reward123/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["twitch_id"] == "reward123"
+        assert data["name"] == "Test Reward"
+        assert data["brand"] == "Test Brand"
+        assert isinstance(data["instructions"], str)
+        assert isinstance(data["external_url"], str)
+        assert isinstance(data["about_url"], str)
+        assert data["game"]["twitch_id"] == "game123"
+
+    def test_v1_reward_campaign_detail_no_game(self) -> None:
+        """Return reward campaign detail with null game."""
+        now = timezone.now()
+        RewardCampaign.objects.create(
+            twitch_id="no_game_reward",
+            name="No Game Reward",
+            brand="Standalone Brand",
+            starts_at=now - timedelta(days=1),
+            ends_at=now + timedelta(days=1),
+            status="ACTIVE",
+            summary="No game attached",
+            is_sitewide=True,
+        )
+
+        response = self.client.get("/twitch/api/v1/reward-campaigns/no_game_reward/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["game"] is None
+        assert data["is_sitewide"] is True
+
+    def test_v1_reward_campaign_detail_not_found(self) -> None:
+        """Return 404 for missing reward campaign."""
+        response = self.client.get("/twitch/api/v1/reward-campaigns/nonexistent/")
+
+        assert response.status_code == 404
+
+    # ── Badges ──────────────────────────────────────────────────────────
+
+    def test_v1_badge_list_fields(self) -> None:
+        """Return correct field shape for badge set list items."""
+        response = self.client.get("/twitch/api/v1/badges/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        item = data["items"][0]
+        assert item["set_id"] == "test-badge-set"
+        assert len(item["badges"]) == 1
+        assert "added_at" in item
+        assert "updated_at" in item
+
+    def test_v1_badge_detail_fields(self) -> None:
+        """Return correct field shape for badge set detail."""
+        response = self.client.get("/twitch/api/v1/badges/test-badge-set/")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["set_id"] == "test-badge-set"
+        assert len(data["badges"]) == 1
+        badge = data["badges"][0]
+        assert badge["badge_id"] == "1"
+        assert badge["title"] == "Test Badge"
+        assert badge["description"] == "Test badge description"
+        assert "image_url_1x" in badge
+        assert "image_url_2x" in badge
+        assert "image_url_4x" in badge
+        assert "click_action" in badge
+        assert "click_url" in badge
+
+    def test_v1_badge_detail_not_found(self) -> None:
+        """Return 404 for missing badge set."""
+        response = self.client.get("/twitch/api/v1/badges/nonexistent/")
+
+        assert response.status_code == 404

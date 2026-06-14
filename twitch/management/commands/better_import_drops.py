@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -340,7 +339,41 @@ def extract_operation_name_from_parsed(
     return None
 
 
-def repair_partially_broken_json(raw_text: str) -> str:  # noqa: PLR0915
+def _validate_repair_result(
+    fixed: str,
+    parsed_data: dict | list | str,
+) -> str | None:
+    """Validate that a repaired JSON result contains valid GraphQL responses.
+
+    Args:
+        fixed: The repaired JSON string.
+        parsed_data: The parsed JSON data.
+
+    Returns:
+        The string to return if valid, or None to continue trying other strategies.
+    """
+    # If it's a list, validate all items are GraphQL responses
+    if isinstance(parsed_data, list):
+        # Filter to only keep GraphQL responses
+        filtered = [
+            item
+            for item in parsed_data
+            if isinstance(item, dict) and ("data" in item or "extensions" in item)
+        ]
+        if filtered:
+            # If we filtered anything out, return the filtered version
+            if len(filtered) < len(parsed_data):
+                return json.dumps(filtered)
+            # Otherwise return as-is
+            return fixed
+    # Single dict - check if it's a GraphQL response
+    elif isinstance(parsed_data, dict):
+        if "data" in parsed_data or "extensions" in parsed_data:
+            return fixed
+    return None
+
+
+def repair_partially_broken_json(raw_text: str) -> str:
     """Attempt to repair partially broken JSON with multiple fallback strategies.
 
     Handles "half-bad" JSON by:
@@ -357,27 +390,10 @@ def repair_partially_broken_json(raw_text: str) -> str:  # noqa: PLR0915
     # Strategy 1: Direct repair attempt
     try:
         fixed: str = json_repair.repair_json(raw_text, logging=False)
-        # Validate it produces valid JSON
         parsed_data = json.loads(fixed)
-
-        # If it's a list, validate all items are GraphQL responses
-        if isinstance(parsed_data, list):
-            # Filter to only keep GraphQL responses
-            filtered = [
-                item
-                for item in parsed_data
-                if isinstance(item, dict) and ("data" in item or "extensions" in item)
-            ]
-            if filtered:
-                # If we filtered anything out, return the filtered version
-                if len(filtered) < len(parsed_data):
-                    return json.dumps(filtered)
-                # Otherwise return as-is
-                return fixed
-        # Single dict - check if it's a GraphQL response
-        elif isinstance(parsed_data, dict):
-            if "data" in parsed_data or "extensions" in parsed_data:
-                return fixed
+        result: str | None = _validate_repair_result(fixed, parsed_data)
+        if result is not None:
+            return result
     except ValueError, TypeError, json.JSONDecodeError:
         pass
 
@@ -1142,29 +1158,91 @@ class Command(BaseCommand):
                     f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: {display_name}",
                 )
 
-    def handle(self, *args, **options) -> None:  # noqa: ARG002
-        """Main entry point for the command.
+    def _dispatch_path_processing(
+        self,
+        input_path: Path,
+        options: dict,
+    ) -> None:
+        """Dispatch processing based on whether the path is a file or directory.
+
+        Args:
+            input_path: Resolved path to process.
+            options: Command options.
 
         Raises:
-            CommandError: If the provided path does not exist.
+            CommandError: If the path does not exist.
         """
+        if input_path.is_file():
+            self.process_file(file_path=input_path, options=options)
+        elif input_path.is_dir():
+            self.process_json_files(input_path=input_path, options=options)
+        else:
+            msg: str = f"Path does not exist: {input_path}"
+            raise CommandError(msg)
+
+    def handle(self, *args, **options) -> None:  # noqa: ARG002
+        """Main entry point for the command."""
         colorama_init(autoreset=True)
 
         input_path: Path = Path(options["path"]).resolve()
 
         try:
-            if input_path.is_file():
-                self.process_file(file_path=input_path, options=options)
-            elif input_path.is_dir():
-                self.process_json_files(input_path=input_path, options=options)
-            else:
-                msg: str = f"Path does not exist: {input_path}"
-                raise CommandError(msg)
-
+            self._dispatch_path_processing(input_path, options)
         except KeyboardInterrupt:
             tqdm.write(self.style.WARNING("\n\nInterrupted by user!"))
             tqdm.write(self.style.WARNING("Shutting down gracefully..."))
             sys.exit(130)  # 128 + 2 (Keyboard Interrupt)
+
+    def _process_single_file_result(
+        self,
+        file_path: Path,
+        options: dict,
+        progress_bar: tqdm,
+    ) -> tuple[int, int, int]:
+        """Process a single file result and update progress output.
+
+        Args:
+            file_path: Path to the JSON file.
+            options: Command options.
+            progress_bar: tqdm progress bar instance.
+
+        Returns:
+            Tuple of (success_increment, failed_increment, error_increment).
+        """
+        try:
+            result: dict[str, bool | str] = self.process_file_worker(
+                file_path=file_path,
+                options=options,
+            )
+        except (OSError, ValueError, KeyError) as e:
+            progress_bar.write(
+                f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (error: {e})",
+            )
+            return 0, 0, 1
+
+        if result["success"]:
+            if options.get("verbose"):
+                progress_bar.write(
+                    f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}",
+                )
+            return 1, 0, 0
+
+        reason: bool | str | None = (
+            result.get("reason") if isinstance(result, dict) else None
+        )
+        if reason:
+            progress_bar.write(
+                f"{Fore.RED}✗{Style.RESET_ALL} "
+                f"{file_path.name} → {result['broken_dir']}/"
+                f"{file_path.name} ({reason})",
+            )
+        else:
+            progress_bar.write(
+                f"{Fore.RED}✗{Style.RESET_ALL} "
+                f"{file_path.name} → {result['broken_dir']}/"
+                f"{file_path.name}",
+            )
+        return 0, 1, 0
 
     def process_json_files(self, input_path: Path, options: dict) -> None:
         """Process multiple JSON files in a directory.
@@ -1191,39 +1269,14 @@ class Command(BaseCommand):
             dynamic_ncols=True,
         ) as progress_bar:
             for file_path in json_files:
-                try:
-                    result: dict[str, bool | str] = self.process_file_worker(
-                        file_path=file_path,
-                        options=options,
-                    )
-                    if result["success"]:
-                        success_count += 1
-                        if options.get("verbose"):
-                            progress_bar.write(
-                                f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}",
-                            )
-                    else:
-                        failed_count += 1
-                        reason: bool | str | None = (
-                            result.get("reason") if isinstance(result, dict) else None
-                        )
-                        if reason:
-                            progress_bar.write(
-                                f"{Fore.RED}✗{Style.RESET_ALL} "
-                                f"{file_path.name} → {result['broken_dir']}/"
-                                f"{file_path.name} ({reason})",
-                            )
-                        else:
-                            progress_bar.write(
-                                f"{Fore.RED}✗{Style.RESET_ALL} "
-                                f"{file_path.name} → {result['broken_dir']}/"
-                                f"{file_path.name}",
-                            )
-                except (OSError, ValueError, KeyError) as e:
-                    error_count += 1
-                    progress_bar.write(
-                        f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (error: {e})",
-                    )
+                s_inc, f_inc, e_inc = self._process_single_file_result(
+                    file_path=file_path,
+                    options=options,
+                    progress_bar=progress_bar,
+                )
+                success_count += s_inc
+                failed_count += f_inc
+                error_count += e_inc
 
                 # Update postfix with statistics
                 progress_bar.set_postfix_str(
@@ -1385,6 +1438,111 @@ class Command(BaseCommand):
             return []
         return []
 
+    def _run_worker_inner(
+        self,
+        file_path: Path,
+        options: dict,
+    ) -> dict[str, bool | str]:
+        """Inner processing logic for the file worker.
+
+        Args:
+            file_path: Path to the JSON file to process.
+            options: Command options.
+
+        Returns:
+            Dict with success status and optional broken_dir path.
+        """
+        raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Repair potentially broken JSON with multiple fallback strategies
+        fixed_json_str: str = repair_partially_broken_json(raw_text)
+        parsed_json: (
+            JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str
+        ) = json.loads(fixed_json_str)
+        operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
+
+        # Check for error-only responses first
+        error_description: str | None = detect_error_only_response(parsed_json)
+        if error_description:
+            if not options.get("skip_broken_moves"):
+                broken_dir: Path | None = move_file_to_broken_subdir(
+                    file_path,
+                    error_description,
+                    operation_name=operation_name,
+                )
+                return {
+                    "success": False,
+                    "broken_dir": str(broken_dir),
+                    "reason": error_description,
+                }
+            return {
+                "success": False,
+                "broken_dir": "(skipped)",
+                "reason": error_description,
+            }
+
+        matched: str | None = detect_non_campaign_keyword(raw_text)
+        if matched:
+            if not options.get("skip_broken_moves"):
+                broken_dir: Path | None = move_file_to_broken_subdir(
+                    file_path,
+                    matched,
+                    operation_name=operation_name,
+                )
+                return {
+                    "success": False,
+                    "broken_dir": str(broken_dir),
+                    "reason": f"matched '{matched}'",
+                }
+            return {
+                "success": False,
+                "broken_dir": "(skipped)",
+                "reason": f"matched '{matched}'",
+            }
+        if "dropCampaign" not in raw_text:
+            if not options.get("skip_broken_moves"):
+                broken_dir: Path | None = move_file_to_broken_subdir(
+                    file_path,
+                    "no_dropCampaign",
+                    operation_name=operation_name,
+                )
+                return {
+                    "success": False,
+                    "broken_dir": str(broken_dir),
+                    "reason": "no dropCampaign present",
+                }
+            return {
+                "success": False,
+                "broken_dir": "(skipped)",
+                "reason": "no dropCampaign present",
+            }
+
+        # Normalize and filter to dict responses only
+        responses: list[dict[str, Any]] = self._normalize_responses(parsed_json)
+        processed, broken_dir = self.process_responses(
+            responses=responses,
+            file_path=file_path,
+            options=options,
+        )
+
+        if not processed:
+            # File was already moved to broken during validation
+            return {
+                "success": False,
+                "broken_dir": str(broken_dir) if broken_dir else "(unknown)",
+                "reason": "validation failed",
+            }
+
+        campaign_structure: str | None = self._detect_campaign_structure(
+            responses[0] if responses else {},
+        )
+        move_completed_file(
+            file_path=file_path,
+            operation_name=operation_name,
+            campaign_structure=campaign_structure,
+        )
+        return {"success": True}
+
     def process_file_worker(
         self,
         file_path: Path,
@@ -1404,96 +1562,7 @@ class Command(BaseCommand):
             json.JSONDecodeError: If the JSON file cannot be parsed
         """
         try:
-            raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
-
-            # Repair potentially broken JSON with multiple fallback strategies
-            fixed_json_str: str = repair_partially_broken_json(raw_text)
-            parsed_json: (
-                JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str
-            ) = json.loads(fixed_json_str)
-            operation_name: str | None = extract_operation_name_from_parsed(parsed_json)
-
-            # Check for error-only responses first
-            error_description: str | None = detect_error_only_response(parsed_json)
-            if error_description:
-                if not options.get("skip_broken_moves"):
-                    broken_dir: Path | None = move_file_to_broken_subdir(
-                        file_path,
-                        error_description,
-                        operation_name=operation_name,
-                    )
-                    return {
-                        "success": False,
-                        "broken_dir": str(broken_dir),
-                        "reason": error_description,
-                    }
-                return {
-                    "success": False,
-                    "broken_dir": "(skipped)",
-                    "reason": error_description,
-                }
-
-            matched: str | None = detect_non_campaign_keyword(raw_text)
-            if matched:
-                if not options.get("skip_broken_moves"):
-                    broken_dir: Path | None = move_file_to_broken_subdir(
-                        file_path,
-                        matched,
-                        operation_name=operation_name,
-                    )
-                    return {
-                        "success": False,
-                        "broken_dir": str(broken_dir),
-                        "reason": f"matched '{matched}'",
-                    }
-                return {
-                    "success": False,
-                    "broken_dir": "(skipped)",
-                    "reason": f"matched '{matched}'",
-                }
-            if "dropCampaign" not in raw_text:
-                if not options.get("skip_broken_moves"):
-                    broken_dir: Path | None = move_file_to_broken_subdir(
-                        file_path,
-                        "no_dropCampaign",
-                        operation_name=operation_name,
-                    )
-                    return {
-                        "success": False,
-                        "broken_dir": str(broken_dir),
-                        "reason": "no dropCampaign present",
-                    }
-                return {
-                    "success": False,
-                    "broken_dir": "(skipped)",
-                    "reason": "no dropCampaign present",
-                }
-
-            # Normalize and filter to dict responses only
-            responses: list[dict[str, Any]] = self._normalize_responses(parsed_json)
-            processed, broken_dir = self.process_responses(
-                responses=responses,
-                file_path=file_path,
-                options=options,
-            )
-
-            if not processed:
-                # File was already moved to broken during validation
-                return {
-                    "success": False,
-                    "broken_dir": str(broken_dir) if broken_dir else "(unknown)",
-                    "reason": "validation failed",
-                }
-
-            campaign_structure: str | None = self._detect_campaign_structure(
-                responses[0] if responses else {},
-            )
-            move_completed_file(
-                file_path=file_path,
-                operation_name=operation_name,
-                campaign_structure=campaign_structure,
-            )
-
+            return self._run_worker_inner(file_path, options)
         except ValidationError, json.JSONDecodeError:
             if options["crash_on_error"]:
                 raise
@@ -1511,8 +1580,116 @@ class Command(BaseCommand):
                 )
                 return {"success": False, "broken_dir": str(broken_dir)}
             return {"success": False, "broken_dir": "(skipped)"}
-        else:
-            return {"success": True}
+
+    def _run_file_processing_inner(
+        self,
+        file_path: Path,
+        options: dict,
+        progress_bar: tqdm,
+    ) -> None:
+        """Inner file processing logic with progress reporting.
+
+        Args:
+            file_path: Path to the JSON file.
+            options: Command options.
+            progress_bar: tqdm progress bar instance.
+        """
+        raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Repair potentially broken JSON with multiple fallback strategies
+        fixed_json_str: str = repair_partially_broken_json(raw_text)
+        parsed_json: (
+            JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str
+        ) = json.loads(fixed_json_str)
+        operation_name: str | None = extract_operation_name_from_parsed(
+            parsed_json,
+        )
+
+        # Check for error-only responses first
+        error_description: str | None = detect_error_only_response(parsed_json)
+        if error_description:
+            if not options.get("skip_broken_moves"):
+                broken_dir: Path | None = move_file_to_broken_subdir(
+                    file_path,
+                    error_description,
+                    operation_name=operation_name,
+                )
+                progress_bar.write(
+                    f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                    f"{broken_dir}/{file_path.name} "
+                    f"({error_description})",
+                )
+            else:
+                progress_bar.write(
+                    f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} ({error_description}, move skipped)",
+                )
+            return
+
+        matched: str | None = detect_non_campaign_keyword(raw_text)
+        if matched:
+            if not options.get("skip_broken_moves"):
+                broken_dir: Path | None = move_file_to_broken_subdir(
+                    file_path,
+                    matched,
+                    operation_name=operation_name,
+                )
+                progress_bar.write(
+                    f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                    f"{broken_dir}/{file_path.name} "
+                    f"(matched '{matched}')",
+                )
+            else:
+                progress_bar.write(
+                    f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (matched '{matched}', move skipped)",
+                )
+            return
+
+        if "dropCampaign" not in raw_text:
+            if not options.get("skip_broken_moves"):
+                broken_dir = move_file_to_broken_subdir(
+                    file_path,
+                    "no_dropCampaign",
+                    operation_name=operation_name,
+                )
+                progress_bar.write(
+                    f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                    f"{broken_dir}/{file_path.name} "
+                    f"(no dropCampaign present)",
+                )
+            else:
+                progress_bar.write(
+                    f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (no dropCampaign present, move skipped)",
+                )
+            return
+
+        # Normalize and filter to dict responses only
+        responses: list[dict[str, Any]] = self._normalize_responses(parsed_json)
+
+        processed, broken_dir = self.process_responses(
+            responses=responses,
+            file_path=file_path,
+            options=options,
+        )
+
+        if not processed:
+            # File already moved during validation; nothing more to do here.
+            progress_bar.write(
+                f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
+                f"{broken_dir}/{file_path.name} (validation failed)",
+            )
+            return
+
+        campaign_structure: str | None = self._detect_campaign_structure(
+            responses[0] if responses else {},
+        )
+        move_completed_file(
+            file_path=file_path,
+            operation_name=operation_name,
+            campaign_structure=campaign_structure,
+        )
+
+        progress_bar.update(1)
+        progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")
 
     def process_file(self, file_path: Path, options: dict) -> None:
         """Reads a JSON file and processes the campaign data.
@@ -1533,102 +1710,7 @@ class Command(BaseCommand):
             dynamic_ncols=True,
         ) as progress_bar:
             try:
-                raw_text: str = file_path.read_text(encoding="utf-8", errors="ignore")
-
-                # Repair potentially broken JSON with multiple fallback strategies
-                fixed_json_str: str = repair_partially_broken_json(raw_text)
-                parsed_json: (
-                    JSONReturnType | tuple[JSONReturnType, list[dict[str, str]]] | str
-                ) = json.loads(fixed_json_str)
-                operation_name: str | None = extract_operation_name_from_parsed(
-                    parsed_json,
-                )
-
-                # Check for error-only responses first
-                error_description: str | None = detect_error_only_response(parsed_json)
-                if error_description:
-                    if not options.get("skip_broken_moves"):
-                        broken_dir: Path | None = move_file_to_broken_subdir(
-                            file_path,
-                            error_description,
-                            operation_name=operation_name,
-                        )
-                        progress_bar.write(
-                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
-                            f"{broken_dir}/{file_path.name} "
-                            f"({error_description})",
-                        )
-                    else:
-                        progress_bar.write(
-                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} ({error_description}, move skipped)",
-                        )
-                    return
-
-                matched: str | None = detect_non_campaign_keyword(raw_text)
-                if matched:
-                    if not options.get("skip_broken_moves"):
-                        broken_dir: Path | None = move_file_to_broken_subdir(
-                            file_path,
-                            matched,
-                            operation_name=operation_name,
-                        )
-                        progress_bar.write(
-                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
-                            f"{broken_dir}/{file_path.name} "
-                            f"(matched '{matched}')",
-                        )
-                    else:
-                        progress_bar.write(
-                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (matched '{matched}', move skipped)",
-                        )
-                    return
-
-                if "dropCampaign" not in raw_text:
-                    if not options.get("skip_broken_moves"):
-                        broken_dir = move_file_to_broken_subdir(
-                            file_path,
-                            "no_dropCampaign",
-                            operation_name=operation_name,
-                        )
-                        progress_bar.write(
-                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
-                            f"{broken_dir}/{file_path.name} "
-                            f"(no dropCampaign present)",
-                        )
-                    else:
-                        progress_bar.write(
-                            f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} (no dropCampaign present, move skipped)",
-                        )
-                    return
-
-                # Normalize and filter to dict responses only
-                responses: list[dict[str, Any]] = self._normalize_responses(parsed_json)
-
-                processed, broken_dir = self.process_responses(
-                    responses=responses,
-                    file_path=file_path,
-                    options=options,
-                )
-
-                if not processed:
-                    # File already moved during validation; nothing more to do here.
-                    progress_bar.write(
-                        f"{Fore.RED}✗{Style.RESET_ALL} {file_path.name} → "
-                        f"{broken_dir}/{file_path.name} (validation failed)",
-                    )
-                    return
-
-                campaign_structure: str | None = self._detect_campaign_structure(
-                    responses[0] if responses else {},
-                )
-                move_completed_file(
-                    file_path=file_path,
-                    operation_name=operation_name,
-                    campaign_structure=campaign_structure,
-                )
-
-                progress_bar.update(1)
-                progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")
+                self._run_file_processing_inner(file_path, options, progress_bar)
             except ValidationError, json.JSONDecodeError:
                 if options["crash_on_error"]:
                     raise

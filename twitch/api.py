@@ -409,7 +409,8 @@ def _serialize_game_summary(
         display_name=game.display_name,
         box_art_url=_game_box_art_url(game),
         organizations=[
-            _serialize_organization_summary(org) for org in game.owners.all()
+            _serialize_organization_summary(org)
+            for org in getattr(game, "owners_for_detail", game.owners.all())
         ],
         campaign_count=_game_campaign_count(game),
         active_campaign_count=_game_active_campaign_count(game, now),
@@ -424,7 +425,8 @@ def _serialize_game(game: Game, now: datetime.datetime) -> V1GameSchema:
         display_name=game.display_name,
         box_art_url=_game_box_art_url(game),
         organizations=[
-            _serialize_organization_summary(org) for org in game.owners.all()
+            _serialize_organization_summary(org)
+            for org in getattr(game, "owners_for_detail", game.owners.all())
         ],
         campaign_count=_game_campaign_count(game),
         active_campaign_count=_game_active_campaign_count(game, now),
@@ -520,7 +522,11 @@ def _serialize_campaign_detail(
         operation_names=campaign.operation_names,
         allowed_channels=[
             _serialize_channel_summary(channel)
-            for channel in campaign.allow_channels.all()
+            for channel in getattr(
+                campaign,
+                "channels_ordered",
+                campaign.allow_channels.all(),
+            )
         ],
         drops=[_serialize_drop(drop) for drop in campaign.time_based_drops.all()],  # pyright: ignore[reportAttributeAccessIssue]
     )
@@ -643,7 +649,8 @@ def get_game(request: HttpRequest, twitch_id: str) -> V1GameDetailSchema:
         display_name=game.display_name,
         box_art_url=_game_box_art_url(game),
         organizations=[
-            _serialize_organization_summary(org) for org in game.owners.all()
+            _serialize_organization_summary(org)
+            for org in getattr(game, "owners_for_detail", game.owners.all())
         ],
         campaign_count=_game_campaign_count(game),
         active_campaign_count=_game_active_campaign_count(game, now),
@@ -700,7 +707,10 @@ def get_organization(
         name=org.name,
         added_at=org.added_at,
         updated_at=org.updated_at,
-        games=[_serialize_game_summary(game, now) for game in org.games.all()],  # pyright: ignore[reportAttributeAccessIssue]
+        games=[
+            _serialize_game_summary(game, now)
+            for game in getattr(org, "games_for_detail", org.games.all())  # pyright: ignore[reportAttributeAccessIssue]
+        ],
         campaigns=[_serialize_campaign_detail(campaign, now) for campaign in campaigns],
     )
 

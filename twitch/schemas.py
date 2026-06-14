@@ -649,9 +649,267 @@ class GlobalChatBadgesResponse(BaseModel):
 
     data: list[ChatBadgeSetSchema]
 
+
+# MARK: SunkwiBOT /twitch-drops-api Schemas
+#
+# The SunkwiBOT API serves simplified JSON without GraphQL metadata (no
+# __typename, etc.).  These schemas are relaxed to match that format.
+
+
+class SunkwiBotChannelInfoSchema(BaseModel):
+    """Schema for a channel inside a drop's allow.channels from the SunkwiBOT API."""
+
+    twitch_id: str = Field(alias="id")
+    display_name: str | None = Field(default=None, alias="displayName")
+    name: str
+
     model_config = {
         "extra": "forbid",
         "validate_assignment": True,
-        "strict": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotDropCampaignACLSchema(BaseModel):
+    """Schema for the allow field within a SunkwiBOT reward (drop campaign)."""
+
+    channels: list[SunkwiBotChannelInfoSchema] | None = None
+    is_enabled: bool = Field(alias="isEnabled")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotGameRefSchema(BaseModel):
+    """Schema for a game object inside a SunkwiBOT reward."""
+
+    twitch_id: str = Field(alias="id")
+    slug: str
+    display_name: str = Field(alias="displayName")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotOrganizationSchema(BaseModel):
+    """Schema for an owner organization inside a SunkwiBOT reward."""
+
+    twitch_id: str = Field(alias="id")
+    name: str
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotBenefitSchema(BaseModel):
+    """Schema for a benefit inside a benefitEdge from the SunkwiBOT API."""
+
+    twitch_id: str = Field(alias="id")
+    created_at: str | None = Field(default=None, alias="createdAt")
+    entitlement_limit: int = Field(alias="entitlementLimit")
+    game: dict | None = None
+    image_asset_url: str = Field(alias="imageAssetURL")
+    is_ios_available: bool = Field(alias="isIosAvailable")
+    name: str
+    owner_organization: dict | None = Field(default=None, alias="ownerOrganization")
+    distribution_type: str | None = Field(default=None, alias="distributionType")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotBenefitEdgeSchema(BaseModel):
+    """Schema for a benefitEdge within a timeBasedDrop from the SunkwiBOT API."""
+
+    benefit: SunkwiBotBenefitSchema
+    entitlement_limit: int = Field(alias="entitlementLimit")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotTimeBasedDropSchema(BaseModel):
+    """Schema for a timeBasedDrop within a SunkwiBOT reward (drop campaign)."""
+
+    twitch_id: str = Field(alias="id")
+    required_subs: int = Field(alias="requiredSubs")
+    benefit_edges: list[SunkwiBotBenefitEdgeSchema] = Field(
+        default=[],
+        alias="benefitEdges",
+    )
+    end_at: str = Field(alias="endAt")
+    name: str
+    precondition_drops: None = Field(default=None, alias="preconditionDrops")
+    required_minutes_watched: int | None = Field(
+        default=None,
+        alias="requiredMinutesWatched",
+    )
+    start_at: str = Field(alias="startAt")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+    @field_validator("benefit_edges", mode="before")
+    @classmethod
+    def handle_null_benefit_edges(cls, v: list | None) -> list:
+        """Convert null benefitEdges to empty list.
+
+        Args:
+            v: The raw benefit_edges value (list or None).
+
+        Returns:
+            Empty list if None, otherwise the list itself.
+        """
+        return v or []
+
+
+class SunkwiBotRewardSchema(BaseModel):
+    """Schema for a single reward item inside the drops.json rewards array.
+
+    This maps to a DropCampaign in our database.
+    """
+
+    twitch_id: str = Field(alias="id")
+    self_field: dict | None = Field(default=None, alias="self")
+    allow: SunkwiBotDropCampaignACLSchema | None = None
+    account_link_url: str = Field(alias="accountLinkURL")
+    description: str
+    details_url: str = Field(alias="detailsURL")
+    end_at: str = Field(alias="endAt")
+    event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
+    game: SunkwiBotGameRefSchema
+    image_url: str = Field(alias="imageURL")
+    name: str
+    owner: SunkwiBotOrganizationSchema
+    start_at: str = Field(alias="startAt")
+    status: str
+    time_based_drops: list[SunkwiBotTimeBasedDropSchema] = Field(
+        default=[],
+        alias="timeBasedDrops",
+    )
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotDropGroupSchema(BaseModel):
+    """Schema for a single top-level item in the drops.json array.
+
+    Each item groups multiple drop campaigns under a shared game.
+    """
+
+    end_at: str = Field(alias="endAt")
+    game_box_art_url: str = Field(alias="gameBoxArtURL")
+    game_display_name: str = Field(alias="gameDisplayName")
+    game_id: str = Field(alias="gameId")
+    rewards: list[SunkwiBotRewardSchema]
+    start_at: str = Field(alias="startAt")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotRewardImageSetSchema(BaseModel):
+    """Schema for an image set inside a rewards.json reward."""
+
+    image1x_url: str = Field(alias="image1xURL")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotIndividualRewardSchema(BaseModel):
+    """Schema for a single reward inside a rewards.json reward campaign."""
+
+    twitch_id: str = Field(alias="id")
+    name: str
+    banner_image: SunkwiBotRewardImageSetSchema | None = Field(
+        default=None,
+        alias="bannerImage",
+    )
+    thumbnail_image: SunkwiBotRewardImageSetSchema | None = Field(
+        default=None,
+        alias="thumbnailImage",
+    )
+    earnable_until: str | None = Field(default=None, alias="earnableUntil")
+    redemption_instructions: str = Field(default="", alias="redemptionInstructions")
+    redemption_url: str = Field(default="", alias="redemptionURL")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotRewardUnlockRequirementsSchema(BaseModel):
+    """Schema for the unlockRequirements inside a rewards.json campaign."""
+
+    minute_watched_goal: int = Field(alias="minuteWatchedGoal")
+    subs_goal: int = Field(alias="subsGoal")
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
+        "populate_by_name": True,
+    }
+
+
+class SunkwiBotRewardCampaignSchema(BaseModel):
+    """Schema for a single top-level item in the rewards.json array.
+
+    This maps to a RewardCampaign in our database.
+    """
+
+    about_url: str = Field(alias="aboutURL")
+    brand: str
+    ends_at: str = Field(alias="endsAt")
+    external_url: str = Field(alias="externalURL")
+    game: dict | None = None
+    twitch_id: str = Field(alias="id")
+    image: SunkwiBotRewardImageSetSchema | None = None
+    instructions: str
+    is_sitewide: bool = Field(alias="isSitewide")
+    name: str
+    rewards: list[SunkwiBotIndividualRewardSchema] = Field(default=[])
+    reward_value_url_param: str = Field(default="", alias="rewardValueURLParam")
+    starts_at: str = Field(alias="startsAt")
+    status: str
+    summary: str
+    unlock_requirements: SunkwiBotRewardUnlockRequirementsSchema | None = Field(
+        default=None,
+        alias="unlockRequirements",
+    )
+
+    model_config = {
+        "extra": "forbid",
+        "validate_assignment": True,
         "populate_by_name": True,
     }

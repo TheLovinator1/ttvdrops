@@ -705,6 +705,16 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
         auto_now=True,
     )
 
+    data_source = models.TextField(
+        help_text="Identifies the origin tool/script that imported this campaign data.",
+        max_length=50,
+        choices=[
+            ("TwitchDropsMiner", "TwitchDropsMiner"),
+            ("SunkwiBOT/twitch-drops-api", "SunkwiBOT/twitch-drops-api"),
+        ],
+        default="TwitchDropsMiner",
+    )
+
     is_fully_imported = models.BooleanField(
         help_text="True if all images and formats are imported and ready for display.",
         default=False,
@@ -912,6 +922,9 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
                                 "twitch_id",
                                 "name",
                                 "distribution_type",
+                                "created_at",
+                                "entitlement_limit",
+                                "is_ios_available",
                                 "image_asset_url",
                                 "image_file",
                                 "image_width",
@@ -1804,6 +1817,16 @@ class RewardCampaign(auto_prefetch.Model):
     is_sitewide = models.BooleanField(
         help_text="Whether the reward campaign is sitewide.",
         default=False,
+    )
+
+    data_source = models.TextField(
+        help_text="Identifies the origin tool/script that imported this campaign data.",
+        max_length=50,
+        choices=[
+            ("TwitchDropsMiner", "TwitchDropsMiner"),
+            ("SunkwiBOT/twitch-drops-api", "SunkwiBOT/twitch-drops-api"),
+        ],
+        default="TwitchDropsMiner",
     )
 
     game = auto_prefetch.ForeignKey(

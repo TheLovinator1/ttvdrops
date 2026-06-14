@@ -8,7 +8,6 @@ from typing import Literal
 
 import pytest
 from django.core.files.base import ContentFile
-from django.core.handlers.wsgi import WSGIRequest
 from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import Max
@@ -43,15 +42,8 @@ if TYPE_CHECKING:
     from django.test import Client
     from django.test.client import _MonkeyPatchedWSGIResponse
     from django.test.utils import ContextList
-    from pytest_django.fixtures import SettingsWrapper
 
     from twitch.views import Page
-
-
-@pytest.fixture(autouse=True)
-def apply_base_url_override(settings: SettingsWrapper) -> None:
-    """Ensure BASE_URL is globally overridden for all tests."""
-    settings.BASE_URL = "https://ttvdrops.lovinator.space"  # pyright: ignore[reportAttributeAccessIssue]
 
 
 @pytest.mark.django_db

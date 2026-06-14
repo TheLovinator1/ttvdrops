@@ -50,58 +50,71 @@
             </div>
             <!-- Campaign Summary -->
             {% if reward_campaign.summary %}<p id="campaign-summary">{{ reward_campaign.summary|linebreaksbr }}</p>{% endif %}
-            <!-- Campaign Status -->
-            <div>
-                <strong>Status:</strong>
-                {% if is_active %}
-                    Active
-                {% elif reward_campaign.starts_at > now %}
-                    Upcoming
-                {% else %}
-                    Expired
-                {% endif %}
-            </div>
-            <div>Added at {{ reward_campaign.added_at|date:"M d, Y H:i" }} ({{ reward_campaign.added_at|timesince }} ago)</div>
-            <div>
-                Last updated at {{ reward_campaign.updated_at|date:"M d, Y H:i" }} ({{ reward_campaign.updated_at|timesince }} ago)
-            </div>
-            <!-- Reward Start Time -->
-            <div>
-                {% if reward_campaign.starts_at > now %}
-                    Starts
-                {% else %}
-                    Started at
-                {% endif %}
-                <time datetime="{{ reward_campaign.starts_at|date:'c' }}"
-                      title="{{ reward_campaign.starts_at|date:'DATETIME_FORMAT' }}">
-                    {{ reward_campaign.starts_at|date:"M d, Y H:i" }}
+            <dl>
+                <!-- Campaign Status -->
+                <dt>Status</dt>
+                <dd>
+                    {% if is_active %}
+                        Active
+                    {% elif reward_campaign.starts_at > now %}
+                        Upcoming
+                    {% else %}
+                        Expired
+                    {% endif %}
+                </dd>
+                <dt>Added</dt>
+                <dd>
+                    {{ reward_campaign.added_at|date:"M d, Y H:i" }} ({{ reward_campaign.added_at|timesince }} ago)
+                </dd>
+                <dt>Last updated</dt>
+                <dd>
+                    {{ reward_campaign.updated_at|date:"M d, Y H:i" }} ({{ reward_campaign.updated_at|timesince }} ago)
+                </dd>
+                <!-- Reward Start Time -->
+                <dt>
+                    {% if reward_campaign.starts_at > now %}
+                        Starts
+                    {% else %}
+                        Started at
+                    {% endif %}
+                </dt>
+                <dd>
+                    <time datetime="{{ reward_campaign.starts_at|date:'c' }}"
+                          title="{{ reward_campaign.starts_at|date:'DATETIME_FORMAT' }}">
+                        {{ reward_campaign.starts_at|date:"M d, Y H:i" }}
+                    </time>
                     {% if reward_campaign.starts_at > now %}
                         (in {{ reward_campaign.starts_at|timeuntil }})
                     {% else %}
                         ({{ reward_campaign.starts_at|timesince }} ago)
                     {% endif %}
-                </time>
-            </div>
-            <!-- Reward End Time -->
-            <div>
-                {% if reward_campaign.ends_at > now %}
-                    Ends
-                {% else %}
-                    Ended at
-                {% endif %}
-                <time datetime="{{ reward_campaign.ends_at|date:'c' }}"
-                      title="{{ reward_campaign.ends_at|date:'DATETIME_FORMAT' }}">
-                    {{ reward_campaign.ends_at|date:"M d, Y H:i" }}
+                </dd>
+                <!-- Reward End Time -->
+                <dt>
+                    {% if reward_campaign.ends_at > now %}
+                        Ends
+                    {% else %}
+                        Ended at
+                    {% endif %}
+                </dt>
+                <dd>
+                    <time datetime="{{ reward_campaign.ends_at|date:'c' }}"
+                          title="{{ reward_campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                        {{ reward_campaign.ends_at|date:"M d, Y H:i" }}
+                    </time>
                     {% if reward_campaign.ends_at > now %}
                         (in {{ reward_campaign.ends_at|timeuntil }})
                     {% else %}
                         ({{ reward_campaign.ends_at|timesince }} ago)
                     {% endif %}
-                </time>
-            </div>
-            <div>
-                {% if reward_campaign.instructions %}{{ reward_campaign.instructions|linebreaksbr }}{% endif %}
-            </div>
+                </dd>
+                <!-- Data source -->
+                <dt>Data source</dt>
+                <dd>
+                    {{ reward_campaign.data_source }}
+                </dd>
+            </dl>
+            <div>{% if reward_campaign.instructions %}{{ reward_campaign.instructions|linebreaksbr }}{% endif %}</div>
             <!-- RSS Feeds -->
             <div style="margin-bottom: 1rem;">
                 <a href="{% url 'core:reward_campaign_feed' %}"

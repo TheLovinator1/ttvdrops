@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 import pytest
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
-from django.db.migrations.state import StateApps
 
 if TYPE_CHECKING:
     from django.db.migrations.state import StateApps
@@ -84,3 +83,12 @@ def test_0021_backfills_allowed_campaign_count() -> None:  # noqa: PLR0914
         "migration_backfill_channel_2": 1,
         "migration_backfill_channel_3": 0,
     }
+
+    # Restore database to the latest migration so subsequent tests don't
+    # encounter missing columns (SQLite DDL persists across transaction
+    # rollbacks, so the schema changes made by this test are permanent).
+    latest: list[tuple[str, str]] = [
+        ("twitch", "0024_dropcampaign_data_source_rewardcampaign_data_source"),
+    ]
+    executor = MigrationExecutor(connection)
+    executor.migrate(latest)

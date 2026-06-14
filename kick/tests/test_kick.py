@@ -35,7 +35,6 @@ if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
     from pytest_django.asserts import QuerySet
 
-    from kick.schemas import KickDropCampaignSchema
     from kick.schemas import KickRewardSchema
 
 # Minimal valid campaign fixture (single campaign, active status)

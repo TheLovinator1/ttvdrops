@@ -533,7 +533,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /debug/
-def debug_view(request: HttpRequest) -> HttpResponse:
+def debug_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0914
     """Debug view showing potentially broken or inconsistent data.
 
     Returns:
@@ -651,6 +651,60 @@ def debug_view(request: HttpRequest) -> HttpResponse:
             .order_by("game__display_name", "name"),
         )
 
+    # ── Data source diff ────────────────────────────────────────────────
+    # Compare campaigns imported from different data sources
+    sunkibot_drop_ids: set[str] = set(
+        DropCampaign.objects.filter(
+            data_source="SunkwiBOT/twitch-drops-api",
+        ).values_list("twitch_id", flat=True),
+    )
+    miner_drop_ids: set[str] = set(
+        DropCampaign.objects.filter(data_source="TwitchDropsMiner").values_list(
+            "twitch_id",
+            flat=True,
+        ),
+    )
+
+    # Drops only in SunkwiBOT (not in TwitchDropsMiner)
+    sunkibot_only_drop_ids: set[str] = sunkibot_drop_ids - miner_drop_ids
+    # Drops only in TwitchDropsMiner (not in SunkwiBOT)
+    miner_only_drop_ids: set[str] = miner_drop_ids - sunkibot_drop_ids
+
+    sunkibot_only_drops: QuerySet[DropCampaign] = (
+        DropCampaign.objects
+        .filter(twitch_id__in=sunkibot_only_drop_ids)
+        .select_related("game")
+        .order_by("name")[:200]
+    )
+    miner_only_drops: QuerySet[DropCampaign] = (
+        DropCampaign.objects
+        .filter(twitch_id__in=miner_only_drop_ids)
+        .select_related("game")
+        .order_by("name")[:200]
+    )
+
+    # Same for reward campaigns
+    sunkibot_reward_ids: set[str] = set(
+        RewardCampaign.objects.filter(
+            data_source="SunkwiBOT/twitch-drops-api",
+        ).values_list("twitch_id", flat=True),
+    )
+    miner_reward_ids: set[str] = set(
+        RewardCampaign.objects.filter(data_source="TwitchDropsMiner").values_list(
+            "twitch_id",
+            flat=True,
+        ),
+    )
+
+    sunkibot_only_reward_ids: set[str] = sunkibot_reward_ids - miner_reward_ids
+    miner_only_reward_ids: set[str] = miner_reward_ids - sunkibot_reward_ids
+
+    sunkibot_only_rewards: QuerySet[RewardCampaign] = RewardCampaign.objects.filter(
+        twitch_id__in=sunkibot_only_reward_ids,
+    ).order_by("name")[:200]
+    miner_only_rewards: QuerySet[RewardCampaign] = RewardCampaign.objects.filter(
+        twitch_id__in=miner_only_reward_ids,
+    ).order_by("name")[:200]
     context: dict[str, Any] = {
         "now": now,
         "games_without_owner": games_without_owner,
@@ -662,6 +716,15 @@ def debug_view(request: HttpRequest) -> HttpResponse:
         "active_missing_image": active_missing_image,
         "operation_names_with_counts": operation_names_with_counts,
         "campaigns_missing_dropcampaigndetails": campaigns_missing_dropcampaigndetails,
+        # Data source diff
+        "sunkibot_only_drops_count": len(sunkibot_only_drop_ids),
+        "miner_only_drops_count": len(miner_only_drop_ids),
+        "sunkibot_only_drops": sunkibot_only_drops,
+        "miner_only_drops": miner_only_drops,
+        "sunkibot_only_rewards_count": len(sunkibot_only_reward_ids),
+        "miner_only_rewards_count": len(miner_only_reward_ids),
+        "sunkibot_only_rewards": sunkibot_only_rewards,
+        "miner_only_rewards": miner_only_rewards,
     }
 
     seo_context: dict[str, Any] = _build_seo_context(

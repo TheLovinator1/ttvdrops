@@ -21,7 +21,7 @@ class TwitchConfig(AppConfig):
         # Patch FieldFile.open to swallow FileNotFoundError and provide
         # an empty in-memory file-like object so image dimension
         # calculations don't crash when the on-disk file was removed.
-        try:
+        if hasattr(FieldFile, "open"):
             orig_open: Callable[..., FieldFile] = FieldFile.open
 
             def _safe_open(self: FieldFile, mode: str = "rb") -> FieldFile:
@@ -34,8 +34,8 @@ class TwitchConfig(AppConfig):
                     return self
 
             FieldFile.open = _safe_open
-        except (AttributeError, TypeError) as exc:
-            logger.debug("Failed to patch FieldFile.open: %s", exc)
+        else:
+            logger.debug("FieldFile has no 'open' attribute; skipping patch")
 
         # Register post_save signal handlers that dispatch image download tasks
         # when new Twitch records are created.

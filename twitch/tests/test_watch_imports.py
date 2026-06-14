@@ -1,9 +1,7 @@
-from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import pytest
-from _pytest.capture import CaptureResult
 from django.core.management.base import CommandError
 
 from twitch.management.commands.watch_imports import Command

@@ -47,48 +47,65 @@
             {% endif %}
             <!-- Campaign description -->
             <p>{{ campaign.description|linebreaksbr }}</p>
-            <div>
-                Published
-                <time datetime="{{ campaign.added_at|date:'c' }}"
-                      title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time> ({{ campaign.added_at|timesince }} ago)
-            </div>
-            <div>
-                Last updated
-                <time datetime="{{ campaign.updated_at|date:'c' }}"
-                      title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ campaign.updated_at|timesince }} ago)
-            </div>
-            <!-- Campaign end times -->
-            <div>
-                {% if campaign.end_at < now %}
-                    Ended
+            <dl>
+                <dt>Published</dt>
+                <dd>
+                    <time datetime="{{ campaign.added_at|date:'c' }}"
+                          title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time> ({{ campaign.added_at|timesince }} ago)
+                </dd>
+                <dt>Last updated</dt>
+                <dd>
+                    <time datetime="{{ campaign.updated_at|date:'c' }}"
+                          title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ campaign.updated_at|timesince }} ago)
+                </dd>
+                <!-- Campaign end times -->
+                <dt>
+                    {% if campaign.end_at < now %}
+                        Ended
+                    {% else %}
+                        Ends in
+                    {% endif %}
+                </dt>
+                <dd>
                     <time datetime="{{ campaign.end_at|date:'c' }}"
-                          title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M d, Y H:i" }}</time> ({{ campaign.end_at|timesince }} ago)
-                {% else %}
-                    Ends in
-                    <time datetime="{{ campaign.end_at|date:'c' }}"
-                          title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M d, Y H:i" }}</time> (in {{ campaign.end_at|timeuntil }})
-                {% endif %}
-            </div>
-            <!-- Campaign start times -->
-            <div>
-                {% if campaign.start_at > now %}
-                    Starts in
+                          title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M d, Y H:i" }}</time>
+                    {% if campaign.end_at < now %}
+                        ({{ campaign.end_at|timesince }} ago)
+                    {% else %}
+                        (in {{ campaign.end_at|timeuntil }})
+                    {% endif %}
+                </dd>
+                <!-- Campaign start times -->
+                <dt>
+                    {% if campaign.start_at > now %}
+                        Starts in
+                    {% else %}
+                        Started
+                    {% endif %}
+                </dt>
+                <dd>
                     <time datetime="{{ campaign.start_at|date:'c' }}"
-                          title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M d, Y H:i" }}</time> (in {{ campaign.start_at|timeuntil }})
-                {% else %}
-                    Started
-                    <time datetime="{{ campaign.start_at|date:'c' }}"
-                          title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M d, Y H:i" }}</time> ({{ campaign.start_at|timesince }} ago)
-                {% endif %}
-            </div>
-            <!-- Campaign duration -->
-            <div>
-                Duration is
-                <time datetime="{{ campaign.duration_iso }}"
-                      title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}">
-                    {{ campaign.end_at|timeuntil:campaign.start_at }}
-                </time>
-            </div>
+                          title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M d, Y H:i" }}</time>
+                    {% if campaign.start_at > now %}
+                        (in {{ campaign.start_at|timeuntil }})
+                    {% else %}
+                        ({{ campaign.start_at|timesince }} ago)
+                    {% endif %}
+                </dd>
+                <!-- Campaign duration -->
+                <dt>Duration</dt>
+                <dd>
+                    <time datetime="{{ campaign.duration_iso }}"
+                          title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}">
+                        {{ campaign.end_at|timeuntil:campaign.start_at }}
+                    </time>
+                </dd>
+                <!-- Data source -->
+                <dt>Data source</dt>
+                <dd>
+                    {{ campaign.data_source }}
+                </dd>
+            </dl>
             <!-- Buttons -->
             <div>
                 <!-- Campaign Detail URL -->
@@ -103,9 +120,9 @@
                        title="Atom feed for {{ campaign.game.display_name }} campaigns">[atom]</a>
                     <a href="{% url 'core:game_campaign_feed_discord' campaign.game.twitch_id %}"
                        title="Discord feed for {{ campaign.game.display_name }} campaigns">[discord]</a>
+                    <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                     <a href="{% url 'twitch:twitch-api-v1:get_campaign' campaign.twitch_id %}"
                        title="Twitch campaign API">[api]</a>
-                    <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                 {% endif %}
             </div>
         </div>

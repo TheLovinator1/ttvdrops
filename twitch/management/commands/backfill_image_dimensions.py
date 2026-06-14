@@ -26,23 +26,25 @@ class Command(BaseCommand):
                 or not game.box_art_mime_type
                 or not game.box_art_width
             )
-            if game.box_art_file and needs_update:
-                try:
-                    if not game.box_art_width:
-                        game.box_art_file.open()
+            if not (game.box_art_file and needs_update):
+                continue
 
-                    # populate size and mime if available
-                    with contextlib.suppress(Exception):
-                        game.box_art_size_bytes = game.box_art_file.size
-                    mime, _ = mimetypes.guess_type(game.box_art_file.name or "")
-                    if mime:
-                        game.box_art_mime_type = mime
+            try:
+                if not game.box_art_width:
+                    game.box_art_file.open()
+                with contextlib.suppress(Exception):
+                    game.box_art_size_bytes = game.box_art_file.size
+            except (OSError, ValueError, AttributeError) as exc:
+                self.stdout.write(self.style.ERROR(f"  Failed {game}: {exc}"))
+                continue
 
-                    game.save()
-                    total_updated += 1
-                    self.stdout.write(self.style.SUCCESS(f"  Updated {game}"))
-                except (OSError, ValueError, AttributeError) as exc:
-                    self.stdout.write(self.style.ERROR(f"  Failed {game}: {exc}"))
+            mime, _ = mimetypes.guess_type(game.box_art_file.name or "")
+            if mime:
+                game.box_art_mime_type = mime
+
+            game.save()
+            total_updated += 1
+            self.stdout.write(self.style.SUCCESS(f"  Updated {game}"))
 
         # Update DropCampaign images
         self.stdout.write("Processing DropCampaign image_file...")
@@ -52,22 +54,25 @@ class Command(BaseCommand):
                 or not campaign.image_mime_type
                 or not campaign.image_width
             )
-            if campaign.image_file and needs_update:
-                try:
-                    if not campaign.image_width:
-                        campaign.image_file.open()
+            if not (campaign.image_file and needs_update):
+                continue
 
-                    with contextlib.suppress(Exception):
-                        campaign.image_size_bytes = campaign.image_file.size
-                    mime, _ = mimetypes.guess_type(campaign.image_file.name or "")
-                    if mime:
-                        campaign.image_mime_type = mime
+            try:
+                if not campaign.image_width:
+                    campaign.image_file.open()
+                with contextlib.suppress(Exception):
+                    campaign.image_size_bytes = campaign.image_file.size
+            except (OSError, ValueError, AttributeError) as exc:
+                self.stdout.write(self.style.ERROR(f"  Failed {campaign}: {exc}"))
+                continue
 
-                    campaign.save()
-                    total_updated += 1
-                    self.stdout.write(self.style.SUCCESS(f"  Updated {campaign}"))
-                except (OSError, ValueError, AttributeError) as exc:
-                    self.stdout.write(self.style.ERROR(f"  Failed {campaign}: {exc}"))
+            mime, _ = mimetypes.guess_type(campaign.image_file.name or "")
+            if mime:
+                campaign.image_mime_type = mime
+
+            campaign.save()
+            total_updated += 1
+            self.stdout.write(self.style.SUCCESS(f"  Updated {campaign}"))
 
         # Update DropBenefit images
         self.stdout.write("Processing DropBenefit image_file...")

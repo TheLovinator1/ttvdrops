@@ -10,14 +10,12 @@ import httpx
 from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.management import call_command
-from PIL.Image import Image
 
 if TYPE_CHECKING:
     from urllib.parse import ParseResult
 
     from django.db.models.fields.files import ImageFieldFile
     from PIL.Image import Image
-    from PIL.ImageFile import ImageFile
 
 logger: logging.Logger = logging.getLogger("ttvdrops.tasks")
 
@@ -104,37 +102,46 @@ def _convert_to_modern_formats(source: Path) -> None:
         return
 
     try:
-        from PIL import Image  # noqa: PLC0415
-    except ImportError:
-        return
-
-    try:
-        with Image.open(source) as raw:
-            if raw.mode in {"RGBA", "LA"} or (
-                raw.mode == "P" and "transparency" in raw.info
-            ):
-                background: Image = Image.new("RGB", raw.size, (255, 255, 255))
-                rgba: Image | ImageFile = (
-                    raw.convert("RGBA") if raw.mode == "P" else raw
-                )
-                mask: Image | None = (
-                    rgba.split()[-1] if rgba.mode in {"RGBA", "LA"} else None
-                )
-                background.paste(rgba, mask=mask)
-                img: Image = background
-            elif raw.mode != "RGB":
-                img = raw.convert("RGB")
-            else:
-                img: Image = raw.copy()
-
-        for fmt, ext in (("WEBP", ".webp"), ("AVIF", ".avif")):
-            out: Path = source.with_suffix(ext)
-            try:
-                img.save(out, fmt, quality=80)
-            except Exception:  # noqa: BLE001
-                logger.debug("Could not convert %s to %s.", source, fmt)
+        img = _open_and_prepare_image(source)
     except Exception:  # noqa: BLE001
         logger.debug("Format conversion failed for %s.", source)
+        return
+
+    _save_modern_formats(img, source)
+
+
+def _open_and_prepare_image(source: Path) -> Image:
+    """Open an image and convert it to an RGB-mode PIL Image.
+
+    Returns:
+        An RGB-mode PIL Image ready for saving in modern formats.
+    """
+    from PIL import Image  # noqa: PLC0415
+
+    with Image.open(source) as raw:
+        if raw.mode in {"RGBA", "LA"} or (
+            raw.mode == "P" and "transparency" in raw.info
+        ):
+            background: Image = Image.new("RGB", raw.size, (255, 255, 255))
+            rgba: Image = raw.convert("RGBA") if raw.mode == "P" else raw
+            mask: Image | None = (
+                rgba.split()[-1] if rgba.mode in {"RGBA", "LA"} else None
+            )
+            background.paste(rgba, mask=mask)
+            return background
+        if raw.mode != "RGB":
+            return raw.convert("RGB")
+        return raw.copy()
+
+
+def _save_modern_formats(img: Image, source: Path) -> None:
+    """Save *img* as WebP and AVIF alongside the original *source*."""
+    for fmt, ext in (("WEBP", ".webp"), ("AVIF", ".avif")):
+        out: Path = source.with_suffix(ext)
+        try:
+            img.save(out, fmt, quality=80)
+        except Exception:  # noqa: BLE001
+            logger.debug("Could not convert %s to %s.", source, fmt)
 
 
 # ---------------------------------------------------------------------------
