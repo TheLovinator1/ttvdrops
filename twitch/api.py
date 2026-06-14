@@ -164,6 +164,7 @@ class V1GameDetailSchema(V1GameSchema):
     """Twitch game detail response."""
 
     campaigns: list[V1DropCampaignSummarySchema]
+    reward_campaigns: list[V1RewardCampaignSchema]
 
 
 class V1ChannelDetailSchema(V1ChannelSchema):
@@ -642,6 +643,13 @@ def get_game(request: HttpRequest, twitch_id: str) -> V1GameDetailSchema:
         DropCampaign.objects.filter(game=game),
     ).order_by("-end_at")
     now = timezone.now()
+    reward_campaigns = list(
+        RewardCampaign.objects
+        .filter(game=game)
+        .select_related("game")
+        .prefetch_related("game__owners")
+        .order_by("-starts_at"),
+    )
     return V1GameDetailSchema(
         twitch_id=game.twitch_id,
         slug=game.slug,
@@ -658,6 +666,9 @@ def get_game(request: HttpRequest, twitch_id: str) -> V1GameDetailSchema:
         updated_at=game.updated_at,
         campaigns=[
             _serialize_campaign_summary(campaign, now) for campaign in campaigns
+        ],
+        reward_campaigns=[
+            _serialize_reward_campaign(rc, now) for rc in reward_campaigns
         ],
     )
 

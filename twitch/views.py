@@ -721,6 +721,27 @@ class GameDetailView(DetailView):
         active_campaigns, upcoming_campaigns, expired_campaigns = (
             DropCampaign.split_for_channel_detail(campaigns_list, now)
         )
+
+        # Fetch reward campaigns for this game
+        all_reward_campaigns: list[RewardCampaign] = list(
+            RewardCampaign.objects
+            .filter(game=game)
+            .select_related("game")
+            .order_by("-starts_at"),
+        )
+        active_rewards: list[RewardCampaign] = []
+        upcoming_rewards: list[RewardCampaign] = []
+        expired_rewards: list[RewardCampaign] = []
+        for rc in all_reward_campaigns:
+            if rc.starts_at is None or rc.ends_at is None:
+                continue
+            if rc.starts_at <= now <= rc.ends_at:
+                active_rewards.append(rc)
+            elif rc.starts_at > now:
+                upcoming_rewards.append(rc)
+            elif rc.ends_at < now:
+                expired_rewards.append(rc)
+
         owners: list[Organization] = list(getattr(game, "owners_for_detail", []))
 
         game_name: str = game.get_game_name
@@ -802,6 +823,9 @@ class GameDetailView(DetailView):
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
+            "active_rewards": active_rewards,
+            "upcoming_rewards": upcoming_rewards,
+            "expired_rewards": expired_rewards,
             "owner": owners[0] if owners else None,
             "owners": owners,
             "now": now,

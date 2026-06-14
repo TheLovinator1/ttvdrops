@@ -26,16 +26,18 @@
     <div>
         <a href="{% url 'core:dashboard' %}">Dashboard</a> > <a href="{% url 'twitch:org_list' %}">Organizations</a> > {{ organization.name }}
     </div>
-    <div>
-        Published
-        <time datetime="{{ organization.added_at|date:'c' }}"
-              title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time> ({{ organization.added_at|timesince }} ago)
-    </div>
-    <div>
-        Last updated
-        <time datetime="{{ organization.updated_at|date:'c' }}"
-              title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time> ({{ organization.updated_at|timesince }} ago)
-    </div>
+    <dl>
+        <dt>Published</dt>
+        <dd>
+            <time datetime="{{ organization.added_at|date:'c' }}"
+                  title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time> ({{ organization.added_at|timesince }} ago)
+        </dd>
+        <dt>Last updated</dt>
+        <dd>
+            <time datetime="{{ organization.updated_at|date:'c' }}"
+                  title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time> ({{ organization.updated_at|timesince }} ago)
+        </dd>
+    </dl>
     <header>
         <h2>Games by {{ organization.name }}</h2>
     </header>

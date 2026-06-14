@@ -51,61 +51,74 @@
                     <a href="{% url 'kick:campaign_list' %}">Campaigns</a> >
                     {{ campaign.name }}
                 </div>
-                <div>
+                <dl>
                     {% if campaign.category %}
-                        Category:
-                        <a href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a>
+                        <dt>Category</dt>
+                        <dd>
+                            <a href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a>
+                        </dd>
                     {% endif %}
-                </div>
-                <div>
                     {% if campaign.organization %}
-                        Organization:
-                        <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}">{{ campaign.organization.name }}</a>
+                        <dt>Organization</dt>
+                        <dd>
+                            <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}">{{ campaign.organization.name }}</a>
+                        </dd>
                     {% endif %}
-                </div>
-                {% if campaign.ends_at %}
-                    <div>
-                        {% if campaign.ends_at > now %}
-                            Ends
-                        {% else %}
-                            Ended at
-                        {% endif %}
-                        <time datetime="{{ campaign.ends_at|date:'c' }}"
-                              title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|date:"M d, Y H:i" }}</time>
-                        {% if campaign.ends_at < now %}
-                            (ended {{ campaign.ends_at|timesince }} ago)
-                        {% else %}
-                            (in {{ campaign.ends_at|timeuntil }})
-                        {% endif %}
-                    </div>
-                {% endif %}
-                {% if campaign.starts_at %}
-                    <div>
-                        {% if campaign.starts_at > now %}
-                            Starts
-                        {% else %}
-                            Started at
-                        {% endif %}
-                        <time datetime="{{ campaign.starts_at|date:'c' }}"
-                              title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">{{ campaign.starts_at|date:"M d, Y H:i" }}</time>
-                        {% if campaign.starts_at < now %}
-                            (started {{ campaign.starts_at|timesince }} ago)
-                        {% else %}
-                            (in {{ campaign.starts_at|timeuntil }})
-                        {% endif %}
-                    </div>
-                {% endif %}
-                {% if campaign.duration %}<div>Duration: {{ campaign.duration }}</div>{% endif %}
-                <div>
-                    Added <time datetime="{{ campaign.added_at|date:'c' }}"
-       title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y" }}</time>
-                    ({{ campaign.added_at|timesince }} ago)
-                </div>
-                <div>
-                    Updated <time datetime="{{ campaign.updated_at|date:'c' }}"
-       title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y" }}</time>
-                    ({{ campaign.updated_at|timesince }} ago)
-                </div>
+                    {% if campaign.ends_at %}
+                        <dt>
+                            {% if campaign.ends_at > now %}
+                                Ends
+                            {% else %}
+                                Ended at
+                            {% endif %}
+                        </dt>
+                        <dd>
+                            <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|date:"M d, Y H:i" }}</time>
+                            {% if campaign.ends_at < now %}
+                                (ended {{ campaign.ends_at|timesince }} ago)
+                            {% else %}
+                                (in {{ campaign.ends_at|timeuntil }})
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+                    {% if campaign.starts_at %}
+                        <dt>
+                            {% if campaign.starts_at > now %}
+                                Starts
+                            {% else %}
+                                Started at
+                            {% endif %}
+                        </dt>
+                        <dd>
+                            <time datetime="{{ campaign.starts_at|date:'c' }}"
+                                  title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">{{ campaign.starts_at|date:"M d, Y H:i" }}</time>
+                            {% if campaign.starts_at < now %}
+                                (started {{ campaign.starts_at|timesince }} ago)
+                            {% else %}
+                                (in {{ campaign.starts_at|timeuntil }})
+                            {% endif %}
+                        </dd>
+                    {% endif %}
+                    {% if campaign.duration %}
+                        <dt>Duration</dt>
+                        <dd>
+                            {{ campaign.duration }}
+                        </dd>
+                    {% endif %}
+                    <dt>Added</dt>
+                    <dd>
+                        <time datetime="{{ campaign.added_at|date:'c' }}"
+                              title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y" }}</time>
+                        ({{ campaign.added_at|timesince }} ago)
+                    </dd>
+                    <dt>Updated</dt>
+                    <dd>
+                        <time datetime="{{ campaign.updated_at|date:'c' }}"
+                              title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y" }}</time>
+                        ({{ campaign.updated_at|timesince }} ago)
+                    </dd>
+                </dl>
                 <div>
                     {% if campaign.channels.all %}
                         Participating channels:

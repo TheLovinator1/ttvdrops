@@ -21,6 +21,7 @@ from twitch.feeds import RSS_STYLESHEETS
 from twitch.feeds import DropCampaignFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameFeed
+from twitch.feeds import GameRewardCampaignFeed
 from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignFeed
 from twitch.feeds import TTVDropsBaseFeed
@@ -297,6 +298,11 @@ class RSSFeedTestCase(TestCase):
                 {},
                 f"https://ttvdrops.lovinator.space{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
             ),
+            (
+                "core:game_reward_feed_atom",
+                {"twitch_id": self.game.twitch_id},
+                f"https://ttvdrops.lovinator.space{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
+            ),
         ]
 
         for url_name, kwargs, expected_entry_id in atom_feed_cases:
@@ -347,6 +353,7 @@ class RSSFeedTestCase(TestCase):
             reverse("core:campaign_feed_atom"),
             reverse("core:game_feed_atom"),
             reverse("core:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("core:game_reward_feed_atom", args=[self.game.twitch_id]),
             reverse("core:organization_feed_atom"),
             reverse("core:reward_campaign_feed_atom"),
         ]
@@ -425,10 +432,12 @@ class RSSFeedTestCase(TestCase):
             reverse("core:game_feed"),
             reverse("core:campaign_feed"),
             reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:game_reward_feed", args=[self.game.twitch_id]),
             reverse("core:reward_campaign_feed"),
             reverse("core:game_feed_atom"),
             reverse("core:campaign_feed_atom"),
             reverse("core:game_campaign_feed_atom", args=[self.game.twitch_id]),
+            reverse("core:game_reward_feed_atom", args=[self.game.twitch_id]),
             reverse("core:reward_campaign_feed_atom"),
         ]
 
@@ -484,6 +493,7 @@ class RSSFeedTestCase(TestCase):
             reverse("core:campaign_feed"),
             reverse("core:game_feed"),
             reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:game_reward_feed", args=[self.game.twitch_id]),
             reverse("core:organization_feed"),
             reverse("core:reward_campaign_feed"),
         ]
@@ -516,12 +526,14 @@ class RSSFeedTestCase(TestCase):
             GameFeed,
             DropCampaignFeed,
             GameCampaignFeed,
+            GameRewardCampaignFeed,
             RewardCampaignFeed,
         ):
             feed: (
                 DropCampaignFeed
                 | GameCampaignFeed
                 | GameFeed
+                | GameRewardCampaignFeed
                 | OrganizationRSSFeed
                 | RewardCampaignFeed
             ) = feed_class()
@@ -535,6 +547,7 @@ class RSSFeedTestCase(TestCase):
             reverse("core:campaign_feed"),
             reverse("core:game_feed"),
             reverse("core:game_campaign_feed", args=[self.game.twitch_id]),
+            reverse("core:game_reward_feed", args=[self.game.twitch_id]),
             reverse("core:organization_feed"),
             reverse("core:reward_campaign_feed"),
         ]
@@ -798,6 +811,89 @@ class RSSFeedTestCase(TestCase):
         assert "Active Reward Campaign" in content
         assert "Past Reward Campaign" not in content
         assert "Upcoming Reward Campaign" not in content
+
+    def test_game_reward_campaign_feed(self) -> None:
+        """Test game-specific reward campaign feed returns 200."""
+        url: str = reverse("core:game_reward_feed", args=[self.game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        assert response["Content-Disposition"] == "inline"
+        content: str = response.content.decode("utf-8")
+        assert "Test Game" in content
+        assert "Test Brand: Test Reward Campaign" in content
+
+    def test_game_reward_campaign_feed_filters_correctly(self) -> None:
+        """Test game reward feed only shows rewards for that game."""
+        other_game: Game = Game.objects.create(
+            twitch_id="other-reward-game-123",
+            slug="other-reward-game",
+            name="Other Game Rewards",
+            display_name="Other Game Rewards",
+        )
+        other_game.owners.add(self.org)
+        RewardCampaign.objects.create(
+            twitch_id="other-reward-123",
+            name="Other Reward Campaign",
+            brand="Other Brand",
+            starts_at=timezone.now() - timedelta(days=1),
+            ends_at=timezone.now() + timedelta(days=7),
+            status="ACTIVE",
+            summary="Other reward summary",
+            instructions="Do other things",
+            external_url="https://example.com/other-reward",
+            about_url="https://example.com/about-other-reward",
+            is_sitewide=False,
+            game=other_game,
+        )
+
+        url: str = reverse("core:game_reward_feed", args=[self.game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        content: str = response.content.decode("utf-8")
+
+        assert "Test Brand: Test Reward Campaign" in content
+        assert "Other Brand: Other Reward Campaign" not in content
+
+    def test_game_reward_campaign_feed_only_includes_active_campaigns(self) -> None:
+        """Game reward campaign feed should exclude old and upcoming campaigns."""
+        now: datetime.datetime = timezone.now()
+        RewardCampaign.objects.create(
+            twitch_id="game-reward-past-123",
+            name="Game Past Reward",
+            brand="Test Brand",
+            starts_at=now - timedelta(days=10),
+            ends_at=now - timedelta(days=1),
+            status="EXPIRED",
+            summary="Past reward",
+            instructions="Was active",
+            external_url="https://example.com/past-reward",
+            about_url="https://example.com/about-past-reward",
+            is_sitewide=False,
+            game=self.game,
+        )
+        RewardCampaign.objects.create(
+            twitch_id="game-reward-upcoming-123",
+            name="Game Upcoming Reward",
+            brand="Test Brand",
+            starts_at=now + timedelta(days=1),
+            ends_at=now + timedelta(days=10),
+            status="UPCOMING",
+            summary="Upcoming reward",
+            instructions="Wait",
+            external_url="https://example.com/upcoming-reward",
+            about_url="https://example.com/about-upcoming-reward",
+            is_sitewide=False,
+            game=self.game,
+        )
+
+        url: str = reverse("core:game_reward_feed", args=[self.game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        assert "Test Reward Campaign" in content
+        assert "Game Past Reward" not in content
+        assert "Game Upcoming Reward" not in content
 
     def test_game_campaign_feed_enclosure_helpers(self) -> None:
         """GameCampaignFeed helper methods should pull from the model fields."""
@@ -1107,6 +1203,35 @@ def test_game_campaign_feed_queries_do_not_scale_with_items(
 
 
 @pytest.mark.django_db
+def test_game_reward_campaign_feed_queries_bounded(
+    client: Client,
+    django_assert_num_queries: QueryAsserter,
+) -> None:
+    """Game reward campaign feed should stay within a modest query budget."""
+    org: Organization = Organization.objects.create(
+        twitch_id="test-org-game-reward-queries",
+        name="Query Org Game Rewards",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="test-game-reward-queries",
+        slug="query-game-reward",
+        name="Query Game Rewards",
+        display_name="Query Game Rewards",
+    )
+    game.owners.add(org)
+
+    for i in range(3):
+        _build_reward_campaign(game, i)
+
+    url: str = reverse("core:game_reward_feed", args=[game.twitch_id])
+
+    with django_assert_num_queries(2, exact=True):
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
 def test_organization_feed_queries_bounded(
     client: Client,
     django_assert_num_queries: QueryAsserter,
@@ -1235,6 +1360,7 @@ URL_NAMES: list[tuple[str, dict[str, str]]] = [
     ("core:campaign_feed", {}),
     ("core:game_feed", {}),
     ("core:game_campaign_feed", {"twitch_id": "test-game-123"}),
+    ("core:game_reward_feed", {"twitch_id": "test-game-123"}),
     ("core:organization_feed", {}),
     ("core:reward_campaign_feed", {}),
 ]
@@ -1465,6 +1591,11 @@ class DiscordFeedTestCase(TestCase):
                 {},
                 f"https://ttvdrops.lovinator.space{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
             ),
+            (
+                "core:game_reward_feed_discord",
+                {"twitch_id": self.game.twitch_id},
+                f"https://ttvdrops.lovinator.space{reverse('twitch:reward_campaign_detail', args=[self.reward_campaign.twitch_id])}",
+            ),
         ]
 
         for url_name, kwargs, expected_entry_id in discord_feed_cases:
@@ -1490,6 +1621,7 @@ class DiscordFeedTestCase(TestCase):
             reverse("core:campaign_feed_discord"),
             reverse("core:game_feed_discord"),
             reverse("core:game_campaign_feed_discord", args=[self.game.twitch_id]),
+            reverse("core:game_reward_feed_discord", args=[self.game.twitch_id]),
             reverse("core:organization_feed_discord"),
             reverse("core:reward_campaign_feed_discord"),
         ]
@@ -1518,9 +1650,41 @@ class DiscordFeedTestCase(TestCase):
         )
         assert "()" not in content
 
+    def test_game_reward_campaign_discord_feed(self) -> None:
+        """Test game-specific reward campaign Discord feed returns 200."""
+        url: str = reverse(
+            "core:game_reward_feed_discord",
+            args=[self.game.twitch_id],
+        )
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/xml; charset=utf-8"
+        content: str = response.content.decode("utf-8")
+        assert "<feed" in content
+        assert "Test Game Discord" in content
+
     def test_discord_reward_campaign_feed_contains_discord_timestamps(self) -> None:
         """Discord reward campaign feed should contain Discord relative timestamps."""
         url: str = reverse("core:reward_campaign_feed_discord")
+        response: _MonkeyPatchedWSGIResponse = self.client.get(url)
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+
+        # Should contain Discord timestamp format (double-escaped in XML payload)
+        discord_pattern: re.Pattern[str] = re.compile(r"&amp;lt;t:\d+:R&amp;gt;")
+        assert discord_pattern.search(content), (
+            f"Expected Discord timestamp format &amp;lt;t:UNIX_TIMESTAMP:R&amp;gt; in content, got: {content}"
+        )
+        assert "()" not in content
+
+    def test_discord_game_reward_campaign_feed_contains_discord_timestamps(
+        self,
+    ) -> None:
+        """Discord game reward campaign feed should contain Discord relative timestamps."""
+        url: str = reverse(
+            "core:game_reward_feed_discord",
+            args=[self.game.twitch_id],
+        )
         response: _MonkeyPatchedWSGIResponse = self.client.get(url)
         assert response.status_code == 200
         content: str = response.content.decode("utf-8")

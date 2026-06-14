@@ -17,6 +17,18 @@
               type="application/atom+xml"
               title="{{ game.display_name }} campaigns (Discord)"
               href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}" />
+        <link rel="alternate"
+              type="application/rss+xml"
+              title="{{ game.display_name }} rewards (RSS)"
+              href="{% url 'core:game_reward_feed' game.twitch_id %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="{{ game.display_name }} rewards (Atom)"
+              href="{% url 'core:game_reward_feed_atom' game.twitch_id %}" />
+        <link rel="alternate"
+              type="application/atom+xml"
+              title="{{ game.display_name }} rewards (Discord)"
+              href="{% url 'core:game_reward_feed_discord' game.twitch_id %}" />
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
@@ -37,34 +49,48 @@
             <div>
                 <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:games_grid' %}">Games</a> > {{ game.display_name }}
             </div>
-            <!-- Game owner -->
-            {% if owners %}
-                <div style="font-size: 0.9em;">
-                    Owned by
-                    {% for owner in owners %}
-                        <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
-                        {% if not forloop.last %}-{% endif %}
-                    {% endfor %}
-                </div>
-            {% endif %}
+            <!-- Game metadata -->
+            <dl>
+                {% if owners %}
+                    <dt>Owned by</dt>
+                    <dd>
+                        {% for owner in owners %}
+                            <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
+                            {% if not forloop.last %}-{% endif %}
+                        {% endfor %}
+                    </dd>
+                {% endif %}
+                <dt>Published</dt>
+                <dd>
+                    <time datetime="{{ game.added_at|date:'c' }}"
+                          title="{{ game.added_at|date:'DATETIME_FORMAT' }}">{{ game.added_at|date:"M d, Y H:i" }}</time> ({{ game.added_at|timesince }} ago)
+                </dd>
+                <dt>Last updated</dt>
+                <dd>
+                    <time datetime="{{ game.updated_at|date:'c' }}"
+                          title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time> ({{ game.updated_at|timesince }} ago)
+                </dd>
+            </dl>
+            <!-- Campaign Feeds -->
             <div>
-                Published
-                <time datetime="{{ game.added_at|date:'c' }}"
-                      title="{{ game.added_at|date:'DATETIME_FORMAT' }}">{{ game.added_at|date:"M d, Y H:i" }}</time> ({{ game.added_at|timesince }} ago)
-            </div>
-            <div>
-                Last updated
-                <time datetime="{{ game.updated_at|date:'c' }}"
-                      title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time> ({{ game.updated_at|timesince }} ago)
-            </div>
-            <!-- RSS Feeds -->
-            <div>
+                Campaigns:
                 <a href="{% url 'core:game_campaign_feed' game.twitch_id %}"
                    title="RSS feed for {{ game.display_name }} campaigns">[rss]</a>
                 <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}"
                    title="Atom feed for {{ game.display_name }} campaigns">[atom]</a>
                 <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}"
                    title="Discord feed for {{ game.display_name }} campaigns">[discord]</a>
+            </div>
+            <div>
+                Rewards:
+                <a href="{% url 'core:game_reward_feed' game.twitch_id %}"
+                   title="RSS feed for {{ game.display_name }} rewards">[rss]</a>
+                <a href="{% url 'core:game_reward_feed_atom' game.twitch_id %}"
+                   title="Atom feed for {{ game.display_name }} rewards">[atom]</a>
+                <a href="{% url 'core:game_reward_feed_discord' game.twitch_id %}"
+                   title="Discord feed for {{ game.display_name }} rewards">[discord]</a>
+            </div>
+            <div>
                 <a href="{% url 'twitch:twitch-api-v1:get_game' game.twitch_id %}"
                    title="Twitch game API">[api]</a>
                 <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
@@ -162,5 +188,121 @@
     {% endif %}
     {% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
         <p id="no-campaigns-message">No campaigns found for this game.</p>
+    {% endif %}
+    {% if active_rewards %}
+        <h5 id="active-rewards-header">Active Rewards</h5>
+        <table id="active-rewards-table">
+            <tbody>
+                {% for reward in active_rewards %}
+                    <tr id="reward-row-{{ reward.twitch_id }}">
+                        <td style="width: 130px; vertical-align: top;">
+                            <a href="{% url 'twitch:reward_campaign_detail' reward.twitch_id %}">
+                                {% picture reward.image_best_url alt="Image for "|add:reward.name width=120 %}
+                            </a>
+                        </td>
+                        <td style="vertical-align: top;">
+                            <a href="{% url 'twitch:reward_campaign_detail' reward.twitch_id %}">
+                                {% if reward.brand %}{{ reward.brand }}:{% endif %}
+                                {{ reward.name }}
+                            </a>
+                            {% if reward.is_sitewide %}
+                                <span title="Sitewide reward">[Sitewide]</span>
+                            {% endif %}
+                            {% if reward.summary %}
+                                <br />
+                                <small>{{ reward.summary|truncatewords:30|linebreaksbr }}</small>
+                            {% endif %}
+                        </td>
+                        <td style="vertical-align: top;">
+                            <span title="{{ reward.ends_at|date:'M d, Y H:i' }}">Ends in {{ reward.ends_at|timeuntil }}</span>
+                        </td>
+                        <td style="vertical-align: top; white-space: nowrap;">
+                            {% if reward.about_url and reward.external_url and reward.about_url == reward.external_url %}
+                                <a href="{{ reward.about_url }}">About / Redeem</a>
+                            {% else %}
+                                {% if reward.about_url %}<a href="{{ reward.about_url }}">About</a>{% endif %}
+                                {% if reward.external_url %}· <a href="{{ reward.external_url }}">Redeem</a>{% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+    {% if upcoming_rewards %}
+        <h5 id="upcoming-rewards-header">Upcoming Rewards</h5>
+        <table id="upcoming-rewards-table">
+            <tbody>
+                {% for reward in upcoming_rewards %}
+                    <tr id="reward-row-{{ reward.twitch_id }}">
+                        <td style="width: 130px; vertical-align: top;">
+                            <a href="{% url 'twitch:reward_campaign_detail' reward.twitch_id %}">
+                                {% picture reward.image_best_url alt="Image for "|add:reward.name width=120 %}
+                            </a>
+                        </td>
+                        <td style="vertical-align: top;">
+                            <a href="{% url 'twitch:reward_campaign_detail' reward.twitch_id %}">
+                                {% if reward.brand %}{{ reward.brand }}:{% endif %}
+                                {{ reward.name }}
+                            </a>
+                            {% if reward.is_sitewide %}<span title="Sitewide reward">[Sitewide]</span>{% endif %}
+                            {% if reward.summary %}
+                                <br />
+                                <small>{{ reward.summary|truncatewords:30|linebreaksbr }}</small>
+                            {% endif %}
+                        </td>
+                        <td style="vertical-align: top;">
+                            <span title="Starts on {{ reward.starts_at|date:'M d, Y H:i' }}">Starts in {{ reward.starts_at|timeuntil }}</span>
+                        </td>
+                        <td style="vertical-align: top; white-space: nowrap;">
+                            {% if reward.about_url and reward.external_url and reward.about_url == reward.external_url %}
+                                <a href="{{ reward.about_url }}">About / Redeem</a>
+                            {% else %}
+                                {% if reward.about_url %}<a href="{{ reward.about_url }}">About</a>{% endif %}
+                                {% if reward.external_url %} · <a href="{{ reward.external_url }}">Redeem</a>{% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+    {% if expired_rewards %}
+        <h5 id="expired-rewards-header">Past Rewards</h5>
+        <table id="expired-rewards-table">
+            <tbody>
+                {% for reward in expired_rewards %}
+                    <tr id="reward-row-{{ reward.twitch_id }}">
+                        <td style="width: 130px; vertical-align: top;">
+                            <a href="{% url 'twitch:reward_campaign_detail' reward.twitch_id %}">
+                                {% picture reward.image_best_url alt="Image for "|add:reward.name width=120 %}
+                            </a>
+                        </td>
+                        <td style="vertical-align: top;">
+                            <a href="{% url 'twitch:reward_campaign_detail' reward.twitch_id %}">
+                                {% if reward.brand %}{{ reward.brand }}:{% endif %}
+                                {{ reward.name }}
+                            </a>
+                            {% if reward.is_sitewide %}<span title="Sitewide reward">[Sitewide]</span>{% endif %}
+                            {% if reward.summary %}
+                                <br />
+                                <small>{{ reward.summary|truncatewords:30|linebreaksbr }}</small>
+                            {% endif %}
+                        </td>
+                        <td style="vertical-align: top;">
+                            <span title="Ended on {{ reward.ends_at|date:'M d, Y H:i' }}">{{ reward.ends_at|timesince }} ago</span>
+                        </td>
+                        <td style="vertical-align: top; white-space: nowrap;">
+                            {% if reward.about_url and reward.external_url and reward.about_url == reward.external_url %}
+                                <a href="{{ reward.about_url }}">About / Redeem</a>
+                            {% else %}
+                                {% if reward.about_url %}<a href="{{ reward.about_url }}">About</a>{% endif %}
+                                {% if reward.external_url %} · <a href="{{ reward.external_url }}">Redeem</a>{% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     {% endif %}
 {% endblock content %}

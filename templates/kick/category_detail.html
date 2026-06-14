@@ -63,20 +63,36 @@
                         <a href="{{ category.kick_url }}">{{ category.kick_url }}</a>
                     </p>
                 {% endif %}
-                <p style="margin: 0.25rem 0; font-size: 0.85rem; color: #666;">
-                    ID: {{ category.kick_id }}
-                    - Added: <time datetime="{{ category.added_at|date:'c' }}"
-       title="{{ category.added_at|date:'DATETIME_FORMAT' }}">{{ category.added_at|date:"M d, Y" }}</time>
-                    ({{ category.added_at|timesince }} ago)
-                    - Updated: <time datetime="{{ category.updated_at|date:'c' }}"
-       title="{{ category.updated_at|date:'DATETIME_FORMAT' }}">{{ category.updated_at|date:"M d, Y" }}</time>
-                    ({{ category.updated_at|timesince }} ago)
-                </p>
-                <p style="margin: 0.25rem 0; color: #666;">
-                    Active: {{ active_campaigns|length }}
-                    - Upcoming: {{ upcoming_campaigns|length }}
-                    - Expired: {{ expired_campaigns|length }}
-                </p>
+                <dl>
+                    <dt>ID</dt>
+                    <dd>
+                        {{ category.kick_id }}
+                    </dd>
+                    <dt>Added</dt>
+                    <dd>
+                        <time datetime="{{ category.added_at|date:'c' }}"
+                              title="{{ category.added_at|date:'DATETIME_FORMAT' }}">{{ category.added_at|date:"M d, Y" }}</time>
+                        ({{ category.added_at|timesince }} ago)
+                    </dd>
+                    <dt>Updated</dt>
+                    <dd>
+                        <time datetime="{{ category.updated_at|date:'c' }}"
+                              title="{{ category.updated_at|date:'DATETIME_FORMAT' }}">{{ category.updated_at|date:"M d, Y" }}</time>
+                        ({{ category.updated_at|timesince }} ago)
+                    </dd>
+                    <dt>Active</dt>
+                    <dd>
+                        {{ active_campaigns|length }}
+                    </dd>
+                    <dt>Upcoming</dt>
+                    <dd>
+                        {{ upcoming_campaigns|length }}
+                    </dd>
+                    <dt>Expired</dt>
+                    <dd>
+                        {{ expired_campaigns|length }}
+                    </dd>
+                </dl>
             </div>
         </div>
         <hr />

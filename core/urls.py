@@ -17,6 +17,9 @@ from twitch.feeds import GameCampaignDiscordFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameDiscordFeed
 from twitch.feeds import GameFeed
+from twitch.feeds import GameRewardCampaignAtomFeed
+from twitch.feeds import GameRewardCampaignDiscordFeed
+from twitch.feeds import GameRewardCampaignFeed
 from twitch.feeds import OrganizationAtomFeed
 from twitch.feeds import OrganizationDiscordFeed
 from twitch.feeds import OrganizationRSSFeed
@@ -93,6 +96,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=OrganizationRSSFeed(),
         name="organization_feed",
     ),
+    # /rss/games/<twitch_id>/rewards/ - active reward campaigns for a specific game
+    path(
+        route="rss/games/<str:twitch_id>/rewards/",
+        view=GameRewardCampaignFeed(),
+        name="game_reward_feed",
+    ),
     # /rss/reward-campaigns/ - all active reward campaigns
     path(
         route="rss/reward-campaigns/",
@@ -121,6 +130,11 @@ urlpatterns: list[URLPattern | URLResolver] = [
         name="organization_feed_atom",
     ),
     path(
+        route="atom/games/<str:twitch_id>/rewards/",
+        view=GameRewardCampaignAtomFeed(),
+        name="game_reward_feed_atom",
+    ),
+    path(
         route="atom/reward-campaigns/",
         view=RewardCampaignAtomFeed(),
         name="reward_campaign_feed_atom",
@@ -145,6 +159,11 @@ urlpatterns: list[URLPattern | URLResolver] = [
         route="discord/organizations/",
         view=OrganizationDiscordFeed(),
         name="organization_feed_discord",
+    ),
+    path(
+        route="discord/games/<str:twitch_id>/rewards/",
+        view=GameRewardCampaignDiscordFeed(),
+        name="game_reward_feed_discord",
     ),
     path(
         route="discord/reward-campaigns/",

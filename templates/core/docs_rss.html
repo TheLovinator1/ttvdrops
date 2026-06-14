@@ -127,11 +127,15 @@
         {% if game %}
             <section>
                 <h2>Filtered RSS Feeds</h2>
-                <p>You can subscribe to RSS feeds scoped to a specific game.</p>
+                <p>
+                    You can subscribe to RSS feeds scoped to a specific game.
+                    The Rewards feed will be empty if the game has no active reward campaigns.
+                </p>
                 <table>
                     <thead>
                         <tr>
                             <th>Game</th>
+                            <th>Feed Type</th>
                             <th>RSS</th>
                             <th>Atom</th>
                             <th>Discord</th>
@@ -139,20 +143,39 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td>{{ game.display_name }}</td>
+                            <td rowspan="2">{{ game.display_name }}</td>
+                            <td>Campaigns</td>
                             <td>
                                 <a href="{% url 'core:game_campaign_feed' game.twitch_id %}">
-                                    https://ttvdrops.lovinator.space/rss/games/{{ game.twitch_id }}/
+                                    https://ttvdrops.lovinator.space/rss/games/{{ game.twitch_id }}/campaigns/
                                 </a>
                             </td>
                             <td>
                                 <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}">
-                                    https://ttvdrops.lovinator.space/atom/games/{{ game.twitch_id }}/
+                                    https://ttvdrops.lovinator.space/atom/games/{{ game.twitch_id }}/campaigns/
                                 </a>
                             </td>
                             <td>
                                 <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}">
-                                    https://ttvdrops.lovinator.space/discord/games/{{ game.twitch_id }}/
+                                    https://ttvdrops.lovinator.space/discord/games/{{ game.twitch_id }}/campaigns/
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Rewards</td>
+                            <td>
+                                <a href="{% url 'core:game_reward_feed' game.twitch_id %}">
+                                    https://ttvdrops.lovinator.space/rss/games/{{ game.twitch_id }}/rewards/
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{% url 'core:game_reward_feed_atom' game.twitch_id %}">
+                                    https://ttvdrops.lovinator.space/atom/games/{{ game.twitch_id }}/rewards/
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{% url 'core:game_reward_feed_discord' game.twitch_id %}">
+                                    https://ttvdrops.lovinator.space/discord/games/{{ game.twitch_id }}/rewards/
                                 </a>
                             </td>
                         </tr>

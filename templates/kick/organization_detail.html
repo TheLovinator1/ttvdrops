@@ -31,15 +31,24 @@
                         <a href="{{ org.url }}">{{ org.url }}</a>
                     </p>
                 {% endif %}
-                <p style="margin: 0.25rem 0; font-size: 0.85rem; color: #666;">
-                    ID: {{ org.kick_id }}
-                    - Added: <time datetime="{{ org.added_at|date:'c' }}"
-       title="{{ org.added_at|date:'DATETIME_FORMAT' }}">{{ org.added_at|date:"M d, Y" }}</time>
-                    ({{ org.added_at|timesince }} ago)
-                    - Updated: <time datetime="{{ org.updated_at|date:'c' }}"
-       title="{{ org.updated_at|date:'DATETIME_FORMAT' }}">{{ org.updated_at|date:"M d, Y" }}</time>
-                    ({{ org.updated_at|timesince }} ago)
-                </p>
+                <dl>
+                    <dt>ID</dt>
+                    <dd>
+                        {{ org.kick_id }}
+                    </dd>
+                    <dt>Added</dt>
+                    <dd>
+                        <time datetime="{{ org.added_at|date:'c' }}"
+                              title="{{ org.added_at|date:'DATETIME_FORMAT' }}">{{ org.added_at|date:"M d, Y" }}</time>
+                        ({{ org.added_at|timesince }} ago)
+                    </dd>
+                    <dt>Updated</dt>
+                    <dd>
+                        <time datetime="{{ org.updated_at|date:'c' }}"
+                              title="{{ org.updated_at|date:'DATETIME_FORMAT' }}">{{ org.updated_at|date:"M d, Y" }}</time>
+                        ({{ org.updated_at|timesince }} ago)
+                    </dd>
+                </dl>
             </div>
         </div>
         <hr />

@@ -38,72 +38,81 @@
             </div>
             <!-- Campaign description -->
             <p>{{ campaign.description|linebreaksbr }}</p>
-            <div>
-                Published
-                {% if campaign.scraped_at %}
-                    <time datetime="{{ campaign.scraped_at|date:'c' }}"
-                          title="{{ campaign.scraped_at|date:'DATETIME_FORMAT' }}">{{ campaign.scraped_at|date:"M d, Y H:i" }}</time> ({{ campaign.scraped_at|timesince }} ago)
-                {% elif campaign.start_date %}
-                    <time datetime="{{ campaign.start_date|date:'c' }}"
-                          title="{{ campaign.start_date|date:'DATETIME_FORMAT' }}">{{ campaign.start_date|date:"M d, Y H:i" }}</time> ({{ campaign.start_date|timesince }} ago)
-                {% else %}
-                    unknown
-                {% endif %}
-            </div>
-            <div>
-                Last updated
-                {% if campaign.scraped_at %}
-                    <time datetime="{{ campaign.scraped_at|date:'c' }}"
-                          title="{{ campaign.scraped_at|date:'DATETIME_FORMAT' }}">{{ campaign.scraped_at|date:"M d, Y H:i" }}</time> ({{ campaign.scraped_at|timesince }} ago)
-                {% elif campaign.updated_at %}
-                    <time datetime="{{ campaign.updated_at|date:'c' }}"
-                          title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ campaign.updated_at|timesince }} ago)
-                {% else %}
-                    unknown
-                {% endif %}
-            </div>
-            <!-- Campaign end times -->
-            <div>
-                {% if campaign.end_date %}
-                    {% if campaign.end_date < now %}
-                        Ended
-                        <time datetime="{{ campaign.end_date|date:'c' }}"
-                              title="{{ campaign.end_date|date:'DATETIME_FORMAT' }}">{{ campaign.end_date|date:"M d, Y H:i" }}</time> ({{ campaign.end_date|timesince }} ago)
-                    {% else %}
-                        Ends in
-                        <time datetime="{{ campaign.end_date|date:'c' }}"
-                              title="{{ campaign.end_date|date:'DATETIME_FORMAT' }}">{{ campaign.end_date|date:"M d, Y H:i" }}</time> (in {{ campaign.end_date|timeuntil }})
-                    {% endif %}
-                {% else %}
-                    Ends unknown
-                {% endif %}
-            </div>
-            <!-- Campaign start times -->
-            <div>
-                {% if campaign.start_date %}
-                    {% if campaign.start_date > now %}
-                        Starts in
-                        <time datetime="{{ campaign.start_date|date:'c' }}"
-                              title="{{ campaign.start_date|date:'DATETIME_FORMAT' }}">{{ campaign.start_date|date:"M d, Y H:i" }}</time> (in {{ campaign.start_date|timeuntil }})
-                    {% else %}
-                        Started
+            <dl>
+                <dt>Published</dt>
+                <dd>
+                    {% if campaign.scraped_at %}
+                        <time datetime="{{ campaign.scraped_at|date:'c' }}"
+                              title="{{ campaign.scraped_at|date:'DATETIME_FORMAT' }}">{{ campaign.scraped_at|date:"M d, Y H:i" }}</time> ({{ campaign.scraped_at|timesince }} ago)
+                    {% elif campaign.start_date %}
                         <time datetime="{{ campaign.start_date|date:'c' }}"
                               title="{{ campaign.start_date|date:'DATETIME_FORMAT' }}">{{ campaign.start_date|date:"M d, Y H:i" }}</time> ({{ campaign.start_date|timesince }} ago)
+                    {% else %}
+                        unknown
                     {% endif %}
-                {% else %}
-                    Starts unknown
-                {% endif %}
-            </div>
-            <!-- Campaign duration -->
-            <div>
-                Duration is
-                {% if campaign.start_date and campaign.end_date %}
-                    <time datetime="P{{ campaign.end_date|date:'Y' }}-{{ campaign.end_date|date:'m' }}-{{ campaign.end_date|date:'d' }}T{{ campaign.end_date|date:'H' }}:00:00"
-                          title="{{ campaign.start_date|date:'DATETIME_FORMAT' }} to {{ campaign.end_date|date:'DATETIME_FORMAT' }}">{{ campaign.end_date|timeuntil:campaign.start_date }}</time>
-                {% else %}
-                    unknown
-                {% endif %}
-            </div>
+                </dd>
+                <dt>Last updated</dt>
+                <dd>
+                    {% if campaign.scraped_at %}
+                        <time datetime="{{ campaign.scraped_at|date:'c' }}"
+                              title="{{ campaign.scraped_at|date:'DATETIME_FORMAT' }}">{{ campaign.scraped_at|date:"M d, Y H:i" }}</time> ({{ campaign.scraped_at|timesince }} ago)
+                    {% elif campaign.updated_at %}
+                        <time datetime="{{ campaign.updated_at|date:'c' }}"
+                              title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ campaign.updated_at|timesince }} ago)
+                    {% else %}
+                        unknown
+                    {% endif %}
+                </dd>
+                <dt>
+                    {% if campaign.end_date and campaign.end_date < now %}
+                        Ended
+                    {% else %}
+                        Ends
+                    {% endif %}
+                </dt>
+                <dd>
+                    {% if campaign.end_date %}
+                        <time datetime="{{ campaign.end_date|date:'c' }}"
+                              title="{{ campaign.end_date|date:'DATETIME_FORMAT' }}">{{ campaign.end_date|date:"M d, Y H:i" }}</time>
+                        {% if campaign.end_date < now %}
+                            ({{ campaign.end_date|timesince }} ago)
+                        {% else %}
+                            (in {{ campaign.end_date|timeuntil }})
+                        {% endif %}
+                    {% else %}
+                        unknown
+                    {% endif %}
+                </dd>
+                <dt>
+                    {% if campaign.start_date and campaign.start_date > now %}
+                        Starts
+                    {% else %}
+                        Started
+                    {% endif %}
+                </dt>
+                <dd>
+                    {% if campaign.start_date %}
+                        <time datetime="{{ campaign.start_date|date:'c' }}"
+                              title="{{ campaign.start_date|date:'DATETIME_FORMAT' }}">{{ campaign.start_date|date:"M d, Y H:i" }}</time>
+                        {% if campaign.start_date > now %}
+                            (in {{ campaign.start_date|timeuntil }})
+                        {% else %}
+                            ({{ campaign.start_date|timesince }} ago)
+                        {% endif %}
+                    {% else %}
+                        unknown
+                    {% endif %}
+                </dd>
+                <dt>Duration</dt>
+                <dd>
+                    {% if campaign.start_date and campaign.end_date %}
+                        <time datetime="P{{ campaign.end_date|date:'Y' }}-{{ campaign.end_date|date:'m' }}-{{ campaign.end_date|date:'d' }}T{{ campaign.end_date|date:'H' }}:00:00"
+                              title="{{ campaign.start_date|date:'DATETIME_FORMAT' }} to {{ campaign.end_date|date:'DATETIME_FORMAT' }}">{{ campaign.end_date|timeuntil:campaign.start_date }}</time>
+                    {% else %}
+                        unknown
+                    {% endif %}
+                </dd>
+            </dl>
             <!-- Buttons -->
             <div>
                 {% if campaign.pc_link_url %}<a href="{{ campaign.pc_link_url }}" target="_blank">[details]</a>{% endif %}

@@ -31,11 +31,10 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
-        <h1>Active Drops Dashboard</h1>
+        <h1>Open Drop Campaigns</h1>
         <p>
-            A combined overview of currently active Twitch and Kick drops campaigns.
-            <br />
-            Click any campaign to open details.
+            Some Drops campaigns may not be available in your region.
+            <a href="https://help.twitch.tv/s/article/mission-based-drops">Learn more about Drops</a>.
         </p>
         <hr />
         <section id="twitch-campaigns-section">
@@ -173,32 +172,39 @@
                                 padding-top: 1rem">
                     <header style="margin-bottom: 1rem;">
                         <h2 style="margin: 0 0 0.5rem 0;">
-                            <a href="{% url 'twitch:reward_campaign_list' %}">Twitch Reward Campaigns (Quest Rewards)</a>
+                            <a href="{% url 'twitch:reward_campaign_list' %}">Open Reward Campaigns</a>
                         </h2>
+                        <p>
+                            Rewards are limited-time offers from top brands that you can unlock by
+                            supporting your favorite Twitch creators. Visit <a href="https://www.twitch.tv/drops/inventory">your inventory</a>
+                            to access unlocked rewards.
+                        </p>
                     </header>
-                    <div style="display: grid;
-                                gap: 1rem;
-                                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))">
+                    <ul>
                         {% for campaign in active_reward_campaigns %}
-                            <article id="reward-campaign-{{ campaign.twitch_id }}"
-                                     style="border: 1px solid #ddd;
-                                            border-radius: 8px;
-                                            padding: 1rem">
-                                <h3 style="margin: 0 0 0.5rem 0;">
-                                    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
-                                        {% if campaign.brand %}
-                                            {{ campaign.brand }}: {{ campaign.name }}
-                                        {% else %}
-                                            {{ campaign.name }}
-                                        {% endif %}
-                                    </a>
-                                </h3>
-                                {% if campaign.summary %}
-                                    <p style="font-size: 0.9rem; color: #555; margin: 0.5rem 0;">{{ campaign.summary }}</p>
-                                {% endif %}
-                                <div style="font-size: 0.85rem; color: #666;">
+                            <li id="reward-campaign-{{ campaign.twitch_id }}"
+                                style="display: flex;
+                                       gap: 1rem;
+                                       margin-bottom: 1rem;
+                                       align-items: flex-start">
+                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
+                                   style="flex-shrink: 0;
+                                          display: block;
+                                          line-height: 0">
+                                    {% picture campaign.image_best_url alt="Image for "|add:campaign.name width=120 %}
+                                </a>
+                                <div>
+                                    <h3 style="margin: 0;">
+                                        <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                                            {% if campaign.brand %}
+                                                {{ campaign.brand }}: {{ campaign.name }}
+                                            {% else %}
+                                                {{ campaign.name }}
+                                            {% endif %}
+                                        </a>
+                                    </h3>
                                     {% if campaign.ends_at %}
-                                        <p style="margin: 0.25rem 0;">
+                                        <p>
                                             <strong>Ends:</strong>
                                             <time datetime="{{ campaign.ends_at|date:'c' }}"
                                                   title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
@@ -206,20 +212,25 @@
                                             </time>
                                         </p>
                                     {% endif %}
+                                    {% if campaign.summary %}
+                                        <p>{{ campaign.summary }}</p>
+                                    {% endif %}
+                                </div>
+                                <div>
                                     {% if campaign.game %}
-                                        <p style="margin: 0.25rem 0;">
+                                        <p>
                                             <strong>Game:</strong>
                                             <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
                                         </p>
                                     {% elif campaign.is_sitewide %}
-                                        <p style="margin: 0.25rem 0;">
+                                        <p>
                                             <strong>Type:</strong> Site-wide reward campaign
                                         </p>
                                     {% endif %}
                                 </div>
-                            </article>
+                            </li>
                         {% endfor %}
-                    </div>
+                    </ul>
                 </section>
             {% endif %}
             <section id="kick-campaigns-section"

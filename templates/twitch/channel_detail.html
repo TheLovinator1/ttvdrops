@@ -9,23 +9,29 @@
     <div>
         <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:channel_list' %}">Channels</a> > {{ channel.display_name }}
     </div>
-    {% if channel.display_name != channel.name %}
-        <div>
-            Username: <code>{{ channel.name }}</code>
-        </div>
-    {% endif %}
-    <!-- Channel Info -->
-    <div>Channel ID: {{ channel.twitch_id }}</div>
-    <div>
-        Published
-        <time datetime="{{ channel.added_at|date:'c' }}"
-              title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">{{ channel.added_at|date:"M d, Y H:i" }}</time> ({{ channel.added_at|timesince }} ago)
-    </div>
-    <div>
-        Last updated
-        <time datetime="{{ channel.updated_at|date:'c' }}"
-              title="{{ channel.updated_at|date:'DATETIME_FORMAT' }}">{{ channel.updated_at|date:"M d, Y H:i" }}</time> ({{ channel.updated_at|timesince }} ago)
-    </div>
+    <!-- Channel metadata -->
+    <dl>
+        {% if channel.display_name != channel.name %}
+            <dt>Username</dt>
+            <dd>
+                <code>{{ channel.name }}</code>
+            </dd>
+        {% endif %}
+        <dt>Channel ID</dt>
+        <dd>
+            {{ channel.twitch_id }}
+        </dd>
+        <dt>Published</dt>
+        <dd>
+            <time datetime="{{ channel.added_at|date:'c' }}"
+                  title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">{{ channel.added_at|date:"M d, Y H:i" }}</time> ({{ channel.added_at|timesince }} ago)
+        </dd>
+        <dt>Last updated</dt>
+        <dd>
+            <time datetime="{{ channel.updated_at|date:'c' }}"
+                  title="{{ channel.updated_at|date:'DATETIME_FORMAT' }}">{{ channel.updated_at|date:"M d, Y H:i" }}</time> ({{ channel.updated_at|timesince }} ago)
+        </dd>
+    </dl>
     <!-- Twitch Stream Embed -->
     <iframe src="https://player.twitch.tv/?channel={{ channel.name }}&parent={{ request.get_host }}&muted=false"
             height="480"
