@@ -203,8 +203,18 @@
                                             {% endif %}
                                         </a>
                                     </h3>
+                                    {% if campaign.game %}
+                                        <p style="margin: 0.25rem 0;">
+                                            <strong>Game:</strong>
+                                            <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                                        </p>
+                                    {% elif campaign.is_sitewide %}
+                                        <p style="margin: 0.25rem 0;">
+                                            <strong>Type:</strong> Site-wide reward campaign
+                                        </p>
+                                    {% endif %}
                                     {% if campaign.ends_at %}
-                                        <p>
+                                        <p style="margin: 0.25rem 0;">
                                             <strong>Ends:</strong>
                                             <time datetime="{{ campaign.ends_at|date:'c' }}"
                                                   title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
@@ -214,18 +224,6 @@
                                     {% endif %}
                                     {% if campaign.summary %}
                                         <p>{{ campaign.summary }}</p>
-                                    {% endif %}
-                                </div>
-                                <div>
-                                    {% if campaign.game %}
-                                        <p>
-                                            <strong>Game:</strong>
-                                            <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
-                                        </p>
-                                    {% elif campaign.is_sitewide %}
-                                        <p>
-                                            <strong>Type:</strong> Site-wide reward campaign
-                                        </p>
                                     {% endif %}
                                 </div>
                             </li>
