@@ -65,6 +65,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         views.reward_campaign_detail_view,
         name="reward_campaign_detail",
     ),
+    # /twitch/sitewide/
+    path(
+        "sitewide/",
+        views.sitewide_rewards_view,
+        name="sitewide_rewards",
+    ),
     # /twitch/export/campaigns/csv/
     path(
         "export/campaigns/csv/",

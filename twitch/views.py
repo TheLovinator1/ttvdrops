@@ -1650,3 +1650,81 @@ def export_organizations_json(request: HttpRequest) -> HttpResponse:
     response["Content-Disposition"] = "attachment; filename=organizations.json"
 
     return response
+
+
+# MARK: /sitewide/
+def sitewide_rewards_view(request: HttpRequest) -> HttpResponse:
+    """View to display all site-wide reward campaigns.
+
+    Site-wide reward campaigns have is_sitewide=True and no specific game.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered site-wide rewards page.
+    """
+    now: datetime.datetime = timezone.now()
+
+    # Fetch all reward campaigns that are site-wide
+    sitewide_campaigns: QuerySet[RewardCampaign] = (
+        RewardCampaign.objects
+        .filter(is_sitewide=True)
+        .select_related("game")
+        .order_by("-starts_at")
+    )
+
+    # Split into active, upcoming, expired
+    active_campaigns: list[RewardCampaign] = []
+    upcoming_campaigns: list[RewardCampaign] = []
+    expired_campaigns: list[RewardCampaign] = []
+
+    for campaign in sitewide_campaigns:
+        if campaign.starts_at is None or campaign.ends_at is None:
+            continue
+        if campaign.starts_at <= now <= campaign.ends_at:
+            active_campaigns.append(campaign)
+        elif campaign.starts_at > now:
+            upcoming_campaigns.append(campaign)
+        elif campaign.ends_at < now:
+            expired_campaigns.append(campaign)
+
+    title: str = "Site-wide Rewards"
+    description: str = "Twitch reward campaigns available site-wide."
+
+    url: str = build_absolute_uri(reverse("twitch:sitewide_rewards"))
+
+    # CollectionPage schema
+    collection_schema: dict[str, str] = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": title,
+        "description": description,
+        "url": url,
+    }
+
+    # Breadcrumb schema
+    breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
+        {"name": "Home", "url": build_absolute_uri("/")},
+        {"name": "Reward Campaigns", "url": build_absolute_uri("/reward-campaigns/")},
+        {"name": title, "url": url},
+    ])
+
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title=title,
+        page_description=description,
+        seo_meta={
+            "page_url": url,
+            "schema_data": collection_schema,
+            "breadcrumb_schema": breadcrumb_schema,
+        },
+    )
+    context: dict[str, Any] = {
+        "active_campaigns": active_campaigns,
+        "upcoming_campaigns": upcoming_campaigns,
+        "expired_campaigns": expired_campaigns,
+        "now": now,
+        **seo_context,
+    }
+
+    return render(request, "twitch/sitewide_rewards.html", context)

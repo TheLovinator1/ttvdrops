@@ -2756,6 +2756,91 @@ class TestRewardCampaignViews:
             f"baseline={baseline}, scaled={scaled}"
         )
 
+    def test_sitewide_rewards_returns_200(self, client: Client) -> None:
+        """Site-wide rewards page renders successfully with only sitewide campaigns."""
+        game: Game = self._create_game("sitewide-test-game", "Sitewide Test Game")
+
+        # Site-wide reward (game=None, is_sitewide=True)
+        sitewide = self._create_reward_campaign(
+            "sitewide-active",
+            brand="Sitewide Brand",
+            name="Sitewide Active",
+            game=None,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+
+        # Game-specific reward (is_sitewide=False) — should NOT appear
+        self._create_reward_campaign(
+            "sitewide-game-specific",
+            brand="Game Brand",
+            name="Game Specific",
+            game=game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:sitewide_rewards"),
+        )
+
+        assert response.status_code == 200
+        content: str = response.content.decode()
+
+        # Site-wide campaign should be visible
+        assert "Sitewide Brand: Sitewide Active" in content
+        assert (
+            reverse("twitch:reward_campaign_detail", args=[sitewide.twitch_id])
+            in content
+        )
+
+        # Game-specific campaign should NOT appear
+        assert "Game Brand: Game Specific" not in content
+
+        # Feed links should be present
+        assert reverse("core:sitewide_reward_feed") in content
+        assert reverse("core:sitewide_reward_feed_atom") in content
+        assert reverse("core:sitewide_reward_feed_discord") in content
+
+    def test_sitewide_rewards_context_splits_by_status(
+        self,
+        client: Client,
+    ) -> None:
+        """Site-wide rewards page splits campaigns into active/upcoming/expired."""
+        self._create_reward_campaign(
+            "sitewide-active-ctx",
+            brand="Active Brand",
+            name="Active Reward",
+            game=None,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+        self._create_reward_campaign(
+            "sitewide-upcoming-ctx",
+            brand="Upcoming Brand",
+            name="Upcoming Reward",
+            game=None,
+            starts_delta=timedelta(days=1),
+            ends_delta=timedelta(days=3),
+        )
+        self._create_reward_campaign(
+            "sitewide-expired-ctx",
+            brand="Expired Brand",
+            name="Expired Reward",
+            game=None,
+            starts_delta=-timedelta(days=4),
+            ends_delta=-timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:sitewide_rewards"),
+        )
+        assert response.status_code == 200
+
+        assert len(response.context["active_campaigns"]) == 1
+        assert len(response.context["upcoming_campaigns"]) == 1
+        assert len(response.context["expired_campaigns"]) == 1
+
 
 @pytest.mark.django_db
 class TestSEOHelperFunctions:

@@ -26,6 +26,9 @@ from twitch.feeds import OrganizationRSSFeed
 from twitch.feeds import RewardCampaignAtomFeed
 from twitch.feeds import RewardCampaignDiscordFeed
 from twitch.feeds import RewardCampaignFeed
+from twitch.feeds import SitewideRewardCampaignAtomFeed
+from twitch.feeds import SitewideRewardCampaignDiscordFeed
+from twitch.feeds import SitewideRewardCampaignFeed
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
@@ -108,6 +111,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=RewardCampaignFeed(),
         name="reward_campaign_feed",
     ),
+    # /rss/sitewide/rewards/ - site-wide reward campaigns
+    path(
+        route="rss/sitewide/rewards/",
+        view=SitewideRewardCampaignFeed(),
+        name="sitewide_reward_feed",
+    ),
     # Atom feeds (added alongside RSS to preserve backward compatibility)
     path(
         route="atom/campaigns/",
@@ -138,6 +147,18 @@ urlpatterns: list[URLPattern | URLResolver] = [
         route="atom/reward-campaigns/",
         view=RewardCampaignAtomFeed(),
         name="reward_campaign_feed_atom",
+    ),
+    # /atom/sitewide/rewards/ - site-wide reward campaigns (Atom)
+    path(
+        route="atom/sitewide/rewards/",
+        view=SitewideRewardCampaignAtomFeed(),
+        name="sitewide_reward_feed_atom",
+    ),
+    # /discord/sitewide/rewards/ - site-wide reward campaigns (Discord)
+    path(
+        route="discord/sitewide/rewards/",
+        view=SitewideRewardCampaignDiscordFeed(),
+        name="sitewide_reward_feed_discord",
     ),
     # Discord feeds (Atom feeds with Discord relative timestamps)
     path(
