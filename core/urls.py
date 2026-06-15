@@ -17,6 +17,9 @@ from twitch.feeds import GameCampaignDiscordFeed
 from twitch.feeds import GameCampaignFeed
 from twitch.feeds import GameDiscordFeed
 from twitch.feeds import GameFeed
+from twitch.feeds import GameLessRewardCampaignAtomFeed
+from twitch.feeds import GameLessRewardCampaignDiscordFeed
+from twitch.feeds import GameLessRewardCampaignFeed
 from twitch.feeds import GameRewardCampaignAtomFeed
 from twitch.feeds import GameRewardCampaignDiscordFeed
 from twitch.feeds import GameRewardCampaignFeed
@@ -159,6 +162,24 @@ urlpatterns: list[URLPattern | URLResolver] = [
         route="discord/sitewide/rewards/",
         view=SitewideRewardCampaignDiscordFeed(),
         name="sitewide_reward_feed_discord",
+    ),
+    # /rss/rewards/no-game/ - reward campaigns with no game linked (brand + sitewide)
+    path(
+        route="rss/rewards/no-game/",
+        view=GameLessRewardCampaignFeed(),
+        name="game_less_reward_feed",
+    ),
+    # /atom/rewards/no-game/ - same as RSS but Atom
+    path(
+        route="atom/rewards/no-game/",
+        view=GameLessRewardCampaignAtomFeed(),
+        name="game_less_reward_feed_atom",
+    ),
+    # /discord/rewards/no-game/ - same as RSS but Discord timestamps
+    path(
+        route="discord/rewards/no-game/",
+        view=GameLessRewardCampaignDiscordFeed(),
+        name="game_less_reward_feed_discord",
     ),
     # Discord feeds (Atom feeds with Discord relative timestamps)
     path(

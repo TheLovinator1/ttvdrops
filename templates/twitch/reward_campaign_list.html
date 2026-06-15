@@ -30,17 +30,19 @@
     </p>
     <!-- RSS Feeds -->
     <div>
-        <a href="{% url 'core:reward_campaign_feed' %}"
-           title="RSS feed for all reward campaigns">[rss]</a>
-        <a href="{% url 'core:reward_campaign_feed_atom' %}"
-           title="Atom feed for all reward campaigns">[atom]</a>
-        <a href="{% url 'core:reward_campaign_feed_discord' %}"
-           title="Discord feed for all reward campaigns">[discord]</a>
-        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-        <a href="{% url 'twitch:twitch-api-v1:list_reward_campaigns' %}"
-           title="Twitch reward campaigns API">[api]</a>
-        <a href="{% url 'twitch:sitewide_rewards' %}"
-           title="View site-wide reward campaigns">[sitewide]</a>
+        <div>
+            <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
+            <a href="{% url 'twitch:twitch-api-v1:list_reward_campaigns' %}"
+               title="Twitch reward campaigns API">[api]</a>
+        </div>
+        <div>
+            <a href="{% url 'core:reward_campaign_feed' %}"
+               title="RSS feed for all reward campaigns">[rss]</a>
+            <a href="{% url 'core:reward_campaign_feed_atom' %}"
+               title="Atom feed for all reward campaigns">[atom]</a>
+            <a href="{% url 'core:reward_campaign_feed_discord' %}"
+               title="Discord feed for all reward campaigns">[discord]</a>
+        </div>
     </div>
     {% if reward_campaigns %}
         {% with active_campaigns=reward_campaigns|dictsortreversed:"ends_at" %}
@@ -68,6 +70,8 @@
                                         <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
                                     {% elif campaign.is_sitewide %}
                                         <a href="{% url 'twitch:sitewide_rewards' %}">Site-wide</a>
+                                    {% else %}
+                                        <a href="{% url 'twitch:game_less_rewards' %}">[no game]</a>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -102,6 +106,8 @@
                                         <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
                                     {% elif campaign.is_sitewide %}
                                         <a href="{% url 'twitch:sitewide_rewards' %}">Site-wide</a>
+                                    {% else %}
+                                        <a href="{% url 'twitch:game_less_rewards' %}">[no game]</a>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -137,6 +143,8 @@
                                     <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
                                 {% elif campaign.is_sitewide %}
                                     <a href="{% url 'twitch:sitewide_rewards' %}">Site-wide</a>
+                                {% else %}
+                                    <a href="{% url 'twitch:game_less_rewards' %}">[no game]</a>
                                 {% endif %}
                             </td>
                             <td>

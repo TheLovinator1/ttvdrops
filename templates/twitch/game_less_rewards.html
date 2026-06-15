@@ -1,21 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
 {% block title %}
-    Site-wide Rewards
+    Brand & Site-wide Rewards
 {% endblock title %}
 {% block extra_head %}
-    <link rel="alternate"
-          type="application/rss+xml"
-          title="Site-wide rewards (RSS)"
-          href="{% url 'core:sitewide_reward_feed' %}" />
-    <link rel="alternate"
-          type="application/atom+xml"
-          title="Site-wide rewards (Atom)"
-          href="{% url 'core:sitewide_reward_feed_atom' %}" />
-    <link rel="alternate"
-          type="application/atom+xml"
-          title="Site-wide rewards (Discord)"
-          href="{% url 'core:sitewide_reward_feed_discord' %}" />
     <link rel="alternate"
           type="application/rss+xml"
           title="All game-less rewards (RSS)"
@@ -32,27 +20,27 @@
 {% block content %}
     <main>
         <header>
-            <h1>Site-wide Rewards</h1>
+            <h1>Brand & Site-wide Rewards</h1>
             <!-- Breadcrumbs -->
             <div>
-                <a href="{% url 'twitch:dashboard' %}">Twitch</a> &gt; <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> &gt; Site-wide
+                <a href="{% url 'twitch:dashboard' %}">Twitch</a> &gt; <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> &gt; Brand &amp; Site-wide
             </div>
             <p>
-                Reward campaigns available site-wide (not tied to a specific game). Data is scraped from <a href="https://github.com/SunkwiBOT/twitch-drops-api"
-    target="_blank"
-    rel="noopener">SunkwiBOT/twitch-drops-api</a> every 15 minutes.
+                Reward campaigns not tied to a specific Twitch game. These include
+                <strong>brand-specific</strong> campaigns (e.g., Minecraft, DOORS) and
+                truly <strong>site-wide</strong> Twitch quests.
             </p>
             <!-- Feeds and links -->
             <div>
-                <a href="{% url 'core:sitewide_reward_feed' %}"
-                   title="RSS feed for site-wide rewards">[rss]</a>
-                <a href="{% url 'core:sitewide_reward_feed_atom' %}"
-                   title="Atom feed for site-wide rewards">[atom]</a>
-                <a href="{% url 'core:sitewide_reward_feed_discord' %}"
-                   title="Discord feed for site-wide rewards">[discord]</a>
+                <a href="{% url 'core:game_less_reward_feed' %}"
+                   title="RSS feed for all game-less rewards">[rss]</a>
+                <a href="{% url 'core:game_less_reward_feed_atom' %}"
+                   title="Atom feed for all game-less rewards">[atom]</a>
+                <a href="{% url 'core:game_less_reward_feed_discord' %}"
+                   title="Discord feed for all game-less rewards">[discord]</a>
                 <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-                <a href="{% url 'twitch:game_less_rewards' %}"
-                   title="View all rewards with no game linked">[no game]</a>
+                <a href="{% url 'twitch:sitewide_rewards' %}"
+                   title="View only site-wide rewards">[sitewide only]</a>
             </div>
         </header>
         {% if active_campaigns %}
@@ -63,6 +51,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Type</th>
                             <th>Ends</th>
                         </tr>
                     </thead>
@@ -84,6 +73,13 @@
                                 </td>
                                 <td>{{ campaign.brand|default:"—" }}</td>
                                 <td>
+                                    {% if campaign.is_sitewide %}
+                                        <strong>Site-wide</strong>
+                                    {% else %}
+                                        Brand
+                                    {% endif %}
+                                </td>
+                                <td>
                                     <time datetime="{{ campaign.ends_at|date:'c' }}"
                                           title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
                                         Ends in {{ campaign.ends_at|timeuntil }}
@@ -103,6 +99,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Type</th>
                             <th>Starts</th>
                         </tr>
                     </thead>
@@ -124,6 +121,13 @@
                                 </td>
                                 <td>{{ campaign.brand|default:"—" }}</td>
                                 <td>
+                                    {% if campaign.is_sitewide %}
+                                        <strong>Site-wide</strong>
+                                    {% else %}
+                                        Brand
+                                    {% endif %}
+                                </td>
+                                <td>
                                     <time datetime="{{ campaign.starts_at|date:'c' }}"
                                           title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
                                         Starts in {{ campaign.starts_at|timeuntil }}
@@ -143,6 +147,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Type</th>
                             <th>Ended</th>
                         </tr>
                     </thead>
@@ -164,6 +169,13 @@
                                 </td>
                                 <td>{{ campaign.brand|default:"—" }}</td>
                                 <td>
+                                    {% if campaign.is_sitewide %}
+                                        <strong>Site-wide</strong>
+                                    {% else %}
+                                        Brand
+                                    {% endif %}
+                                </td>
+                                <td>
                                     <time datetime="{{ campaign.ends_at|date:'c' }}"
                                           title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
                                         {{ campaign.ends_at|timesince }} ago
@@ -177,9 +189,9 @@
         {% endif %}
         {% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
             <section style="text-align: center; padding: 3rem 1rem;">
-                <div style="font-size: 4rem; margin-bottom: 1rem;">🌐</div>
-                <h2 style="margin: 0 0 1rem 0;">No Site-wide Rewards</h2>
-                <p style="margin: 0; font-size: 1.1rem;">No site-wide reward campaigns are currently available.</p>
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🏷️</div>
+                <h2 style="margin: 0 0 1rem 0;">No Rewards Found</h2>
+                <p style="margin: 0; font-size: 1.1rem;">No brand or site-wide reward campaigns are currently available.</p>
             </section>
         {% endif %}
     </main>

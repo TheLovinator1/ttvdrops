@@ -1728,3 +1728,84 @@ def sitewide_rewards_view(request: HttpRequest) -> HttpResponse:
     }
 
     return render(request, "twitch/sitewide_rewards.html", context)
+
+
+# MARK: /rewards/no-game/
+def game_less_rewards_view(request: HttpRequest) -> HttpResponse:
+    """View to display all reward campaigns with no game linked.
+
+    Includes both site-wide (is_sitewide=True) and brand-specific campaigns
+    that don't have a Twitch game associated with them.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered game-less rewards page.
+    """
+    now: datetime.datetime = timezone.now()
+
+    # Fetch all reward campaigns without a game
+    campaigns: QuerySet[RewardCampaign] = (
+        RewardCampaign.objects
+        .filter(game__isnull=True)
+        .select_related("game")
+        .order_by("-starts_at")
+    )
+
+    # Split into active, upcoming, expired
+    active_campaigns: list[RewardCampaign] = []
+    upcoming_campaigns: list[RewardCampaign] = []
+    expired_campaigns: list[RewardCampaign] = []
+
+    for campaign in campaigns:
+        if campaign.starts_at is None or campaign.ends_at is None:
+            continue
+        if campaign.starts_at <= now <= campaign.ends_at:
+            active_campaigns.append(campaign)
+        elif campaign.starts_at > now:
+            upcoming_campaigns.append(campaign)
+        elif campaign.ends_at < now:
+            expired_campaigns.append(campaign)
+
+    title: str = "Brand & Site-wide Rewards"
+    description: str = (
+        "Twitch reward campaigns without a linked game (brand-specific and site-wide)."
+    )
+
+    url: str = build_absolute_uri(reverse("twitch:game_less_rewards"))
+
+    # CollectionPage schema
+    collection_schema: dict[str, str] = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": title,
+        "description": description,
+        "url": url,
+    }
+
+    # Breadcrumb schema
+    breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
+        {"name": "Home", "url": build_absolute_uri("/")},
+        {"name": "Reward Campaigns", "url": build_absolute_uri("/reward-campaigns/")},
+        {"name": title, "url": url},
+    ])
+
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title=title,
+        page_description=description,
+        seo_meta={
+            "page_url": url,
+            "schema_data": collection_schema,
+            "breadcrumb_schema": breadcrumb_schema,
+        },
+    )
+    context: dict[str, Any] = {
+        "active_campaigns": active_campaigns,
+        "upcoming_campaigns": upcoming_campaigns,
+        "expired_campaigns": expired_campaigns,
+        "now": now,
+        **seo_context,
+    }
+
+    return render(request, "twitch/game_less_rewards.html", context)
