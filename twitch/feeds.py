@@ -2164,7 +2164,8 @@ class SitewideRewardCampaignAtomFeed(TTVDropsAtomBaseFeed, SitewideRewardCampaig
 
 
 class SitewideRewardCampaignDiscordFeed(
-    TTVDropsAtomBaseFeed, SitewideRewardCampaignFeed
+    TTVDropsAtomBaseFeed,
+    SitewideRewardCampaignFeed,
 ):
     """Discord feed for site-wide reward campaigns with Discord relative timestamps."""
 
@@ -2409,7 +2410,8 @@ class GameLessRewardCampaignAtomFeed(TTVDropsAtomBaseFeed, GameLessRewardCampaig
 
 
 class GameLessRewardCampaignDiscordFeed(
-    TTVDropsAtomBaseFeed, GameLessRewardCampaignFeed
+    TTVDropsAtomBaseFeed,
+    GameLessRewardCampaignFeed,
 ):
     """Discord feed for reward campaigns with no game linked, with Discord timestamps."""
 

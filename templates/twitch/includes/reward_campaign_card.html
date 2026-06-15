@@ -1,0 +1,65 @@
+{% load image_tags %}
+<article id="reward-campaign-{{ campaign.twitch_id }}"
+         style="display: flex;
+                gap: 1rem;
+                margin-bottom: 1rem;
+                align-items: flex-start">
+    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
+       style="flex-shrink: 0;
+              display: block;
+              line-height: 0">{% picture campaign.image_best_url alt="Image for "|add:campaign.name width=120 %}</a>
+    <div>
+        <h3 style="margin: 0;">
+            <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                {% if campaign.brand %}
+                    {{ campaign.brand }}: {{ campaign.name }}
+                {% else %}
+                    {{ campaign.name }}
+                {% endif %}
+            </a>
+        </h3>
+        {% if campaign.starts_at <= now and campaign.ends_at >= now %}
+            <p style="margin: 0.25rem 0;">
+                <strong>Ends:</strong>
+                <time datetime="{{ campaign.ends_at|date:'c' }}"
+                      title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                    {{ campaign.ends_at|date:"M d, Y H:i" }} ({{ campaign.ends_at|timeuntil }} left)
+                </time>
+            </p>
+        {% elif campaign.starts_at > now %}
+            <p style="margin: 0.25rem 0;">
+                <strong>Starts:</strong>
+                <time datetime="{{ campaign.starts_at|date:'c' }}"
+                      title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
+                    {{ campaign.starts_at|date:"M d, Y H:i" }} (in {{ campaign.starts_at|timeuntil }})
+                </time>
+            </p>
+        {% else %}
+            <p style="margin: 0.25rem 0;">
+                <strong>Ended:</strong>
+                <time datetime="{{ campaign.ends_at|date:'c' }}"
+                      title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                    {{ campaign.ends_at|date:"M d, Y H:i" }} ({{ campaign.ends_at|timesince }} ago)
+                </time>
+            </p>
+        {% endif %}
+        {% if campaign.game %}
+            <p style="margin: 0.25rem 0;">
+                <strong>Game:</strong>
+                <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+            </p>
+        {% elif campaign.is_sitewide %}
+            <p style="margin: 0.25rem 0;">
+                <strong>Type:</strong> Site-wide reward campaign
+            </p>
+        {% else %}
+            <p style="margin: 0.25rem 0;">
+                <strong>Type:</strong>
+                <a href="{% url 'twitch:game_less_rewards' %}">No game assigned</a>
+            </p>
+        {% endif %}
+        {% if campaign.summary %}
+            <p style="margin: 0.5rem 0 0 0;">{{ campaign.summary }}</p>
+        {% endif %}
+    </div>
+</article>
