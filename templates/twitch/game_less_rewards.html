@@ -25,22 +25,16 @@
             <div>
                 <a href="{% url 'twitch:dashboard' %}">Twitch</a> &gt; <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> &gt; Brand &amp; Site-wide
             </div>
-            <p>
-                Reward campaigns not tied to a specific Twitch game. These include
-                <strong>brand-specific</strong> campaigns (e.g., Minecraft, DOORS) and
-                truly <strong>site-wide</strong> Twitch quests.
-            </p>
+            <p>Reward campaigns not tied to a specific Twitch game.</p>
             <!-- Feeds and links -->
             <div>
+                <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
                 <a href="{% url 'core:game_less_reward_feed' %}"
                    title="RSS feed for all game-less rewards">[rss]</a>
                 <a href="{% url 'core:game_less_reward_feed_atom' %}"
                    title="Atom feed for all game-less rewards">[atom]</a>
                 <a href="{% url 'core:game_less_reward_feed_discord' %}"
                    title="Discord feed for all game-less rewards">[discord]</a>
-                <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-                <a href="{% url 'twitch:sitewide_rewards' %}"
-                   title="View only site-wide rewards">[sitewide only]</a>
             </div>
         </header>
         {% if active_campaigns %}
