@@ -9,9 +9,10 @@
             <h2>About this dataset</h2>
             <p>This site tracks and publishes open Twitch and Kick drop campaign data.</p>
             <p>
-                The exported datasets on this page are released under <strong>CC0</strong> so you can reuse them freely.
-                The underlying source data is scraped from Twitch/Kick APIs and pages, so we do not control the
-                upstream content and cannot guarantee upstream accuracy or permanence.
+                Campaign metadata in the downloadable datasets and public JSON API is released under
+                <strong>CC0</strong> so you can reuse it freely. The underlying source data is scraped from Twitch/Kick
+                APIs and pages, so we do not control the upstream content and cannot guarantee upstream accuracy or
+                permanence. Linked third-party images, logos, and trademarks may remain subject to separate rights.
             </p>
             <p>Note that some drops has missing or incomplete data due to Twitch API limitations.</p>
             <p>
@@ -26,6 +27,48 @@
                 Need a special format for your workflow or research pipeline?
                 <a href="https://github.com/TheLovinator1/ttvdrops/issues">Contact me via GitHub issues</a>
                 and describe what you need.
+            </p>
+        </section>
+        <section>
+            <h2>Kick JSON API</h2>
+            <p>
+                Fully imported Kick campaigns are also available through the public, paginated
+                <a href="{% url 'kick:campaign_api_list' %}">Kick campaign JSON API</a>.
+                Responses include campaign dates, game and organization metadata, rewards, and the complete
+                channel list stored for each campaign.
+            </p>
+            <p>
+                Use <code>page</code> and <code>page_size</code> for pagination. Filter by Kick category ID with
+                <code>game</code>, or by the computed campaign state with
+                <code>status=active</code>, <code>status=upcoming</code>, or <code>status=expired</code>.
+                Page numbers and page sizes have a minimum of 1, and the maximum page size is 500.
+            </p>
+            <pre><code>{
+  "total": 1,
+  "page": 1,
+  "page_size": 100,
+  "items": [{
+    "kick_id": "...",
+    "name": "...",
+    "status": "active",
+    "starts_at": "2026-07-01T00:00:00Z",
+    "ends_at": "2026-08-01T00:00:00Z",
+    "category": { "kick_id": 123, "name": "..." },
+    "organization": { "kick_id": "...", "name": "..." },
+    "channels": [],
+    "rewards": [{ "name": "...", "required_minutes_watched": 30 }]
+  }]
+}</code></pre>
+            <p>
+                Timestamps use ISO 8601 in UTC and may be <code>null</code> when the source lacks a date. Campaigns with
+                incomplete dates have the computed status <code>unknown</code> and are not returned by a status filter.
+                Each item includes every stored channel and raw reward without RSS truncation or reward-name merging.
+                Consumers can stop pagination when <code>items</code> is empty or when
+                <code>page * page_size &gt;= total</code>.
+            </p>
+            <p>
+                An empty <code>channels</code> list means that no channel restriction data is stored. It does not,
+                by itself, guarantee that a campaign is available on every channel.
             </p>
         </section>
         {% if datasets %}

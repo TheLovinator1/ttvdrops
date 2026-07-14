@@ -276,6 +276,7 @@ class SiteEndpointSmokeTest(TestCase):
             ("twitch:export_organizations_csv", {}, 200),
             ("twitch:export_organizations_json", {}, 200),
             # Kick endpoints
+            ("kick:campaign_api_list", {}, 200),
             ("kick:dashboard", {}, 200),
             ("kick:campaign_list", {}, 200),
             ("kick:campaign_detail", {"kick_id": self.kick_campaign.kick_id}, 200),

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from django.urls import path
 
+from kick import api
 from kick import views
 from kick.feeds import KickCampaignAtomFeed
 from kick.feeds import KickCampaignDiscordFeed
@@ -23,6 +24,12 @@ if TYPE_CHECKING:
 app_name = "kick"
 
 urlpatterns: list[URLPattern | URLResolver] = [
+    # /kick/api/v1/campaigns/
+    path(
+        route="api/v1/campaigns/",
+        view=api.campaign_list_api,
+        name="campaign_api_list",
+    ),
     # /kick/
     path(
         route="",
