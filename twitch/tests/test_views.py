@@ -2555,7 +2555,7 @@ class TestRewardCampaignViews:
         game.owners.add(org)
         return game
 
-    def _create_reward_campaign(  # noqa: PLR0913
+    def _create_reward_campaign(  # ruff:ignore[too-many-arguments]
         self,
         twitch_id: str,
         *,

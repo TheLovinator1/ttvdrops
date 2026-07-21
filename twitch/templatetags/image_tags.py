@@ -46,7 +46,7 @@ def get_format_url(image_url: str, fmt: str) -> str:
 
 
 @register.simple_tag
-def picture(  # noqa: PLR0913, PLR0917
+def picture(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
     src: str,
     alt: str = "",
     width: int | None = None,

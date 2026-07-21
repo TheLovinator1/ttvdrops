@@ -50,7 +50,7 @@ class Command(BaseCommand):
             help="Twitch Access Token (optional - will be obtained automatically if not provided)",
         )
 
-    def handle(self, *args, **options) -> None:  # noqa: ARG002
+    def handle(self, *args, **options) -> None:  # ruff:ignore[unused-method-argument]
         """Main entry point for the command.
 
         Raises:

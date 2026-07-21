@@ -2,7 +2,7 @@ import io
 import json
 import os
 import shutil
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 from compression import zstd
 from datetime import datetime
 from pathlib import Path
@@ -191,11 +191,11 @@ def _write_table_rows(
         connection: SQLite connection.
         table: Table name.
     """
-    cursor = connection.execute(f'SELECT * FROM "{table}"')  # noqa: S608
+    cursor = connection.execute(f'SELECT * FROM "{table}"')  # ruff:ignore[hardcoded-sql-expression]
     columns = [description[0] for description in cursor.description]
     for row in cursor.fetchall():
         values = ", ".join(_sql_literal(row[idx]) for idx in range(len(columns)))
-        handle.write(f'INSERT INTO "{table}" VALUES ({values});\n')  # noqa: S608
+        handle.write(f'INSERT INTO "{table}" VALUES ({values});\n')  # ruff:ignore[hardcoded-sql-expression]
 
 
 def _write_indexes(
@@ -268,7 +268,7 @@ def _write_postgres_dump(output_path: Path, tables: list[str]) -> None:
     for table in tables:
         cmd.extend(["-t", f"public.{table}"])
 
-    process = subprocess.Popen(  # noqa: S603
+    process = subprocess.Popen(  # ruff:ignore[subprocess-without-shell-equals-true]
         cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -339,7 +339,7 @@ def _write_json_dump(output_path: Path, tables: list[str]) -> None:
     data: dict[str, list[dict]] = {}
     with django_connection.cursor() as cursor:
         for table in tables:
-            cursor.execute(f'SELECT * FROM "{table}"')  # noqa: S608
+            cursor.execute(f'SELECT * FROM "{table}"')  # ruff:ignore[hardcoded-sql-expression]
             columns: list[str] = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
             data[table] = [dict(zip(columns, row, strict=False)) for row in rows]

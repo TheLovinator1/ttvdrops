@@ -1080,7 +1080,7 @@ def test_campaign_feed_queries_bounded(
         _build_campaign(game, i)
 
     url: str = reverse("core:campaign_feed")
-    # TODO(TheLovinator): 14 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
+    # TODO(TheLovinator): 14 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # ruff:ignore[missing-todo-link]
     with django_assert_num_queries(14, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
@@ -1331,7 +1331,7 @@ def test_docs_rss_queries_bounded(
 
     url: str = reverse("core:docs_rss")
 
-    # TODO(TheLovinator): 31 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # noqa: TD003
+    # TODO(TheLovinator): 31 queries is still quite high for a feed - we should be able to optimize this further, but this is a good starting point to prevent regressions for now.  # ruff:ignore[missing-todo-link]
     with django_assert_num_queries(31, exact=False):
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 

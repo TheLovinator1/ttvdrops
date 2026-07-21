@@ -22,7 +22,7 @@ from django.utils.html import format_html_join
 from django.utils.safestring import SafeText
 
 from core.base_url import build_absolute_uri
-from core.base_url import get_current_site  # noqa: F811
+from core.base_url import get_current_site  # ruff:ignore[redefined-while-unused]
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import DropCampaign
@@ -185,9 +185,9 @@ class TTVDropsBaseFeed(Feed):
         Returns:
             SyndicationFeed: The feed generator instance with the correct site and URL context for absolute URL generation.
         """
-        # TODO(TheLovinator): Refactor to avoid this mess.  # noqa: TD003
+        # TODO(TheLovinator): Refactor to avoid this mess.  # ruff:ignore[missing-todo-link]
         try:
-            from django.contrib.sites import shortcuts as sites_shortcuts  # noqa: I001, PLC0415
+            from django.contrib.sites import shortcuts as sites_shortcuts  # ruff:ignore[unsorted-imports, import-outside-top-level]
         except ImportError:
             sites_shortcuts = None
 
@@ -575,7 +575,7 @@ def generate_channels_html(item: Model, *, hide_paid: bool = False) -> list[Safe
         )
 
         if "twitch-chat-badges-guide" in getattr(game, "details_url", ""):
-            # TODO(TheLovinator): Improve detection of global emotes  # noqa: TD003
+            # TODO(TheLovinator): Improve detection of global emotes  # ruff:ignore[missing-todo-link]
             parts.append(
                 format_html(
                     "{}",
@@ -1177,7 +1177,7 @@ class GameCampaignFeed(TTVDropsBaseFeed):
         self._hide_paid = _query_bool(request, "hide_paid")
         return super().__call__(request, *args, **kwargs)
 
-    def get_object(self, request: HttpRequest, twitch_id: str) -> Game:  # noqa: ARG002
+    def get_object(self, request: HttpRequest, twitch_id: str) -> Game:  # ruff:ignore[unused-method-argument]
         """Retrieve the Game instance for the given Twitch ID.
 
         Returns:
@@ -1727,7 +1727,7 @@ class GameRewardCampaignFeed(TTVDropsBaseFeed):
                 self._limit = None
         return super().__call__(request, *args, **kwargs)
 
-    def get_object(self, request: HttpRequest, twitch_id: str) -> Game:  # noqa: ARG002
+    def get_object(self, request: HttpRequest, twitch_id: str) -> Game:  # ruff:ignore[unused-method-argument]
         """Retrieve the Game instance for the given Twitch ID.
 
         Returns:

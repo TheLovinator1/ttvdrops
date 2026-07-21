@@ -23,10 +23,10 @@ classes = [
 ]
 
 for cls in classes:
-    setattr(  # noqa: B010
+    setattr(  # ruff:ignore[set-attr-with-constant]
         cls,
         "__class_getitem__",
-        classmethod(lambda cls, *args, **kwargs: cls),  # noqa: ARG005
+        classmethod(lambda cls, *args, **kwargs: cls),  # ruff:ignore[unused-lambda-argument]
     )
 
 

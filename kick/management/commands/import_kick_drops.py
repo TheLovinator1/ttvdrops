@@ -130,7 +130,7 @@ class Command(BaseCommand):
 
         try:
             payload: dict = response.json()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # ruff:ignore[blind-except]
             self.stderr.write(self.style.ERROR(f"Failed to parse JSON response: {exc}"))
             return
 
@@ -166,7 +166,7 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"Imported {imported}/{len(campaigns)} campaign(s)."),
         )
 
-    def _import_campaign(self, data: KickDropCampaignSchema) -> None:  # noqa: PLR0914, PLR0915
+    def _import_campaign(self, data: KickDropCampaignSchema) -> None:  # ruff:ignore[too-many-locals, too-many-statements]
         """Import a single campaign and all its related objects."""
         # Organization
         org_data: KickOrganizationSchema = data.organization

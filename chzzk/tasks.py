@@ -9,7 +9,7 @@ logger: logging.Logger = logging.getLogger("ttvdrops.tasks")
 
 
 @shared_task(bind=True, queue="imports", max_retries=3, default_retry_delay=60)
-def import_chzzk_campaign_task(self, campaign_no: int) -> None:  # noqa: ANN001
+def import_chzzk_campaign_task(self, campaign_no: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Import a single Chzzk campaign by its campaign number."""
     try:
         call_command("import_chzzk_campaign", str(campaign_no))
@@ -18,7 +18,7 @@ def import_chzzk_campaign_task(self, campaign_no: int) -> None:  # noqa: ANN001
 
 
 @shared_task(bind=True, queue="api-fetches", max_retries=3, default_retry_delay=120)
-def discover_chzzk_campaigns(self) -> None:  # noqa: ANN001
+def discover_chzzk_campaigns(self) -> None:  # ruff:ignore[missing-type-function-argument]
     """Discover and import the latest Chzzk campaigns (equivalent to --latest flag)."""
     try:
         call_command("import_chzzk_campaign", latest=True)

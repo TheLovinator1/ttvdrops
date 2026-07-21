@@ -14,7 +14,7 @@ class Command(BaseCommand):
 
     help = "Backfill image dimensions for existing cached images"
 
-    def handle(self, *args, **options) -> None:  # noqa: ARG002, PLR0915
+    def handle(self, *args, **options) -> None:  # ruff:ignore[unused-method-argument, too-many-statements]
         """Execute the command."""
         total_updated = 0
 

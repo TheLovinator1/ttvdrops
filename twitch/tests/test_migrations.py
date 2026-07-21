@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.django_db(transaction=True)
-def test_0021_backfills_allowed_campaign_count() -> None:  # noqa: PLR0914
+def test_0021_backfills_allowed_campaign_count() -> None:  # ruff:ignore[too-many-locals]
     """Migration 0021 should backfill cached allowed campaign counts."""
     migrate_from: list[tuple[str, str]] = [
         ("twitch", "0020_rewardcampaign_tw_reward_ends_starts_idx"),

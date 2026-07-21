@@ -1,7 +1,7 @@
 from typing import Any
-from xml.etree.ElementTree import Element  # noqa: S405
-from xml.etree.ElementTree import SubElement  # noqa: S405
-from xml.etree.ElementTree import tostring  # noqa: S405
+from xml.etree.ElementTree import Element  # ruff:ignore[suspicious-xml-etree-import]
+from xml.etree.ElementTree import SubElement  # ruff:ignore[suspicious-xml-etree-import]
+from xml.etree.ElementTree import tostring  # ruff:ignore[suspicious-xml-etree-import]
 
 from django.conf import settings
 

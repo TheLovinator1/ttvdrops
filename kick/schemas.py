@@ -1,4 +1,4 @@
-from datetime import datetime  # noqa: TC003
+from datetime import datetime  # ruff:ignore[typing-only-standard-library-import]
 
 from pydantic import BaseModel
 from pydantic import Field

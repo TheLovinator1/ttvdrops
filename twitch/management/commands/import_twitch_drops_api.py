@@ -27,7 +27,7 @@ import hashlib
 import json
 import os
 import pathlib
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 import tempfile
 from typing import TYPE_CHECKING
 from typing import Any
@@ -194,7 +194,7 @@ class Command(BaseCommand):
             ),
         )
 
-    def handle(self, *args: Any, **options: Any) -> None:  # noqa: ANN401, ARG002, PLR0914, PLR0915
+    def handle(self, *args: Any, **options: Any) -> None:  # ruff:ignore[any-type, unused-method-argument, too-many-locals, too-many-statements]
         """Main entry point for the command.
 
         Raises:
@@ -301,7 +301,7 @@ class Command(BaseCommand):
                         crash_on_error=crash_on_error,
                         skip_existing=skip_existing,
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:  # ruff:ignore[blind-except]
                     msg = f"Failed to import drops.json: {exc}"
                     self.stderr.write(self.style.ERROR(msg))
                     errors.append(msg)
@@ -315,7 +315,7 @@ class Command(BaseCommand):
                         crash_on_error=crash_on_error,
                         skip_existing=skip_existing,
                     )
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:  # ruff:ignore[blind-except]
                     msg = f"Failed to import rewards.json: {exc}"
                     self.stderr.write(self.style.ERROR(msg))
                     errors.append(msg)
@@ -353,7 +353,7 @@ class Command(BaseCommand):
     # Historical import via git clone
     # ------------------------------------------------------------------
 
-    def _process_historical(  # noqa: PLR0913
+    def _process_historical(  # ruff:ignore[too-many-arguments]
         self,
         source: str,
         *,
@@ -423,7 +423,7 @@ class Command(BaseCommand):
                 max_commits=max_commits,
                 skip_existing=skip_existing,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # ruff:ignore[blind-except]
             errors.append(str(exc))
         finally:
             if own_clone:
@@ -431,7 +431,7 @@ class Command(BaseCommand):
 
         return drops_count, rewards_count, errors
 
-    def _import_historical_file(  # noqa: PLR0913
+    def _import_historical_file(  # ruff:ignore[too-many-arguments]
         self,
         git_dir: str,
         file_path: str,
@@ -581,7 +581,7 @@ class Command(BaseCommand):
             Stdout of the git command.
         """
         cmd = ["git", "--git-dir", git_dir, *args]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=check)  # noqa: S603
+        result = subprocess.run(cmd, capture_output=True, text=True, check=check)  # ruff:ignore[subprocess-without-shell-equals-true]
         return result.stdout
 
     def _rmtree(self, path: str) -> None:
@@ -659,7 +659,7 @@ class Command(BaseCommand):
         )
 
     @staticmethod
-    def _strip_typename(data: Any) -> Any:  # noqa: ANN401
+    def _strip_typename(data: Any) -> Any:  # ruff:ignore[any-type]
         """Recursively remove ``__typename`` keys from parsed JSON data.
 
         Old commits in the repo included GraphQL ``__typename`` metadata which
@@ -683,7 +683,7 @@ class Command(BaseCommand):
             return [Command._strip_typename(item) for item in data]
         return data
 
-    def _generate_report(  # noqa: PLR0914, PLR0915
+    def _generate_report(  # ruff:ignore[too-many-locals, too-many-statements]
         self,
         drops_url: str,
         rewards_url: str,
@@ -707,7 +707,7 @@ class Command(BaseCommand):
         Raises:
             ValidationError: If any item fails schema validation and crash_on_error is True.
         """
-        from collections import Counter  # noqa: PLC0415
+        from collections import Counter  # ruff:ignore[import-outside-top-level]
 
         self.stdout.write("=" * 60)
         self.stdout.write(self.style.SUCCESS("COMPARISON REPORT"))
@@ -719,14 +719,14 @@ class Command(BaseCommand):
         # Track differences for field-level comparison
         sample_limit = 5
 
-        for label, raw_url, model_cls, id_field in [  # noqa: PLR1702
+        for label, raw_url, model_cls, id_field in [  # ruff:ignore[too-many-nested-blocks]
             ("drops", drops_url, DropCampaign, "twitch_id"),
             ("rewards", rewards_url, RewardCampaign, "twitch_id"),
         ]:
             self.stdout.write(f"\n--- {label.upper()} ---")
             try:
                 raw_data = self._fetch_json(raw_url, f"{label}.json")
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:  # ruff:ignore[blind-except]
                 self.stderr.write(
                     self.style.ERROR(f"  Failed to fetch {label}.json: {exc}"),
                 )
@@ -894,7 +894,7 @@ class Command(BaseCommand):
 
         self.stdout.write("\n" + "=" * 60)
 
-    def _parse_and_import_drops(  # noqa: PLR0913
+    def _parse_and_import_drops(  # ruff:ignore[too-many-arguments]
         self,
         raw_data: list[dict[str, Any]],
         source: str,
@@ -976,7 +976,7 @@ class Command(BaseCommand):
 
         return total_campaigns
 
-    def _process_sunkwibot_reward(  # noqa: PLR0915
+    def _process_sunkwibot_reward(  # ruff:ignore[too-many-statements]
         self,
         reward: SunkwiBotRewardSchema,
         game_obj: Game,
@@ -1133,7 +1133,7 @@ class Command(BaseCommand):
         self,
         tbd_schema: SunkwiBotTimeBasedDropSchema,
         campaign_obj: DropCampaign,
-        source: str,  # noqa: ARG002
+        source: str,  # ruff:ignore[unused-method-argument]
         *,
         verbose: bool,
     ) -> None:
@@ -1335,7 +1335,7 @@ class Command(BaseCommand):
             skip_existing=skip_existing,
         )
 
-    def _parse_and_import_rewards(  # noqa: PLR0913
+    def _parse_and_import_rewards(  # ruff:ignore[too-many-arguments]
         self,
         raw_data: list[dict[str, Any]],
         source: str,
@@ -1563,12 +1563,12 @@ class Command(BaseCommand):
         self._org_cache[twitch_id] = org_obj
         return org_obj
 
-    def _get_or_create_game(  # noqa: PLR0913
+    def _get_or_create_game(  # ruff:ignore[too-many-arguments]
         self,
         twitch_id: str,
         display_name: str,
         box_art_url: str,
-        source: str,  # noqa: ARG002
+        source: str,  # ruff:ignore[unused-method-argument]
         *,
         verbose: bool,
         org_obj: Organization | None = None,

@@ -137,7 +137,7 @@ class Game(auto_prefetch.Model):
         default="",
     )
 
-    box_art = models.URLField(  # noqa: DJ001
+    box_art = models.URLField(  # ruff:ignore[django-nullable-model-string-field]
         verbose_name="Box art URL",
         max_length=500,
         blank=True,
@@ -231,12 +231,12 @@ class Game(auto_prefetch.Model):
 
     @property
     def organizations(self) -> models.QuerySet[Organization]:
-        """Return orgs that own games with campaigns for this game."""
+        """Orgs that own games with campaigns for this game."""
         return Organization.objects.filter(games__drop_campaigns__game=self).distinct()
 
     @property
     def get_game_name(self) -> str:
-        """Return the best available name for the game."""
+        """The best available name for the game."""
         if self.display_name:
             return self.display_name
         if self.name:
@@ -247,8 +247,8 @@ class Game(auto_prefetch.Model):
 
     @property
     def twitch_directory_url(self) -> str:
-        """Return Twitch directory URL with drops filter when slug exists."""
-        # TODO(TheLovinator): If no slug, get from Twitch API or IGDB?  # noqa: TD003
+        """Twitch directory URL with drops filter when slug exists."""
+        # TODO(TheLovinator): If no slug, get from Twitch API or IGDB?  # ruff:ignore[missing-todo-link]
 
         if self.slug:
             return f"https://www.twitch.tv/directory/category/{self.slug}?filter=drops"
@@ -256,7 +256,7 @@ class Game(auto_prefetch.Model):
 
     @property
     def box_art_best_url(self) -> str:
-        """Return the best available URL for the game's box art (local first)."""
+        """The best available URL for the game's box art (local first)."""
         try:
             if self.box_art_file and getattr(self.box_art_file, "url", None):
                 return self.box_art_file.url
@@ -271,7 +271,7 @@ class Game(auto_prefetch.Model):
 
     @property
     def dashboard_box_art_url(self) -> str:
-        """Return dashboard-safe box art URL without touching deferred image fields."""
+        """Dashboard-safe box art URL without touching deferred image fields."""
         return normalize_twitch_box_art_url(self.box_art or "")
 
     @classmethod
@@ -570,7 +570,7 @@ class Channel(auto_prefetch.Model):
 
     @property
     def preferred_name(self) -> str:
-        """Return display name fallback used by channel-facing pages."""
+        """Display name fallback used by channel-facing pages."""
         return self.display_name or self.name or self.twitch_id
 
     def detail_description(self, total_campaigns: int) -> str:
@@ -580,7 +580,7 @@ class Channel(auto_prefetch.Model):
 
 
 # MARK: DropCampaign
-class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
+class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
     """Represents a Twitch drop campaign."""
 
     twitch_id = models.TextField(
@@ -1270,7 +1270,7 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def clean_name(self) -> str:
-        """Return the campaign name without the game name prefix.
+        """The campaign name without the game name prefix.
 
         Examples:
             "Ravendawn - July 2" -> "July 2"
@@ -1302,7 +1302,7 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def single_reward_benefit(self) -> DropBenefit | None:
-        """Return the only unique reward benefit for this campaign, if it has one."""
+        """The only unique reward benefit for this campaign, if it has one."""
         benefits: list[DropBenefit] = []
         seen_benefit_keys: set[int | str] = set()
 
@@ -1321,7 +1321,7 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def single_reward_image_best_url(self) -> str:
-        """Return the best image URL for a campaign that has exactly one reward."""
+        """The best image URL for a campaign that has exactly one reward."""
         benefit: DropBenefit | None = self.single_reward_benefit
         if not benefit:
             return ""
@@ -1329,12 +1329,12 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def meta_image_url(self) -> str:
-        """Return the preferred campaign image URL for SEO metadata."""
+        """The preferred campaign image URL for SEO metadata."""
         return self.single_reward_image_best_url or self.image_best_url
 
     @property
     def image_best_url(self) -> str:
-        """Return the best URL for the campaign image.
+        """The best URL for the campaign image.
 
         Priority:
         1. Local cached image file
@@ -1361,7 +1361,7 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def listing_image_url(self) -> str:
-        """Return a campaign image URL optimized for list views.
+        """A campaign image URL optimized for list views.
 
         This intentionally avoids traversing drops/benefits to prevent N+1 queries
         in list pages that render many campaigns.
@@ -1375,7 +1375,7 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def dashboard_image_url(self) -> str:
-        """Return dashboard-safe campaign or single-reward image URL."""
+        """Dashboard-safe campaign or single-reward image URL."""
         benefit: DropBenefit | None = self.single_reward_benefit
         if benefit and benefit.image_asset_url:
             return benefit.image_asset_url
@@ -1383,7 +1383,7 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def duration_iso(self) -> str:
-        """Return the campaign duration in ISO 8601 format (e.g., 'P3DT4H30M').
+        """The campaign duration in ISO 8601 format (e.g., 'P3DT4H30M').
 
         This is used for the <time> element's datetime attribute to provide
         machine-readable duration. If start_at or end_at is missing, returns
@@ -1421,7 +1421,7 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
 
     @property
     def sorted_benefits(self) -> list[DropBenefit]:
-        """Return a sorted list of benefits for the campaign."""
+        """A sorted list of benefits for the campaign."""
         benefits: list[DropBenefit] = []
         for drop in self.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
             benefits.extend(drop.benefits.all())  # pyright: ignore[reportAttributeAccessIssue]
@@ -1570,7 +1570,7 @@ class DropBenefit(auto_prefetch.Model):
 
     @property
     def image_best_url(self) -> str:
-        """Return the best URL for the benefit image (local first)."""
+        """The best URL for the benefit image (local first)."""
         try:
             if self.image_file:
                 file_name: str = getattr(self.image_file, "name", "")
@@ -1917,7 +1917,7 @@ class RewardCampaign(auto_prefetch.Model):
 
     @property
     def image_best_url(self) -> str:
-        """Return the best URL for the reward campaign image (local first)."""
+        """The best URL for the reward campaign image (local first)."""
         try:
             if self.image_file and getattr(self.image_file, "url", None):
                 return self.image_file.url
@@ -2022,14 +2022,14 @@ class ChatBadge(auto_prefetch.Model):
         verbose_name="Description",
     )
 
-    click_action = models.TextField(  # noqa: DJ001
+    click_action = models.TextField(  # ruff:ignore[django-nullable-model-string-field]
         help_text="The action to take when clicking on the badge (e.g., 'visit_url').",
         verbose_name="Click Action",
         blank=True,
         null=True,
     )
 
-    click_url = models.URLField(  # noqa: DJ001
+    click_url = models.URLField(  # ruff:ignore[django-nullable-model-string-field]
         help_text="The URL to navigate to when clicking on the badge.",
         verbose_name="Click URL",
         max_length=500,

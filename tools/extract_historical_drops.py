@@ -16,7 +16,7 @@ import argparse
 import hashlib
 import json
 import shutil
-import subprocess  # noqa: S404
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -60,7 +60,7 @@ def run_git(git_dir: str, *args: str, check: bool = True) -> str:
         if not git:
             msg = "Git executable not found in PATH."
             raise FileNotFoundError(msg)
-        result: subprocess.CompletedProcess[str] = subprocess.run(  # noqa: S603
+        result: subprocess.CompletedProcess[str] = subprocess.run(  # ruff:ignore[subprocess-without-shell-equals-true]
             [git, "--git-dir", git_dir, *args],
             capture_output=True,
             text=True,

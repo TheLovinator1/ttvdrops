@@ -93,12 +93,12 @@ class KickCategory(auto_prefetch.Model):
 
     @property
     def get_absolute_url(self) -> str:
-        """Return the URL to the game detail page."""
+        """The URL to the game detail page."""
         return reverse("kick:game_detail", args=[self.kick_id])
 
     @property
     def kick_url(self) -> str:
-        """Return the URL to the game page on Kick."""
+        """The URL to the game page on Kick."""
         return f"https://kick.com/category/{self.slug}" if self.slug else ""
 
 
@@ -136,7 +136,7 @@ class KickUser(auto_prefetch.Model):
 
     @property
     def kick_profile_url(self) -> str:
-        """Return the Kick profile URL for this user."""
+        """The Kick profile URL for this user."""
         return f"https://kick.com/{self.username}" if self.username else ""
 
 
@@ -183,7 +183,7 @@ class KickChannel(auto_prefetch.Model):
 
     @property
     def channel_url(self) -> str:
-        """Return the Kick channel URL."""
+        """The Kick channel URL."""
         return f"https://kick.com/{self.slug}" if self.slug else ""
 
 
@@ -290,7 +290,7 @@ class KickDropCampaign(auto_prefetch.Model):
 
     @property
     def image_url(self) -> str:
-        """Return the image URL for the campaign."""
+        """The image URL for the campaign."""
         # Image from first drop
         rewards_prefetched: list[KickReward] | None = getattr(
             self,
@@ -356,7 +356,7 @@ class KickDropCampaign(auto_prefetch.Model):
 
     @property
     def merged_rewards(self) -> list[KickReward]:
-        """Return rewards de-duplicated by normalized name.
+        """Rewards de-duplicated by normalized name.
 
         If both a base reward and a "(Con)" variant exist, prefer the base reward name.
         """
@@ -455,7 +455,7 @@ class KickReward(auto_prefetch.Model):
 
     @property
     def full_image_url(self) -> str:
-        """Return the absolute image URL for this reward.
+        """The absolute image URL for this reward.
 
         If the image_url is a relative path, prepend the Kick image base URL.
         """

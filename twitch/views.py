@@ -196,7 +196,7 @@ def _build_breadcrumb_schema(items: list[dict[str, str | int]]) -> dict[str, Any
     Returns:
         BreadcrumbList schema dict.
     """
-    # TODO(TheLovinator): Replace dict with something more structured, like a dataclass or namedtuple, for better type safety and readability.  # noqa: TD003
+    # TODO(TheLovinator): Replace dict with something more structured, like a dataclass or namedtuple, for better type safety and readability.  # ruff:ignore[missing-todo-link]
 
     breadcrumb_items: list[dict[str, str | int]] = []
     for position, item in enumerate(items, start=1):
@@ -384,7 +384,7 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
 
 
 # MARK: /campaigns/
-def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0914
+def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-locals]
     """Function-based view for drop campaigns list.
 
     Args:
@@ -483,7 +483,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0
 
 
 # MARK: /campaigns/<twitch_id>/
-def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # noqa: PLR0914
+def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # ruff:ignore[too-many-locals]
     """Function-based view for a drop campaign detail.
 
     Args:
@@ -536,7 +536,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         reverse("twitch:campaign_detail", args=[campaign.twitch_id]),
     )
 
-    # TODO(TheLovinator): If the campaign has specific allowed channels, we could list those as potential locations instead of just linking to Twitch homepage.  # noqa: TD003
+    # TODO(TheLovinator): If the campaign has specific allowed channels, we could list those as potential locations instead of just linking to Twitch homepage.  # ruff:ignore[missing-todo-link]
     campaign_event: dict[str, Any] = {
         "@context": "https://schema.org",
         "@type": "Event",
@@ -590,7 +590,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     campaign_schema: dict[str, Any] = campaign_event
 
     # Breadcrumb schema for navigation
-    # TODO(TheLovinator): We should have a game.get_display_name() method that encapsulates the logic of choosing between display_name, name, and twitch_id.  # noqa: TD003
+    # TODO(TheLovinator): We should have a game.get_display_name() method that encapsulates the logic of choosing between display_name, name, and twitch_id.  # ruff:ignore[missing-todo-link]
     game_name: str = (
         campaign.game.display_name or campaign.game.name or campaign.game.twitch_id
     )
@@ -702,7 +702,7 @@ class GameDetailView(DetailView):
         """Return game queryset optimized for the game detail page."""
         return Game.for_detail_view()
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:  # noqa: PLR0914
+    def get_context_data(self, **kwargs) -> dict[str, Any]:  # ruff:ignore[too-many-locals]
         """Add additional context data.
 
         Args:
@@ -849,7 +849,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     dashboard_data: dict[str, Any] = DropCampaign.dashboard_context(now)
 
     # WebSite schema with SearchAction for sitelinks search box
-    # TODO(TheLovinator): Should this be on all pages instead of just the dashboard?  # noqa: TD003
+    # TODO(TheLovinator): Should this be on all pages instead of just the dashboard?  # ruff:ignore[missing-todo-link]
     website_schema: dict[str, str | dict[str, str | dict[str, str]]] = {
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -1184,7 +1184,7 @@ class ChannelDetailView(DetailView):
         channel: Channel = get_object_or_404(queryset, twitch_id=twitch_id)
         return channel
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:  # noqa: PLR0914
+    def get_context_data(self, **kwargs) -> dict[str, Any]:  # ruff:ignore[too-many-locals]
         """Add additional context data.
 
         Args:

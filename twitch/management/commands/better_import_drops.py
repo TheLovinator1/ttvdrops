@@ -403,7 +403,7 @@ def repair_partially_broken_json(raw_text: str) -> str:
         wrapped: str = f"[{raw_text}]"
         wrapped_data = json.loads(wrapped)
         # Validate that all items look like GraphQL responses
-        if isinstance(wrapped_data, list) and wrapped_data:  # noqa: SIM102
+        if isinstance(wrapped_data, list) and wrapped_data:  # ruff:ignore[collapsible-if]
             # Check if all items have "data" or "extensions" (GraphQL response structure)
             if all(
                 isinstance(item, dict) and ("data" in item or "extensions" in item)
@@ -452,7 +452,7 @@ def repair_partially_broken_json(raw_text: str) -> str:
     valid_lines: list[dict[str, Any]] = []
 
     for line in lines:
-        line: str = line.strip()  # noqa: PLW2901
+        line: str = line.strip()  # ruff:ignore[redefined-loop-name]
         if line and line.startswith("{"):
             try:
                 fixed_line: str = json_repair.repair_json(line, logging=False)
@@ -749,7 +749,7 @@ class Command(BaseCommand):
 
         return channel_obj
 
-    def process_responses(  # noqa: PLR0915
+    def process_responses(  # ruff:ignore[too-many-statements]
         self,
         responses: list[dict[str, Any]],
         file_path: Path,
@@ -1180,7 +1180,7 @@ class Command(BaseCommand):
             msg: str = f"Path does not exist: {input_path}"
             raise CommandError(msg)
 
-    def handle(self, *args, **options) -> None:  # noqa: ARG002
+    def handle(self, *args, **options) -> None:  # ruff:ignore[unused-method-argument]
         """Main entry point for the command."""
         colorama_init(autoreset=True)
 

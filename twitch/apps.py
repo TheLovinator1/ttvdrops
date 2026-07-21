@@ -15,7 +15,7 @@ class TwitchConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "twitch"
 
-    def ready(self) -> None:  # noqa: D102
+    def ready(self) -> None:  # ruff:ignore[undocumented-public-method]
         logger: logging.Logger = logging.getLogger("ttvdrops.apps")
 
         # Patch FieldFile.open to swallow FileNotFoundError and provide
@@ -39,18 +39,18 @@ class TwitchConfig(AppConfig):
 
         # Register post_save signal handlers that dispatch image download tasks
         # when new Twitch records are created.
-        from django.db.models.signals import m2m_changed  # noqa: I001, PLC0415
-        from django.db.models.signals import post_save  # noqa: PLC0415
+        from django.db.models.signals import m2m_changed  # ruff:ignore[unsorted-imports, import-outside-top-level]
+        from django.db.models.signals import post_save  # ruff:ignore[import-outside-top-level]
 
-        from twitch.models import DropBenefit  # noqa: PLC0415
-        from twitch.models import DropCampaign  # noqa: PLC0415
-        from twitch.models import Game  # noqa: PLC0415
-        from twitch.models import RewardCampaign  # noqa: PLC0415
-        from twitch.signals import on_drop_benefit_saved  # noqa: PLC0415
-        from twitch.signals import on_drop_campaign_allow_channels_changed  # noqa: PLC0415
-        from twitch.signals import on_drop_campaign_saved  # noqa: PLC0415
-        from twitch.signals import on_game_saved  # noqa: PLC0415
-        from twitch.signals import on_reward_campaign_saved  # noqa: PLC0415
+        from twitch.models import DropBenefit  # ruff:ignore[import-outside-top-level]
+        from twitch.models import DropCampaign  # ruff:ignore[import-outside-top-level]
+        from twitch.models import Game  # ruff:ignore[import-outside-top-level]
+        from twitch.models import RewardCampaign  # ruff:ignore[import-outside-top-level]
+        from twitch.signals import on_drop_benefit_saved  # ruff:ignore[import-outside-top-level]
+        from twitch.signals import on_drop_campaign_allow_channels_changed  # ruff:ignore[import-outside-top-level]
+        from twitch.signals import on_drop_campaign_saved  # ruff:ignore[import-outside-top-level]
+        from twitch.signals import on_game_saved  # ruff:ignore[import-outside-top-level]
+        from twitch.signals import on_reward_campaign_saved  # ruff:ignore[import-outside-top-level]
 
         post_save.connect(on_game_saved, sender=Game)
         post_save.connect(on_drop_campaign_saved, sender=DropCampaign)

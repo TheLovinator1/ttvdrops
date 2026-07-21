@@ -49,7 +49,7 @@ class Command(BaseCommand):
             ),
         )
 
-    def handle(self, *args: Any, **options: Any) -> None:  # noqa: ANN401, ARG002
+    def handle(self, *args: Any, **options: Any) -> None:  # ruff:ignore[any-type, unused-method-argument]
         """Execute the command to detach the organization and optionally re-import data.
 
         Args:

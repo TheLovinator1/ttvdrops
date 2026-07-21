@@ -53,7 +53,7 @@ MIN_SEARCH_RANK = 0.05
 DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and more."
 
 
-def _build_seo_context(  # noqa: PLR0913, PLR0917
+def _build_seo_context(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
     page_title: str = "ttvdrops",
     page_description: str | None = None,
     page_url: str | None = None,
@@ -91,7 +91,7 @@ def _build_seo_context(  # noqa: PLR0913, PLR0917
     if page_url and not page_url.startswith("http"):
         page_url = f"{settings.BASE_URL}{page_url}"
 
-    # TODO(TheLovinator): Instead of having so many parameters,  # noqa: TD003
+    # TODO(TheLovinator): Instead of having so many parameters,  # ruff:ignore[missing-todo-link]
     # consider having a single "seo_info" parameter that
     # can contain all of these optional fields. This would make
     # it easier to extend in the future without changing the
@@ -533,7 +533,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /debug/
-def debug_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0914
+def debug_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-locals]
     """Debug view showing potentially broken or inconsistent data.
 
     Returns:
@@ -772,8 +772,8 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The rendered dataset backups page.
     """
-    # TODO(TheLovinator): Instead of only using sql we should also support other formats like parquet, csv, or json.  # noqa: TD003
-    # TODO(TheLovinator): Upload to s3 instead.  # noqa: TD003
+    # TODO(TheLovinator): Instead of only using sql we should also support other formats like parquet, csv, or json.  # ruff:ignore[missing-todo-link]
+    # TODO(TheLovinator): Upload to s3 instead.  # ruff:ignore[missing-todo-link]
     # TODO(TheLovinator): https://developers.google.com/search/docs/appearance/structured-data/dataset#json-ld
     datasets_root: Path = settings.DATA_DIR / "datasets"
     search_dirs: list[Path] = [datasets_root]
@@ -889,7 +889,7 @@ def dataset_backup_download_view(
     Raises:
         Http404: When the file is not found or is outside the data directory.
     """
-    # TODO(TheLovinator): Use s3 instead of local disk.  # noqa: TD003
+    # TODO(TheLovinator): Use s3 instead of local disk.  # ruff:ignore[missing-todo-link]
 
     datasets_root: Path = settings.DATA_DIR / "datasets"
     requested_path: Path = (datasets_root / relative_path).resolve()
@@ -994,7 +994,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
 
     total_results_count: int = sum(len(qs) for qs in results.values())
 
-    # TODO(TheLovinator): Make the description more informative by including counts of each result type, e.g. "Found 5 games, 3 campaigns, and 10 drops for 'rust'."   # noqa: TD003
+    # TODO(TheLovinator): Make the description more informative by including counts of each result type, e.g. "Found 5 games, 3 campaigns, and 10 drops for 'rust'."   # ruff:ignore[missing-todo-link]
     if query:
         page_title: str = f"Search Results for '{query}'"[:60]
         page_description: str = f"Found {total_results_count} results for '{query}'."

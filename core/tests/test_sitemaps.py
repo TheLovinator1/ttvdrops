@@ -1,4 +1,4 @@
-import xml.etree.ElementTree as ET  # noqa: S405
+import xml.etree.ElementTree as ET  # ruff:ignore[suspicious-xml-etree-import]
 from typing import TYPE_CHECKING
 
 from django.urls import reverse
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 def _extract_locs(xml_bytes: bytes) -> list[str]:
-    root = ET.fromstring(xml_bytes)  # noqa: S314
+    root = ET.fromstring(xml_bytes)  # ruff:ignore[suspicious-xml-element-tree-usage]
     ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     return [el.text for el in root.findall(".//s:loc", ns) if el.text]
 

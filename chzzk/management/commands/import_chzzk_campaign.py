@@ -144,7 +144,7 @@ class Command(BaseCommand):
         Args:
             campaign_no (int): The campaign number to import.
         """
-        api_version: str = "v2"  # TODO(TheLovinator): Add support for v1 API  # noqa: TD003
+        api_version: str = "v2"  # TODO(TheLovinator): Add support for v1 API  # ruff:ignore[missing-todo-link]
         url: str = f"https://api.chzzk.naver.com/service/{api_version}/drops/campaigns/{campaign_no}"
         resp: requests.Response = requests.get(
             url,

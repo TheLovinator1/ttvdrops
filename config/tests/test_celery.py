@@ -16,7 +16,7 @@ def celery_app() -> Generator[Celery, Any]:
     Yields:
         Celery: A Celery app instance configured for testing.
     """
-    with patch("os.environ.setdefault") as mock_setenv:  # noqa: F841
+    with patch("os.environ.setdefault") as mock_setenv:  # ruff:ignore[unused-variable]
         app = Celery("config")
         app.config_from_object("django.conf:settings", namespace="CELERY")
         yield app

@@ -21,7 +21,7 @@ logger: logging.Logger = logging.getLogger("ttvdrops.tasks")
 
 
 @shared_task(bind=True, queue="imports", max_retries=3, default_retry_delay=60)
-def scan_pending_twitch_files(self) -> None:  # noqa: ANN001
+def scan_pending_twitch_files(self) -> None:  # ruff:ignore[missing-type-function-argument]
     """Scan TTVDROPS_PENDING_DIR for JSON files and dispatch an import task for each."""
     pending_dir: str = os.getenv("TTVDROPS_PENDING_DIR", "")
     if not pending_dir:
@@ -44,9 +44,9 @@ def scan_pending_twitch_files(self) -> None:  # noqa: ANN001
 
 
 @shared_task(bind=True, queue="imports", max_retries=3, default_retry_delay=60)
-def import_twitch_file(self, file_path: str) -> None:  # noqa: ANN001
+def import_twitch_file(self, file_path: str) -> None:  # ruff:ignore[missing-type-function-argument]
     """Import a single Twitch JSON drop file via BetterImportDrops logic."""
-    from twitch.management.commands.better_import_drops import Command as Importer  # noqa: I001, PLC0415
+    from twitch.management.commands.better_import_drops import Command as Importer  # ruff:ignore[unsorted-imports, import-outside-top-level]
 
     path = Path(file_path)
     if not path.is_file():
@@ -103,7 +103,7 @@ def _convert_to_modern_formats(source: Path) -> None:
 
     try:
         img = _open_and_prepare_image(source)
-    except Exception:  # noqa: BLE001
+    except Exception:  # ruff:ignore[blind-except]
         logger.debug("Format conversion failed for %s.", source)
         return
 
@@ -116,7 +116,7 @@ def _open_and_prepare_image(source: Path) -> Image:
     Returns:
         An RGB-mode PIL Image ready for saving in modern formats.
     """
-    from PIL import Image  # noqa: PLC0415
+    from PIL import Image  # ruff:ignore[import-outside-top-level]
 
     with Image.open(source) as raw:
         if raw.mode in {"RGBA", "LA"} or (
@@ -140,7 +140,7 @@ def _save_modern_formats(img: Image, source: Path) -> None:
         out: Path = source.with_suffix(ext)
         try:
             img.save(out, fmt, quality=80)
-        except Exception:  # noqa: BLE001
+        except Exception:  # ruff:ignore[blind-except]
             logger.debug("Could not convert %s to %s.", source, fmt)
 
 
@@ -150,11 +150,11 @@ def _save_modern_formats(img: Image, source: Path) -> None:
 
 
 @shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
-def download_game_image(self, game_pk: int) -> None:  # noqa: ANN001
+def download_game_image(self, game_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the box art image for a single Game."""
-    from twitch.models import Game  # noqa: PLC0415
-    from twitch.utils import is_twitch_box_art_url  # noqa: PLC0415
-    from twitch.utils import normalize_twitch_box_art_url  # noqa: PLC0415
+    from twitch.models import Game  # ruff:ignore[import-outside-top-level, unsorted-imports]
+    from twitch.utils import is_twitch_box_art_url  # ruff:ignore[import-outside-top-level]
+    from twitch.utils import normalize_twitch_box_art_url  # ruff:ignore[import-outside-top-level]
 
     try:
         game = Game.objects.get(pk=game_pk)
@@ -172,9 +172,9 @@ def download_game_image(self, game_pk: int) -> None:  # noqa: ANN001
 
 
 @shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
-def download_campaign_image(self, campaign_pk: int) -> None:  # noqa: ANN001
+def download_campaign_image(self, campaign_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the image for a single DropCampaign."""
-    from twitch.models import DropCampaign  # noqa: PLC0415
+    from twitch.models import DropCampaign  # ruff:ignore[import-outside-top-level]
 
     try:
         campaign = DropCampaign.objects.get(pk=campaign_pk)
@@ -191,9 +191,9 @@ def download_campaign_image(self, campaign_pk: int) -> None:  # noqa: ANN001
 
 
 @shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
-def download_benefit_image(self, benefit_pk: int) -> None:  # noqa: ANN001
+def download_benefit_image(self, benefit_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the image for a single DropBenefit."""
-    from twitch.models import DropBenefit  # noqa: PLC0415
+    from twitch.models import DropBenefit  # ruff:ignore[import-outside-top-level]
 
     try:
         benefit = DropBenefit.objects.get(pk=benefit_pk)
@@ -214,9 +214,9 @@ def download_benefit_image(self, benefit_pk: int) -> None:  # noqa: ANN001
 
 
 @shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
-def download_reward_campaign_image(self, reward_pk: int) -> None:  # noqa: ANN001
+def download_reward_campaign_image(self, reward_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the image for a single RewardCampaign."""
-    from twitch.models import RewardCampaign  # noqa: PLC0415
+    from twitch.models import RewardCampaign  # ruff:ignore[import-outside-top-level]
 
     try:
         reward = RewardCampaign.objects.get(pk=reward_pk)
@@ -245,7 +245,7 @@ def download_all_images() -> None:
 
 
 @shared_task(bind=True, queue="api-fetches", max_retries=3, default_retry_delay=120)
-def import_chat_badges(self) -> None:  # noqa: ANN001
+def import_chat_badges(self) -> None:  # ruff:ignore[missing-type-function-argument]
     """Fetch and upsert Twitch global chat badges via the Helix API."""
     try:
         call_command("import_chat_badges")

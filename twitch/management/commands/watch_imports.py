@@ -37,7 +37,7 @@ class Command(BaseCommand):
             help="Path to directory to watch for JSON files",
         )
 
-    def handle(self, *args, **options) -> None:  # noqa: ARG002
+    def handle(self, *args, **options) -> None:  # ruff:ignore[unused-method-argument]
         """Main entry point for the watch command.
 
         Args:
@@ -87,7 +87,7 @@ class Command(BaseCommand):
             importer_command: An instance of the BetterImportDropsCommand to handle the import logic.
             watch_path: The directory path to watch for JSON files.
         """
-        # TODO(TheLovinator): Implement actual file watching using watchdog or similar library.  # noqa: TD003
+        # TODO(TheLovinator): Implement actual file watching using watchdog or similar library.  # ruff:ignore[missing-todo-link]
         json_files: list[Path] = [
             f for f in watch_path.iterdir() if f.suffix == ".json" and f.is_file()
         ]

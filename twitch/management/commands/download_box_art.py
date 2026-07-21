@@ -39,7 +39,7 @@ class Command(BaseCommand):
             help="Re-download even if a local box art file already exists.",
         )
 
-    def handle(  # noqa: PLR0914, PLR0915
+    def handle(  # ruff:ignore[too-many-locals, too-many-statements]
         self,
         *_args: str,
         **options: str | bool | int | None,

@@ -496,7 +496,7 @@ class KickCategoryCampaignFeed(TTVDropsBaseFeed):
                 self._limit = None
         return super().__call__(request, *args, **kwargs)
 
-    def get_object(self, request: HttpRequest, kick_id: int) -> KickCategory:  # noqa: ARG002
+    def get_object(self, request: HttpRequest, kick_id: int) -> KickCategory:  # ruff:ignore[unused-method-argument]
         """Return game object for this feed URL."""
         return KickCategory.objects.get(kick_id=kick_id)
 

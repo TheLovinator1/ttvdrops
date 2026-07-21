@@ -463,7 +463,7 @@ class KickDropCampaignMergedRewardsTest(TestCase):
 class ImportKickDropsCommandTest(TestCase):
     """Tests for the import_kick_drops management command."""
 
-    def _run_command(self, json_payload: dict, **options: Any) -> tuple[str, str]:  # noqa: ANN401
+    def _run_command(self, json_payload: dict, **options: Any) -> tuple[str, str]:  # ruff:ignore[any-type]
 
         mock_response = MagicMock()
         mock_response.json.return_value = json_payload

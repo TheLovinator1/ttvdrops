@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import datetime  # noqa: TC003
+import datetime  # ruff:ignore[typing-only-standard-library-import]
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Literal
