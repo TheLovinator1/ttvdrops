@@ -1015,7 +1015,7 @@ def search_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /
-def dashboard(request: HttpRequest) -> HttpResponse:
+def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-locals, too-many-statements]
     """Dashboard view showing summary stats and latest campaigns.
 
     Args:
@@ -1038,6 +1038,27 @@ def dashboard(request: HttpRequest) -> HttpResponse:
                 to_attr="channels_ordered",
             ),
         )
+        .prefetch_related(
+            Prefetch(
+                "time_based_drops",
+                queryset=TimeBasedDrop.objects.only(
+                    "twitch_id",
+                    "name",
+                    "required_minutes_watched",
+                    "campaign_id",
+                ).prefetch_related(
+                    Prefetch(
+                        "benefits",
+                        queryset=DropBenefit.objects.only(
+                            "twitch_id",
+                            "name",
+                            "image_asset_url",
+                            "image_file",
+                        ),
+                    ),
+                ),
+            ),
+        )
         .order_by("-start_at")
     )
 
@@ -1052,9 +1073,41 @@ def dashboard(request: HttpRequest) -> HttpResponse:
                 "owners": list(game.owners.all()),
                 "campaigns": [],
             }
+
+        # Collect unique benefits and metadata across all time-based drops
+        seen_benefits: set[str] = set()
+        benefits_list: list[DropBenefit] = []
+        min_watch: int = 0
+        max_watch: int = 0
+        for drop in campaign.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
+            if drop.required_minutes_watched is not None:
+                if min_watch == 0 or drop.required_minutes_watched < min_watch:
+                    min_watch = drop.required_minutes_watched
+                max_watch = max(max_watch, drop.required_minutes_watched)
+            for benefit in drop.benefits.all():
+                if benefit.twitch_id not in seen_benefits:
+                    seen_benefits.add(benefit.twitch_id)
+                    benefits_list.append(benefit)
+
+        watch_range: str = ""
+        if min_watch and max_watch:
+            if min_watch == max_watch:
+                watch_range = f"{min_watch}m watch"
+            else:
+                watch_range = f"{min_watch}m-{max_watch}m watch"
+        elif min_watch:
+            watch_range = f"{min_watch}m watch"
+
+        # Get the publisher (first owner, if any)
+        owners: list[Organization] = getattr(game, "owners_for_dashboard", [])
+        publisher: str = owners[0].name if owners else ""
+
         twitch_campaigns_by_game[game_id]["campaigns"].append({
             "campaign": campaign,
             "allowed_channels": getattr(campaign, "channels_ordered", []),
+            "benefits": benefits_list,
+            "watch_range": watch_range,
+            "publisher": publisher,
         })
 
     active_kick_campaigns: QuerySet[KickDropCampaign] = (

@@ -121,7 +121,7 @@
                 </dl>
                 <div>
                     {% if campaign.channels.all %}
-                        Participating channels:
+                        <span id="allowed-channels">Participating channels:</span>
                         {% for channel in campaign.channels.all|slice:":5" %}
                             {% if channel.user %}
                                 <a href="{{ channel.channel_url }}">{{ channel.user.username }}</a>
