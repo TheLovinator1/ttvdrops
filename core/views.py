@@ -705,6 +705,28 @@ def debug_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0914
     miner_only_rewards: QuerySet[RewardCampaign] = RewardCampaign.objects.filter(
         twitch_id__in=miner_only_reward_ids,
     ).order_by("name")[:200]
+
+    # ── Unknown-status campaigns ────────────────────────────────────────
+    # Kick campaigns with incomplete dates
+    kick_unknown_campaigns: QuerySet[KickDropCampaign] = (
+        KickDropCampaign.objects
+        .filter(
+            Q(starts_at__isnull=True) | Q(ends_at__isnull=True),
+            is_fully_imported=True,
+        )
+        .select_related("category", "organization")
+        .order_by("name")
+    )
+    # Twitch reward campaigns with incomplete dates
+    twitch_reward_unknown_campaigns: QuerySet[RewardCampaign] = (
+        RewardCampaign.objects
+        .filter(
+            Q(starts_at__isnull=True) | Q(ends_at__isnull=True),
+        )
+        .select_related("game")
+        .order_by("name")
+    )
+
     context: dict[str, Any] = {
         "now": now,
         "games_without_owner": games_without_owner,
@@ -725,6 +747,9 @@ def debug_view(request: HttpRequest) -> HttpResponse:  # noqa: PLR0914
         "miner_only_rewards_count": len(miner_only_reward_ids),
         "sunkibot_only_rewards": sunkibot_only_rewards,
         "miner_only_rewards": miner_only_rewards,
+        # Unknown-status campaigns
+        "kick_unknown_campaigns": kick_unknown_campaigns,
+        "twitch_reward_unknown_campaigns": twitch_reward_unknown_campaigns,
     }
 
     seo_context: dict[str, Any] = _build_seo_context(

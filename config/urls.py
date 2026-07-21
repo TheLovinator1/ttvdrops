@@ -43,6 +43,11 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=core_views.sitemap_youtube_view,
         name="sitemap-youtube",
     ),
+    # API v1
+    path(
+        "api/v1/",
+        include("config.api", namespace="api-v1"),
+    ),
     # Core app
     path(route="", view=include("core.urls", namespace="core")),
     # Twitch app

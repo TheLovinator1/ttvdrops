@@ -801,6 +801,10 @@ class DropCampaign(auto_prefetch.Model):  # noqa: PLR0904
             queryset = queryset.filter(start_at__gt=now)
         elif status == "expired":
             queryset = queryset.filter(end_at__lt=now)
+        elif status == "unknown":
+            queryset = queryset.filter(
+                Q(start_at__isnull=True) | Q(end_at__isnull=True),
+            )
         return queryset
 
     @classmethod

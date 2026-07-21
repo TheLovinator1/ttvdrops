@@ -179,7 +179,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_campaign_list(self) -> None:
         """Return active campaigns from the v1 list endpoint."""
-        response = self.client.get("/twitch/api/v1/campaigns/?status=active")
+        response = self.client.get("/api/v1/twitch/campaigns/?status=active")
 
         assert response.status_code == 200
         assert "Content-Disposition" not in response
@@ -193,7 +193,7 @@ class TwitchApiV1TestCase(TestCase):
     def test_v1_campaign_list_filters_by_game(self) -> None:
         """Filter campaigns by game twitch_id."""
         response = self.client.get(
-            f"/twitch/api/v1/campaigns/?game={self.game.twitch_id}",
+            f"/api/v1/twitch/campaigns/?game={self.game.twitch_id}",
         )
 
         assert response.status_code == 200
@@ -203,7 +203,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_campaign_list_game_filter_with_no_matches(self) -> None:
         """Return empty list when game filter matches no campaigns."""
-        response = self.client.get("/twitch/api/v1/campaigns/?game=nonexistent")
+        response = self.client.get("/api/v1/twitch/campaigns/?game=nonexistent")
 
         assert response.status_code == 200
         data = response.json()
@@ -223,7 +223,7 @@ class TwitchApiV1TestCase(TestCase):
             is_fully_imported=True,
         )
 
-        response = self.client.get("/twitch/api/v1/campaigns/?status=upcoming")
+        response = self.client.get("/api/v1/twitch/campaigns/?status=upcoming")
 
         assert response.status_code == 200
         data = response.json()
@@ -243,7 +243,7 @@ class TwitchApiV1TestCase(TestCase):
             is_fully_imported=True,
         )
 
-        response = self.client.get("/twitch/api/v1/campaigns/?status=expired")
+        response = self.client.get("/api/v1/twitch/campaigns/?status=expired")
 
         assert response.status_code == 200
         data = response.json()
@@ -252,7 +252,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_campaign_list_default_page_size(self) -> None:
         """Return all campaigns when no page_size is specified."""
-        response = self.client.get("/twitch/api/v1/campaigns/")
+        response = self.client.get("/api/v1/twitch/campaigns/")
 
         assert response.status_code == 200
         data = response.json()
@@ -261,7 +261,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_campaign_list_page_size_param(self) -> None:
         """Respect custom page_size parameter."""
-        response = self.client.get("/twitch/api/v1/campaigns/?page_size=1")
+        response = self.client.get("/api/v1/twitch/campaigns/?page_size=1")
 
         assert response.status_code == 200
         data = response.json()
@@ -270,7 +270,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_campaign_list_summary_fields(self) -> None:
         """Return correct field shape for campaign summary items."""
-        response = self.client.get("/twitch/api/v1/campaigns/")
+        response = self.client.get("/api/v1/twitch/campaigns/")
 
         assert response.status_code == 200
         data = response.json()
@@ -292,7 +292,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_campaign_detail(self) -> None:
         """Return nested campaign detail data from the v1 endpoint."""
-        response = self.client.get("/twitch/api/v1/campaigns/campaign123/")
+        response = self.client.get("/api/v1/twitch/campaigns/campaign123/")
 
         assert response.status_code == 200
         data = response.json()
@@ -322,7 +322,7 @@ class TwitchApiV1TestCase(TestCase):
             update_fields=["box_art_file", "box_art_width", "box_art_height"],
         )
 
-        response = self.client.get("/twitch/api/v1/campaigns/campaign123/")
+        response = self.client.get("/api/v1/twitch/campaigns/campaign123/")
 
         assert response.status_code == 200
         data = response.json()
@@ -337,7 +337,7 @@ class TwitchApiV1TestCase(TestCase):
         one extra query per benefit.
         """
         with CaptureQueriesContext(connection) as capture:
-            response = self.client.get("/twitch/api/v1/campaigns/campaign123/")
+            response = self.client.get("/api/v1/twitch/campaigns/campaign123/")
 
         assert response.status_code == 200
         data = response.json()
@@ -361,26 +361,26 @@ class TwitchApiV1TestCase(TestCase):
         """Exercise all v1 routes with enough rows to catch deferred loads."""
         self._create_secondary_api_fixture()
         list_urls: list[tuple[str, int]] = [
-            ("/twitch/api/v1/campaigns/?page_size=50", 2),
-            ("/twitch/api/v1/games/?page_size=50", 2),
-            ("/twitch/api/v1/organizations/?page_size=50", 2),
-            ("/twitch/api/v1/channels/?page_size=50", 2),
-            ("/twitch/api/v1/reward-campaigns/?page_size=50", 2),
-            ("/twitch/api/v1/badges/?page_size=50", 2),
+            ("/api/v1/twitch/campaigns/?page_size=50", 2),
+            ("/api/v1/twitch/games/?page_size=50", 2),
+            ("/api/v1/twitch/organizations/?page_size=50", 2),
+            ("/api/v1/twitch/channels/?page_size=50", 2),
+            ("/api/v1/twitch/reward-campaigns/?page_size=50", 2),
+            ("/api/v1/twitch/badges/?page_size=50", 2),
         ]
         detail_urls = [
-            "/twitch/api/v1/campaigns/campaign123/",
-            "/twitch/api/v1/campaigns/campaign456/",
-            "/twitch/api/v1/games/game123/",
-            "/twitch/api/v1/games/game456/",
-            "/twitch/api/v1/organizations/org123/",
-            "/twitch/api/v1/organizations/org456/",
-            "/twitch/api/v1/channels/channel123/",
-            "/twitch/api/v1/channels/channel456/",
-            "/twitch/api/v1/reward-campaigns/reward123/",
-            "/twitch/api/v1/reward-campaigns/reward456/",
-            "/twitch/api/v1/badges/test-badge-set/",
-            "/twitch/api/v1/badges/second-badge-set/",
+            "/api/v1/twitch/campaigns/campaign123/",
+            "/api/v1/twitch/campaigns/campaign456/",
+            "/api/v1/twitch/games/game123/",
+            "/api/v1/twitch/games/game456/",
+            "/api/v1/twitch/organizations/org123/",
+            "/api/v1/twitch/organizations/org456/",
+            "/api/v1/twitch/channels/channel123/",
+            "/api/v1/twitch/channels/channel456/",
+            "/api/v1/twitch/reward-campaigns/reward123/",
+            "/api/v1/twitch/reward-campaigns/reward456/",
+            "/api/v1/twitch/badges/test-badge-set/",
+            "/api/v1/twitch/badges/second-badge-set/",
         ]
 
         for url, expected_total in list_urls:
@@ -395,21 +395,21 @@ class TwitchApiV1TestCase(TestCase):
             assert response.status_code == 200, url
             assert response.json()
 
-        schema_response = self.client.get(reverse("twitch:twitch-api-v1:openapi-json"))
+        schema_response = self.client.get(reverse("api-v1:openapi-json"))
         assert schema_response.status_code == 200
         assert schema_response.json()
 
-        docs_response = self.client.get(reverse("twitch:twitch-api-v1:openapi-view"))
+        docs_response = self.client.get(reverse("api-v1:openapi-view"))
         assert docs_response.status_code == 200
 
     def test_v1_collection_endpoints(self) -> None:
         """Return v1 list responses for all Twitch API collections."""
         checks = [
-            ("/twitch/api/v1/games/", "game123"),
-            ("/twitch/api/v1/organizations/", "org123"),
-            ("/twitch/api/v1/channels/", "channel123"),
-            ("/twitch/api/v1/reward-campaigns/", "reward123"),
-            ("/twitch/api/v1/badges/", "test-badge-set"),
+            ("/api/v1/twitch/games/", "game123"),
+            ("/api/v1/twitch/organizations/", "org123"),
+            ("/api/v1/twitch/channels/", "channel123"),
+            ("/api/v1/twitch/reward-campaigns/", "reward123"),
+            ("/api/v1/twitch/badges/", "test-badge-set"),
         ]
 
         for url, expected_id in checks:
@@ -422,14 +422,14 @@ class TwitchApiV1TestCase(TestCase):
             )
             assert actual_id == expected_id
 
-        games_response = self.client.get("/twitch/api/v1/games/")
+        games_response = self.client.get("/api/v1/twitch/games/")
         games_data = games_response.json()
         assert games_data["items"][0]["campaign_count"] == 1
         assert games_data["items"][0]["active_campaign_count"] == 1
 
     def test_v1_organization_detail_includes_games_and_campaigns(self) -> None:
         """Return concrete game counts and detailed organization campaigns."""
-        response = self.client.get("/twitch/api/v1/organizations/org123/")
+        response = self.client.get("/api/v1/twitch/organizations/org123/")
 
         assert response.status_code == 200
         data = response.json()
@@ -447,8 +447,8 @@ class TwitchApiV1TestCase(TestCase):
     def test_v1_game_and_channel_detail_include_campaign_data(self) -> None:
         """Return campaign API fields on game and channel detail responses."""
         checks = [
-            "/twitch/api/v1/games/game123/",
-            "/twitch/api/v1/channels/channel123/",
+            "/api/v1/twitch/games/game123/",
+            "/api/v1/twitch/channels/channel123/",
         ]
 
         for url in checks:
@@ -463,16 +463,16 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_detail_not_found(self) -> None:
         """Return 404 for missing v1 campaign detail records."""
-        response = self.client.get("/twitch/api/v1/campaigns/missing/")
+        response = self.client.get("/api/v1/twitch/campaigns/missing/")
 
         assert response.status_code == 404
 
     def test_v1_docs_endpoint(self) -> None:
-        """Render the versioned Twitch API documentation page."""
-        response = self.client.get("/twitch/api/v1/docs")
+        """Render the combined TTVDrops API documentation page."""
+        response = self.client.get("/api/v1/docs/")
 
         assert response.status_code == 200
-        assert reverse("twitch:twitch-api-v1:openapi-json") in response.content.decode()
+        assert reverse("api-v1:openapi-json") in response.content.decode()
 
     def test_v1_docs_links_render_on_twitch_pages(self) -> None:
         """Expose API docs in nav and resource API links in feed link groups."""
@@ -480,27 +480,27 @@ class TwitchApiV1TestCase(TestCase):
             (
                 reverse("core:docs_rss"),
                 "API Docs",
-                "/twitch/api/v1/docs",
-                reverse("twitch:twitch-api-v1:openapi-view"),
+                "/api/v1/docs/",
+                reverse("api-v1:openapi-view"),
             ),
             (
                 reverse("twitch:dashboard"),
                 "API Docs",
                 "[api]",
-                reverse("twitch:twitch-api-v1:list_campaigns"),
+                reverse("api-v1:twitch-api-v1_list_campaigns"),
             ),
             (
                 reverse("twitch:campaign_list"),
                 "API Docs",
                 "[api]",
-                reverse("twitch:twitch-api-v1:list_campaigns"),
+                reverse("api-v1:twitch-api-v1_list_campaigns"),
             ),
             (
                 reverse("twitch:campaign_detail", args=[self.campaign.twitch_id]),
                 "API Docs",
                 "[api]",
                 reverse(
-                    "twitch:twitch-api-v1:get_campaign",
+                    "api-v1:twitch-api-v1_get_campaign",
                     args=[self.campaign.twitch_id],
                 ),
             ),
@@ -508,25 +508,25 @@ class TwitchApiV1TestCase(TestCase):
                 reverse("twitch:game_detail", args=[self.game.twitch_id]),
                 "API Docs",
                 "[api]",
-                reverse("twitch:twitch-api-v1:get_game", args=[self.game.twitch_id]),
+                reverse("api-v1:twitch-api-v1_get_game", args=[self.game.twitch_id]),
             ),
             (
                 reverse("twitch:games_grid"),
                 "API Docs",
                 "[api]",
-                reverse("twitch:twitch-api-v1:list_games"),
+                reverse("api-v1:twitch-api-v1_list_games"),
             ),
             (
                 reverse("twitch:org_list"),
                 "API Docs",
                 "[api]",
-                reverse("twitch:twitch-api-v1:list_organizations"),
+                reverse("api-v1:twitch-api-v1_list_organizations"),
             ),
             (
                 reverse("twitch:reward_campaign_list"),
                 "API Docs",
                 "[api]",
-                reverse("twitch:twitch-api-v1:list_reward_campaigns"),
+                reverse("api-v1:twitch-api-v1_list_reward_campaigns"),
             ),
             (
                 reverse(
@@ -536,7 +536,7 @@ class TwitchApiV1TestCase(TestCase):
                 "API Docs",
                 "[api]",
                 reverse(
-                    "twitch:twitch-api-v1:get_reward_campaign",
+                    "api-v1:twitch-api-v1_get_reward_campaign",
                     args=[self.reward_campaign.twitch_id],
                 ),
             ),
@@ -546,7 +546,7 @@ class TwitchApiV1TestCase(TestCase):
             response = self.client.get(url)
             assert response.status_code == 200
             content = response.content.decode()
-            assert reverse("twitch:twitch-api-v1:openapi-view") in content
+            assert reverse("api-v1:openapi-view") in content
             assert api_href in content
             assert nav_text in content
             assert feed_text in content
@@ -560,7 +560,7 @@ class TwitchApiV1TestCase(TestCase):
         assert response.status_code == 200
         content = response.content.decode()
         campaign_api_url = reverse(
-            "twitch:twitch-api-v1:get_campaign",
+            "api-v1:twitch-api-v1_get_campaign",
             args=[self.campaign.twitch_id],
         )
         assert f'href="{campaign_api_url}"' in content
@@ -570,7 +570,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_game_list_fields(self) -> None:
         """Return correct field shape for game list items."""
-        response = self.client.get("/twitch/api/v1/games/")
+        response = self.client.get("/api/v1/twitch/games/")
 
         assert response.status_code == 200
         data = response.json()
@@ -590,7 +590,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_game_list_pagination(self) -> None:
         """Paginate game list results."""
-        response = self.client.get("/twitch/api/v1/games/?page_size=1")
+        response = self.client.get("/api/v1/twitch/games/?page_size=1")
 
         assert response.status_code == 200
         data = response.json()
@@ -599,7 +599,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_game_detail_campaigns_and_owners(self) -> None:
         """Return campaigns and organizations in game detail."""
-        response = self.client.get("/twitch/api/v1/games/game123/")
+        response = self.client.get("/api/v1/twitch/games/game123/")
 
         assert response.status_code == 200
         data = response.json()
@@ -609,7 +609,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_game_detail_not_found(self) -> None:
         """Return 404 for missing game."""
-        response = self.client.get("/twitch/api/v1/games/nonexistent/")
+        response = self.client.get("/api/v1/twitch/games/nonexistent/")
 
         assert response.status_code == 404
 
@@ -617,7 +617,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_organization_list_fields(self) -> None:
         """Return correct field shape for organization list items."""
-        response = self.client.get("/twitch/api/v1/organizations/")
+        response = self.client.get("/api/v1/twitch/organizations/")
 
         assert response.status_code == 200
         data = response.json()
@@ -630,7 +630,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_organization_detail_not_found(self) -> None:
         """Return 404 for missing organization."""
-        response = self.client.get("/twitch/api/v1/organizations/nonexistent/")
+        response = self.client.get("/api/v1/twitch/organizations/nonexistent/")
 
         assert response.status_code == 404
 
@@ -638,7 +638,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_channel_list_search(self) -> None:
         """Filter channels by search query."""
-        response = self.client.get("/twitch/api/v1/channels/?search=testchannel")
+        response = self.client.get("/api/v1/twitch/channels/?search=testchannel")
 
         assert response.status_code == 200
         data = response.json()
@@ -647,7 +647,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_channel_list_search_no_match(self) -> None:
         """Return empty list when search matches no channels."""
-        response = self.client.get("/twitch/api/v1/channels/?search=zzzzz")
+        response = self.client.get("/api/v1/twitch/channels/?search=zzzzz")
 
         assert response.status_code == 200
         data = response.json()
@@ -656,7 +656,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_channel_list_fields(self) -> None:
         """Return correct field shape for channel list items."""
-        response = self.client.get("/twitch/api/v1/channels/")
+        response = self.client.get("/api/v1/twitch/channels/")
 
         assert response.status_code == 200
         data = response.json()
@@ -670,7 +670,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_channel_detail_campaigns(self) -> None:
         """Return campaign summaries in channel detail."""
-        response = self.client.get("/twitch/api/v1/channels/channel123/")
+        response = self.client.get("/api/v1/twitch/channels/channel123/")
 
         assert response.status_code == 200
         data = response.json()
@@ -680,7 +680,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_channel_detail_not_found(self) -> None:
         """Return 404 for missing channel."""
-        response = self.client.get("/twitch/api/v1/channels/nonexistent/")
+        response = self.client.get("/api/v1/twitch/channels/nonexistent/")
 
         assert response.status_code == 404
 
@@ -689,7 +689,7 @@ class TwitchApiV1TestCase(TestCase):
     def test_v1_reward_campaign_list_filters_by_game(self) -> None:
         """Filter reward campaigns by game twitch_id."""
         response = self.client.get(
-            f"/twitch/api/v1/reward-campaigns/?game={self.game.twitch_id}",
+            f"/api/v1/twitch/reward-campaigns/?game={self.game.twitch_id}",
         )
 
         assert response.status_code == 200
@@ -699,7 +699,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_reward_campaign_list_status_active(self) -> None:
         """Filter reward campaigns by status=active."""
-        response = self.client.get("/twitch/api/v1/reward-campaigns/?status=active")
+        response = self.client.get("/api/v1/twitch/reward-campaigns/?status=active")
 
         assert response.status_code == 200
         data = response.json()
@@ -719,7 +719,7 @@ class TwitchApiV1TestCase(TestCase):
             summary="Expired summary",
         )
 
-        response = self.client.get("/twitch/api/v1/reward-campaigns/?status=expired")
+        response = self.client.get("/api/v1/twitch/reward-campaigns/?status=expired")
 
         assert response.status_code == 200
         data = response.json()
@@ -728,7 +728,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_reward_campaign_list_fields(self) -> None:
         """Return correct field shape for reward campaign list items."""
-        response = self.client.get("/twitch/api/v1/reward-campaigns/")
+        response = self.client.get("/api/v1/twitch/reward-campaigns/")
 
         assert response.status_code == 200
         data = response.json()
@@ -748,7 +748,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_reward_campaign_detail_fields(self) -> None:
         """Return correct field shape for reward campaign detail."""
-        response = self.client.get("/twitch/api/v1/reward-campaigns/reward123/")
+        response = self.client.get("/api/v1/twitch/reward-campaigns/reward123/")
 
         assert response.status_code == 200
         data = response.json()
@@ -774,7 +774,7 @@ class TwitchApiV1TestCase(TestCase):
             is_sitewide=True,
         )
 
-        response = self.client.get("/twitch/api/v1/reward-campaigns/no_game_reward/")
+        response = self.client.get("/api/v1/twitch/reward-campaigns/no_game_reward/")
 
         assert response.status_code == 200
         data = response.json()
@@ -783,7 +783,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_reward_campaign_detail_not_found(self) -> None:
         """Return 404 for missing reward campaign."""
-        response = self.client.get("/twitch/api/v1/reward-campaigns/nonexistent/")
+        response = self.client.get("/api/v1/twitch/reward-campaigns/nonexistent/")
 
         assert response.status_code == 404
 
@@ -791,7 +791,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_badge_list_fields(self) -> None:
         """Return correct field shape for badge set list items."""
-        response = self.client.get("/twitch/api/v1/badges/")
+        response = self.client.get("/api/v1/twitch/badges/")
 
         assert response.status_code == 200
         data = response.json()
@@ -804,7 +804,7 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_badge_detail_fields(self) -> None:
         """Return correct field shape for badge set detail."""
-        response = self.client.get("/twitch/api/v1/badges/test-badge-set/")
+        response = self.client.get("/api/v1/twitch/badges/test-badge-set/")
 
         assert response.status_code == 200
         data = response.json()
@@ -822,6 +822,6 @@ class TwitchApiV1TestCase(TestCase):
 
     def test_v1_badge_detail_not_found(self) -> None:
         """Return 404 for missing badge set."""
-        response = self.client.get("/twitch/api/v1/badges/nonexistent/")
+        response = self.client.get("/api/v1/twitch/badges/nonexistent/")
 
         assert response.status_code == 404

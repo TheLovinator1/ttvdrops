@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
 from django.urls import path
+from django.views.generic.base import RedirectView
 
 from twitch import views
-from twitch.api import api as twitch_api_v1
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
@@ -13,10 +13,32 @@ app_name = "twitch"
 
 
 urlpatterns: list[URLPattern | URLResolver] = [
-    # /twitch/api/v1/
-    path("api/v1/", twitch_api_v1.urls),
     # /twitch/
     path("", views.dashboard, name="dashboard"),
+    # Redirect old standalone Twitch v1 API URLs to the new combined API
+    # These must come before the catch-all below.
+    path(
+        "api/v1/docs/",
+        RedirectView.as_view(
+            pattern_name="api-v1:openapi-view",
+            permanent=True,
+        ),
+    ),
+    path(
+        "api/v1/openapi.json",
+        RedirectView.as_view(
+            pattern_name="api-v1:openapi-json",
+            permanent=True,
+        ),
+    ),
+    path(
+        "api/v1/<path:rest>",
+        RedirectView.as_view(
+            url="/api/v1/twitch/%(rest)s",
+            permanent=True,
+            query_string=True,
+        ),
+    ),
     # /twitch/badges/
     path("badges/", views.badge_list_view, name="badge_list"),
     # /twitch/badges/<set_id>/

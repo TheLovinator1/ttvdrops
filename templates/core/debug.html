@@ -128,6 +128,38 @@
         {% endif %}
     </section>
     <section>
+        <h2>Kick Campaigns With Unknown Status ({{ kick_unknown_campaigns|length }})</h2>
+        {% if kick_unknown_campaigns %}
+            <ul>
+                {% for c in kick_unknown_campaigns %}
+                    <li>
+                        <a href="{% url 'kick:campaign_detail' c.kick_id %}">{{ c.name }}</a>
+                        (Game: <a href="{% url 'kick:game_detail' c.category.kick_id %}">{{ c.category.name }}</a>)
+                        - Start: {{ c.starts_at|default:'(none)' }} / End: {{ c.ends_at|default:'(none)' }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
+        <h2>Twitch Reward Campaigns With Unknown Status ({{ twitch_reward_unknown_campaigns|length }})</h2>
+        {% if twitch_reward_unknown_campaigns %}
+            <ul>
+                {% for c in twitch_reward_unknown_campaigns %}
+                    <li>
+                        <a href="{% url 'twitch:reward_campaign_detail' c.twitch_id %}">{{ c.name }}</a>
+                        (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
+                        - Start: {{ c.starts_at|default:'(none)' }} / End: {{ c.ends_at|default:'(none)' }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>None ✅</p>
+        {% endif %}
+    </section>
+    <section>
         <h2>Duplicate Campaign Names Per Game ({{ duplicate_name_campaigns|length }})</h2>
         {% if duplicate_name_campaigns %}
             <table>

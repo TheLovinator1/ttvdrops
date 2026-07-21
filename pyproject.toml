@@ -113,6 +113,7 @@ lint.ignore = [
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = [
     "ARG",
+    "D102",
     "FBT",
     "PLR0904",
     "PLR2004",
@@ -124,6 +125,9 @@ lint.ignore = [
     "SLF001",
 ]
 "**/migrations/**" = ["RUF012"]
+"**/api.py" = [
+    "PLR0913",  # Allow many arguments for API endpoint functions
+]
 
 [tool.djlint]
 profile = "django"

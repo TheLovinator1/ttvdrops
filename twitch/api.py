@@ -9,7 +9,7 @@ from django.db import models
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from ninja import NinjaAPI
+from ninja import Router
 from ninja import Schema
 
 from twitch.models import Channel
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from twitch.models import DropBenefit
     from twitch.models import TimeBasedDrop
 
-V1StatusFilter = Literal["active", "upcoming", "expired"]
+V1StatusFilter = Literal["active", "upcoming", "expired", "unknown"]
 
 DEFAULT_PAGE_SIZE = 100
 MAX_PAGE_SIZE = 500
@@ -253,11 +253,7 @@ class V1ChatBadgeSetListSchema(V1PaginationSchema):
     items: list[V1ChatBadgeSetSchema]
 
 
-api = NinjaAPI(
-    title="TTVDrops Twitch API",
-    version="1.0.0",
-    urls_namespace="twitch:twitch-api-v1",
-)
+api = Router()
 
 
 def _paginate[ModelT: models.Model](
@@ -305,6 +301,11 @@ def _apply_status_filter[ModelT: models.Model](
         return queryset.filter(**{f"{start_field}__gt": now})
     if status == "expired":
         return queryset.filter(**{f"{end_field}__lt": now})
+    if status == "unknown":
+        return queryset.filter(
+            models.Q(**{f"{start_field}__isnull": True})
+            | models.Q(**{f"{end_field}__isnull": True}),
+        )
     return queryset
 
 

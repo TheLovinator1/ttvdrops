@@ -276,7 +276,25 @@ class SiteEndpointSmokeTest(TestCase):
             ("twitch:export_organizations_csv", {}, 200),
             ("twitch:export_organizations_json", {}, 200),
             # Kick endpoints
-            ("kick:campaign_api_list", {}, 200),
+            ("api-v1:kick-api-v1_list_campaigns", {}, 200),
+            (
+                "api-v1:kick-api-v1_get_campaign",
+                {"kick_id": self.kick_campaign.kick_id},
+                200,
+            ),
+            ("api-v1:kick-api-v1_list_games", {}, 200),
+            (
+                "api-v1:kick-api-v1_get_game",
+                {"kick_id": self.kick_category.kick_id},
+                200,
+            ),
+            ("api-v1:kick-api-v1_list_organizations", {}, 200),
+            (
+                "api-v1:kick-api-v1_get_organization",
+                {"kick_id": self.kick_org.kick_id},
+                200,
+            ),
+            ("api-v1:kick-api-v1_stats", {}, 200),
             ("kick:dashboard", {}, 200),
             ("kick:campaign_list", {}, 200),
             ("kick:campaign_detail", {"kick_id": self.kick_campaign.kick_id}, 200),

@@ -91,7 +91,7 @@
                    title="Discord feed for {{ game.display_name }} rewards">[discord]</a>
             </div>
             <div>
-                <a href="{% url 'twitch:twitch-api-v1:get_game' game.twitch_id %}"
+                <a href="{% url 'api-v1:twitch-api-v1_get_game' game.twitch_id %}"
                    title="Twitch game API">[api]</a>
                 <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
             </div>

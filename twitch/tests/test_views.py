@@ -2618,7 +2618,7 @@ class TestRewardCampaignViews:
         )
         assert reverse("twitch:game_detail", args=[game.twitch_id]) in content
         assert reverse("core:reward_campaign_feed") in content
-        assert reverse("twitch:twitch-api-v1:list_reward_campaigns") in content
+        assert reverse("api-v1:twitch-api-v1_list_reward_campaigns") in content
         assert response.context["reward_campaigns"].paginator.count == 2
 
     def test_reward_campaign_list_filters_status_and_game(
@@ -2691,7 +2691,7 @@ class TestRewardCampaignViews:
         assert reverse("twitch:game_detail", args=[game.twitch_id]) in content
         assert (
             reverse(
-                "twitch:twitch-api-v1:get_reward_campaign",
+                "api-v1:twitch-api-v1_get_reward_campaign",
                 args=[reward.twitch_id],
             )
             in content
