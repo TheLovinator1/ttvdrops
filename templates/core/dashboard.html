@@ -61,22 +61,29 @@
                 {% for game_id, game_data in campaigns_by_game.items %}
                     <article id="twitch-game-article-{{ game_id }}"
                              style="margin-bottom: 2rem;
-                                    border: 1px solid color-mix(in srgb, CanvasText 25%, transparent 75%);
-                                    border-radius: 6px;
-                                    padding: 1rem;">
-                        <header style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;">
-                            <a href="{% url 'twitch:game_detail' game_id %}" style="flex-shrink: 0; line-height: 0;">
+                                    padding: 1rem">
+                        <header style="display: flex;
+                                       align-items: center;
+                                       gap: 1rem;
+                                       margin-bottom: 1.25rem">
+                            <a href="{% url 'twitch:game_detail' game_id %}"
+                               style="flex-shrink: 0;
+                                      line-height: 0">
                                 {% picture game_data.box_art alt="Box art for "|add:game_data.name width=72 %}
                             </a>
                             <div>
                                 <h3 style="margin: 0; font-size: 1.5rem;">
-                                    <a href="{% url 'twitch:game_detail' game_id %}" style="text-decoration: none; color: inherit;">{{ game_data.name }}</a>
+                                    <a href="{% url 'twitch:game_detail' game_id %}"
+                                       style="text-decoration: none;
+                                              color: inherit">{{ game_data.name }}</a>
                                 </h3>
                                 {% if game_data.owners %}
-                                                                    <div style="font-size: 1.1rem; color: color-mix(in srgb, CanvasText 75%, transparent 25%);">
-                                                                        {% for org in game_data.owners %}
-                                            <a href="{% url 'twitch:organization_detail' org.twitch_id %}" style="color: inherit;">{{ org.name }}</a>
-                                            {% if not forloop.last %}, {% endif %}
+                                    <div style="font-size: 1.1rem;
+                                                color: color-mix(in srgb, CanvasText 75%, transparent 25%)">
+                                        {% for org in game_data.owners %}
+                                            <a href="{% url 'twitch:organization_detail' org.twitch_id %}"
+                                               style="color: inherit">{{ org.name }}</a>
+                                            {% if not forloop.last %},{% endif %}
                                         {% endfor %}
                                     </div>
                                 {% endif %}
@@ -84,53 +91,68 @@
                         </header>
                         <div style="overflow-x: auto; padding: 0.25rem 0;">
                             <div style="display: flex; gap: 1rem; min-width: max-content;">
-                                    {% for campaign_data in game_data.campaigns %}
-                                        <article class="campaign-entry" style="display: flex;
-                                                        flex-direction: column;
-                                                        flex-shrink: 0;
-                                                        width: 450px;
-                                                        padding: 0.9rem;
-                                                        border-radius: 8px;">
+                                {% for campaign_data in game_data.campaigns %}
+                                    <article class="campaign-entry"
+                                             style="display: flex;
+                                                    flex-direction: column;
+                                                    flex-shrink: 0;
+                                                    width: 450px;
+                                                    padding: 0.9rem">
                                         <div style="display: flex; gap: 1rem;">
                                             <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}"
-                                               style="flex-shrink: 0; line-height: 0;">
+                                               style="flex-shrink: 0;
+                                                      line-height: 0">
                                                 {% picture campaign_data.campaign.image_best_url|default:campaign_data.campaign.image_url alt="Image for "|add:campaign_data.campaign.name width=120 %}
                                             </a>
                                             <div style="flex: 1; min-width: 0;">
                                                 <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}"
-                                                   style="text-decoration: none; color: inherit;">
+                                                   style="text-decoration: none;
+                                                          color: inherit">
                                                     <h4 style="margin: 0 0 0.2rem 0; font-size: 1.3rem; line-height: 1.2;">{{ campaign_data.campaign.clean_name }}</h4>
                                                 </a>
                                                 {% if campaign_data.publisher %}
-                                                                                                    <div style="font-size: 1rem; color: color-mix(in srgb, CanvasText 75%, transparent 25%);">{{ campaign_data.publisher }}</div>
+                                                    <div style="font-size: 1rem;
+                                                                color: color-mix(in srgb, CanvasText 75%, transparent 25%)">{{ campaign_data.publisher }}</div>
                                                 {% endif %}
-                                                <div style="font-size: 0.9rem; color: color-mix(in srgb, CanvasText 70%, transparent 30%); margin-top: 0.4rem;">
-                                                    {% if campaign_data.watch_range %}{{ campaign_data.watch_range }} &middot; {% endif %}
+                                                <div style="font-size: 0.9rem;
+                                                            color: color-mix(in srgb, CanvasText 70%, transparent 30%);
+                                                            margin-top: 0.4rem">
+                                                    {% if campaign_data.watch_range %}{{ campaign_data.watch_range }} ·{% endif %}
                                                     ends in {{ campaign_data.campaign.end_at|timeuntil }}
                                                 </div>
-                                                                                                    <div style="font-size: 0.85rem; margin-top: 0.1rem;">
-                                                                                                        {% if campaign_data.allowed_channels %}
+                                                <div style="font-size: 0.85rem; margin-top: 0.1rem;">
+                                                    {% if campaign_data.allowed_channels %}
                                                         <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}#allowed-channels"
-                                                                                                                   style="color: color-mix(in srgb, CanvasText 60%, transparent 40%); text-decoration: none;">
-                                                                                                                    {{ campaign_data.allowed_channels.0.display_name }}{% if campaign_data.allowed_channels|length > 1 %} +{{ campaign_data.allowed_channels|length|add:'-1' }} more{% endif %}
+                                                           style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
+                                                                  text-decoration: none">
+                                                            {{ campaign_data.allowed_channels.0.display_name }}{% if campaign_data.allowed_channels|length > 1 %} +{{ campaign_data.allowed_channels|length|add:'-1' }} more{% endif %}
                                                         </a>
                                                     {% else %}
                                                         <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
-                                                           style="color: color-mix(in srgb, CanvasText 60%, transparent 40%); text-decoration: none;">
-                                                            any channel
-                                                        </a>
+                                                           style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
+                                                                  text-decoration: none">any channel</a>
                                                     {% endif %}
                                                 </div>
                                             </div>
                                         </div>
                                         {% if campaign_data.benefits %}
-                                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;">
+                                            <div style="display: flex;
+                                                        flex-wrap: wrap;
+                                                        gap: 0.5rem;
+                                                        margin-top: 0.75rem">
                                                 {% for benefit in campaign_data.benefits %}
-                                                    <span style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; font-size: 1.1rem; background: color-mix(in srgb, CanvasText 8%, transparent 92%); border-radius: 6px;">
+                                                    <span style="display: inline-flex;
+                                                                 align-items: center;
+                                                                 gap: 0.35rem;
+                                                                 padding: 0.25rem 0.6rem;
+                                                                 font-size: 1.1rem;
+                                                                 background: color-mix(in srgb, CanvasText 8%, transparent 92%)">
                                                         {% if benefit.image_best_url %}
                                                             <img src="{{ benefit.image_best_url }}"
                                                                  alt="{{ benefit.name }}"
-                                                                 style="width: 30px; height: 30px; border-radius: 4px; object-fit: contain;"
+                                                                 style="width: 30px;
+                                                                        height: 30px;
+                                                                        object-fit: contain"
                                                                  loading="lazy" />
                                                         {% endif %}
                                                         {{ benefit.name }}
@@ -139,210 +161,244 @@
                                             </div>
                                         {% endif %}
                                     </article>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </article>
-                    {% endfor %}
-                {% else %}
-                    <p>No active Twitch campaigns at the moment.</p>
-                {% endif %}
-            </section>
-            {% if active_reward_campaigns %}
-                <section id="reward-campaigns-section"
-                         style="margin-top: 2rem;
-                                border-top: 2px solid #ddd;
-                                padding-top: 1rem">
-                    <header style="margin-bottom: 1rem;">
-                        <h2 style="margin: 0 0 0.5rem 0;">
-                            <a href="{% url 'twitch:reward_campaign_list' %}">Open Reward Campaigns</a>
-                        </h2>
-                        <p>
-                            Rewards are limited-time offers from top brands that you can unlock by
-                            supporting your favorite Twitch creators. Visit <a href="https://www.twitch.tv/drops/inventory">your inventory</a>
-                            to access unlocked rewards.
-                        </p>
-                    </header>
-                    <ul>
-                        {% for campaign in active_reward_campaigns %}
-                            <li id="reward-campaign-{{ campaign.twitch_id }}"
-                                style="display: flex;
-                                       gap: 1rem;
-                                       margin-bottom: 1rem;
-                                       align-items: flex-start">
-                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
-                                   style="flex-shrink: 0;
-                                          display: block;
-                                          line-height: 0">
-                                    {% picture campaign.image_best_url alt="Image for "|add:campaign.name width=120 %}
-                                </a>
-                                <div>
-                                    <h3 style="margin: 0;">
-                                        <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
-                                            {% if campaign.brand %}
-                                                {{ campaign.brand }}: {{ campaign.name }}
-                                            {% else %}
-                                                {{ campaign.name }}
-                                            {% endif %}
-                                        </a>
-                                    </h3>
-                                    {% if campaign.ends_at %}
-                                        <p style="margin: 0.25rem 0;">
-                                            <strong>Ends:</strong>
-                                            <time datetime="{{ campaign.ends_at|date:'c' }}"
-                                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
-                                                {{ campaign.ends_at|date:"M d, Y H:i" }}
-                                            </time>
-                                        </p>
-                                    {% endif %}
-                                    {% if campaign.game %}
-                                        <p style="margin: 0.25rem 0;">
-                                            <strong>Game:</strong>
-                                            <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
-                                        </p>
-                                    {% elif campaign.is_sitewide %}
-                                        <p style="margin: 0.25rem 0;">
-                                            <strong>Type:</strong> Site-wide reward campaign
-                                        </p>
-                                    {% endif %}
-                                    {% if campaign.summary %}
-                                        <p>{{ campaign.summary }}</p>
-                                    {% endif %}
-                                </div>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </section>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <p>No active Twitch campaigns at the moment.</p>
             {% endif %}
-            <section id="kick-campaigns-section"
+        </section>
+        {% if active_reward_campaigns %}
+            <section id="reward-campaigns-section"
                      style="margin-top: 2rem;
                             border-top: 2px solid #ddd;
                             padding-top: 1rem">
                 <header style="margin-bottom: 1rem;">
-                    <h2 style="margin: 0 0 0.5rem 0;">Kick Campaigns</h2>
-                    <div>
-                        <a href="{% url 'kick:campaign_feed' %}"
-                           title="RSS feed for all Kick campaigns">[rss]</a>
-                        <a href="{% url 'kick:campaign_feed_atom' %}"
-                           title="Atom feed for all Kick campaigns">[atom]</a>
-                        <a href="{% url 'kick:campaign_feed_discord' %}"
-                           title="Discord feed for all Kick campaigns">[discord]</a>
-                        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-                    </div>
+                    <h2 style="margin: 0 0 0.5rem 0;">
+                        <a href="{% url 'twitch:reward_campaign_list' %}">Open Reward Campaigns</a>
+                    </h2>
+                    <p>
+                        Rewards are limited-time offers from top brands that you can unlock by
+                        supporting your favorite Twitch creators. Visit <a href="https://www.twitch.tv/drops/inventory">your inventory</a>
+                        to access unlocked rewards.
+                    </p>
                 </header>
-                {% if kick_campaigns_by_game %}
-                    {% for game_id, game_data in kick_campaigns_by_game.items %}
-                        <article id="kick-game-article-{{ game_id }}"
-                                 style="margin-bottom: 2rem;
-                                        border: 1px solid color-mix(in srgb, CanvasText 25%, transparent 75%);
-                                        border-radius: 6px;
-                                        padding: 1rem;">
-                            <header style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;">
-                                {% if game_data.image %}
-                                    <img src="{{ game_data.image }}"
-                                         width="48"
-                                         height="48"
-                                         alt="Image for {{ game_data.name }}"
-                                         style="width: 72px; height: 72px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" />
-                                {% endif %}
-                                <div>
-                                    <h3 style="margin: 0; font-size: 1.5rem;">
-                                        {% if game_data.kick_id %}
-                                            <a href="{% url 'kick:game_detail' game_data.kick_id %}" style="text-decoration: none; color: inherit;">{{ game_data.name }}</a>
-                                        {% elif game_data.organizations %}
-                                            {% for org in game_data.organizations %}
-                                                <a href="{% url 'kick:organization_detail' org.kick_id %}" style="text-decoration: none; color: inherit;">{{ org.name }}</a>
-                                                {% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
+                <ul>
+                    {% for campaign in active_reward_campaigns %}
+                        <li id="reward-campaign-{{ campaign.twitch_id }}"
+                            style="display: flex;
+                                   gap: 1rem;
+                                   margin-bottom: 1rem;
+                                   align-items: flex-start">
+                            <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
+                               style="flex-shrink: 0;
+                                      display: block;
+                                      line-height: 0">
+                                {% picture campaign.image_best_url alt="Image for "|add:campaign.name width=120 %}
+                            </a>
+                            <div>
+                                <h3 style="margin: 0;">
+                                    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                                        {% if campaign.brand %}
+                                            {{ campaign.brand }}: {{ campaign.name }}
                                         {% else %}
-                                            {{ game_data.name }}
-                                        {% endif %}
-                                    </h3>
-                                    {% if game_data.kick_id and game_data.organizations %}
-                                                                            <div style="font-size: 1.1rem; color: color-mix(in srgb, CanvasText 75%, transparent 25%);">
-                                                                                {% for org in game_data.organizations %}
-                                                <a href="{% url 'kick:organization_detail' org.kick_id %}" style="color: inherit;">{{ org.name }}</a>
-                                                {% if not forloop.last %}, {% endif %}
-                                            {% endfor %}
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </header>
-                            <div style="overflow-x: auto; padding: 0.25rem 0;">
-                                    <div style="display: flex; gap: 1rem; min-width: max-content;">
-                        {% for campaign_data in game_data.campaigns %}
-                            {% with rewards=campaign_data.rewards %}
-                            {% with min_watch=rewards.0.required_units|default:0 max_watch=rewards.last.required_units|default:0 %}
-                            <article class="campaign-entry" style="display: flex;
-                                            flex-direction: column;
-                                            flex-shrink: 0;
-                                            width: 450px;
-                                            padding: 0.9rem;
-                                            border-radius: 8px;">
-                                <div style="display: flex; gap: 1rem;">
-                                    <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}"
-                                       style="flex-shrink: 0; line-height: 0;">
-                                        {% if campaign_data.campaign.image_url %}
-                                            <img src="{{ campaign_data.campaign.image_url }}"
-                                                 width="120"
-                                                 height="120"
-                                                 alt="Image for {{ campaign_data.campaign.name }}"
-                                                 style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover;" />
+                                            {{ campaign.name }}
                                         {% endif %}
                                     </a>
-                                    <div style="flex: 1; min-width: 0;">
-                                        <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}"
-                                           style="text-decoration: none; color: inherit;">
-                                            <h4 style="margin: 0 0 0.2rem 0; font-size: 1.3rem; line-height: 1.2;">{{ campaign_data.campaign.name }}</h4>
-                                        </a>
-                                        {% if campaign_data.campaign.organization %}
-                                                                                    <div style="font-size: 1rem; color: color-mix(in srgb, CanvasText 75%, transparent 25%);">{{ campaign_data.campaign.organization.name }}</div>
-                                        {% endif %}
-                                        <div style="font-size: 0.9rem; color: color-mix(in srgb, CanvasText 70%, transparent 30%); margin-top: 0.4rem;">
-                                            {% if min_watch %}{% if min_watch == max_watch %}{{ min_watch }}m watch{% else %}{{ min_watch }}m–{{ max_watch }}m watch{% endif %} &middot; {% endif %}
-                                            ends in {{ campaign_data.campaign.ends_at|timeuntil }}
-                                        </div>
-                                        <div style="font-size: 0.85rem; margin-top: 0.1rem;">
-                                            {% if campaign_data.channels %}
-                                                <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}#allowed-channels"
-                                                                                                   style="color: color-mix(in srgb, CanvasText 60%, transparent 40%); text-decoration: none;">
-                                                                                                    {{ campaign_data.channels.0.user.username|default:campaign_data.channels.0.slug }}{% if campaign_data.channels|length > 1 %} +{{ campaign_data.channels|length|add:'-1' }} more{% endif %}
-                                                </a>
-                                            {% else %}
-                                                <a href="{{ campaign_data.campaign.url }}"
-                                                   style="color: color-mix(in srgb, CanvasText 60%, transparent 40%); text-decoration: none;">
-                                                    any channel
-                                                </a>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% if rewards %}
-                                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;">
-                                        {% for reward in rewards %}
-                                            <span style="display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem; font-size: 1.1rem; background: color-mix(in srgb, CanvasText 8%, transparent 92%); border-radius: 6px;">
-                                                {% if reward.full_image_url %}
-                                                    <img src="{{ reward.full_image_url }}"
-                                                         alt="{{ reward.name }}"
-                                                         style="width: 30px; height: 30px; border-radius: 4px; object-fit: contain;"
-                                                         loading="lazy" />
-                                                {% endif %}
-                                                {{ reward.name }}
-                                            </span>
+                                </h3>
+                                {% if campaign.ends_at %}
+                                    <p style="margin: 0.25rem 0;">
+                                        <strong>Ends:</strong>
+                                        <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                              title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                                            {{ campaign.ends_at|date:"M d, Y H:i" }}
+                                        </time>
+                                    </p>
+                                {% endif %}
+                                {% if campaign.game %}
+                                    <p style="margin: 0.25rem 0;">
+                                        <strong>Game:</strong>
+                                        <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                                    </p>
+                                {% elif campaign.is_sitewide %}
+                                    <p style="margin: 0.25rem 0;">
+                                        <strong>Type:</strong> Site-wide reward campaign
+                                    </p>
+                                {% endif %}
+                                {% if campaign.summary %}
+                                    <p>{{ campaign.summary }}</p>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+        <section id="kick-campaigns-section"
+                 style="margin-top: 2rem;
+                        border-top: 2px solid #ddd;
+                        padding-top: 1rem">
+            <header style="margin-bottom: 1rem;">
+                <h2 style="margin: 0 0 0.5rem 0;">Kick Campaigns</h2>
+                <div>
+                    <a href="{% url 'kick:campaign_feed' %}"
+                       title="RSS feed for all Kick campaigns">[rss]</a>
+                    <a href="{% url 'kick:campaign_feed_atom' %}"
+                       title="Atom feed for all Kick campaigns">[atom]</a>
+                    <a href="{% url 'kick:campaign_feed_discord' %}"
+                       title="Discord feed for all Kick campaigns">[discord]</a>
+                    <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
+                </div>
+            </header>
+            {% if kick_campaigns_by_game %}
+                {% for game_id, game_data in kick_campaigns_by_game.items %}
+                    <article id="kick-game-article-{{ game_id }}"
+                             style="margin-bottom: 2rem;
+                                    border: 1px solid color-mix(in srgb, CanvasText 25%, transparent 75%);
+                                    border-radius: 6px;
+                                    padding: 1rem">
+                        <header style="display: flex;
+                                       align-items: center;
+                                       gap: 1rem;
+                                       margin-bottom: 1.25rem">
+                            {% if game_data.image %}
+                                <img src="{{ game_data.image }}"
+                                     width="48"
+                                     height="48"
+                                     alt="Image for {{ game_data.name }}"
+                                     style="width: 72px;
+                                            height: 72px;
+                                            border-radius: 8px;
+                                            object-fit: cover;
+                                            flex-shrink: 0" />
+                            {% endif %}
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.5rem;">
+                                    {% if game_data.kick_id %}
+                                        <a href="{% url 'kick:game_detail' game_data.kick_id %}"
+                                           style="text-decoration: none;
+                                                  color: inherit">{{ game_data.name }}</a>
+                                    {% elif game_data.organizations %}
+                                        {% for org in game_data.organizations %}
+                                            <a href="{% url 'kick:organization_detail' org.kick_id %}"
+                                               style="text-decoration: none;
+                                                      color: inherit">{{ org.name }}</a>
+                                            {% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        {{ game_data.name }}
+                                    {% endif %}
+                                </h3>
+                                {% if game_data.kick_id and game_data.organizations %}
+                                    <div style="font-size: 1.1rem;
+                                                color: color-mix(in srgb, CanvasText 75%, transparent 25%)">
+                                        {% for org in game_data.organizations %}
+                                            <a href="{% url 'kick:organization_detail' org.kick_id %}"
+                                               style="color: inherit">{{ org.name }}</a>
+                                            {% if not forloop.last %}, {% endif %}
                                         {% endfor %}
                                     </div>
                                 {% endif %}
-                            </article>
-                            {% endwith %}
-                            {% endwith %}
-                        {% endfor %}
-                    </div>
-                </div>
-                            </article>
-                    {% endfor %}
-                {% else %}
-                    <p>No active Kick campaigns at the moment.</p>
-                {% endif %}
-            </section>
-        </main>
-    {% endblock content %}
+                            </div>
+                        </header>
+                        <div style="overflow-x: auto; padding: 0.25rem 0;">
+                            <div style="display: flex; gap: 1rem; min-width: max-content;">
+                                {% for campaign_data in game_data.campaigns %}
+                                    {% with rewards=campaign_data.rewards %}
+                                        {% with min_watch=rewards.0.required_units|default:0 max_watch=rewards.last.required_units|default:0 %}
+                                            <article class="campaign-entry"
+                                                     style="display: flex;
+                                                            flex-direction: column;
+                                                            flex-shrink: 0;
+                                                            width: 450px;
+                                                            padding: 0.9rem;
+                                                            border-radius: 8px">
+                                                <div style="display: flex; gap: 1rem;">
+                                                    <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}"
+                                                       style="flex-shrink: 0;
+                                                              line-height: 0">
+                                                        {% if campaign_data.campaign.image_url %}
+                                                            <img src="{{ campaign_data.campaign.image_url }}"
+                                                                 width="120"
+                                                                 height="120"
+                                                                 alt="Image for {{ campaign_data.campaign.name }}"
+                                                                 style="width: 120px;
+                                                                        height: 120px;
+                                                                        border-radius: 8px;
+                                                                        object-fit: cover" />
+                                                        {% endif %}
+                                                    </a>
+                                                    <div style="flex: 1; min-width: 0;">
+                                                        <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}"
+                                                           style="text-decoration: none;
+                                                                  color: inherit">
+                                                            <h4 style="margin: 0 0 0.2rem 0; font-size: 1.3rem; line-height: 1.2;">{{ campaign_data.campaign.name }}</h4>
+                                                        </a>
+                                                        {% if campaign_data.campaign.organization %}
+                                                            <div style="font-size: 1rem;
+                                                                        color: color-mix(in srgb, CanvasText 75%, transparent 25%)">{{ campaign_data.campaign.organization.name }}</div>
+                                                        {% endif %}
+                                                        <div style="font-size: 0.9rem;
+                                                                    color: color-mix(in srgb, CanvasText 70%, transparent 30%);
+                                                                    margin-top: 0.4rem">
+                                                            {% if min_watch %}{% if min_watch == max_watch %}{{ min_watch }}m watch{% else %}{{ min_watch }}m-{{ max_watch }}m watch{% endif %} · {% endif %}
+                                                            ends in {{ campaign_data.campaign.ends_at|timeuntil }}
+                                                        </div>
+                                                        <div style="font-size: 0.85rem; margin-top: 0.1rem;">
+                                                            {% if campaign_data.channels %}
+                                                                <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}#allowed-channels"
+                                                                   style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
+                                                                          text-decoration: none">
+                                                                    {{ campaign_data.channels.0.user.username|default:campaign_data.channels.0.slug }}{% if campaign_data.channels|length > 1 %} +{{ campaign_data.channels|length|add:'-1' }} more{% endif %}
+                                                                </a>
+                                                            {% else %}
+                                                                <a href="{{ campaign_data.campaign.url }}"
+                                                                   style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
+                                                                          text-decoration: none">any channel</a>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% if rewards %}
+                                                    <div style="display: flex;
+                                                                flex-wrap: wrap;
+                                                                gap: 0.5rem;
+                                                                margin-top: 0.75rem">
+                                                        {% for reward in rewards %}
+                                                            <span style="display: inline-flex;
+                                                                         align-items: center;
+                                                                         gap: 0.35rem;
+                                                                         padding: 0.25rem 0.6rem;
+                                                                         font-size: 1.1rem;
+                                                                         background: color-mix(in srgb, CanvasText 8%, transparent 92%);
+                                                                         border-radius: 6px">
+                                                                {% if reward.full_image_url %}
+                                                                    <img src="{{ reward.full_image_url }}"
+                                                                         alt="{{ reward.name }}"
+                                                                         style="width: 30px;
+                                                                                height: 30px;
+                                                                                border-radius: 4px;
+                                                                                object-fit: contain"
+                                                                         loading="lazy" />
+                                                                {% endif %}
+                                                                {{ reward.name }}
+                                                            </span>
+                                                        {% endfor %}
+                                                    </div>
+                                                {% endif %}
+                                            </article>
+                                        {% endwith %}
+                                    {% endwith %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            {% else %}
+                <p>No active Kick campaigns at the moment.</p>
+            {% endif %}
+        </section>
+    </main>
+{% endblock content %}
