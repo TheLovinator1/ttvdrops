@@ -112,15 +112,16 @@
                         style="margin-top: 0.5rem;
                                border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
                                padding-top: 0.5rem">
-                    <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.4rem;">
+                    <div style="display: flex;
+                                flex-wrap: wrap;
+                                column-gap: 1.5rem;
+                                row-gap: 0.4rem">
                         <div>
                             <div style="font-size: 0.8rem;
                                         color: color-mix(in srgb, CanvasText 55%, transparent 45%);
                                         margin-bottom: 0.15rem;
                                         text-transform: uppercase;
-                                        letter-spacing: 0.05em">
-                                External
-                            </div>
+                                        letter-spacing: 0.05em">External</div>
                             <div>
                                 {% if campaign.details_url %}<a href="{{ campaign.details_url }}">[details]</a>{% endif %}
                                 {% if campaign.account_link_url %}<a href="{{ campaign.account_link_url }}">[connect]</a>{% endif %}
@@ -135,11 +136,12 @@
                                         text-transform: uppercase;
                                         letter-spacing: 0.05em">
                                 Subscribe <a href="{% url 'core:docs_rss' %}"
-                                               title="RSS feed documentation"
-                                               style="color: inherit;
-                                                      text-decoration: none">(?)</a>
+    title="RSS feed documentation"
+    style="color: inherit;
+           text-decoration: none">(?)</a>
                             </div>
-                            <div>Campaigns:
+                            <div>
+                                Campaigns:
                                 <a href="{% url 'core:game_campaign_feed' campaign.game.twitch_id %}"
                                    title="RSS feed for {{ campaign.game.display_name }} campaigns">[rss]</a>
                                 <a href="{% url 'core:game_campaign_feed_atom' campaign.game.twitch_id %}"
@@ -153,9 +155,7 @@
                                         color: color-mix(in srgb, CanvasText 55%, transparent 45%);
                                         margin-bottom: 0.15rem;
                                         text-transform: uppercase;
-                                        letter-spacing: 0.05em">
-                                Developer
-                            </div>
+                                        letter-spacing: 0.05em">Developer</div>
                             <div>
                                 <a href="{% url 'api-v1:twitch-api-v1_get_campaign' campaign.twitch_id %}"
                                    title="Twitch campaign API">[api]</a>

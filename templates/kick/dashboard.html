@@ -19,14 +19,14 @@
 {% block content %}
     <main>
         <h1>Active Kick Drops</h1>
-        <div>
-            Scraped from <a href="https://web.kick.com/api/v1/drops/campaigns">Kick API</a>.
-        </div>
         <footer aria-label="Links"
                 style="margin-top: 0.5rem;
                        border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
                        padding-top: 0.5rem">
-            <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.4rem;">
+            <div style="display: flex;
+                        flex-wrap: wrap;
+                        column-gap: 1.5rem;
+                        row-gap: 0.4rem">
                 <div>
                     <div style="font-size: 0.8rem;
                                 color: color-mix(in srgb, CanvasText 55%, transparent 45%);
@@ -34,17 +34,22 @@
                                 text-transform: uppercase;
                                 letter-spacing: 0.05em">
                         Subscribe <a href="{% url 'core:docs_rss' %}"
-                                       title="RSS feed documentation"
-                                       style="color: inherit;
-                                              text-decoration: none">(?)</a>
+    title="RSS feed documentation"
+    style="color: inherit;
+           text-decoration: none">(?)</a>
                     </div>
                     <div>
+                        Campaigns:
                         <a href="{% url 'kick:campaign_feed' %}"
                            title="RSS feed for all campaigns">[rss]</a>
                         <a href="{% url 'kick:campaign_feed_atom' %}"
                            title="Atom feed for all campaigns">[atom]</a>
                         <a href="{% url 'kick:campaign_feed_discord' %}"
                            title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
+                        <a href="{% url 'api-v1:kick-api-v1_list_campaigns' %}"
+                           title="Kick campaigns API">[api]</a>
+                        <a href="https://web.kick.com/api/v1/drops/campaigns"
+                           title="Kick's upstream API endpoint">[upstream api]</a>
                     </div>
                 </div>
             </div>

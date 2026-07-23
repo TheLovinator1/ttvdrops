@@ -115,26 +115,63 @@
                 </dd>
             </dl>
             <div>{% if reward_campaign.instructions %}{{ reward_campaign.instructions|linebreaksbr }}{% endif %}</div>
-            <!-- RSS Feeds -->
-            <div style="margin-bottom: 1rem;">
-                <a href="{% url 'core:reward_campaign_feed' %}"
-                   title="RSS feed for all reward campaigns">[rss]</a>
-                <a href="{% url 'core:reward_campaign_feed_atom' %}"
-                   title="Atom feed for all reward campaigns">[atom]</a>
-                <a href="{% url 'core:reward_campaign_feed_discord' %}"
-                   title="Discord-flavored feed for all reward campaigns">[discord-flavored]</a>
-                <a href="{% url 'api-v1:twitch-api-v1_get_reward_campaign' reward_campaign.twitch_id %}"
-                   title="Twitch reward campaign API">[api]</a>
-                <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-                {% if reward_campaign.external_url %}
-                    <a href="{{ reward_campaign.external_url }}"
-                       title="External URL for {{ reward_campaign.name }}">[external]</a>
-                {% endif %}
-                {% if reward_campaign.about_url %}
-                    <a href="{{ reward_campaign.about_url }}"
-                       title="About URL for {{ reward_campaign.name }}">[about]</a>
-                {% endif %}
-            </div>
+            <footer aria-label="Links"
+                    style="border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                           padding-top: 0.5rem">
+                <div style="display: flex;
+                            flex-wrap: wrap;
+                            column-gap: 1.5rem;
+                            row-gap: 0.4rem">
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">External</div>
+                        <div>
+                            {% if reward_campaign.external_url %}
+                                <a href="{{ reward_campaign.external_url }}"
+                                   title="External URL for {{ reward_campaign.name }}">[external]</a>
+                            {% endif %}
+                            {% if reward_campaign.about_url %}
+                                <a href="{{ reward_campaign.about_url }}"
+                                   title="About URL for {{ reward_campaign.name }}">[about]</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">
+                            Subscribe <a href="{% url 'core:docs_rss' %}"
+    title="RSS feed documentation"
+    style="color: inherit;
+           text-decoration: none">(?)</a>
+                        </div>
+                        <div>
+                            <a href="{% url 'core:reward_campaign_feed' %}"
+                               title="RSS feed for all reward campaigns">[rss]</a>
+                            <a href="{% url 'core:reward_campaign_feed_atom' %}"
+                               title="Atom feed for all reward campaigns">[atom]</a>
+                            <a href="{% url 'core:reward_campaign_feed_discord' %}"
+                               title="Discord-flavored feed for all reward campaigns">[discord-flavored]</a>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">Developer</div>
+                        <div>
+                            <a href="{% url 'api-v1:twitch-api-v1_get_reward_campaign' reward_campaign.twitch_id %}"
+                               title="Twitch reward campaign API">[api]</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </div>
     </div>
 {% endblock content %}

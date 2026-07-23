@@ -8,21 +8,60 @@
     <div>
         <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Organizations
     </div>
-    <div>
-        <a href="{% url 'core:organization_feed' %}"
-           title="RSS feed for all organizations">[rss]</a>
-        <a href="{% url 'core:organization_feed_atom' %}"
-           title="Atom feed for all organizations">[atom]</a>
-        <a href="{% url 'core:organization_feed_discord' %}"
-           title="Discord-flavored feed for all organizations">[discord-flavored]</a>
-        <a href="{% url 'api-v1:twitch-api-v1_list_organizations' %}"
-           title="Twitch organizations API">[api]</a>
-        <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-        <a href="{% url 'twitch:export_organizations_csv' %}"
-           title="Export all organizations as CSV">[csv]</a>
-        <a href="{% url 'twitch:export_organizations_json' %}"
-           title="Export all organizations as JSON">[json]</a>
-    </div>
+    <footer aria-label="Links"
+            style="border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                   padding-top: 0.5rem">
+        <div style="display: flex;
+                    flex-wrap: wrap;
+                    column-gap: 1.5rem;
+                    row-gap: 0.4rem">
+            <div>
+                <div style="font-size: 0.8rem;
+                            color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                            margin-bottom: 0.15rem;
+                            text-transform: uppercase;
+                            letter-spacing: 0.05em">
+                    Subscribe <a href="{% url 'core:docs_rss' %}"
+    title="RSS feed documentation"
+    style="color: inherit;
+           text-decoration: none">(?)</a>
+                </div>
+                <div>
+                    Organizations:
+                    <a href="{% url 'core:organization_feed' %}"
+                       title="RSS feed for all organizations">[rss]</a>
+                    <a href="{% url 'core:organization_feed_atom' %}"
+                       title="Atom feed for all organizations">[atom]</a>
+                    <a href="{% url 'core:organization_feed_discord' %}"
+                       title="Discord-flavored feed for all organizations">[discord-flavored]</a>
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem;
+                            color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                            margin-bottom: 0.15rem;
+                            text-transform: uppercase;
+                            letter-spacing: 0.05em">Developer</div>
+                <div>
+                    <a href="{% url 'api-v1:twitch-api-v1_list_organizations' %}"
+                       title="Twitch organizations API">[api]</a>
+                </div>
+            </div>
+            <div>
+                <div style="font-size: 0.8rem;
+                            color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                            margin-bottom: 0.15rem;
+                            text-transform: uppercase;
+                            letter-spacing: 0.05em">Export</div>
+                <div>
+                    <a href="{% url 'twitch:export_organizations_csv' %}"
+                       title="Export all organizations as CSV">[csv]</a>
+                    <a href="{% url 'twitch:export_organizations_json' %}"
+                       title="Export all organizations as JSON">[json]</a>
+                </div>
+            </div>
+        </div>
+    </footer>
     {% if orgs %}
         <ul>
             {% for organization in orgs %}

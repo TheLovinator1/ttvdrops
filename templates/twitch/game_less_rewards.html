@@ -27,15 +27,36 @@
             </div>
             <p>Reward campaigns not tied to a specific Twitch game.</p>
             <!-- Feeds and links -->
-            <div>
-                <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-                <a href="{% url 'core:game_less_reward_feed' %}"
-                   title="RSS feed for all game-less rewards">[rss]</a>
-                <a href="{% url 'core:game_less_reward_feed_atom' %}"
-                   title="Atom feed for all game-less rewards">[atom]</a>
-                <a href="{% url 'core:game_less_reward_feed_discord' %}"
-                   title="Discord-flavored feed for all game-less rewards">[discord-flavored]</a>
-            </div>
+            <footer aria-label="Links"
+                    style="border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                           padding-top: 0.5rem">
+                <div style="display: flex;
+                            flex-wrap: wrap;
+                            column-gap: 1.5rem;
+                            row-gap: 0.4rem">
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">
+                            Subscribe <a href="{% url 'core:docs_rss' %}"
+    title="RSS feed documentation"
+    style="color: inherit;
+           text-decoration: none">(?)</a>
+                        </div>
+                        <div>
+                            Rewards:
+                            <a href="{% url 'core:game_less_reward_feed' %}"
+                               title="RSS feed for all game-less rewards">[rss]</a>
+                            <a href="{% url 'core:game_less_reward_feed_atom' %}"
+                               title="Atom feed for all game-less rewards">[atom]</a>
+                            <a href="{% url 'core:game_less_reward_feed_discord' %}"
+                               title="Discord-flavored feed for all game-less rewards">[discord-flavored]</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </header>
         {% if active_campaigns %}
             <section>

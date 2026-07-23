@@ -31,10 +31,13 @@
                     color: color-mix(in srgb, CanvasText 60%, transparent 40%);
                     margin-top: 0.25rem">
             {{ games_count }} game{{ games_count|pluralize }}
-            {% if total_campaigns %} &middot; {{ total_campaigns }} campaign{{ total_campaigns|pluralize }}{% endif %}
+            {% if total_campaigns %}· {{ total_campaigns }} campaign{{ total_campaigns|pluralize }}{% endif %}
         </div>
         <style>dd { margin-left: 0; }</style>
-        <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px; margin-top: 0.25rem;">
+        <dl style="display: grid;
+                   grid-template-columns: auto 1fr;
+                   gap: 0 8px;
+                   margin-top: 0.25rem">
             <dt>Organization ID</dt>
             <dd>
                 <code>{{ organization.twitch_id }}</code>
@@ -51,7 +54,10 @@
             </dd>
         </dl>
         {% if campaign_stats %}
-            <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.3rem;">
+            <div style="display: flex;
+                        flex-wrap: wrap;
+                        column-gap: 1.5rem;
+                        row-gap: 0.3rem">
                 {% if campaign_stats.active_campaigns %}
                     <div style="font-size: 0.9rem;">
                         <span style="color: color-mix(in srgb, CanvasText 55%, transparent 45%)">Active</span>
@@ -88,15 +94,16 @@
                 style="margin-top: 0.5rem;
                        border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
                        padding-top: 0.5rem">
-            <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.4rem;">
+            <div style="display: flex;
+                        flex-wrap: wrap;
+                        column-gap: 1.5rem;
+                        row-gap: 0.4rem">
                 <div>
                     <div style="font-size: 0.8rem;
                                 color: color-mix(in srgb, CanvasText 55%, transparent 45%);
                                 margin-bottom: 0.15rem;
                                 text-transform: uppercase;
-                                letter-spacing: 0.05em">
-                        External
-                    </div>
+                                letter-spacing: 0.05em">External</div>
                     <div>
                         <a href="https://twitch-drops.fenrisapps.com/organizations/{{ organization.twitch_id }}"
                            title="View this organization on Fenris Apps">[fenrisapps]</a>
@@ -119,18 +126,19 @@
                     <td style="vertical-align: middle;">
                         <div style="display: flex; align-items: center; gap: 12px;">
                             <a href="{% url 'twitch:game_detail' game.twitch_id %}"
-                               style="flex-shrink: 0; line-height: 0;">
+                               style="flex-shrink: 0;
+                                      line-height: 0">
                                 {% if game.box_art_best_url %}
                                     {% picture game.box_art_best_url alt=game.get_game_name width=120 %}
                                 {% endif %}
                             </a>
                             <div>
                                 <a href="{% url 'twitch:game_detail' game.twitch_id %}"
-                                   style="font-weight: 600;">{{ game.display_name }}</a>
+                                   style="font-weight: 600">{{ game.display_name }}</a>
                                 {% if game.slug %}
                                     <br />
                                     <span style="font-size: 0.85rem;
-                                                color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
+                                                 color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
                                         {{ game.slug }}
                                     </span>
                                 {% endif %}

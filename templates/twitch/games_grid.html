@@ -25,20 +25,61 @@
             <div>
                 <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Games
             </div>
+            <footer aria-label="Links"
+                    style="border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                           padding-top: 0.5rem">
+                <div style="display: flex;
+                            flex-wrap: wrap;
+                            column-gap: 1.5rem;
+                            row-gap: 0.4rem">
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">
+                            Subscribe <a href="{% url 'core:docs_rss' %}"
+    title="RSS feed documentation"
+    style="color: inherit;
+           text-decoration: none">(?)</a>
+                        </div>
+                        <div>
+                            Games:
+                            <a href="{% url 'core:game_feed' %}" title="RSS feed for all games">[rss]</a>
+                            <a href="{% url 'core:game_feed_atom' %}"
+                               title="Atom feed for all games">[atom]</a>
+                            <a href="{% url 'core:game_feed_discord' %}"
+                               title="Discord-flavored feed for all games">[discord-flavored]</a>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">Developer</div>
+                        <div>
+                            <a href="{% url 'api-v1:twitch-api-v1_list_games' %}"
+                               title="Twitch games API">[api]</a>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">Export</div>
+                        <div>
+                            <a href="{% url 'twitch:export_games_csv' %}"
+                               title="Export all games as CSV">[csv]</a>
+                            <a href="{% url 'twitch:export_games_json' %}"
+                               title="Export all games as JSON">[json]</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
             <div>
                 <a href="{% url 'twitch:games_list' %}" title="View games as list">[list]</a>
-                <a href="{% url 'core:game_feed' %}" title="RSS feed for all games">[rss]</a>
-                <a href="{% url 'core:game_feed_atom' %}"
-                   title="Atom feed for all games">[atom]</a>
-                <a href="{% url 'core:game_feed_discord' %}"
-                   title="Discord-flavored feed for all games">[discord-flavored]</a>
-                <a href="{% url 'api-v1:twitch-api-v1_list_games' %}"
-                   title="Twitch games API">[api]</a>
-                <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-                <a href="{% url 'twitch:export_games_csv' %}"
-                   title="Export all games as CSV">[csv]</a>
-                <a href="{% url 'twitch:export_games_json' %}"
-                   title="Export all games as JSON">[json]</a>
             </div>
         </header>
         {% if games_by_org %}
