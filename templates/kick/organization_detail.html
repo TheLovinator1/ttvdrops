@@ -2,6 +2,8 @@
 {% block title %}
     {{ org.name }} - Kick Organization
 {% endblock title %}
+{% block extra_head %}
+{% endblock extra_head %}
 {% block content %}
     <main>
         <nav aria-label="Breadcrumb">
@@ -31,7 +33,6 @@
                         <a href="{{ org.url }}">{{ org.url }}</a>
                     </p>
                 {% endif %}
-                <style>dd { margin-left: 0; }</style>
                 <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                     <dt>ID</dt>
                     <dd>

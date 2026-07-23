@@ -59,7 +59,6 @@
                 {% endif %}
             </div>
             <!-- Game metadata -->
-            <style>dd { margin-left: 0; }</style>
             <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                 {% if owners %}
                     <dt>Owned by</dt>
@@ -179,7 +178,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span title="{{ campaign.end_at|date:'M d, Y H:i' }}">Ends in {{ campaign.end_at|timeuntil }}</span>
+                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                  title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">Ends in {{ campaign.end_at|timeuntil }}</time>
                         </td>
                     </tr>
                 {% endfor %}
@@ -208,7 +208,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span title="Starts on {{ campaign.start_at|date:'M d, Y H:i' }}">Starts in {{ campaign.start_at|timeuntil }}</span>
+                            <time datetime="{{ campaign.start_at|date:'c' }}"
+                                  title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">Starts in {{ campaign.start_at|timeuntil }}</time>
                         </td>
                     </tr>
                 {% endfor %}
@@ -238,7 +239,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span title="Ended on {{ campaign.end_at|date:'M d, Y H:i' }}">{{ campaign.end_at|timesince }} ago</span>
+                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                  title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|timesince }} ago</time>
                         </td>
                     </tr>
                 {% endfor %}
@@ -273,7 +275,8 @@
                             {% endif %}
                         </td>
                         <td style="vertical-align: top;">
-                            <span title="{{ reward.ends_at|date:'M d, Y H:i' }}">Ends in {{ reward.ends_at|timeuntil }}</span>
+                            <time datetime="{{ reward.ends_at|date:'c' }}"
+                                  title="{{ reward.ends_at|date:'DATETIME_FORMAT' }}">Ends in {{ reward.ends_at|timeuntil }}</time>
                         </td>
                         <td style="vertical-align: top; white-space: nowrap;">
                             {% if reward.about_url and reward.external_url and reward.about_url == reward.external_url %}
@@ -311,7 +314,8 @@
                             {% endif %}
                         </td>
                         <td style="vertical-align: top;">
-                            <span title="Starts on {{ reward.starts_at|date:'M d, Y H:i' }}">Starts in {{ reward.starts_at|timeuntil }}</span>
+                            <time datetime="{{ reward.starts_at|date:'c' }}"
+                                  title="{{ reward.starts_at|date:'DATETIME_FORMAT' }}">Starts in {{ reward.starts_at|timeuntil }}</time>
                         </td>
                         <td style="vertical-align: top; white-space: nowrap;">
                             {% if reward.about_url and reward.external_url and reward.about_url == reward.external_url %}
@@ -349,7 +353,8 @@
                             {% endif %}
                         </td>
                         <td style="vertical-align: top;">
-                            <span title="Ended on {{ reward.ends_at|date:'M d, Y H:i' }}">{{ reward.ends_at|timesince }} ago</span>
+                            <time datetime="{{ reward.ends_at|date:'c' }}"
+                                  title="{{ reward.ends_at|date:'DATETIME_FORMAT' }}">{{ reward.ends_at|timesince }} ago</time>
                         </td>
                         <td style="vertical-align: top; white-space: nowrap;">
                             {% if reward.about_url and reward.external_url and reward.about_url == reward.external_url %}

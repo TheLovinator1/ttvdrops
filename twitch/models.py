@@ -1126,13 +1126,32 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
         drops: list[TimeBasedDrop] = list(self.time_based_drops.all())  # pyright: ignore[reportAttributeAccessIssue]
         awarded_badges: dict[str, ChatBadge] = self.awarded_badges_by_drop_twitch_id()
 
+        current_tz: str = str(timezone.get_current_timezone()) or "UTC"
+
+        def _duration_text(drop: TimeBasedDrop) -> str:
+            """Compact duration between start and end, e.g. "23d 8h 3m".
+
+            Returns:
+                str: Compact duration string, or empty string if either date is missing.
+            """
+            start = drop.start_at
+            end = drop.end_at
+            if not start or not end:
+                return ""
+            total = end - start
+            days: int = total.days
+            hours, remainder = divmod(total.seconds, 3600)
+            minutes, _seconds = divmod(remainder, 60)
+            return f"{days}d {hours}h {minutes}m"
+
         return [
             {
                 "drop": drop,
                 "local_start": drop.start_at,
                 "local_end": drop.end_at,
-                "timezone_name": "UTC",
+                "timezone_name": current_tz,
                 "countdown_text": self._countdown_text_for_drop(drop, now),
+                "duration_text": _duration_text(drop),
                 "awarded_badge": awarded_badges.get(drop.twitch_id),
             }
             for drop in drops

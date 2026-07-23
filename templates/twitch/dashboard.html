@@ -102,29 +102,22 @@
                                                 <h4 style="margin: 0.5rem 0; text-align: left;">{{ campaign_data.clean_name }}</h4>
                                             </a>
                                             <!-- End time -->
-                                            <time datetime="{{ campaign_data.campaign.end_at|date:'c' }}"
-                                                  title="{{ campaign_data.campaign.end_at|date:'DATETIME_FORMAT' }}"
-                                                  style="font-size: 0.9rem;
-                                                         display: block;
-                                                         text-align: left">
+                                            <div style="font-size: 0.9rem;
+                                                        text-align: left"
+                                                 title="{{ campaign_data.campaign.end_at|date:'l, j F Y H:i:s' }} {% now 'T' %}">
                                                 Ends in {{ campaign_data.campaign.end_at|timeuntil }}
-                                            </time>
+                                            </div>
                                             <!-- Start time -->
-                                            <time datetime="{{ campaign_data.campaign.start_at|date:'c' }}"
-                                                  title="{{ campaign_data.campaign.start_at|date:'DATETIME_FORMAT' }}"
-                                                  style="font-size: 0.9rem;
-                                                         display: block;
-                                                         text-align: left">
+                                            <div style="font-size: 0.9rem;
+                                                        text-align: left"
+                                                 title="{{ campaign_data.campaign.start_at|date:'l, j F Y H:i:s' }} {% now 'T' %}">
                                                 Started {{ campaign_data.campaign.start_at|timesince }} ago
-                                            </time>
+                                            </div>
                                             <!-- Duration -->
-                                            <time datetime="{{ campaign_data.campaign.duration_iso }}"
-                                                  title="{{ campaign_data.campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign_data.campaign.end_at|date:'DATETIME_FORMAT' }}"
-                                                  style="font-size: 0.9rem;
-                                                         display: block;
-                                                         text-align: left">
+                                            <div style="font-size: 0.9rem;
+                                                       text-align: left">
                                                 Duration: {{ campaign_data.campaign.start_at|timesince:campaign_data.campaign.end_at }}
-                                            </time>
+                                            </div>
                                             <div style="margin-top: 0.5rem; font-size: 0.8rem; ">
                                                 <strong>Channels:</strong>
                                                 <ul style="margin: 0.25rem 0 0 0;
@@ -232,18 +225,20 @@
                                         <p style="margin: 0.25rem 0;">
                                             <strong>Starts:</strong>
                                             <time datetime="{{ campaign.starts_at|date:'c' }}"
-                                                  title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
+                                                  title="{{ campaign.starts_at|date:'l, j F Y H:i:s' }}">
                                                 {{ campaign.starts_at|date:"M d, Y H:i" }}
                                             </time>
+                                            <small style="color: #a9a9a9;">{% now "T" %}</small>
                                         </p>
                                     {% endif %}
                                     {% if campaign.ends_at %}
                                         <p style="margin: 0.25rem 0;">
                                             <strong>Ends:</strong>
                                             <time datetime="{{ campaign.ends_at|date:'c' }}"
-                                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                                                  title="{{ campaign.ends_at|date:'l, j F Y H:i:s' }}">
                                                 {{ campaign.ends_at|date:"M d, Y H:i" }}
                                             </time>
+                                            <small style="color: #a9a9a9;">{% now "T" %}</small>
                                         </p>
                                     {% endif %}
                                     {% if campaign.game %}

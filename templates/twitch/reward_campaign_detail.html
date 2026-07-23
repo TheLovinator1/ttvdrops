@@ -29,9 +29,9 @@
         <div style="display: flex; flex-direction: column;">
             <!-- Campaign Title -->
             {% if reward_campaign.brand %}
-                <h1 id="campaign-title">{{ reward_campaign.brand }}: {{ reward_campaign.name }}</h1>
+                <h1 id="campaign-title" style="margin-top: 0; margin-bottom: 0px;">{{ reward_campaign.brand }}: {{ reward_campaign.name }}</h1>
             {% else %}
-                <h1 id="campaign-title">{{ reward_campaign.name }}</h1>
+                <h1 id="campaign-title" style="margin-top: 0; margin-bottom: 0px;">{{ reward_campaign.name }}</h1>
             {% endif %}
             <!-- Game eligibility -->
             <div>
@@ -50,7 +50,7 @@
             </div>
             <!-- Campaign Summary -->
             {% if reward_campaign.summary %}<p id="campaign-summary">{{ reward_campaign.summary|linebreaksbr }}</p>{% endif %}
-            <dl>
+            <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                 <!-- Campaign Status -->
                 <dt>Status</dt>
                 <dd>
@@ -64,11 +64,13 @@
                 </dd>
                 <dt>Added</dt>
                 <dd>
-                    {{ reward_campaign.added_at|date:"M d, Y H:i" }} ({{ reward_campaign.added_at|timesince }} ago)
+                    <time datetime="{{ reward_campaign.added_at|date:'c' }}"
+                          title="{{ reward_campaign.added_at|date:'DATETIME_FORMAT' }}">{{ reward_campaign.added_at|date:"M d, Y H:i" }}</time> ({{ reward_campaign.added_at|timesince }} ago)
                 </dd>
                 <dt>Last updated</dt>
                 <dd>
-                    {{ reward_campaign.updated_at|date:"M d, Y H:i" }} ({{ reward_campaign.updated_at|timesince }} ago)
+                    <time datetime="{{ reward_campaign.updated_at|date:'c' }}"
+                          title="{{ reward_campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ reward_campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ reward_campaign.updated_at|timesince }} ago)
                 </dd>
                 <!-- Reward Start Time -->
                 <dt>

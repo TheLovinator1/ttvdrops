@@ -4,13 +4,13 @@
 {% endblock title %}
 {% block content %}
     <!-- Channel Title -->
-    <h1>{{ channel.display_name }}</h1>
+    <h1 style="margin-top: 0; margin-bottom: 0px;">{{ channel.display_name }}</h1>
     <!-- Add breadcrumbs -->
     <div>
         <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:channel_list' %}">Channels</a> > {{ channel.display_name }}
     </div>
     <!-- Channel metadata -->
-    <dl>
+    <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
         {% if channel.display_name != channel.name %}
             <dt>Username</dt>
             <dd>
@@ -82,7 +82,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span title="Ends on {{ campaign.end_at|date:'M d, Y H:i' }}">Ends in {{ campaign.end_at|timeuntil }}</span>
+                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                  title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">Ends in {{ campaign.end_at|timeuntil }}</time>
                         </td>
                     </tr>
                 {% endfor %}
@@ -130,7 +131,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span title="Starts on {{ campaign.start_at|date:'M d, Y H:i' }}">Starts in {{ campaign.start_at|timeuntil }}</span>
+                            <time datetime="{{ campaign.start_at|date:'c' }}"
+                                  title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">Starts in {{ campaign.start_at|timeuntil }}</time>
                         </td>
                     </tr>
                 {% endfor %}
@@ -177,7 +179,8 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span title="Ended on {{ campaign.end_at|date:'M d, Y H:i' }}">{{ campaign.end_at|timesince }} ago</span>
+                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                  title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|timesince }} ago</time>
                         </td>
                     </tr>
                 {% endfor %}

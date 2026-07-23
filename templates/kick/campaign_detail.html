@@ -51,7 +51,6 @@
                     <a href="{% url 'kick:campaign_list' %}">Campaigns</a> >
                     {{ campaign.name }}
                 </div>
-                <style>dd { margin-left: 0; }</style>
                 <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                     {% if campaign.category %}
                         <dt>Category</dt>
@@ -103,9 +102,7 @@
                     {% endif %}
                     {% if campaign.duration %}
                         <dt>Duration</dt>
-                        <dd>
-                            {{ campaign.duration }}
-                        </dd>
+                        <dd>{{ campaign.duration }}</dd>
                     {% endif %}
                     <dt>Added</dt>
                     <dd>
@@ -119,6 +116,22 @@
                               title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y" }}</time>
                         ({{ campaign.updated_at|timesince }} ago)
                     </dd>
+                    {% if campaign.created_at %}
+                        <dt>Created</dt>
+                        <dd>
+                            <time datetime="{{ campaign.created_at|date:'c' }}"
+                                  title="{{ campaign.created_at|date:'DATETIME_FORMAT' }}">{{ campaign.created_at|date:"M d, Y H:i" }}</time>
+                            ({{ campaign.created_at|timesince }} ago)
+                        </dd>
+                    {% endif %}
+                    {% if campaign.api_updated_at %}
+                        <dt>API Updated</dt>
+                        <dd>
+                            <time datetime="{{ campaign.api_updated_at|date:'c' }}"
+                                  title="{{ campaign.api_updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.api_updated_at|date:"M d, Y H:i" }}</time>
+                            ({{ campaign.api_updated_at|timesince }} ago)
+                        </dd>
+                    {% endif %}
                 </dl>
                 <div>
                     {% if campaign.channels.all %}
@@ -133,22 +146,6 @@
                         {% if campaign.channels.count > 5 %}and {{ campaign.channels.count|add:"-5" }} more{% endif %}
                     {% endif %}
                 </div>
-                {% if campaign.created_at %}
-                    <p style="margin: 0.25rem 0;">
-                        <time datetime="{{ campaign.created_at|date:'c' }}"
-                              title="{{ campaign.created_at|date:'DATETIME_FORMAT' }}">
-                            Created {{ campaign.created_at|date:"M d, Y H:i" }} ({{ campaign.created_at|timesince }} ago)
-                        </time>
-                    </p>
-                {% endif %}
-                {% if campaign.api_updated_at %}
-                    <p style="margin: 0.25rem 0;">
-                        <time datetime="{{ campaign.api_updated_at|date:'c' }}"
-                              title="{{ campaign.api_updated_at|date:'DATETIME_FORMAT' }}">
-                            API Updated {{ campaign.api_updated_at|date:"M d, Y H:i" }} ({{ campaign.api_updated_at|timesince }} ago)
-                        </time>
-                    </p>
-                {% endif %}
                 <footer aria-label="Links"
                         style="margin-top: 0.5rem;
                                border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);

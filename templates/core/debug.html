@@ -119,7 +119,20 @@
                     <li>
                         <a href="{% url 'twitch:campaign_detail' c.twitch_id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
-                        - Start: {{ c.start_at|default:'(none)' }} / End: {{ c.end_at|default:'(none)' }}
+                        -
+                        Start:
+                        {% if c.start_at %}
+                            <time datetime="{{ c.start_at|date:'c' }}">{{ c.start_at|date:'M d, Y H:i' }}</time>
+                        {% else %}
+                            (none)
+                        {% endif %}
+                        /
+                        End:
+                        {% if c.end_at %}
+                            <time datetime="{{ c.end_at|date:'c' }}">{{ c.end_at|date:'M d, Y H:i' }}</time>
+                        {% else %}
+                            (none)
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -135,7 +148,20 @@
                     <li>
                         <a href="{% url 'kick:campaign_detail' c.kick_id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'kick:game_detail' c.category.kick_id %}">{{ c.category.name }}</a>)
-                        - Start: {{ c.starts_at|default:'(none)' }} / End: {{ c.ends_at|default:'(none)' }}
+                        -
+                        Start:
+                        {% if c.starts_at %}
+                            <time datetime="{{ c.starts_at|date:'c' }}">{{ c.starts_at|date:'M d, Y H:i' }}</time>
+                        {% else %}
+                            (none)
+                        {% endif %}
+                        /
+                        End:
+                        {% if c.ends_at %}
+                            <time datetime="{{ c.ends_at|date:'c' }}">{{ c.ends_at|date:'M d, Y H:i' }}</time>
+                        {% else %}
+                            (none)
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>
@@ -151,7 +177,20 @@
                     <li>
                         <a href="{% url 'twitch:reward_campaign_detail' c.twitch_id %}">{{ c.name }}</a>
                         (Game: <a href="{% url 'twitch:game_detail' c.game.twitch_id %}">{{ c.game.display_name }}</a>)
-                        - Start: {{ c.starts_at|default:'(none)' }} / End: {{ c.ends_at|default:'(none)' }}
+                        -
+                        Start:
+                        {% if c.starts_at %}
+                            <time datetime="{{ c.starts_at|date:'c' }}">{{ c.starts_at|date:'M d, Y H:i' }}</time>
+                        {% else %}
+                            (none)
+                        {% endif %}
+                        /
+                        End:
+                        {% if c.ends_at %}
+                            <time datetime="{{ c.ends_at|date:'c' }}">{{ c.ends_at|date:'M d, Y H:i' }}</time>
+                        {% else %}
+                            (none)
+                        {% endif %}
                     </li>
                 {% endfor %}
             </ul>

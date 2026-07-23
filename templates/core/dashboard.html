@@ -168,15 +168,11 @@
                                                 </div>
                                                 <div style="font-size: 0.85rem; margin-top: 0.1rem;">
                                                     {% if campaign_data.allowed_channels %}
-                                                        <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}#allowed-channels"
-                                                           style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
-                                                                  text-decoration: none">
-                                                            {% if campaign_data.allowed_channels %}{{ campaign_data.allowed_channels|length }} channel{{ campaign_data.allowed_channels|length|pluralize }}{% endif %}
+                                                        <a href="{% url 'twitch:campaign_detail' campaign_data.campaign.twitch_id %}#allowed-channels">
+                                                            {{ campaign_data.allowed_channels|length }} channel{{ campaign_data.allowed_channels|length|pluralize }}
                                                         </a>
                                                     {% else %}
-                                                        <a href="{{ campaign_data.campaign.game.twitch_directory_url }}"
-                                                           style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
-                                                                  text-decoration: none">Category-wide</a>
+                                                        <a href="{{ campaign_data.campaign.game.twitch_directory_url }}">Category-wide</a>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -489,15 +485,11 @@
                                                         </div>
                                                         <div style="font-size: 0.85rem; margin-top: 0.1rem;">
                                                             {% if campaign_data.channels %}
-                                                                <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}#allowed-channels"
-                                                                   style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
-                                                                          text-decoration: none">
-                                                                    {% if campaign_data.channels %}{{ campaign_data.channels|length }} channel{{ campaign_data.channels|length|pluralize }}{% endif %}
+                                                                <a href="{% url 'kick:campaign_detail' campaign_data.campaign.kick_id %}#allowed-channels">
+                                                                    {{ campaign_data.channels|length }} channel{{ campaign_data.channels|length|pluralize }}
                                                                 </a>
                                                             {% else %}
-                                                                <a href="{{ campaign_data.campaign.url }}"
-                                                                   style="color: color-mix(in srgb, CanvasText 60%, transparent 40%);
-                                                                          text-decoration: none">Category-wide</a>
+                                                                <a href="{{ campaign_data.campaign.url }}">Category-wide</a>
                                                             {% endif %}
                                                         </div>
                                                     </div>

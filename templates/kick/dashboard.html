@@ -20,36 +20,19 @@
     <main>
         <h1>Active Kick Drops</h1>
         <footer aria-label="Links"
-                style="margin-top: 0.5rem;
-                       border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                       padding-top: 0.5rem">
-            <div style="display: flex;
-                        flex-wrap: wrap;
-                        column-gap: 1.5rem;
-                        row-gap: 0.4rem">
+                style="margin-top: 0.5rem; border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%); padding-top: 0.5rem">
+            <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.4rem">
                 <div>
-                    <div style="font-size: 0.8rem;
-                                color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                margin-bottom: 0.15rem;
-                                text-transform: uppercase;
-                                letter-spacing: 0.05em">
-                        Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
+                    <div style="font-size: 0.8rem; color: color-mix(in srgb, CanvasText 55%, transparent 45%); margin-bottom: 0.15rem; text-transform: uppercase; letter-spacing: 0.05em">
+                        Subscribe <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation" style="color: inherit; text-decoration: none">(?)</a>
                     </div>
                     <div>
                         Campaigns:
-                        <a href="{% url 'kick:campaign_feed' %}"
-                           title="RSS feed for all campaigns">[rss]</a>
-                        <a href="{% url 'kick:campaign_feed_atom' %}"
-                           title="Atom feed for all campaigns">[atom]</a>
-                        <a href="{% url 'kick:campaign_feed_discord' %}"
-                           title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
-                        <a href="{% url 'api-v1:kick-api-v1_list_campaigns' %}"
-                           title="Kick campaigns API">[api]</a>
-                        <a href="https://web.kick.com/api/v1/drops/campaigns"
-                           title="Kick's upstream API endpoint">[upstream api]</a>
+                        <a href="{% url 'kick:campaign_feed' %}" title="RSS feed for all campaigns">[rss]</a>
+                        <a href="{% url 'kick:campaign_feed_atom' %}" title="Atom feed for all campaigns">[atom]</a>
+                        <a href="{% url 'kick:campaign_feed_discord' %}" title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
+                        <a href="{% url 'api-v1:kick-api-v1_list_campaigns' %}" title="Kick campaigns API">[api]</a>
+                        <a href="https://web.kick.com/api/v1/drops/campaigns" title="Kick upstream API endpoint">[upstream api]</a>
                     </div>
                 </div>
             </div>
@@ -57,7 +40,6 @@
         <hr />
         {% if active_campaigns %}
             {% for campaign in active_campaigns %}
-                <!-- {{ campaign }} -->
                 <article>
                     <header>
                         <h2>
@@ -79,117 +61,69 @@
                     <div style="display: flex; gap: 1rem;">
                         <div style="flex-shrink: 0;">
                             {% if campaign.image_url %}
-                                <img src="{{ campaign.image_url }}"
-                                     width="200"
-                                     height="200"
-                                     alt="{{ campaign.name }} image"
-                                     style="width: 200px;
-                                            height: auto;
-                                            border-radius: 8px" />
+                                <img src="{{ campaign.image_url }}" width="200" height="200" alt="{{ campaign.name }} image" style="width: 200px; height: auto; border-radius: 8px" />
                             {% else %}
-                                <div style="width: 200px;
-                                            height: 200px;
-                                            background-color: #eee;
-                                            display: flex;
-                                            align-items: center;
-                                            justify-content: center;
-                                            border-radius: 8px">No Image</div>
+                                <div style="width: 200px; height: 200px; background-color: #eee; display: flex; align-items: center; justify-content: center; border-radius: 8px">No Image</div>
                             {% endif %}
                         </div>
                         <div style="flex: 1;">
-                            <h3>
-                                <a href="{% url 'kick:campaign_detail' campaign.kick_id %}">{{ campaign.name }}</a>
-                            </h3>
-                            <!-- Start -->
-                            {% if campaign.starts_at %}
-                                <p style="margin: 0.25rem 0;">
-                                    <strong>Starts:</strong>
-                                    <time datetime="{{ campaign.starts_at|date:'c' }}"
-                                          title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
-                                        {{ campaign.starts_at|date:"M d, Y H:i" }}
-                                    </time>
-                                    {% if campaign.starts_at < now %}
-                                        (started {{ campaign.starts_at|timesince }} ago)
-                                    {% else %}
-                                        (in {{ campaign.starts_at|timeuntil }})
-                                    {% endif %}
-                                </p>
-                            {% endif %}
-                            <!-- End -->
-                            {% if campaign.ends_at %}
-                                <p style="margin: 0.25rem 0;">
-                                    <strong>Ends:</strong>
-                                    <time datetime="{{ campaign.ends_at|date:'c' }}"
-                                          title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
-                                        {{ campaign.ends_at|date:"M d, Y H:i" }}
-                                    </time>
-                                    {% if campaign.ends_at < now %}
-                                        (ended {{ campaign.ends_at|timesince }} ago)
-                                    {% else %}
-                                        (in {{ campaign.ends_at|timeuntil }})
-                                    {% endif %}
-                                </p>
-                            {% endif %}
-                            <!-- Duration -->
-                            {% if campaign.duration %}
-                                <p style="margin: 0.25rem 0;">
-                                    <strong>Duration:</strong> {{ campaign.duration }}
-                                </p>
-                            {% endif %}
-                            {% if campaign.rule_name %}
-                                <p style="margin: 0.25rem 0;">
-                                    <strong>Rule:</strong> {{ campaign.rule_name }}
-                                </p>
-                            {% endif %}
-                            {% if campaign.connect_url %}
-                                <p style="margin: 0.25rem 0;">
-                                    <a href="{{ campaign.connect_url }}">Connect account</a>
-                                </p>
-                            {% endif %}
-                            <div style="margin-top: 0.5rem; font-size: 0.9rem;">
-                                <strong>Participating channels:</strong>
-                                {% if campaign.channels.all %}
-                                    <ul style="margin: 0.25rem 0 0 0; padding-left: 1rem;">
-                                        {% for channel in campaign.channels.all|slice:":5" %}
-                                            <li>
-                                                {% if channel.user %}
-                                                    <a href="{{ channel.channel_url }}">{{ channel.user.username }}</a>
-                                                {% else %}
-                                                    <a href="{{ channel.channel_url }}">{{ channel.slug }}</a>
-                                                {% endif %}
-                                            </li>
-                                        {% endfor %}
-                                        {% if campaign.channels.count > 5 %}
-                                            <li style="color: #666; font-style: italic;">... and {{ campaign.channels.count|add:"-5" }} more</li>
-                                        {% endif %}
-                                    </ul>
-                                {% else %}
-                                    {% if campaign.category %}
-                                        <p style="margin: 0.25rem 0 0 0;">
-                                            <a href="{{ campaign.category.kick_url }}">{{ campaign.category.name }}</a> is game wide.
-                                        </p>
-                                    {% endif %}
+                            <h3><a href="{% url 'kick:campaign_detail' campaign.kick_id %}">{{ campaign.name }}</a></h3>
+                            <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
+                                {% if campaign.starts_at %}
+                                    <dt>Starts</dt>
+                                    <dd>
+                                        <time datetime="{{ campaign.starts_at|date:'c' }}" title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">{{ campaign.starts_at|date:"M d, Y H:i" }}</time>
+                                        {% if campaign.starts_at < now %}(started {{ campaign.starts_at|timesince }} ago){% else %}(in {{ campaign.starts_at|timeuntil }}){% endif %}
+                                    </dd>
                                 {% endif %}
-                            </div>
-                            {% if campaign.merged_rewards %}
-                                <div style="margin-top: 0.75rem;">
-                                    <strong>Rewards:</strong>
-                                    <ul style="margin: 0.25rem 0 0 0; padding-left: 1rem;">
-                                        {% for reward in campaign.merged_rewards %}
-                                            <li>
-                                                {% if reward.full_image_url %}
-                                                    <img src="{{ reward.full_image_url }}"
-                                                         alt="{{ reward.name }}"
-                                                         width="56"
-                                                         height="56"
-                                                         style="vertical-align: middle;
-                                                                border-radius: 4px" />
-                                                {% endif %}
-                                                {{ reward.name }} ({{ reward.required_units }} min)
-                                            </li>
-                                        {% endfor %}
-                                    </ul>
-                                </div>
+                                {% if campaign.ends_at %}
+                                    <dt>Ends</dt>
+                                    <dd>
+                                        <time datetime="{{ campaign.ends_at|date:'c' }}" title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|date:"M d, Y H:i" }}</time>
+                                        {% if campaign.ends_at < now %}(ended {{ campaign.ends_at|timesince }} ago){% else %}(in {{ campaign.ends_at|timeuntil }}){% endif %}
+                                    </dd>
+                                {% endif %}
+                                {% if campaign.duration %}
+                                    <dt>Duration</dt>
+                                    <dd>{{ campaign.duration }}</dd>
+                                {% endif %}
+                                {% if campaign.rule_name %}
+                                    <dt>Rule</dt>
+                                    <dd>{{ campaign.rule_name }}</dd>
+                                {% endif %}
+                                <dt>Channels</dt>
+                                <dd>
+                                    {% if campaign.channels.all %}
+                                        <ul style="margin: 0; padding-left: 1rem;">
+                                            {% for channel in campaign.channels.all|slice:":5" %}
+                                                <li>
+                                                    {% if channel.user %}<a href="{{ channel.channel_url }}">{{ channel.user.username }}</a>{% else %}<a href="{{ channel.channel_url }}">{{ channel.slug }}</a>{% endif %}
+                                                </li>
+                                            {% endfor %}
+                                            {% if campaign.channels.count > 5 %}
+                                                <li style="color: #666; font-style: italic;">... and {{ campaign.channels.count|add:"-5" }} more</li>
+                                            {% endif %}
+                                        </ul>
+                                    {% else %}
+                                        {% if campaign.category %}<a href="{{ campaign.category.kick_url }}">{{ campaign.category.name }}</a> is game wide.{% endif %}
+                                    {% endif %}
+                                </dd>
+                                {% if campaign.merged_rewards %}
+                                    <dt>Rewards</dt>
+                                    <dd>
+                                        <ul style="margin: 0; padding-left: 1rem;">
+                                            {% for reward in campaign.merged_rewards %}
+                                                <li>
+                                                    {% if reward.full_image_url %}<img src="{{ reward.full_image_url }}" alt="{{ reward.name }}" width="56" height="56" style="vertical-align: middle; border-radius: 4px" />{% endif %}
+                                                    {{ reward.name }} ({{ reward.required_units }} min)
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </dd>
+                                {% endif %}
+                            </dl>
+                            {% if campaign.connect_url %}
+                                <p style="margin: 0.25rem 0;"><a href="{{ campaign.connect_url }}">Connect account</a></p>
                             {% endif %}
                         </div>
                     </div>

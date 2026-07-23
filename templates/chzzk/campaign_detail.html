@@ -38,7 +38,7 @@
             </div>
             <!-- Campaign description -->
             <p>{{ campaign.description|linebreaksbr }}</p>
-            <dl>
+            <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                 <dt>Published</dt>
                 <dd>
                     {% if campaign.scraped_at %}

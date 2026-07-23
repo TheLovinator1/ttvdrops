@@ -93,7 +93,9 @@
                                             text-align: center">
                                 <div style="margin-bottom: 0.25rem;">
                                     {% if item.game.box_art_best_url %}
-                                        {% picture item.game.box_art_best_url alt="Box art for "|add:item.game.display_name width=180 height=240 style="border-radius: 8px" %}
+                                        <a href="{% url 'twitch:game_detail' item.game.twitch_id %}">
+                                            {% picture item.game.box_art_best_url alt="Box art for "|add:item.game.display_name width=180 height=240 style="border-radius: 8px" %}
+                                        </a>
                                     {% else %}
                                         <div style="width: 180px;
                                                     height: 240px;

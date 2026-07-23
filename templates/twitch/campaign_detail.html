@@ -47,7 +47,6 @@
             {% endif %}
             <!-- Campaign description -->
             <p>{{ campaign.description|linebreaksbr }}</p>
-            <style>dd { margin-left: 0; }</style>
             <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                 <dt>Published</dt>
                 <dd>
@@ -173,52 +172,56 @@
             <tbody>
                 {% for drop in drops %}
                     <tr>
-                        <td>
-                            {% for benefit in drop.drop.benefits.all %}
-                                {% if benefit.image_asset_url %}
-                                    <!-- Show the benefit image if available -->
-                                    {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=160 height=160 style="object-fit: cover; margin-right: 3px" %}
-                                {% endif %}
-                                {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
-                                    <!-- If the drop awards a badge, show the badge prominently with its description -->
-                                    <div style="margin-top: 6px; font-size: 0.9em;">
-                                        <strong>Awards Badge:</strong>
-                                        <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
-                                            {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 style="vertical-align: middle; margin-right: 4px" %}
-                                            {{ drop.awarded_badge.title }}
-                                        </a>
-                                        {% if drop.awarded_badge.description %}
-                                            <!-- Show the badge description if available -->
-                                            <div style="margin-top: 4px; color: #a9a9a9; font-size: 0.9em;">{{ drop.awarded_badge.description|linebreaksbr }}</div>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
+                        <td style="display: flex; gap: 12px; align-items: center;">
+                            <div style="flex-shrink: 0;">
+                                {% for benefit in drop.drop.benefits.all %}
+                                    {% if benefit.image_asset_url %}
+                                        {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=160 height=160 style="object-fit: cover" %}
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            <div>
+                                <div style="margin-bottom: 5px;">{{ drop.drop.name }}</div>
+                                {% for benefit in drop.drop.benefits.all %}
+                                    {% if benefit.name != drop.drop.name %}
+                                        <div style="font-size: 0.9em; color: #a9a9a9; margin-bottom: 3px;">{{ benefit.name }}</div>
+                                    {% endif %}
+                                {% endfor %}
+                                {% for benefit in drop.drop.benefits.all %}
+                                    {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
+                                        <div style="margin-top: 6px; font-size: 0.9em;">
+                                            <strong>Awards Badge:</strong>
+                                            <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
+                                                {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 style="vertical-align: middle; margin-right: 4px" %}
+                                                {{ drop.awarded_badge.title }}
+                                            </a>
+                                            {% if drop.awarded_badge.description %}
+                                                <div style="margin-top: 4px; color: #a9a9a9; font-size: 0.9em;">{{ drop.awarded_badge.description|linebreaksbr }}</div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
                         </td>
                         <td>
-                            <div style="margin-bottom: 5px;">{{ drop.drop.name }}</div>
-                            {% for benefit in drop.drop.benefits.all %}
-                                {% if benefit.name != drop.drop.name %}
-                                    <!-- Show additional benefits if they have a different name than the drop itself -->
-                                    <div style="font-size: 0.9em; color: #a9a9a9; margin-bottom: 3px;">{{ benefit.name }}</div>
-                                {% endif %}
-                            {% endfor %}
-                        </td>
-                        <td>
-                            {% if drop.drop.required_minutes_watched %}{{ drop.drop.required_minutes_watched }} minutes watched{% endif %}
+                            {% if drop.drop.required_minutes_watched %}{{ drop.drop.required_minutes_watched }} minute{{ drop.drop.required_minutes_watched|pluralize }} watched{% endif %}
                             {% if drop.drop.required_subs > 0 %}
                                 {% if drop.drop.required_minutes_watched %}and{% endif %}
-                                {{ drop.drop.required_subs }} subscriptions required
+                                {{ drop.drop.required_subs }} subscription{{ drop.drop.required_subs|pluralize }} required
                             {% endif %}
                         </td>
                         <td>
                             <div>
-                                {% if drop.local_start %}{{ drop.local_start|date:"M j, Y H:i" }}{% endif %}
-                                {% if drop.local_start and drop.local_end %}-{% endif %}
-                                {% if drop.local_end %}{{ drop.local_end|date:"M j, Y H:i" }}{% endif %}
-                                <small style="color: #a9a9a9;">{{ drop.timezone_name }}</small>
+                                {% if drop.local_start %}
+                                    <time datetime="{{ drop.local_start|date:'c' }}">{{ drop.local_start|date:"M j, Y H:i" }}</time>
+                                {% endif %}
+                                {% if drop.local_start and drop.local_end %} &ndash; {% endif %}
+                                {% if drop.local_end %}
+                                    <time datetime="{{ drop.local_end|date:'c' }}">{{ drop.local_end|date:"M j, Y H:i" }}</time>
+                                {% endif %}
                             </div>
-                            <div style="font-size: 0.8em; color: #a9a9a9;">{{ drop.countdown_text }}</div>
+                            <div style="font-size: 0.8em; color: #a9a9a9;">TZ: {{ drop.timezone_name }}</div>
+                            <div style="font-size: 0.8em; color: #a9a9a9;">Duration: {{ drop.duration_text }}</div>
                         </td>
                     </tr>
                 {% endfor %}
