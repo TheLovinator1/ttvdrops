@@ -1,6 +1,64 @@
 # ttvdrops
 
-Get notified when a new drop is available on Twitch
+Track limited-time free rewards across Twitch, Kick, and Chzzk.
+
+Streaming platforms often give away free in-game items, channel perks, and other rewards
+(called "drops") to viewers who meet certain conditions, like watching a streamer play a
+game for a set amount of time (Time-Based Drops) or subscribing to a participating channel
+(Subscription-Based Drops). These offers are organized into "Drops Campaigns":
+collections of rewards distributed during a specified time period, each with its own start
+and end dates and requirements. Campaigns are only available for a limited window and can
+be scattered across different platforms, making them easy to miss.
+
+ttvdrops.lovinator.space monitors these campaigns across multiple platforms, archives their data for
+historical reference, and lets you subscribe to RSS/Atom feeds so you never miss a new
+offer. All historical campaign data is available as [open datasets](https://github.com/TheLovinator1/ttvdrops)
+licensed under CC0.
+
+## Features
+
+- **Multi-platform**: Twitch, Kick, and Chzzk
+- **RSS/Atom feeds**: Subscribe to campaigns, games, organizations, and rewards
+- **Historical archive**: Past campaigns remain searchable and downloadable
+- **Search & browse**: Find campaigns by game, organization, channel, or reward
+- **Open data**: All data is freely available under CC0
+
+## Project links
+
+- **Website**: [ttvdrops.lovinator.space](https://ttvdrops.lovinator.space)
+- **Repository**: [github.com/TheLovinator1/ttvdrops](https://github.com/TheLovinator1/ttvdrops)
+- **Issue tracker**: [github.com/TheLovinator1/ttvdrops/issues](https://github.com/TheLovinator1/ttvdrops/issues)
+- **Donate**: [github.com/sponsors/TheLovinator1](https://github.com/sponsors/TheLovinator1)
+- **License**: MIT (code), CC0 (data)
+
+## Similar projects
+
+Other sites that track Twitch drops:
+
+- [twitchdrops.app](https://twitchdrops.app/)
+- [Fenrisapps Twitch Drops](https://twitch-drops.fenrisapps.com/)
+- [twitch-drops-api](https://github.com/SunkwiBOT/twitch-drops-api) (the API that powers some of these tools)
+- [Drop Hunter](https://drophunter.app/) (paid, $3/mo)
+
+## Bug reports & feature requests
+
+Found a bug or have an idea? Please [open an issue](https://github.com/TheLovinator1/ttvdrops/issues/new).
+Include as much detail as possible, including what you expected, what happened, and steps to reproduce.
+
+You can also email [tlovinator@gmail.com](mailto:tlovinator@gmail.com) or reach out on Discord
+(**TheLovinator** / `TheLovinator#9276`).
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Install dependencies with `uv sync`
+4. Rename .env.example to .env (Probably want to use USE_SQLITE=True)
+5. Make your changes
+6. Run tests with `uv run pytest`
+7. Submit a pull request
 
 ## TL;DR (Arch Linux + PostgreSQL)
 
@@ -92,10 +150,10 @@ uv run pytest
 
 Celery powers all periodic and background work. Three services are required:
 
-| Service file | Queues | Purpose |
-|---|---|---|
+| Service file                     | Queues                              | Purpose                           |
+| -------------------------------- | ----------------------------------- | --------------------------------- |
 | `ttvdrops-celery-worker.service` | `imports`, `api-fetches`, `default` | Twitch/Kick/Chzzk imports, backup |
-| `ttvdrops-celery-beat.service` | — | Periodic task scheduler (Beat) |
+| `ttvdrops-celery-beat.service`   | -                                   | Periodic task scheduler (Beat)    |
 
 Start workers manually during development:
 
@@ -103,7 +161,7 @@ Start workers manually during development:
 # All-in-one worker (development)
 uv run celery -A config worker --queues imports,api-fetches,image-downloads,default --loglevel=info
 
-# Beat scheduler (requires database Beat tables — run migrate first)
+# Beat scheduler (requires database Beat tables, run migrate first)
 uv run celery -A config beat --scheduler django_celery_beat.schedulers:DatabaseScheduler --loglevel=info
 
 # Monitor tasks in the browser (optional)
@@ -112,14 +170,14 @@ uv run celery -A config flower
 
 **Periodic tasks configured via `CELERY_BEAT_SCHEDULE`:**
 
-| Task | Schedule | Queue |
-|---|---|---|
-| `twitch.tasks.scan_pending_twitch_files` | every 10 s | `imports` |
-| `kick.tasks.import_kick_drops` | :01/:16/:31/:46 | `api-fetches` |
-| `chzzk.tasks.discover_chzzk_campaigns` | every 2 h | `api-fetches` |
-| `twitch.tasks.backup_database` | daily 02:15 UTC | `default` |
-| `twitch.tasks.download_all_images` | Sunday 04:00 UTC | `image-downloads` |
-| `twitch.tasks.import_chat_badges` | Sunday 03:00 UTC | `api-fetches` |
+| Task                                     | Schedule         | Queue             |
+| ---------------------------------------- | ---------------- | ----------------- |
+| `twitch.tasks.scan_pending_twitch_files` | every 10 s       | `imports`         |
+| `kick.tasks.import_kick_drops`           | :01/:16/:31/:46  | `api-fetches`     |
+| `chzzk.tasks.discover_chzzk_campaigns`   | every 2 h        | `api-fetches`     |
+| `twitch.tasks.backup_database`           | daily 02:15 UTC  | `default`         |
+| `twitch.tasks.download_all_images`       | Sunday 04:00 UTC | `image-downloads` |
+| `twitch.tasks.import_chat_badges`        | Sunday 03:00 UTC | `api-fetches`     |
 
 Image downloads also run **immediately** on record creation via `post_save` signals
 (`Game`, `DropCampaign`, `DropBenefit`, `RewardCampaign`).

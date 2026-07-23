@@ -15,7 +15,7 @@
           href="{% url 'core:reward_campaign_feed_atom' %}" />
     <link rel="alternate"
           type="application/atom+xml"
-          title="Reward campaigns (Discord)"
+          title="Reward campaigns (Discord-flavored)"
           href="{% url 'core:reward_campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
@@ -122,7 +122,7 @@
                 <a href="{% url 'core:reward_campaign_feed_atom' %}"
                    title="Atom feed for all reward campaigns">[atom]</a>
                 <a href="{% url 'core:reward_campaign_feed_discord' %}"
-                   title="Discord feed for all reward campaigns">[discord]</a>
+                   title="Discord-flavored feed for all reward campaigns">[discord-flavored]</a>
                 <a href="{% url 'api-v1:twitch-api-v1_get_reward_campaign' reward_campaign.twitch_id %}"
                    title="Twitch reward campaign API">[api]</a>
                 <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>

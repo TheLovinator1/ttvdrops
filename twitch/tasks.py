@@ -145,7 +145,7 @@ def _save_modern_formats(img: Image, source: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Per-model image tasks — triggered by post_save signals on new records
+# Per-model image tasks - triggered by post_save signals on new records
 # ---------------------------------------------------------------------------
 
 

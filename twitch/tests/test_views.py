@@ -2770,7 +2770,7 @@ class TestRewardCampaignViews:
             ends_delta=timedelta(days=1),
         )
 
-        # Game-specific reward (is_sitewide=False) — should NOT appear
+        # Game-specific reward (is_sitewide=False) - should NOT appear
         self._create_reward_campaign(
             "sitewide-game-specific",
             brand="Game Brand",

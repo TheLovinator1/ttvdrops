@@ -13,7 +13,7 @@
           href="{% url 'core:game_feed_atom' %}" />
     <link rel="alternate"
           type="application/atom+xml"
-          title="Newly added games (Discord)"
+          title="Newly added games (Discord-flavored)"
           href="{% url 'core:game_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
@@ -29,7 +29,7 @@
             <a href="{% url 'core:game_feed_atom' %}"
                title="Atom feed for all games">[atom]</a>
             <a href="{% url 'core:game_feed_discord' %}"
-               title="Discord feed for all games">[discord]</a>
+               title="Discord-flavored feed for all games">[discord-flavored]</a>
             <a href="{% url 'api-v1:twitch-api-v1_list_games' %}"
                title="Twitch games API">[api]</a>
             <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>

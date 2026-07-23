@@ -1,4 +1,10 @@
 {% load static %}
+<!--
+    TTVDrops has a public JSON API and downloadable datasets.
+    You do not need to scrape this site for this data.
+    - API docs: https://ttvdrops.lovinator.space/api/v1/docs/
+    - Datasets: https://ttvdrops.lovinator.space/datasets/
+-->
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -45,7 +51,7 @@
               href="{% url 'core:campaign_feed_atom' %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="All campaigns (Discord)"
+              title="All campaigns (Discord-flavored)"
               href="{% url 'core:campaign_feed_discord' %}" />
         <link rel="alternate"
               type="application/rss+xml"
@@ -57,7 +63,7 @@
               href="{% url 'core:game_feed_atom' %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="Newly added games (Discord)"
+              title="Newly added games (Discord-flavored)"
               href="{% url 'core:game_feed_discord' %}" />
         <link rel="alternate"
               type="application/rss+xml"
@@ -69,7 +75,7 @@
               href="{% url 'core:organization_feed_atom' %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="Newly added organizations (Discord)"
+              title="Newly added organizations (Discord-flavored)"
               href="{% url 'core:organization_feed_discord' %}" />
         <link rel="alternate"
               type="application/rss+xml"
@@ -81,7 +87,7 @@
               href="{% url 'core:reward_campaign_feed_atom' %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="Newly added reward campaigns (Discord)"
+              title="Newly added reward campaigns (Discord-flavored)"
               href="{% url 'core:reward_campaign_feed_discord' %}" />
         <link rel="alternate"
               type="application/rss+xml"
@@ -93,7 +99,7 @@
               href="{% url 'kick:campaign_feed_atom' %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="All Kick campaigns (Discord)"
+              title="All Kick campaigns (Discord-flavored)"
               href="{% url 'kick:campaign_feed_discord' %}" />
         <link rel="alternate"
               type="application/rss+xml"
@@ -105,7 +111,7 @@
               href="{% url 'kick:game_feed_atom' %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="All Kick games (Discord)"
+              title="All Kick games (Discord-flavored)"
               href="{% url 'kick:game_feed_discord' %}" />
         <link rel="alternate"
               type="application/rss+xml"
@@ -117,7 +123,7 @@
               href="{% url 'kick:organization_feed_atom' %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="All Kick organizations (Discord)"
+              title="All Kick organizations (Discord-flavored)"
               href="{% url 'kick:organization_feed_discord' %}" />
         {% block extra_head %}
         {% endblock extra_head %}
@@ -201,9 +207,11 @@
             <a href="{% url 'core:docs_rss' %}">RSS</a> |
             <a href="{% url 'core:debug' %}">Debug</a> |
             <a href="{% url 'core:dataset_backups' %}">Dataset</a> |
+            <a href="https://github.com/TheLovinator1/ttvdrops/issues/new">Report issue</a> |
             <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
             <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a> |
             <a href="{% url 'api-v1:openapi-view' %}">API Docs</a> |
+            <a href="{% url 'core:about' %}">About</a> |
             <form action="{% url 'core:search' %}" method="get" style="display: inline">
                 <input type="search"
                        name="q"
@@ -234,7 +242,7 @@
             <a href="{% url 'chzzk:campaign_list' %}">Campaigns</a>
             <br />
             <strong>Other sites</strong>
-            <a href="{% url 'youtube:index' %}">YouTube</a> |
+            <a href="{% url 'youtube:index' %}">YouTube</a>
         </nav>
         <hr />
         {% if messages %}
@@ -264,7 +272,30 @@
                 and <a href="https://github.com/SunkwiBOT/twitch-drops-api">SunkwiBOT/twitch-drops-api</a>.
                 <br />
                 Data fetched at :01, :16, :31, and :46.
+                <br />
+                Prefer structured data? Use the <a href="{% url 'api-v1:openapi-view' %}">API</a>
+                or download <a href="{% url 'core:dataset_backups' %}">datasets</a>
+                instead of scraping.
             </div>
         </footer>
     </body>
+    <script>
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        document.cookie = "timezone=" + tz + "; path=/; SameSite=Lax";
+
+        document.querySelectorAll("time[datetime]").forEach(el => {
+            const d = new Date(el.getAttribute("datetime"));
+            if (!isNaN(d)) {
+                el.textContent = d.toLocaleString(undefined, {
+                    year: "numeric", month: "short", day: "numeric",
+                    hour: "2-digit", minute: "2-digit"
+                });
+                el.title = d.toLocaleString(undefined, {
+                    weekday: "long", year: "numeric", month: "long", day: "numeric",
+                    hour: "2-digit", minute: "2-digit", second: "2-digit",
+                    timeZoneName: "short"
+                });
+            }
+        });
+    </script>
 </html>

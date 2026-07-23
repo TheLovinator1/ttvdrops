@@ -14,7 +14,7 @@ def _dispatch(task_fn: Any, pk: int) -> None:  # ruff:ignore[any-type]
         task_fn.delay(pk)
     except Exception:  # ruff:ignore[blind-except]
         logger.debug(
-            "Could not dispatch %s(%d) — broker may be unavailable.",
+            "Could not dispatch %s(%d) - broker may be unavailable.",
             task_fn.name,
             pk,
         )

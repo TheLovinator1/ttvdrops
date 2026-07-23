@@ -7,14 +7,14 @@
     <main>
         <h1>RSS Feeds Documentation</h1>
         <p>
-            You have three types of feeds available for Twitch drops data: RSS, Atom, and Discord.
+            You have three types of feeds available for Twitch drops data: RSS, Atom, and Discord-flavored.
             RSS and Atom feeds are similar and can be used in any RSS reader application.
             The main difference is that Atom feeds include additional metadata and support for more complex content, while RSS feeds are more widely supported by older applications.
         </p>
         <p>
-            Discord feeds are available under the <code>/discord/</code> endpoints. These are Atom feeds
+            Discord-flavored feeds are available under the <code>/discord/</code> endpoints. These are Atom feeds
             that include Discord relative timestamps (e.g., <code>&lt;t:1773450272:R&gt;</code>) for dates,
-            making them ideal for Discord bots and integrations. Future enhancements may include Discord-specific formatting or content.
+            making them ideal for use in Discord messages. They are standard Atom feeds formatted for Discord's Markdown syntax, not Discord bot integrations.
         </p>
         <p>
             Twitch JSON API documentation is available at
@@ -33,7 +33,7 @@
                         <th>Description</th>
                         <th>RSS</th>
                         <th>Atom</th>
-                        <th>Discord</th>
+                        <th>Discord-flavored</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -162,7 +162,7 @@
                             <th>Feed Type</th>
                             <th>RSS</th>
                             <th>Atom</th>
-                            <th>Discord</th>
+                            <th>Discord-flavored</th>
                         </tr>
                     </thead>
                     <tbody>

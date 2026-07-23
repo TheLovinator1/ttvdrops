@@ -15,7 +15,7 @@
               href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="{{ game.display_name }} campaigns (Discord)"
+              title="{{ game.display_name }} campaigns (Discord-flavored)"
               href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}" />
         <link rel="alternate"
               type="application/rss+xml"
@@ -27,30 +27,46 @@
               href="{% url 'core:game_reward_feed_atom' game.twitch_id %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="{{ game.display_name }} rewards (Discord)"
+              title="{{ game.display_name }} rewards (Discord-flavored)"
               href="{% url 'core:game_reward_feed_discord' game.twitch_id %}" />
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
-    <div style="display: flex; align-items: flex-start;">
+    <header style="display: flex; align-items: flex-start; gap: 16px;">
         <!-- Game image -->
-        <div style="margin-right: 16px;">
-            {% if game.box_art_best_url %}
-                {% picture game.box_art_best_url alt="Box art for "|add:game.get_game_name width=160 %}
-            {% endif %}
-        </div>
-        <!-- Game Title and Details -->
-        <div style="display: flex; flex-direction: column;">
-            <h1 style="margin-top: 0; margin-bottom: 0px;">
+        {% if game.box_art_best_url %}
+            {% picture game.box_art_best_url alt="Box art for "|add:game.get_game_name width=160 %}
+        {% endif %}
+        <!-- Game details -->
+        <div>
+            <h1 style="margin: 0;">
                 {{ game.display_name }}
                 {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
             </h1>
-            <!-- Add breadcrumbs -->
-            <div>
-                <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:games_grid' %}">Games</a> > {{ game.display_name }}
+            <nav aria-label="Breadcrumb">
+                <a href="{% url 'twitch:dashboard' %}">Twitch</a> &gt; <a href="{% url 'twitch:games_grid' %}">Games</a> &gt; {{ game.display_name }}
+            </nav>
+            <div style="margin-top: 0.25rem;">
+                <a href="{% url 'api-v1:twitch-api-v1_get_game' game.twitch_id %}"
+                   title="Twitch game API">[api]</a>
+                <a href="https://twitch-drops.fenrisapps.com/games/{{ game.twitch_id }}/"
+                   title="View this game on Fenris Apps">[fenrisapps]</a>
+            </div>
+            <div style="font-size: 0.9rem;
+                        color: color-mix(in srgb, CanvasText 60%, transparent 40%);
+                        margin-top: 0.15rem">
+                {{ total_campaigns }} campaign{{ total_campaigns|pluralize }}
+                {% if total_rewards %} &middot; {{ total_rewards }} reward{{ total_rewards|pluralize }}{% endif %}
+                {% if first_campaign_date and last_campaign_date %}
+                    &middot;
+                    <time datetime="{{ first_campaign_date|date:'c' }}">{{ first_campaign_date|date:"M d, Y" }}</time>
+                    -
+                    <time datetime="{{ last_campaign_date|date:'c' }}">{{ last_campaign_date|date:"M d, Y" }}</time>
+                {% endif %}
             </div>
             <!-- Game metadata -->
-            <dl>
+            <style>dd { margin-left: 0; }</style>
+            <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                 {% if owners %}
                     <dt>Owned by</dt>
                     <dd>
@@ -58,6 +74,16 @@
                             <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
                             {% if not forloop.last %}-{% endif %}
                         {% endfor %}
+                    </dd>
+                {% endif %}
+                <dt>Game ID</dt>
+                <dd>
+                    <code>{{ game.twitch_id }}</code>
+                </dd>
+                {% if game.slug %}
+                    <dt>Slug</dt>
+                    <dd>
+                        {{ game.slug }}
                     </dd>
                 {% endif %}
                 <dt>Published</dt>
@@ -71,32 +97,44 @@
                           title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time> ({{ game.updated_at|timesince }} ago)
                 </dd>
             </dl>
-            <!-- Campaign Feeds -->
-            <div>
-                Campaigns:
-                <a href="{% url 'core:game_campaign_feed' game.twitch_id %}"
-                   title="RSS feed for {{ game.display_name }} campaigns">[rss]</a>
-                <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}"
-                   title="Atom feed for {{ game.display_name }} campaigns">[atom]</a>
-                <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}"
-                   title="Discord feed for {{ game.display_name }} campaigns">[discord]</a>
-            </div>
-            <div>
-                Rewards:
-                <a href="{% url 'core:game_reward_feed' game.twitch_id %}"
-                   title="RSS feed for {{ game.display_name }} rewards">[rss]</a>
-                <a href="{% url 'core:game_reward_feed_atom' game.twitch_id %}"
-                   title="Atom feed for {{ game.display_name }} rewards">[atom]</a>
-                <a href="{% url 'core:game_reward_feed_discord' game.twitch_id %}"
-                   title="Discord feed for {{ game.display_name }} rewards">[discord]</a>
-            </div>
-            <div>
-                <a href="{% url 'api-v1:twitch-api-v1_get_game' game.twitch_id %}"
-                   title="Twitch game API">[api]</a>
-                <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-            </div>
+            <!-- Feeds -->
+            <footer aria-label="Links"
+                    style="margin-top: 0.5rem;
+                           border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                           padding-top: 0.5rem">
+                <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.4rem;">
+                    <div>
+                        <div style="font-size: 0.8rem;
+                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                    margin-bottom: 0.15rem;
+                                    text-transform: uppercase;
+                                    letter-spacing: 0.05em">
+                            Subscribe <a href="{% url 'core:docs_rss' %}"
+                                           title="RSS feed documentation"
+                                           style="color: inherit;
+                                                  text-decoration: none">(?)</a>
+                        </div>
+                        <div>Campaigns:
+                            <a href="{% url 'core:game_campaign_feed' game.twitch_id %}"
+                               title="RSS feed for {{ game.display_name }} campaigns">[rss]</a>
+                            <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}"
+                               title="Atom feed for {{ game.display_name }} campaigns">[atom]</a>
+                            <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}"
+                               title="Discord-flavored feed for {{ game.display_name }} campaigns">[discord-flavored]</a>
+                        </div>
+                        <div>Rewards:
+                            <a href="{% url 'core:game_reward_feed' game.twitch_id %}"
+                               title="RSS feed for {{ game.display_name }} rewards">[rss]</a>
+                            <a href="{% url 'core:game_reward_feed_atom' game.twitch_id %}"
+                               title="Atom feed for {{ game.display_name }} rewards">[atom]</a>
+                            <a href="{% url 'core:game_reward_feed_discord' game.twitch_id %}"
+                               title="Discord-flavored feed for {{ game.display_name }} rewards">[discord-flavored]</a>
+                        </div>
+                    </div>
+                </div>
+            </footer>
         </div>
-    </div>
+    </header>
     {% if active_campaigns %}
         <h5 id="active-campaigns-header">Active Campaigns</h5>
         <table id="active-campaigns-table">

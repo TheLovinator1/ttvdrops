@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from django.urls import path
 
+from core.views import about_view
 from core.views import dashboard
 from core.views import dataset_backup_download_view
 from core.views import dataset_backups_view
@@ -70,6 +71,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         route="datasets/download/<path:relative_path>/",
         view=dataset_backup_download_view,
         name="dataset_backup_download",
+    ),
+    # /about/
+    path(
+        route="about/",
+        view=about_view,
+        name="about",
     ),
     # /docs/rss/
     path(

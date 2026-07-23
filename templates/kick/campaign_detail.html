@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}
-    {{ campaign.name }} — Kick Campaign
+    {{ campaign.name }} - Kick Campaign
 {% endblock title %}
 {% block extra_head %}
     {% if campaign.category %}
@@ -14,7 +14,7 @@
               href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}" />
         <link rel="alternate"
               type="application/atom+xml"
-              title="{{ campaign.category.name }} campaigns (Discord)"
+              title="{{ campaign.category.name }} campaigns (Discord-flavored)"
               href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}" />
     {% endif %}
 {% endblock extra_head %}
@@ -51,7 +51,8 @@
                     <a href="{% url 'kick:campaign_list' %}">Campaigns</a> >
                     {{ campaign.name }}
                 </div>
-                <dl>
+                <style>dd { margin-left: 0; }</style>
+                <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                     {% if campaign.category %}
                         <dt>Category</dt>
                         <dd>
@@ -148,27 +149,56 @@
                         </time>
                     </p>
                 {% endif %}
-                <div>
-                    {% if campaign.category %}
-                        <a href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
-                           title="RSS feed for {{ campaign.category.name }} campaigns">[rss]</a>
-                        <a href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
-                           title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
-                        <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
-                           title="Discord feed for {{ campaign.category.name }} campaigns">[discord]</a>
-                    {% endif %}
-                    <a href="{% url 'core:docs_rss' %}" title="RSS documentation">[explain]</a>
-                    {% if campaign.connect_url %}
-                        <a href="{{ campaign.connect_url }}"
-                           title="Connect URL for {{ campaign.name }}">[connect]</a>
-                    {% endif %}
-                    {% if campaign.url %}<a href="{{ campaign.url }}" title="About URL for {{ campaign.name }}">[about]</a>{% endif %}
-                    {% if campaign.channels.count == 0 %}
-                        {% if campaign.category and campaign.rule_name == "Watch to redeem" %}
-                            <a href="{{ campaign.category.kick_url }}">[watch]</a>
+                <footer aria-label="Links"
+                        style="margin-top: 0.5rem;
+                               border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                               padding-top: 0.5rem">
+                    <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.4rem;">
+                        <div>
+                            <div style="font-size: 0.8rem;
+                                        color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                        margin-bottom: 0.15rem;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.05em">
+                                External
+                            </div>
+                            <div>
+                                {% if campaign.connect_url %}
+                                    <a href="{{ campaign.connect_url }}"
+                                       title="Connect URL for {{ campaign.name }}">[connect]</a>
+                                {% endif %}
+                                {% if campaign.url %}<a href="{{ campaign.url }}" title="About URL for {{ campaign.name }}">[about]</a>{% endif %}
+                                {% if campaign.channels.count == 0 %}
+                                    {% if campaign.category and campaign.rule_name == "Watch to redeem" %}
+                                        <a href="{{ campaign.category.kick_url }}">[watch]</a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if campaign.category %}
+                            <div>
+                                <div style="font-size: 0.8rem;
+                                            color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                            margin-bottom: 0.15rem;
+                                            text-transform: uppercase;
+                                            letter-spacing: 0.05em">
+                                    Subscribe <a href="{% url 'core:docs_rss' %}"
+                                                   title="RSS feed documentation"
+                                                   style="color: inherit;
+                                                          text-decoration: none">(?)</a>
+                                </div>
+                                <div>Campaigns:
+                                    <a href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
+                                       title="RSS feed for {{ campaign.category.name }} campaigns">[rss]</a>
+                                    <a href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
+                                       title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
+                                    <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
+                                       title="Discord-flavored feed for {{ campaign.category.name }} campaigns">[discord-flavored]</a>
+                                </div>
+                            </div>
                         {% endif %}
-                    {% endif %}
-                </div>
+                    </div>
+                </footer>
             </div>
         </div>
         <hr />

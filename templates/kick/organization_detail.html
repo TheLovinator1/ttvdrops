@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}
-    {{ org.name }} — Kick Organization
+    {{ org.name }} - Kick Organization
 {% endblock title %}
 {% block content %}
     <main>
@@ -31,7 +31,8 @@
                         <a href="{{ org.url }}">{{ org.url }}</a>
                     </p>
                 {% endif %}
-                <dl>
+                <style>dd { margin-left: 0; }</style>
+                <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                     <dt>ID</dt>
                     <dd>
                         {{ org.kick_id }}

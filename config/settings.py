@@ -158,6 +158,7 @@ MIDDLEWARE: list[str] = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+    "core.middleware.TimezoneMiddleware",
 ]
 
 

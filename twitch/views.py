@@ -12,6 +12,10 @@ from django.core.paginator import EmptyPage
 from django.core.paginator import Page
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
+from django.db.models import Count
+from django.db.models import Max
+from django.db.models import Min
+from django.db.models import Q
 from django.db.models.query import QuerySet
 from django.http import Http404
 from django.http import HttpResponse
@@ -306,7 +310,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /organizations/<twitch_id>/
-def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # ruff:ignore[too-many-locals]
     """Function-based view for organization detail.
 
     Args:
@@ -374,9 +378,25 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
             "modified_date": organization.updated_at.isoformat(),
         },
     )
+    total_campaigns: int = sum(getattr(g, "campaign_count", 0) or 0 for g in games)
+
+    now: datetime.datetime = timezone.now()
+    campaign_stats: dict[str, Any] = DropCampaign.objects.filter(
+        game__owners=organization,
+    ).aggregate(
+        first_campaign=Min("start_at"),
+        last_campaign=Max("start_at"),
+        active_campaigns=Count("pk", filter=Q(start_at__lte=now, end_at__gte=now)),
+        upcoming_campaigns=Count("pk", filter=Q(start_at__gt=now)),
+        expired_campaigns=Count("pk", filter=Q(end_at__lt=now)),
+    )
+
     context: dict[str, Any] = {
         "organization": organization,
         "games": games,
+        "games_count": games_count,
+        "total_campaigns": total_campaigns,
+        "campaign_stats": campaign_stats,
         **seo_context,
     }
 
@@ -819,6 +839,17 @@ class GameDetailView(DetailView):
                 else None,
             },
         )
+        # Compute campaign date range from all campaigns
+        campaign_dates: list[datetime.datetime] = [
+            c.start_at for c in campaigns_list if c.start_at is not None
+        ]
+        first_campaign_date: datetime.datetime | None = (
+            min(campaign_dates) if campaign_dates else None
+        )
+        last_campaign_date: datetime.datetime | None = (
+            max(campaign_dates) if campaign_dates else None
+        )
+
         context.update({
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
@@ -826,6 +857,10 @@ class GameDetailView(DetailView):
             "active_rewards": active_rewards,
             "upcoming_rewards": upcoming_rewards,
             "expired_rewards": expired_rewards,
+            "total_campaigns": len(campaigns_list),
+            "total_rewards": len(all_reward_campaigns),
+            "first_campaign_date": first_campaign_date,
+            "last_campaign_date": last_campaign_date,
             "owner": owners[0] if owners else None,
             "owners": owners,
             "now": now,

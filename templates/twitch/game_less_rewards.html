@@ -14,7 +14,7 @@
           href="{% url 'core:game_less_reward_feed_atom' %}" />
     <link rel="alternate"
           type="application/atom+xml"
-          title="All game-less rewards (Discord)"
+          title="All game-less rewards (Discord-flavored)"
           href="{% url 'core:game_less_reward_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
@@ -34,7 +34,7 @@
                 <a href="{% url 'core:game_less_reward_feed_atom' %}"
                    title="Atom feed for all game-less rewards">[atom]</a>
                 <a href="{% url 'core:game_less_reward_feed_discord' %}"
-                   title="Discord feed for all game-less rewards">[discord]</a>
+                   title="Discord-flavored feed for all game-less rewards">[discord-flavored]</a>
             </div>
         </header>
         {% if active_campaigns %}
@@ -65,7 +65,7 @@
                                         <small>{{ campaign.summary }}</small>
                                     {% endif %}
                                 </td>
-                                <td>{{ campaign.brand|default:"—" }}</td>
+                                <td>{{ campaign.brand|default:"-" }}</td>
                                 <td>
                                     {% if campaign.is_sitewide %}
                                         <strong>Site-wide</strong>
@@ -113,7 +113,7 @@
                                         <small>{{ campaign.summary }}</small>
                                     {% endif %}
                                 </td>
-                                <td>{{ campaign.brand|default:"—" }}</td>
+                                <td>{{ campaign.brand|default:"-" }}</td>
                                 <td>
                                     {% if campaign.is_sitewide %}
                                         <strong>Site-wide</strong>
@@ -161,7 +161,7 @@
                                         <small>{{ campaign.summary }}</small>
                                     {% endif %}
                                 </td>
-                                <td>{{ campaign.brand|default:"—" }}</td>
+                                <td>{{ campaign.brand|default:"-" }}</td>
                                 <td>
                                     {% if campaign.is_sitewide %}
                                         <strong>Site-wide</strong>

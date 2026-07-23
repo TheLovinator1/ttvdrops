@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}
+    About
+{% endblock title %}
+{% block content %}
+    <h1>About ttvdrops.lovinator.space</h1>
+    <p>
+        ttvdrops.lovinator.space tracks limited-time free rewards (drops) across Twitch, Kick, and Chzzk.
+        Streaming platforms often give away free in-game items, channel perks, and other rewards
+        to viewers who meet certain conditions, like watching a streamer play a game for a set amount of time.
+    </p>
+    <p>
+        These offers are only available for a limited window and can be scattered across different platforms,
+        making them easy to miss.
+    </p>
+    <p>
+        ttvdrops.lovinator.space monitors these campaigns, archives their data for historical
+        reference, and lets you subscribe to RSS/Atom feeds so you never miss a new offer.
+    </p>
+    <h2>How Drops Work</h2>
+    <p>
+        Twitch Drops are organized into <strong>Drops Campaigns</strong>: collections of
+        rewards distributed during a specified time period. Each campaign has a start and end date
+        and is tied to a specific game category. Within a campaign, you can have multiple
+        <strong>Drops</strong>, each with its own conditions (called <strong>Drop Rules</strong>,
+        also referred to as milestones or requirements) that viewers must meet to earn a reward.
+    </p>
+    <p>There are two types of drop requirements:</p>
+    <ul>
+        <li>
+            <strong>Time-Based Drops</strong> (Watch Time): Viewers earn rewards by watching
+            streams of the game for a set amount of time, such as 30 or 60 minutes. Watch time
+            accumulates across all channels streaming the game, so you can hop between streamers.
+        </li>
+        <li>
+            <strong>Subscription-Based Drops</strong> (Gifts &amp; Subs): Viewers earn rewards
+            by subscribing to or gifting subscriptions on channels where Drops are enabled. Each
+            subscription counts toward the requirement, accumulating across all participating channels.
+        </li>
+    </ul>
+    <p>
+        When a viewer meets a Drop's requirement, a <strong>Reward</strong> (also called a
+        <strong>Benefit</strong>) is granted: typically an in-game item or beta-access key.
+        To claim their rewards, viewers must first link their Twitch account with the game's
+        identity service via an <strong>Account Linking</strong> page, then visit their
+        <a href="https://www.twitch.tv/drops/inventory">Drops Inventory</a> to claim.
+    </p>
+    <p>Campaigns pass through several states before and after they run:</p>
+    <ul>
+        <li>
+            <strong>Upcoming</strong> - The campaign is scheduled but hasn't started yet.
+        </li>
+        <li>
+            <strong>Live</strong> - The campaign is active and Drops can be earned.
+        </li>
+        <li>
+            <strong>Expired</strong> - The campaign has ended. Once expired, rewards that
+            were claimed remain in a viewer's inventory for 6 months.
+        </li>
+    </ul>
+    <p>
+        A campaign can include multiple Drops that run simultaneously, for example,
+        one reward after 30 minutes of watching and another after 60 minutes. All time-based
+        Drops accrue watch time at the same time, so you can earn toward all of them at once.
+        Campaigns can run for up to 28 days, and only one category-wide campaign can run for
+        a given game at a time.
+    </p>
+    <h2>Features</h2>
+    <ul>
+        <li>Multi-platform: Twitch, Kick, and Chzzk</li>
+        <li>RSS/Atom feeds: Subscribe to campaigns, games, organizations, and rewards</li>
+        <li>Historical archive: Past campaigns remain searchable and downloadable</li>
+        <li>Search and browse: Find campaigns by game, organization, channel, or reward</li>
+        <li>Open data: All data is freely available under CC0</li>
+    </ul>
+    <h2>Similar projects</h2>
+    <p>Other sites that track Twitch drops:</p>
+    <ul>
+        <li><a href="https://github.com/SunkwiBOT/twitch-drops-api">twitch-drops-api</a> (the API that powers some of these tools)</li>
+        <li><a href="https://twitch-drops.fenrisapps.com/">Twitch Drops by Fenris Apps</a></li>
+        <li><a href="https://twitchdrops.app/">twitchdrops.app</a></li>
+        <br>
+        <li><a href="https://drophunter.app/">Drop Hunter</a> (paid)</li>
+    </ul>
+    <h2>Contact</h2>
+    <p>Found a bug, have a suggestion, or just want to say hi? Reach out any way you like:</p>
+    <ul>
+        <li>Email: <a href="mailto:tlovinator@gmail.com">tlovinator@gmail.com</a></li>
+        <li>Discord: TheLovinator / <code>TheLovinator#9276</code></li>
+        <li>
+            GitHub:
+            <a href="https://github.com/TheLovinator1/ttvdrops/issues/new">Open an issue</a>
+        </li>
+    </ul>
+    <h2>Terms of Use</h2>
+    <p>
+        This site and its API are provided as-is, without warranty of any kind.
+        Data is collected from public sources and may contain errors or be out of date.
+        Please be respectful with API requests - limit to at most 1 request per second
+        and prefer <a href="{% url 'core:dataset_backups' %}">dataset downloads</a> for bulk analysis.
+        If you need a higher rate limit for a legitimate project, please reach out
+        via <a href="mailto:tlovinator@gmail.com">tlovinator@gmail.com</a> or on Discord (TheLovinator).
+        This service may be rate-limited or blocked for abusive usage at the operator's discretion.
+    </p>
+    <h2>License</h2>
+    <p>
+        The source code is licensed under the MIT License. All collected data is dedicated to the
+        public domain under CC0.
+    </p>
+{% endblock content %}

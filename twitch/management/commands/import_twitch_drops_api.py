@@ -10,7 +10,7 @@ Usage::
     uv run python manage.py import_twitch_drops_api
     uv run python manage.py import_twitch_drops_api --source "SunkwiBOT/twitch-drops-api"
 
-    # Historical data (all commits, oldest-first — captures expired campaigns)
+    # Historical data (all commits, oldest-first - captures expired campaigns)
     uv run python manage.py import_twitch_drops_api --historical
     uv run python manage.py import_twitch_drops_api --historical --max-commits 50
     uv run python manage.py import_twitch_drops_api --historical --git-dir /tmp/mirror

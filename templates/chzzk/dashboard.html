@@ -13,21 +13,40 @@
           href="{% url 'chzzk:campaign_feed_atom' %}" />
     <link rel="alternate"
           type="application/atom+xml"
-          title="All Chzzk campaigns (Discord)"
+          title="All Chzzk campaigns (Discord-flavored)"
           href="{% url 'chzzk:campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
     <main>
         <h1>Active Chzzk Drops</h1>
         <div>CHZZK is South Korean alternative to Twitch.</div>
-        <!--RSS Feeds
-         <div>
-            <a href="{% url 'chzzk:campaign_feed' %}" title="RSS feed for all campaigns">[rss]</a>
-            <a href="{% url 'chzzk:campaign_feed_atom' %}" title="Atom feed for all campaigns">[atom]</a>
-            <a href="{% url 'chzzk:campaign_feed_discord' %}" title="Discord feed for all campaigns">[discord]</a>
-            <a href="{% url 'core:docs_rss' %}" title="RSS feed documentation">[explain]</a>
-        </div> -->
-        <hr />
+        <footer aria-label="Links"
+                style="margin-top: 0.5rem;
+                       border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                       padding-top: 0.5rem">
+            <div style="display: flex; flex-wrap: wrap; column-gap: 1.5rem; row-gap: 0.4rem;">
+                <div>
+                    <div style="font-size: 0.8rem;
+                                color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                                margin-bottom: 0.15rem;
+                                text-transform: uppercase;
+                                letter-spacing: 0.05em">
+                        Subscribe <a href="{% url 'core:docs_rss' %}"
+                                       title="RSS feed documentation"
+                                       style="color: inherit;
+                                              text-decoration: none">(?)</a>
+                    </div>
+                    <div>Campaigns:
+                        <a href="{% url 'chzzk:campaign_feed' %}"
+                           title="RSS feed for all campaigns">[rss]</a>
+                        <a href="{% url 'chzzk:campaign_feed_atom' %}"
+                           title="Atom feed for all campaigns">[atom]</a>
+                        <a href="{% url 'chzzk:campaign_feed_discord' %}"
+                           title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
         {% if active_campaigns %}
             {% for campaign in active_campaigns %}
                 <!-- {{ campaign }} -->

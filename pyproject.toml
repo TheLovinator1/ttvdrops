@@ -1,7 +1,7 @@
 [project]
 name = "ttvdrops"
 version = "0.1.0"
-description = "Get notified when a new drop is available on Twitch."
+description = "Track limited-time free rewards across Twitch, Kick, and Chzzk."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
@@ -126,7 +126,7 @@ lint.ignore = [
 ]
 "**/migrations/**" = ["RUF012"]
 "**/api.py" = [
-    "PLR0913",  # Allow many arguments for API endpoint functions
+    "PLR0913", # Allow many arguments for API endpoint functions
 ]
 
 [tool.djlint]

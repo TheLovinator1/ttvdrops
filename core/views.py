@@ -498,6 +498,31 @@ def sitemap_youtube_view(request: HttpRequest) -> HttpResponse:
     return HttpResponse(xml_content, content_type="application/xml")
 
 
+# MARK: /about/
+def about_view(request: HttpRequest) -> HttpResponse:
+    """Static about page with project description and contact information.
+
+    Args:
+        request: The HTTP request object.
+
+    Returns:
+        HttpResponse: The rendered about page.
+    """
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title="About ttvdrops.lovinator.space",
+        page_description=(
+            "Track limited-time free rewards across Twitch, Kick, Chzzk, and YouTube."
+        ),
+        robots_directive="index, follow",
+    )
+
+    return render(
+        request,
+        "core/about.html",
+        seo_context,
+    )
+
+
 # MARK: /docs/rss/
 def docs_rss_view(request: HttpRequest) -> HttpResponse:
     """View for /docs/rss that lists all available feeds and explains how to use them.

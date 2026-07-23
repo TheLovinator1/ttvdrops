@@ -9,10 +9,13 @@ import auto_prefetch
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
+from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import Q
+from django.db.models import Subquery
 from django.db.models.functions import Coalesce
 from django.urls import reverse
 from django.utils import timezone
@@ -78,6 +81,14 @@ class Organization(auto_prefetch.Model):
     @classmethod
     def for_detail_view(cls) -> models.QuerySet[Organization]:
         """Return organizations with only fields and relations needed by detail page."""
+        campaign_count_subquery = (
+            DropCampaign.objects
+            .filter(game_id=OuterRef("pk"))
+            .order_by()
+            .values("game")
+            .annotate(count=Count("pk"))
+            .values("count")
+        )
         return cls.objects.only(
             "twitch_id",
             "name",
@@ -86,7 +97,8 @@ class Organization(auto_prefetch.Model):
         ).prefetch_related(
             models.Prefetch(
                 "games",
-                queryset=Game.objects.only(
+                queryset=Game.objects
+                .only(
                     "twitch_id",
                     "name",
                     "display_name",
@@ -95,7 +107,14 @@ class Organization(auto_prefetch.Model):
                     "box_art_file",
                     "box_art_width",
                     "box_art_height",
-                ).order_by("display_name"),
+                )
+                .annotate(
+                    campaign_count=Subquery(
+                        campaign_count_subquery,
+                        output_field=models.IntegerField(),
+                    ),
+                )
+                .order_by("display_name"),
                 to_attr="games_for_detail",
             ),
         )
