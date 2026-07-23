@@ -291,6 +291,111 @@ class TestSearchView:
         ) = results[0]
         assert hasattr(first_result, related_field)
 
+    @pytest.mark.parametrize(
+        "model_key",
+        ["org", "game", "campaign", "drop", "benefit"],
+    )
+    def test_search_by_twitch_id_short(
+        self,
+        client: Client,
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
+        model_key: Literal["org", "game", "campaign", "drop", "benefit"],
+    ) -> None:
+        """Short query can find results by twitch_id prefix."""
+        # Each model's twitch_id prefix for istartswith matching
+        prefixes: dict[str, str] = {
+            "org": "12",
+            "game": "45",
+            "campaign": "78",
+            "drop": "10",
+            "benefit": "12",
+        }
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            f"/search/?q={prefixes[model_key]}",
+        )
+        context: ContextList | dict[str, Any] = self._get_context(response)
+
+        assert response.status_code == 200
+
+        result_key_map: dict[str, str] = {
+            "org": "organizations",
+            "game": "games",
+            "campaign": "campaigns",
+            "drop": "drops",
+            "benefit": "benefits",
+        }
+        result_key: str = result_key_map[model_key]
+        assert sample_data[model_key] in context["results"][result_key]
+
+    @pytest.mark.parametrize(
+        "model_key",
+        ["org", "game", "campaign", "drop", "benefit"],
+    )
+    def test_search_by_twitch_id_long(
+        self,
+        client: Client,
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
+        model_key: Literal["org", "game", "campaign", "drop", "benefit"],
+    ) -> None:
+        """Long query can find results by full twitch_id."""
+        twitch_ids: dict[str, str] = {
+            "org": "123",
+            "game": "456",
+            "campaign": "789",
+            "drop": "1011",
+            "benefit": "1213",
+        }
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            f"/search/?q={twitch_ids[model_key]}",
+        )
+        context: ContextList | dict[str, Any] = self._get_context(response)
+
+        assert response.status_code == 200
+
+        result_key_map: dict[str, str] = {
+            "org": "organizations",
+            "game": "games",
+            "campaign": "campaigns",
+            "drop": "drops",
+            "benefit": "benefits",
+        }
+        result_key: str = result_key_map[model_key]
+        assert sample_data[model_key] in context["results"][result_key]
+
+    def test_search_by_primary_key(
+        self,
+        client: Client,
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
+    ) -> None:
+        """Numeric query can find results by database primary key."""
+        org: Organization = sample_data["org"]  # type: ignore[assignment]
+        response: _MonkeyPatchedWSGIResponse = client.get(f"/search/?q={org.pk}")
+        context: ContextList | dict[str, Any] = self._get_context(response)
+
+        assert response.status_code == 200
+        assert org in context["results"]["organizations"]
+
+    def test_search_by_primary_key_no_match(
+        self,
+        client: Client,
+    ) -> None:
+        """Numeric primary key with no match returns empty results."""
+        response: _MonkeyPatchedWSGIResponse = client.get("/search/?q=999999")
+        context: ContextList | dict[str, Any] = self._get_context(response)
+
+        assert response.status_code == 200
+        for result_list in context["results"].values():
+            assert len(result_list) == 0
+
 
 @pytest.mark.django_db
 class TestChannelListView:

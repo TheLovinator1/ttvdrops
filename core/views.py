@@ -940,8 +940,25 @@ def dataset_backup_download_view(
 
 
 # MARK: /search/
-def search_view(request: HttpRequest) -> HttpResponse:
+def _is_numeric(query: str) -> bool:
+    """Check if a query string represents a numeric value for pk lookups.
+
+    Returns:
+        True if the string can be parsed as an integer, False otherwise.
+    """
+    try:
+        int(query)
+    except ValueError:
+        return False
+    else:
+        return True
+
+
+def search_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-statements]
     """Search view for all models.
+
+    Searches by name/description text fields as well as database primary keys
+    and platform-specific IDs (twitch_id, badge_id, etc.).
 
     Args:
         request: The HTTP request.
@@ -953,69 +970,98 @@ def search_view(request: HttpRequest) -> HttpResponse:
     results: dict[str, QuerySet] = {}
 
     if query:
+        query_is_numeric: bool = _is_numeric(query)
+
+        org_q: Q
+        game_q: Q
+        campaign_q: Q
+        drop_q: Q
+        benefit_q: Q
+        reward_q: Q
+        badge_set_q: Q
+        badge_q: Q
+
         if len(query) < MIN_QUERY_LENGTH_FOR_FTS:
-            results["organizations"] = Organization.objects.filter(
-                name__istartswith=query,
+            org_q = Q(name__istartswith=query) | Q(twitch_id__istartswith=query)
+            game_q = (
+                Q(name__istartswith=query)
+                | Q(display_name__istartswith=query)
+                | Q(twitch_id__istartswith=query)
             )
-            results["games"] = Game.objects.filter(
-                Q(name__istartswith=query) | Q(display_name__istartswith=query),
+            campaign_q = (
+                Q(name__istartswith=query)
+                | Q(description__icontains=query)
+                | Q(twitch_id__istartswith=query)
             )
-
-            results["campaigns"] = DropCampaign.objects.filter(
-                Q(name__istartswith=query) | Q(description__icontains=query),
-            ).select_related("game")
-
-            results["drops"] = TimeBasedDrop.objects.filter(
-                name__istartswith=query,
-            ).select_related("campaign")
-
-            results["benefits"] = DropBenefit.objects.filter(
-                name__istartswith=query,
-            ).prefetch_related("drops__campaign")
-
-            results["reward_campaigns"] = RewardCampaign.objects.filter(
+            drop_q = Q(name__istartswith=query) | Q(twitch_id__istartswith=query)
+            benefit_q = Q(name__istartswith=query) | Q(twitch_id__istartswith=query)
+            reward_q = (
                 Q(name__istartswith=query)
                 | Q(brand__istartswith=query)
-                | Q(summary__icontains=query),
-            ).select_related("game")
-
-            results["badge_sets"] = ChatBadgeSet.objects.filter(
-                set_id__istartswith=query,
+                | Q(summary__icontains=query)
+                | Q(twitch_id__istartswith=query)
             )
-
-            results["badges"] = ChatBadge.objects.filter(
-                Q(title__istartswith=query) | Q(description__icontains=query),
-            ).select_related("badge_set")
+            badge_set_q = Q(set_id__istartswith=query)
+            badge_q = (
+                Q(title__istartswith=query)
+                | Q(description__icontains=query)
+                | Q(badge_id__istartswith=query)
+            )
         else:
-            results["organizations"] = Organization.objects.filter(
-                name__icontains=query,
+            org_q = Q(name__icontains=query) | Q(twitch_id__icontains=query)
+            game_q = (
+                Q(name__icontains=query)
+                | Q(display_name__icontains=query)
+                | Q(twitch_id__icontains=query)
             )
-            results["games"] = Game.objects.filter(
-                Q(name__icontains=query) | Q(display_name__icontains=query),
+            campaign_q = (
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(twitch_id__icontains=query)
             )
-
-            results["campaigns"] = DropCampaign.objects.filter(
-                Q(name__icontains=query) | Q(description__icontains=query),
-            ).select_related("game")
-
-            results["drops"] = TimeBasedDrop.objects.filter(
-                name__icontains=query,
-            ).select_related("campaign")
-
-            results["benefits"] = DropBenefit.objects.filter(
-                name__icontains=query,
-            ).prefetch_related("drops__campaign")
-
-            results["reward_campaigns"] = RewardCampaign.objects.filter(
+            drop_q = Q(name__icontains=query) | Q(twitch_id__icontains=query)
+            benefit_q = Q(name__icontains=query) | Q(twitch_id__icontains=query)
+            reward_q = (
                 Q(name__icontains=query)
                 | Q(brand__icontains=query)
-                | Q(summary__icontains=query),
-            ).select_related("game")
+                | Q(summary__icontains=query)
+                | Q(twitch_id__icontains=query)
+            )
+            badge_set_q = Q(set_id__icontains=query)
+            badge_q = (
+                Q(title__icontains=query)
+                | Q(description__icontains=query)
+                | Q(badge_id__icontains=query)
+            )
 
-            results["badge_sets"] = ChatBadgeSet.objects.filter(set_id__icontains=query)
-            results["badges"] = ChatBadge.objects.filter(
-                Q(title__icontains=query) | Q(description__icontains=query),
-            ).select_related("badge_set")
+        if query_is_numeric:
+            org_q |= Q(pk=query)
+            game_q |= Q(pk=query)
+            campaign_q |= Q(pk=query)
+            drop_q |= Q(pk=query)
+            benefit_q |= Q(pk=query)
+            reward_q |= Q(pk=query)
+            badge_set_q |= Q(pk=query)
+            badge_q |= Q(pk=query)
+
+        results["organizations"] = Organization.objects.filter(org_q)
+        results["games"] = Game.objects.filter(game_q)
+        results["campaigns"] = DropCampaign.objects.filter(campaign_q).select_related(
+            "game",
+        )
+        results["drops"] = TimeBasedDrop.objects.filter(drop_q).select_related(
+            "campaign",
+        )
+        results["benefits"] = DropBenefit.objects.filter(benefit_q).prefetch_related(
+            "drops__campaign",
+        )
+        results["reward_campaigns"] = RewardCampaign.objects.filter(
+            reward_q,
+        ).select_related("game")
+        results["badge_sets"] = ChatBadgeSet.objects.filter(badge_set_q)
+        results["badges"] = ChatBadge.objects.filter(badge_q).select_related(
+            "badge_set",
+        )
 
     total_results_count: int = sum(len(qs) for qs in results.values())
 
