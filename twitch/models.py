@@ -17,9 +17,11 @@ from django.db.models import Prefetch
 from django.db.models import Q
 from django.db.models import Subquery
 from django.db.models.functions import Coalesce
+from django.db.models.functions import Length
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.timesince import timesince
 
 from twitch.utils import normalize_twitch_box_art_url
 
@@ -27,6 +29,21 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
+
+
+def _format_minutes(minutes: int) -> str:
+    """Format a raw minute count as a compact human string (e.g., '8h 30m').
+
+    Django's builtin ``timesince`` only accepts datetimes, so raw minute counts
+    need this tiny helper; nothing else in the project formats minute integers.
+
+    Returns:
+        Compact duration string like '8h 30m' or '45m'.
+    """
+    hours, remainder = divmod(int(minutes), 60)
+    if hours:
+        return f"{hours}h {remainder}m" if remainder else f"{hours}h"
+    return f"{minutes}m"
 
 
 # MARK: Organization
@@ -1296,6 +1313,459 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
         return {
             "campaigns_by_game": cls.campaigns_by_game_for_dashboard(now),
             "active_reward_campaigns": RewardCampaign.active_for_dashboard(now),
+        }
+
+    @classmethod
+    def stats(  # ruff:ignore[too-many-locals, too-many-statements]
+        cls,
+        now: datetime.datetime,
+    ) -> dict[str, Any]:
+        """Return fun statistics about the Twitch drop archive.
+
+        Args:
+            now: Current timestamp used for active/upcoming/expired buckets.
+
+        Returns:
+            Dict with "counters", "records", and "leaderboards" keys ready for
+            template rendering.
+        """
+        # --- Total counters --------------------------------------------------
+        status_counts: dict[str, int] = cls.objects.aggregate(
+            active_campaigns=Count("pk", filter=Q(start_at__lte=now, end_at__gte=now)),
+            upcoming_campaigns=Count("pk", filter=Q(start_at__gt=now)),
+            expired_campaigns=Count("pk", filter=Q(end_at__lt=now)),
+        )
+        counters: dict[str, int] = {
+            "campaigns": cls.objects.count(),
+            "drops": TimeBasedDrop.objects.count(),
+            "benefits": DropBenefit.objects.count(),
+            "games": Game.objects.count(),
+            "organizations": Organization.objects.count(),
+            "channels": Channel.objects.count(),
+            "reward_campaigns": RewardCampaign.objects.count(),
+            **status_counts,
+        }
+
+        campaign_qs: models.QuerySet[DropCampaign] = cls.objects.select_related(
+            "game",
+        ).only(
+            "twitch_id",
+            "name",
+            "description",
+            "start_at",
+            "end_at",
+            "game",
+            "game__twitch_id",
+            "game__display_name",
+            "game__name",
+            "game__slug",
+        )
+        drop_qs: models.QuerySet[TimeBasedDrop] = TimeBasedDrop.objects.select_related(
+            "campaign__game",
+        ).only(
+            "twitch_id",
+            "name",
+            "required_minutes_watched",
+            "required_subs",
+            "start_at",
+            "end_at",
+            "campaign",
+            "campaign__twitch_id",
+            "campaign__name",
+            "campaign__game",
+            "campaign__game__twitch_id",
+            "campaign__game__display_name",
+            "campaign__game__name",
+            "campaign__game__slug",
+        )
+
+        def _campaign_url(campaign: DropCampaign) -> str:
+            return reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+
+        def _game_url(game: Game) -> str:
+            return reverse("twitch:game_detail", args=[game.twitch_id])
+
+        def _org_url(org: Organization) -> str:
+            return reverse("twitch:organization_detail", args=[org.twitch_id])
+
+        def _channel_url(channel: Channel) -> str:
+            return reverse("twitch:channel_detail", args=[channel.twitch_id])
+
+        # --- Fun record cards -------------------------------------------------
+        records: list[dict[str, Any]] = []
+
+        longest_campaign = (
+            campaign_qs
+            .filter(start_at__isnull=False, end_at__isnull=False)
+            .annotate(duration=F("end_at") - F("start_at"))
+            .order_by("-duration")
+            .first()
+        )
+        if longest_campaign and longest_campaign.start_at and longest_campaign.end_at:
+            records.append({
+                "title": "Longest campaign",
+                "value": timesince(
+                    longest_campaign.start_at,
+                    longest_campaign.end_at,
+                ),
+                "detail": longest_campaign.name,
+                "url": _campaign_url(longest_campaign),
+            })
+
+        longest_drop = (
+            drop_qs
+            .filter(start_at__isnull=False, end_at__isnull=False)
+            .annotate(duration=F("end_at") - F("start_at"))
+            .order_by("-duration")
+            .first()
+        )
+        if longest_drop and longest_drop.start_at and longest_drop.end_at:
+            records.append({
+                "title": "Longest drop window",
+                "value": timesince(
+                    longest_drop.start_at,
+                    longest_drop.end_at,
+                ),
+                "detail": f"{longest_drop.name} ({longest_drop.campaign.name})",
+                "url": _campaign_url(longest_drop.campaign),
+            })
+
+        first_campaign = (
+            campaign_qs
+            .filter(start_at__isnull=False)
+            .order_by("start_at", "added_at")
+            .first()
+        )
+        if first_campaign and first_campaign.start_at:
+            records.append({
+                "title": "First drop ever in db",
+                "value": first_campaign.start_at.strftime("%b %d, %Y"),
+                "detail": first_campaign.name,
+                "url": _campaign_url(first_campaign),
+            })
+
+        newest_campaign = (
+            campaign_qs
+            .filter(start_at__isnull=False)
+            .order_by("-start_at", "-added_at")
+            .first()
+        )
+        if newest_campaign and newest_campaign.start_at:
+            records.append({
+                "title": "Newest campaign",
+                "value": newest_campaign.start_at.strftime("%b %d, %Y"),
+                "detail": newest_campaign.name,
+                "url": _campaign_url(newest_campaign),
+            })
+
+        game_most_drops = (
+            Game.objects
+            .annotate(
+                drop_count=Count(
+                    "drop_campaigns__time_based_drops",
+                    distinct=True,
+                ),
+            )
+            .order_by("-drop_count", "display_name")
+            .only("twitch_id", "display_name", "name", "slug")
+            .first()
+        )
+        if game_most_drops and game_most_drops.drop_count:
+            records.append({
+                "title": "Game with most drops",
+                "value": game_most_drops.drop_count,
+                "detail": game_most_drops.get_game_name,
+                "url": _game_url(game_most_drops),
+            })
+
+        game_most_campaigns = (
+            Game.objects
+            .annotate(
+                campaign_count=Count("drop_campaigns", distinct=True),
+            )
+            .order_by("-campaign_count", "display_name")
+            .only("twitch_id", "display_name", "name", "slug")
+            .first()
+        )
+        if game_most_campaigns and game_most_campaigns.campaign_count:
+            records.append({
+                "title": "Game with most campaigns",
+                "value": game_most_campaigns.campaign_count,
+                "detail": game_most_campaigns.get_game_name,
+                "url": _game_url(game_most_campaigns),
+            })
+
+        game_most_rewards = (
+            Game.objects
+            .annotate(
+                benefit_count=Count(
+                    "drop_campaigns__time_based_drops__benefits",
+                    distinct=True,
+                ),
+            )
+            .order_by("-benefit_count", "display_name")
+            .only("twitch_id", "display_name", "name", "slug")
+            .first()
+        )
+        if game_most_rewards and game_most_rewards.benefit_count:
+            records.append({
+                "title": "Game with most rewards",
+                "value": game_most_rewards.benefit_count,
+                "detail": game_most_rewards.get_game_name,
+                "url": _game_url(game_most_rewards),
+            })
+
+        most_rewards_campaign = (
+            campaign_qs
+            .annotate(
+                benefit_count=Count(
+                    "time_based_drops__benefits",
+                    distinct=True,
+                ),
+            )
+            .order_by("-benefit_count", "name")
+            .first()
+        )
+        if most_rewards_campaign and most_rewards_campaign.benefit_count:
+            records.append({
+                "title": "Reward hoarder campaign",
+                "value": most_rewards_campaign.benefit_count,
+                "detail": most_rewards_campaign.name,
+                "url": _campaign_url(most_rewards_campaign),
+            })
+
+        most_drops_campaign = (
+            campaign_qs
+            .annotate(drop_count=Count("time_based_drops"))
+            .order_by("-drop_count", "name")
+            .first()
+        )
+        if most_drops_campaign and most_drops_campaign.drop_count:
+            records.append({
+                "title": "Campaign with most drops",
+                "value": most_drops_campaign.drop_count,
+                "detail": most_drops_campaign.name,
+                "url": _campaign_url(most_drops_campaign),
+            })
+
+        most_channels_campaign = (
+            campaign_qs
+            .annotate(channel_count=Count("allow_channels"))
+            .order_by("-channel_count", "name")
+            .first()
+        )
+        if most_channels_campaign and most_channels_campaign.channel_count:
+            records.append({
+                "title": "Campaign with most channels",
+                "value": most_channels_campaign.channel_count,
+                "detail": most_channels_campaign.name,
+                "url": _campaign_url(most_channels_campaign),
+            })
+
+        longest_watch_drop = (
+            drop_qs
+            .filter(required_minutes_watched__isnull=False)
+            .order_by("-required_minutes_watched")
+            .first()
+        )
+        if longest_watch_drop and longest_watch_drop.required_minutes_watched:
+            records.append({
+                "title": "Marathon watch requirement",
+                "value": _format_minutes(longest_watch_drop.required_minutes_watched),
+                "detail": (
+                    f"{longest_watch_drop.name} ({longest_watch_drop.campaign.name})"
+                ),
+                "url": _campaign_url(longest_watch_drop.campaign),
+            })
+
+        most_subs_drop = drop_qs.order_by("-required_subs", "name").first()
+        if most_subs_drop and most_subs_drop.required_subs:
+            records.append({
+                "title": "Most subs required",
+                "value": most_subs_drop.required_subs,
+                "detail": (f"{most_subs_drop.name} ({most_subs_drop.campaign.name})"),
+                "url": _campaign_url(most_subs_drop.campaign),
+            })
+
+        longest_name_campaign = (
+            campaign_qs
+            .filter(name__gt="")
+            .annotate(name_length=Length("name"))
+            .order_by("-name_length", "name")
+            .first()
+        )
+        if longest_name_campaign:
+            records.append({
+                "title": "Longest campaign name",
+                "value": f"{longest_name_campaign.name_length} characters",
+                "detail": longest_name_campaign.name,
+                "url": _campaign_url(longest_name_campaign),
+            })
+
+        shortest_name_campaign = (
+            campaign_qs
+            .filter(name__gt="")
+            .annotate(name_length=Length("name"))
+            .order_by("name_length", "name")
+            .first()
+        )
+        if shortest_name_campaign:
+            records.append({
+                "title": "Shortest campaign name",
+                "value": f"{shortest_name_campaign.name_length} characters",
+                "detail": shortest_name_campaign.name,
+                "url": _campaign_url(shortest_name_campaign),
+            })
+
+        longest_description_campaign = (
+            campaign_qs
+            .filter(description__gt="")
+            .annotate(desc_length=Length("description"))
+            .order_by("-desc_length", "name")
+            .first()
+        )
+        if longest_description_campaign:
+            records.append({
+                "title": "Longest description",
+                "value": f"{longest_description_campaign.desc_length} characters",
+                "detail": longest_description_campaign.name,
+                "url": _campaign_url(longest_description_campaign),
+            })
+
+        org_most_campaigns = (
+            Organization.objects
+            .annotate(
+                campaign_count=Count("games__drop_campaigns", distinct=True),
+            )
+            .order_by("-campaign_count", "name")
+            .only("twitch_id", "name")
+            .first()
+        )
+        if org_most_campaigns and org_most_campaigns.campaign_count:
+            records.append({
+                "title": "Busiest organization",
+                "value": org_most_campaigns.campaign_count,
+                "detail": org_most_campaigns.name,
+                "url": _org_url(org_most_campaigns),
+            })
+
+        channel_most_campaigns = (
+            Channel.objects
+            .annotate(campaign_count=Count("allowed_campaigns"))
+            .order_by("-campaign_count", "display_name")
+            .only("twitch_id", "name", "display_name")
+            .first()
+        )
+        if channel_most_campaigns and channel_most_campaigns.campaign_count:
+            records.append({
+                "title": "Busiest channel",
+                "value": channel_most_campaigns.campaign_count,
+                "detail": (
+                    channel_most_campaigns.display_name or channel_most_campaigns.name
+                ),
+                "url": _channel_url(channel_most_campaigns),
+            })
+
+        # --- Leaderboards -----------------------------------------------------
+        leaderboards: dict[str, list[dict[str, Any]]] = {
+            "games_by_drops": [
+                {
+                    "name": game.get_game_name,
+                    "count": game.drop_count,
+                    "url": _game_url(game),
+                }
+                for game in (
+                    Game.objects
+                    .annotate(
+                        drop_count=Count(
+                            "drop_campaigns__time_based_drops",
+                            distinct=True,
+                        ),
+                    )
+                    .order_by("-drop_count", "display_name")
+                    .only("twitch_id", "display_name", "name", "slug")
+                )[:5]
+            ],
+            "games_by_campaigns": [
+                {
+                    "name": game.get_game_name,
+                    "count": game.campaign_count,
+                    "url": _game_url(game),
+                }
+                for game in (
+                    Game.objects
+                    .annotate(
+                        campaign_count=Count("drop_campaigns", distinct=True),
+                    )
+                    .order_by("-campaign_count", "display_name")
+                    .only("twitch_id", "display_name", "name", "slug")
+                )[:5]
+            ],
+            "campaigns_by_rewards": [
+                {
+                    "name": campaign.name,
+                    "count": campaign.benefit_count,
+                    "url": _campaign_url(campaign),
+                }
+                for campaign in (
+                    campaign_qs.annotate(
+                        benefit_count=Count(
+                            "time_based_drops__benefits",
+                            distinct=True,
+                        ),
+                    ).order_by("-benefit_count", "name")
+                )[:5]
+            ],
+            "campaigns_by_drops": [
+                {
+                    "name": campaign.name,
+                    "count": campaign.drop_count,
+                    "url": _campaign_url(campaign),
+                }
+                for campaign in (
+                    campaign_qs.annotate(drop_count=Count("time_based_drops")).order_by(
+                        "-drop_count",
+                        "name",
+                    )
+                )[:5]
+            ],
+            "organizations_by_campaigns": [
+                {
+                    "name": org.name,
+                    "count": org.campaign_count,
+                    "url": _org_url(org),
+                }
+                for org in (
+                    Organization.objects
+                    .annotate(
+                        campaign_count=Count(
+                            "games__drop_campaigns",
+                            distinct=True,
+                        ),
+                    )
+                    .order_by("-campaign_count", "name")
+                    .only("twitch_id", "name")
+                )[:5]
+            ],
+            "channels_by_campaigns": [
+                {
+                    "name": channel.display_name or channel.name,
+                    "count": channel.campaign_count,
+                    "url": _channel_url(channel),
+                }
+                for channel in (
+                    Channel.objects
+                    .annotate(campaign_count=Count("allowed_campaigns"))
+                    .order_by("-campaign_count", "display_name")
+                    .only("twitch_id", "name", "display_name")
+                )[:5]
+            ],
+        }
+
+        return {
+            "counters": counters,
+            "records": records,
+            "leaderboards": leaderboards,
         }
 
     @property

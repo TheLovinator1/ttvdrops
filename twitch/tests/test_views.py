@@ -2948,6 +2948,242 @@ class TestRewardCampaignViews:
 
 
 @pytest.mark.django_db
+class TestStatsView:
+    """Tests for the Twitch stats view."""
+
+    @pytest.fixture
+    def stats_fixture(self) -> dict[str, Any]:
+        """Create a small archive with known record holders for stats tests.
+
+        Returns:
+            Dict with the created objects for assertions.
+        """
+        now: datetime.datetime = timezone.now()
+
+        org: Organization = Organization.objects.create(
+            twitch_id="stats-org-1",
+            name="Stats Org",
+        )
+        game_a: Game = Game.objects.create(
+            twitch_id="stats-game-a",
+            name="game_a",
+            display_name="Game A",
+        )
+        game_b: Game = Game.objects.create(
+            twitch_id="stats-game-b",
+            name="game_b",
+            display_name="Game B",
+        )
+        game_a.owners.add(org)
+        game_b.owners.add(org)
+
+        channel: Channel = Channel.objects.create(
+            twitch_id="stats-channel-1",
+            name="statschannel",
+            display_name="Stats Channel",
+        )
+
+        # Longest campaign: exactly 5 full days.
+        longest_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="stats-campaign-long",
+            name="Longest Campaign Ever",
+            game=game_a,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=5),
+            operation_names=["DropCampaignDetails"],
+        )
+        # Earliest drop.
+        first_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="stats-campaign-first",
+            name="First Campaign",
+            game=game_b,
+            start_at=now - timedelta(days=100),
+            end_at=now - timedelta(days=99),
+            operation_names=["DropCampaignDetails"],
+        )
+        # Most rewards: 3 unique benefits across two drops.
+        reward_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="stats-campaign-rewards",
+            name="Reward Hoarder",
+            game=game_a,
+            start_at=now - timedelta(days=1),
+            end_at=now + timedelta(days=1),
+            operation_names=["DropCampaignDetails"],
+        )
+
+        drop_long: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="stats-drop-long",
+            name="Long Drop",
+            campaign=longest_campaign,
+            required_minutes_watched=240,
+            start_at=now - timedelta(days=10),
+            end_at=now - timedelta(days=5),
+        )
+        TimeBasedDrop.objects.create(
+            twitch_id="stats-drop-first",
+            name="First Drop",
+            campaign=first_campaign,
+            required_minutes_watched=60,
+            start_at=now - timedelta(days=100),
+            end_at=now - timedelta(days=99),
+        )
+        drop_reward_1: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="stats-drop-reward-1",
+            name="Reward Drop 1",
+            campaign=reward_campaign,
+            required_minutes_watched=30,
+        )
+        drop_reward_2: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="stats-drop-reward-2",
+            name="Reward Drop 2",
+            campaign=reward_campaign,
+            required_minutes_watched=45,
+        )
+
+        benefit_1: DropBenefit = DropBenefit.objects.create(
+            twitch_id="stats-benefit-1",
+            name="Benefit One",
+        )
+        benefit_2: DropBenefit = DropBenefit.objects.create(
+            twitch_id="stats-benefit-2",
+            name="Benefit Two",
+        )
+        benefit_3: DropBenefit = DropBenefit.objects.create(
+            twitch_id="stats-benefit-3",
+            name="Benefit Three",
+        )
+
+        drop_reward_1.benefits.add(benefit_1, benefit_2)
+        drop_reward_2.benefits.add(benefit_2, benefit_3)
+        drop_long.benefits.add(benefit_1)
+
+        reward_campaign.allow_channels.add(channel)
+        longest_campaign.allow_channels.add(channel)
+
+        return {
+            "org": org,
+            "game_a": game_a,
+            "game_b": game_b,
+            "channel": channel,
+            "longest_campaign": longest_campaign,
+            "first_campaign": first_campaign,
+            "reward_campaign": reward_campaign,
+        }
+
+    @staticmethod
+    def _context_stats(
+        response: _MonkeyPatchedWSGIResponse,
+    ) -> dict[str, Any]:
+        """Return the stats context dict from a response."""
+        context = response.context
+        if isinstance(context, list):
+            context = context[-1]
+        return context["stats"]
+
+    def test_stats_view_returns_200(self, client: Client) -> None:
+        """Stats view returns 200 with the expected template."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        assert response.status_code == 200
+        assert response.templates[0].name == "twitch/stats.html"
+        assert "stats" in response.context
+        assert "totals" in response.context
+        assert "leaderboards" in response.context
+
+    def test_stats_empty_database(self, client: Client) -> None:
+        """Stats view still renders cleanly when the archive is empty."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        assert response.status_code == 200
+        counters = self._context_stats(response)["counters"]
+        assert counters["campaigns"] == 0
+        assert counters["drops"] == 0
+        assert counters["games"] == 0
+        assert self._context_stats(response)["records"] == []
+
+    def test_stats_counters(
+        self,
+        client: Client,
+        stats_fixture: dict[str, Any],
+    ) -> None:
+        """Totals match the seeded archive."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        counters = self._context_stats(response)["counters"]
+        assert counters["campaigns"] == 3
+        assert counters["drops"] == 4
+        assert counters["benefits"] == 3
+        assert counters["games"] == 2
+        assert counters["organizations"] == 1
+        assert counters["channels"] == 1
+        assert counters["reward_campaigns"] == 0
+        assert counters["active_campaigns"] == 1
+        assert counters["upcoming_campaigns"] == 0
+        assert counters["expired_campaigns"] == 2
+
+    def test_stats_longest_campaign_record(
+        self,
+        client: Client,
+        stats_fixture: dict[str, Any],
+    ) -> None:
+        """Longest campaign record points at the 5-day campaign."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        records = self._context_stats(response)["records"]
+        longest = next(r for r in records if r["title"] == "Longest campaign")
+        # Django's timesince joins number and unit with a non-breaking space.
+        assert longest["value"].replace("\u00a0", " ") == "5 days"
+        assert longest["detail"] == "Longest Campaign Ever"
+        assert longest["url"] == reverse(
+            "twitch:campaign_detail",
+            args=["stats-campaign-long"],
+        )
+
+    def test_stats_first_drop_record(
+        self,
+        client: Client,
+        stats_fixture: dict[str, Any],
+    ) -> None:
+        """First drop record points at the earliest campaign."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        records = self._context_stats(response)["records"]
+        first = next(r for r in records if r["title"] == "First drop ever")
+        assert first["detail"] == "First Campaign"
+
+    def test_stats_game_most_drops(
+        self,
+        client: Client,
+        stats_fixture: dict[str, Any],
+    ) -> None:
+        """Game A owns the most drops (3 drops across two campaigns)."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        records = self._context_stats(response)["records"]
+        game_record = next(r for r in records if r["title"] == "Game with most drops")
+        assert game_record["value"] == 3
+        assert game_record["detail"] == "Game A"
+
+    def test_stats_reward_hoarder_campaign(
+        self,
+        client: Client,
+        stats_fixture: dict[str, Any],
+    ) -> None:
+        """Reward hoarder campaign has 3 unique benefits."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        records = self._context_stats(response)["records"]
+        hoarder = next(r for r in records if r["title"] == "Reward hoarder campaign")
+        assert hoarder["value"] == 3
+        assert hoarder["detail"] == "Reward Hoarder"
+
+    def test_stats_leaderboards(
+        self,
+        client: Client,
+        stats_fixture: dict[str, Any],
+    ) -> None:
+        """Leaderboards render top entries and games-by-drops is correct."""
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
+        leaderboards = response.context["leaderboards"]
+        by_drops = next(b for b in leaderboards if b["title"] == "Top games by drops")
+        assert by_drops["rows"][0]["name"] == "Game A"
+        assert by_drops["rows"][0]["count"] == 3
+
+
+@pytest.mark.django_db
 class TestSEOHelperFunctions:
     """Tests for SEO helper functions."""
 

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}
+    Twitch Stats
+{% endblock title %}
+{% block content %}
+    <main>
+        <header>
+            <h1>Twitch Drops statistics</h1>
+            <div>
+                <a href="{% url 'core:dashboard' %}">Dashboard</a> >
+                <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Stats
+            </div>
+        </header>
+        {% if not stats.counters.campaigns %}
+            <section style="text-align: center; padding: 3rem 1rem;">
+                <h2 style="margin: 0 0 1rem 0;">No drops yet!</h2>
+                <p style="margin: 0; font-size: 1.1rem;">
+                    The archive is empty, so there is nothing to brag about.
+                    Check back after the next drop import.
+                </p>
+            </section>
+        {% else %}
+            <!-- Totals -->
+            <section aria-label="Totals" style="margin-bottom: 2rem;">
+                <h2>Archive totals</h2>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+                    {% for label, count in totals %}
+                        <div style="flex: 1 1 140px;
+                                    min-width: 140px;
+                                    border: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                                    border-radius: 8px;
+                                    padding: 0.75rem 1rem;
+                                    text-align: center">
+                            <div style="font-size: 1.8rem; font-weight: 700;">{{ count }}</div>
+                            <div style="font-size: 0.8rem;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.05em;
+                                        color: color-mix(in srgb, CanvasText 55%, transparent 45%)">{{ label }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+            <!-- Fun records -->
+            <section aria-label="Records" style="margin-bottom: 2rem;">
+                <h2>Fun records</h2>
+                <div style="display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+                            gap: 1rem">
+                    {% for record in stats.records %}
+                        <article style="border: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                                        border-radius: 8px;
+                                        padding: 1rem;
+                                        display: flex;
+                                        flex-direction: column;
+                                        gap: 0.35rem">
+                            <div style="font-size: 0.8rem;
+                                        text-transform: uppercase;
+                                        letter-spacing: 0.05em;
+                                        color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
+                                {{ record.title }}
+                            </div>
+                            <div style="font-size: 1.4rem; font-weight: 700;">{{ record.value }}</div>
+                            <div style="font-size: 0.95rem;">
+                                {% if record.url %}
+                                    <a href="{{ record.url }}">{{ record.detail }}</a>
+                                {% else %}
+                                    {{ record.detail }}
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            </section>
+            <!-- Leaderboards -->
+            <section aria-label="Leaderboards" style="margin-bottom: 2rem;">
+                <h2>Leaderboards</h2>
+                <div style="display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                            gap: 1.5rem">
+                    {% for board in leaderboards %}
+                        <div>
+                            <h3 style="margin: 0 0 0.5rem 0;">{{ board.title }}</h3>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: left;
+                                                   padding: 0.3rem 0.5rem;
+                                                   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%)">
+                                            #
+                                        </th>
+                                        <th style="text-align: left;
+                                                   padding: 0.3rem 0.5rem;
+                                                   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%)">
+                                            Name
+                                        </th>
+                                        <th style="text-align: right;
+                                                   padding: 0.3rem 0.5rem;
+                                                   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%)">
+                                            Count
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in board.rows %}
+                                        <tr>
+                                            <td style="padding: 0.3rem 0.5rem;
+                                                       color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
+                                                {{ forloop.counter }}
+                                            </td>
+                                            <td style="padding: 0.3rem 0.5rem;">
+                                                <a href="{{ row.url }}">{{ row.name }}</a>
+                                            </td>
+                                            <td style="padding: 0.3rem 0.5rem; text-align: right;">{{ row.count }}</td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="3"
+                                                style="padding: 0.3rem 0.5rem;
+                                                       color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
+                                                Nothing here yet.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+    </main>
+{% endblock content %}

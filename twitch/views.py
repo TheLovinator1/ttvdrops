@@ -921,6 +921,78 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     )
 
 
+# MARK: /stats/
+def stats_view(request: HttpRequest) -> HttpResponse:
+    """View showing fun statistics about the Twitch drop archive.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered stats page.
+    """
+    now: datetime.datetime = timezone.now()
+    stats_data: dict[str, Any] = DropCampaign.stats(now)
+
+    counters: dict[str, int] = stats_data["counters"]
+    totals: list[tuple[str, int]] = [
+        ("Campaigns", counters["campaigns"]),
+        ("Drops", counters["drops"]),
+        ("Rewards", counters["benefits"]),
+        ("Games", counters["games"]),
+        ("Organizations", counters["organizations"]),
+        ("Channels", counters["channels"]),
+        ("Reward campaigns", counters["reward_campaigns"]),
+        ("Active", counters["active_campaigns"]),
+        ("Upcoming", counters["upcoming_campaigns"]),
+        ("Expired", counters["expired_campaigns"]),
+    ]
+
+    leaderboards_data: dict[str, list[dict[str, Any]]] = stats_data["leaderboards"]
+    leaderboards: list[dict[str, Any]] = [
+        {
+            "title": "Top games by drops",
+            "rows": leaderboards_data["games_by_drops"],
+        },
+        {
+            "title": "Top games by campaigns",
+            "rows": leaderboards_data["games_by_campaigns"],
+        },
+        {
+            "title": "Top campaigns by rewards",
+            "rows": leaderboards_data["campaigns_by_rewards"],
+        },
+        {
+            "title": "Top campaigns by drops",
+            "rows": leaderboards_data["campaigns_by_drops"],
+        },
+        {
+            "title": "Top organizations by campaigns",
+            "rows": leaderboards_data["organizations_by_campaigns"],
+        },
+        {
+            "title": "Top channels by campaigns",
+            "rows": leaderboards_data["channels_by_campaigns"],
+        },
+    ]
+
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title="Twitch Stats",
+        page_description=(
+            "Fun statistics about Twitch drops: longest drops, "
+            "busiest games, first drops, and more."
+        ),
+    )
+    context: dict[str, Any] = {
+        "now": now,
+        "stats": stats_data,
+        "totals": totals,
+        "leaderboards": leaderboards,
+        **seo_context,
+    }
+    return render(request, "twitch/stats.html", context)
+
+
 # MARK: /reward-campaigns/
 def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     """Function-based view for reward campaigns list.

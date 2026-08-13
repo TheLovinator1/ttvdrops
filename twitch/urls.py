@@ -93,6 +93,8 @@ urlpatterns: list[URLPattern | URLResolver] = [
         views.sitewide_rewards_view,
         name="sitewide_rewards",
     ),
+    # /twitch/stats/
+    path("stats/", views.stats_view, name="stats"),
     # /twitch/rewards/no-game/
     path(
         "rewards/no-game/",

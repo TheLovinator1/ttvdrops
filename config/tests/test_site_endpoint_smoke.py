@@ -269,6 +269,7 @@ class SiteEndpointSmokeTest(TestCase):
                 {"twitch_id": self.twitch_reward_campaign.twitch_id},
                 200,
             ),
+            ("twitch:stats", {}, 200),
             ("twitch:export_campaigns_csv", {}, 200),
             ("twitch:export_campaigns_json", {}, 200),
             ("twitch:export_games_csv", {}, 200),
