@@ -3143,7 +3143,7 @@ class TestStatsView:
         """First drop record points at the earliest campaign."""
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:stats"))
         records = self._context_stats(response)["records"]
-        first = next(r for r in records if r["title"] == "First drop ever")
+        first = next(r for r in records if r["title"] == "First drop ever in db")
         assert first["detail"] == "First Campaign"
 
     def test_stats_game_most_drops(
