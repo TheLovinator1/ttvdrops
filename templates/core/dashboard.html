@@ -323,6 +323,12 @@
                                 </div>
                             </div>
                             {% if campaign.summary %}<div style="margin-top: 0.5rem; font-size: 0.9rem;">{{ campaign.summary }}</div>{% endif %}
+                            {% if campaign.rewards.all %}
+                                <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                                    <strong>Rewards:</strong>
+                                    {% for reward in campaign.rewards.all %}{{ reward.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                </div>
+                            {% endif %}
                         </article>
                     {% endfor %}
                 </div>

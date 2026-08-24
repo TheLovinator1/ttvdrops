@@ -1470,10 +1470,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .only("twitch_id", "display_name", "name", "slug")
             .first()
         )
-        if game_most_drops and game_most_drops.drop_count:
+        if game_most_drops and game_most_drops.drop_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Game with most drops",
-                "value": game_most_drops.drop_count,
+                "value": game_most_drops.drop_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": game_most_drops.get_game_name,
                 "url": _game_url(game_most_drops),
             })
@@ -1487,10 +1487,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .only("twitch_id", "display_name", "name", "slug")
             .first()
         )
-        if game_most_campaigns and game_most_campaigns.campaign_count:
+        if game_most_campaigns and game_most_campaigns.campaign_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Game with most campaigns",
-                "value": game_most_campaigns.campaign_count,
+                "value": game_most_campaigns.campaign_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": game_most_campaigns.get_game_name,
                 "url": _game_url(game_most_campaigns),
             })
@@ -1507,10 +1507,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .only("twitch_id", "display_name", "name", "slug")
             .first()
         )
-        if game_most_rewards and game_most_rewards.benefit_count:
+        if game_most_rewards and game_most_rewards.benefit_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Game with most rewards",
-                "value": game_most_rewards.benefit_count,
+                "value": game_most_rewards.benefit_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": game_most_rewards.get_game_name,
                 "url": _game_url(game_most_rewards),
             })
@@ -1526,10 +1526,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .order_by("-benefit_count", "name")
             .first()
         )
-        if most_rewards_campaign and most_rewards_campaign.benefit_count:
+        if most_rewards_campaign and most_rewards_campaign.benefit_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Reward hoarder campaign",
-                "value": most_rewards_campaign.benefit_count,
+                "value": most_rewards_campaign.benefit_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": most_rewards_campaign.name,
                 "url": _campaign_url(most_rewards_campaign),
             })
@@ -1540,10 +1540,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .order_by("-drop_count", "name")
             .first()
         )
-        if most_drops_campaign and most_drops_campaign.drop_count:
+        if most_drops_campaign and most_drops_campaign.drop_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Campaign with most drops",
-                "value": most_drops_campaign.drop_count,
+                "value": most_drops_campaign.drop_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": most_drops_campaign.name,
                 "url": _campaign_url(most_drops_campaign),
             })
@@ -1554,10 +1554,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .order_by("-channel_count", "name")
             .first()
         )
-        if most_channels_campaign and most_channels_campaign.channel_count:
+        if most_channels_campaign and most_channels_campaign.channel_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Campaign with most channels",
-                "value": most_channels_campaign.channel_count,
+                "value": most_channels_campaign.channel_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": most_channels_campaign.name,
                 "url": _campaign_url(most_channels_campaign),
             })
@@ -1573,7 +1573,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
                 "title": "Marathon watch requirement",
                 "value": _format_minutes(longest_watch_drop.required_minutes_watched),
                 "detail": (
-                    f"{longest_watch_drop.name} ({longest_watch_drop.campaign.name})"
+                    f"{longest_watch_drop.name} ({longest_watch_drop.campaign.name})"  # pyright: ignore[reportAttributeAccessIssue]
                 ),
                 "url": _campaign_url(longest_watch_drop.campaign),
             })
@@ -1583,7 +1583,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             records.append({
                 "title": "Most subs required",
                 "value": most_subs_drop.required_subs,
-                "detail": (f"{most_subs_drop.name} ({most_subs_drop.campaign.name})"),
+                "detail": (f"{most_subs_drop.name} ({most_subs_drop.campaign.name})"),  # pyright: ignore[reportAttributeAccessIssue]
                 "url": _campaign_url(most_subs_drop.campaign),
             })
 
@@ -1597,7 +1597,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
         if longest_name_campaign:
             records.append({
                 "title": "Longest campaign name",
-                "value": f"{longest_name_campaign.name_length} characters",
+                "value": f"{longest_name_campaign.name_length} characters",  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": longest_name_campaign.name,
                 "url": _campaign_url(longest_name_campaign),
             })
@@ -1612,7 +1612,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
         if shortest_name_campaign:
             records.append({
                 "title": "Shortest campaign name",
-                "value": f"{shortest_name_campaign.name_length} characters",
+                "value": f"{shortest_name_campaign.name_length} characters",  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": shortest_name_campaign.name,
                 "url": _campaign_url(shortest_name_campaign),
             })
@@ -1627,7 +1627,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
         if longest_description_campaign:
             records.append({
                 "title": "Longest description",
-                "value": f"{longest_description_campaign.desc_length} characters",
+                "value": f"{longest_description_campaign.desc_length} characters",  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": longest_description_campaign.name,
                 "url": _campaign_url(longest_description_campaign),
             })
@@ -1641,10 +1641,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .only("twitch_id", "name")
             .first()
         )
-        if org_most_campaigns and org_most_campaigns.campaign_count:
+        if org_most_campaigns and org_most_campaigns.campaign_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Busiest organization",
-                "value": org_most_campaigns.campaign_count,
+                "value": org_most_campaigns.campaign_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": org_most_campaigns.name,
                 "url": _org_url(org_most_campaigns),
             })
@@ -1656,10 +1656,10 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             .only("twitch_id", "name", "display_name")
             .first()
         )
-        if channel_most_campaigns and channel_most_campaigns.campaign_count:
+        if channel_most_campaigns and channel_most_campaigns.campaign_count:  # pyright: ignore[reportAttributeAccessIssue]
             records.append({
                 "title": "Busiest channel",
-                "value": channel_most_campaigns.campaign_count,
+                "value": channel_most_campaigns.campaign_count,  # pyright: ignore[reportAttributeAccessIssue]
                 "detail": (
                     channel_most_campaigns.display_name or channel_most_campaigns.name
                 ),
@@ -1671,7 +1671,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             "games_by_drops": [
                 {
                     "name": game.get_game_name,
-                    "count": game.drop_count,
+                    "count": game.drop_count,  # pyright: ignore[reportAttributeAccessIssue]
                     "url": _game_url(game),
                 }
                 for game in (
@@ -1689,7 +1689,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             "games_by_campaigns": [
                 {
                     "name": game.get_game_name,
-                    "count": game.campaign_count,
+                    "count": game.campaign_count,  # pyright: ignore[reportAttributeAccessIssue]
                     "url": _game_url(game),
                 }
                 for game in (
@@ -1704,7 +1704,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             "campaigns_by_rewards": [
                 {
                     "name": campaign.name,
-                    "count": campaign.benefit_count,
+                    "count": campaign.benefit_count,  # pyright: ignore[reportAttributeAccessIssue]
                     "url": _campaign_url(campaign),
                 }
                 for campaign in (
@@ -1719,7 +1719,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             "campaigns_by_drops": [
                 {
                     "name": campaign.name,
-                    "count": campaign.drop_count,
+                    "count": campaign.drop_count,  # pyright: ignore[reportAttributeAccessIssue]
                     "url": _campaign_url(campaign),
                 }
                 for campaign in (
@@ -1732,7 +1732,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             "organizations_by_campaigns": [
                 {
                     "name": org.name,
-                    "count": org.campaign_count,
+                    "count": org.campaign_count,  # pyright: ignore[reportAttributeAccessIssue]
                     "url": _org_url(org),
                 }
                 for org in (
@@ -1750,7 +1750,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             "channels_by_campaigns": [
                 {
                     "name": channel.display_name or channel.name,
-                    "count": channel.campaign_count,
+                    "count": channel.campaign_count,  # pyright: ignore[reportAttributeAccessIssue]
                     "url": _channel_url(channel),
                 }
                 for channel in (
@@ -2412,6 +2412,7 @@ class RewardCampaign(auto_prefetch.Model):
                 "game__display_name",
             )
             .select_related("game")
+            .prefetch_related("rewards")
             .order_by("-starts_at")
         )
 
@@ -2432,6 +2433,118 @@ class RewardCampaign(auto_prefetch.Model):
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve RewardCampaign.image_file url: %s", exc)
         return self.image_url or ""
+
+
+# MARK: Reward
+class Reward(auto_prefetch.Model):
+    """Represents an individual reward inside a Twitch reward campaign."""
+
+    twitch_id = models.TextField(
+        help_text="The Twitch ID for this reward.",
+        editable=False,
+        unique=True,
+    )
+
+    reward_campaign = auto_prefetch.ForeignKey(
+        help_text="The reward campaign this reward belongs to.",
+        related_name="rewards",
+        on_delete=models.CASCADE,
+        to=RewardCampaign,
+    )
+
+    name = models.TextField(
+        help_text="Name of the reward.",
+    )
+
+    banner_image_url = models.URLField(
+        help_text="URL to the reward's banner image.",
+        max_length=500,
+        blank=True,
+        default="",
+    )
+
+    thumbnail_image_url = models.URLField(
+        help_text="URL to the reward's thumbnail image.",
+        max_length=500,
+        blank=True,
+        default="",
+    )
+
+    image_file = models.ImageField(
+        help_text="Locally cached reward image served from this site.",
+        upload_to="rewards/images/",
+        width_field="image_width",
+        height_field="image_height",
+        blank=True,
+        null=True,
+    )
+
+    image_width = models.PositiveIntegerField(
+        help_text="Width of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
+    image_height = models.PositiveIntegerField(
+        help_text="Height of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+
+    earnable_until = models.DateTimeField(
+        help_text="Datetime until which the reward can be earned.",
+        null=True,
+        blank=True,
+    )
+
+    redemption_instructions = models.TextField(
+        help_text="Instructions for redeeming the reward.",
+        blank=True,
+        default="",
+    )
+
+    redemption_url = models.URLField(
+        help_text="URL to redeem the reward.",
+        max_length=500,
+        blank=True,
+        default="",
+    )
+
+    added_at = models.DateTimeField(
+        help_text="Timestamp when this reward record was created.",
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        help_text="Timestamp when this reward record was last updated.",
+        auto_now=True,
+    )
+
+    class Meta(auto_prefetch.Model.Meta):
+        ordering = ["earnable_until", "name"]
+        indexes = [
+            models.Index(fields=["twitch_id"]),
+            models.Index(fields=["reward_campaign"]),
+            models.Index(fields=["earnable_until"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["reward_campaign", "earnable_until"]),
+        ]
+
+    def __str__(self) -> str:
+        """Return a string representation of the reward."""
+        return f"{self.reward_campaign}: {self.name}"
+
+    @property
+    def image_best_url(self) -> str:
+        """The best URL for the reward image (local first, then thumbnail, then banner)."""
+        try:
+            if self.image_file and getattr(self.image_file, "url", None):
+                return self.image_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug("Failed to resolve Reward.image_file url: %s", exc)
+        return self.thumbnail_image_url or self.banner_image_url or ""
 
 
 # MARK: ChatBadgeSet

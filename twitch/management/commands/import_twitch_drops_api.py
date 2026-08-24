@@ -46,6 +46,7 @@ from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import SunkwiBotDropGroupSchema
@@ -58,6 +59,7 @@ if TYPE_CHECKING:
 
     from twitch.schemas import SunkwiBotBenefitEdgeSchema
     from twitch.schemas import SunkwiBotDropCampaignACLSchema
+    from twitch.schemas import SunkwiBotIndividualRewardSchema
     from twitch.schemas import SunkwiBotRewardSchema
     from twitch.schemas import SunkwiBotTimeBasedDropSchema
 
@@ -1473,6 +1475,14 @@ class Command(BaseCommand):
                     f"{Fore.CYAN}→{Style.RESET_ALL} {action_str} reward "
                     f"campaign: {display_name}",
                 )
+            # Still sync individual rewards (merge semantics: fill empty
+            # fields, never overwrite populated ones).
+            self._sync_reward_campaign_rewards(
+                campaign_obj=existing_reward,
+                reward_schemas=campaign.rewards,
+                verbose=verbose,
+                merge=True,
+            )
             return
 
         if skip_existing and existing_reward is not None:
@@ -1481,6 +1491,15 @@ class Command(BaseCommand):
                     f"{Fore.YELLOW}→{Style.RESET_ALL} Skipped reward campaign: "
                     f"{campaign.name} (already exists)",
                 )
+            # Still sync individual rewards so existing campaigns gain their
+            # rewards on re-import (like the drop-campaign skip path which
+            # keeps accumulating channels and time-based drops).
+            self._sync_reward_campaign_rewards(
+                campaign_obj=existing_reward,
+                reward_schemas=campaign.rewards,
+                verbose=verbose,
+                merge=False,
+            )
             return
 
         reward_obj, created = RewardCampaign.objects.get_or_create(
@@ -1499,6 +1518,124 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: "
                 f"{display_name} (source: {source})",
+            )
+
+        # Sync individual rewards; when updating an existing campaign the
+        # incoming reward list is authoritative, so drop stale entries.
+        self._sync_reward_campaign_rewards(
+            campaign_obj=reward_obj,
+            reward_schemas=campaign.rewards,
+            verbose=verbose,
+            merge=False,
+            delete_stale=not created,
+        )
+
+    def _sync_reward_campaign_rewards(
+        self,
+        campaign_obj: RewardCampaign,
+        reward_schemas: list[SunkwiBotIndividualRewardSchema],
+        *,
+        verbose: bool,
+        merge: bool = False,
+        delete_stale: bool = False,
+    ) -> None:
+        """Create/update the individual rewards belonging to a reward campaign.
+
+        Args:
+            campaign_obj: The parent RewardCampaign.
+            reward_schemas: Validated individual rewards from rewards.json.
+            verbose: Print per-record messages.
+            merge: If True, only fill empty fields on existing rewards.
+            delete_stale: If True, delete rewards that are no longer part of
+                the incoming reward list (full update semantics).
+        """
+        incoming_ids: list[str] = []
+        for reward_schema in reward_schemas:
+            self._process_reward_campaign_reward(
+                reward_schema=reward_schema,
+                campaign_obj=campaign_obj,
+                verbose=verbose,
+                merge=merge,
+            )
+            incoming_ids.append(reward_schema.twitch_id)
+
+        if delete_stale and incoming_ids:
+            campaign_obj.rewards.exclude(twitch_id__in=incoming_ids).delete()  # pyright: ignore[reportAttributeAccessIssue]
+
+    def _process_reward_campaign_reward(
+        self,
+        reward_schema: SunkwiBotIndividualRewardSchema,
+        campaign_obj: RewardCampaign,
+        *,
+        verbose: bool,
+        merge: bool = False,
+    ) -> None:
+        """Create or update a single reward inside a reward campaign.
+
+        Args:
+            reward_schema: A validated individual reward schema.
+            campaign_obj: The parent RewardCampaign.
+            verbose: Print per-record messages.
+            merge: If True, only fill empty fields on existing rewards.
+        """
+        earnable_until_dt = (
+            parse_date(reward_schema.earnable_until)
+            if reward_schema.earnable_until
+            else None
+        )
+
+        defaults: dict[str, Any] = {
+            "reward_campaign": campaign_obj,
+            "name": reward_schema.name,
+            "banner_image_url": (
+                reward_schema.banner_image.image1x_url
+                if reward_schema.banner_image
+                else ""
+            ),
+            "thumbnail_image_url": (
+                reward_schema.thumbnail_image.image1x_url
+                if reward_schema.thumbnail_image
+                else ""
+            ),
+            "earnable_until": earnable_until_dt,
+            "redemption_instructions": reward_schema.redemption_instructions,
+            "redemption_url": reward_schema.redemption_url,
+        }
+
+        existing = Reward.objects.filter(
+            twitch_id=reward_schema.twitch_id,
+        ).first()
+
+        # Merge mode: fill empty fields, never overwrite populated ones
+        if existing is not None and merge:
+            changed = False
+            merge_fields = [field for field in defaults if field != "reward_campaign"]
+            for field in merge_fields:
+                new_value = defaults[field]
+                old_value = getattr(existing, field, None)
+                if not old_value and new_value:
+                    setattr(existing, field, new_value)
+                    changed = True
+            if changed:
+                existing.save(update_fields=merge_fields)
+            if verbose:
+                action_str = "Merged" if changed else "Skipped (merged)"
+                self.stdout.write(
+                    f"{Fore.CYAN}→{Style.RESET_ALL} {action_str} reward: "
+                    f"{reward_schema.name}",
+                )
+            return
+
+        reward_obj, created = Reward.objects.get_or_create(
+            twitch_id=reward_schema.twitch_id,
+            defaults=defaults,
+        )
+        if not created:
+            self._save_if_changed(reward_obj, defaults)
+
+        if verbose and created:
+            self.stdout.write(
+                f"{Fore.GREEN}✓{Style.RESET_ALL} Created reward: {reward_schema.name}",
             )
 
     # ------------------------------------------------------------------

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Self
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -16,6 +17,7 @@ from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
@@ -118,7 +120,21 @@ SAMPLE_REWARDS_JSON: list[dict] = [
         "instructions": "",
         "isSitewide": False,
         "name": "Tubbo's WatchTime",
-        "rewards": [],
+        "rewards": [
+            {
+                "id": "reward-1",
+                "name": "Test Cape",
+                "bannerImage": {
+                    "image1xURL": "https://example.com/banner.png",
+                },
+                "thumbnailImage": {
+                    "image1xURL": "https://example.com/thumbnail.png",
+                },
+                "earnableUntil": "2026-06-15T05:59:59.999Z",
+                "redemptionInstructions": "Redeem on the Mojang website.",
+                "redemptionURL": "https://example.com/redeem/cape",
+            },
+        ],
         "rewardValueURLParam": "",
         "startsAt": "2026-05-31T16:00:00Z",
         "status": "UNKNOWN",
@@ -381,6 +397,16 @@ class ImportTwitchDropsApiTests(TestCase):
         assert reward.game is not None
         assert reward.game.twitch_id == "27471"
 
+        # Individual rewards inside the campaign are imported too
+        individual = Reward.objects.get(twitch_id="reward-1")
+        assert individual.reward_campaign == reward
+        assert individual.name == "Test Cape"
+        assert individual.banner_image_url == "https://example.com/banner.png"
+        assert individual.thumbnail_image_url == "https://example.com/thumbnail.png"
+        assert individual.earnable_until is not None
+        assert individual.redemption_instructions == "Redeem on the Mojang website."
+        assert individual.redemption_url == "https://example.com/redeem/cape"
+
     @patch("httpx.Client")
     def test_import_rewards_sets_data_source(self, mock_client: MagicMock) -> None:
         """Verify the --source argument is stored on the RewardCampaign."""
@@ -439,6 +465,109 @@ class ImportTwitchDropsApiTests(TestCase):
         )
 
         assert RewardCampaign.objects.count() == 1
+        assert Reward.objects.count() == 1
+
+    def test_import_rewards_skips_existing_campaign_but_backfills_rewards(
+        self,
+    ) -> None:
+        """Verify re-importing with the default skip mode still syncs rewards."""
+        Game.objects.create(
+            twitch_id="27471",
+            display_name="Minecraft",
+            name="Minecraft",
+        )
+
+        campaign = RewardCampaign.objects.create(
+            twitch_id="reward-campaign-2",
+            name="Tubbo's WatchTime",
+            brand="Mojang",
+            status="UNKNOWN",
+        )
+
+        mock_client = MagicMock()
+        mock_client.return_value = MockHttpxClient(
+            drops_data=[],
+            rewards_data=SAMPLE_REWARDS_JSON,
+        )
+        with patch("httpx.Client", mock_client):
+            self.command.handle(
+                drops_url=self.drops_url,
+                rewards_url=self.rewards_url,
+                drops_only=False,
+                rewards_only=True,
+                source="SunkwiBOT/twitch-drops-api",
+                verbose=False,
+                crash_on_error=True,
+            )
+
+        # Campaign itself was skipped (name untouched), but rewards were added.
+        campaign.refresh_from_db()
+        assert campaign.name == "Tubbo's WatchTime"
+        assert Reward.objects.count() == 1
+        individual = Reward.objects.get(twitch_id="reward-1")
+        assert individual.reward_campaign == campaign
+
+    @patch("httpx.Client")
+    def test_import_rewards_update_existing_syncs_rewards(
+        self,
+        mock_client: MagicMock,
+    ) -> None:
+        """Verify --update-existing updates changed rewards and drops stale ones."""
+        Game.objects.create(
+            twitch_id="27471",
+            display_name="Minecraft",
+            name="Minecraft",
+        )
+
+        # First import with the current payload
+        mock_client.return_value = MockHttpxClient(
+            drops_data=[],
+            rewards_data=SAMPLE_REWARDS_JSON,
+        )
+        self.command.handle(
+            drops_url=self.drops_url,
+            rewards_url=self.rewards_url,
+            drops_only=False,
+            rewards_only=True,
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=True,
+        )
+        assert Reward.objects.count() == 1
+
+        # Payload now renames the reward and drops it in favour of a new one
+        updated_data = json.loads(json.dumps(SAMPLE_REWARDS_JSON))
+        updated_data[0]["rewards"] = [
+            {
+                "id": "reward-2",
+                "name": "New Cape",
+                "bannerImage": None,
+                "thumbnailImage": None,
+                "earnableUntil": "2026-06-20T05:59:59.999Z",
+                "redemptionInstructions": "",
+                "redemptionURL": "https://example.com/redeem/new-cape",
+            },
+        ]
+        mock_client.return_value = MockHttpxClient(
+            drops_data=[],
+            rewards_data=updated_data,
+        )
+        self.command.handle(
+            drops_url=self.drops_url,
+            rewards_url=self.rewards_url,
+            drops_only=False,
+            rewards_only=True,
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=True,
+            update_existing=True,
+        )
+
+        # Stale reward removed, new reward imported.
+        assert Reward.objects.count() == 1
+        assert not Reward.objects.filter(twitch_id="reward-1").exists()
+        individual = Reward.objects.get(twitch_id="reward-2")
+        assert individual.name == "New Cape"
 
     # ------------------------------------------------------------------
     # Combined import tests

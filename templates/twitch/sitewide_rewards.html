@@ -86,6 +86,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Rewards</th>
                             <th>Ends</th>
                         </tr>
                     </thead>
@@ -107,6 +108,11 @@
                                 </td>
                                 <td>{{ campaign.brand|default:"-" }}</td>
                                 <td>
+                                    {% for reward in campaign.rewards.all %}
+                                        {{ reward.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
                                     <time datetime="{{ campaign.ends_at|date:'c' }}"
                                           title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
                                         Ends in {{ campaign.ends_at|timeuntil }}
@@ -126,6 +132,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Rewards</th>
                             <th>Starts</th>
                         </tr>
                     </thead>
@@ -147,6 +154,11 @@
                                 </td>
                                 <td>{{ campaign.brand|default:"-" }}</td>
                                 <td>
+                                    {% for reward in campaign.rewards.all %}
+                                        {{ reward.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
                                     <time datetime="{{ campaign.starts_at|date:'c' }}"
                                           title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
                                         Starts in {{ campaign.starts_at|timeuntil }}
@@ -166,6 +178,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Rewards</th>
                             <th>Ended</th>
                         </tr>
                     </thead>
@@ -186,6 +199,11 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ campaign.brand|default:"-" }}</td>
+                                <td>
+                                    {% for reward in campaign.rewards.all %}
+                                        {{ reward.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
                                 <td>
                                     <time datetime="{{ campaign.ends_at|date:'c' }}"
                                           title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">

@@ -1,16 +1,20 @@
 from datetime import UTC
 from datetime import datetime as dt
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from django.test import RequestFactory
 from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from core.views import _build_base_url
 from kick.models import KickCategory
 from kick.models import KickDropCampaign
 from kick.models import KickOrganization
+from twitch.models import Reward
+from twitch.models import RewardCampaign
 
 if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
@@ -121,3 +125,32 @@ class TestCoreDashboardKickSection(TestCase):
         org_url: str = reverse("kick:organization_detail", args=[org.kick_id])
         assert org_url in content
         assert "Unknown Category" not in content
+
+
+class TestCoreDashboardRewardCampaigns(TestCase):
+    """Tests for the reward campaign section within the core dashboard."""
+
+    def test_core_dashboard_renders_reward_campaign_rewards(self) -> None:
+        """Core dashboard reward cards should list their individual rewards."""
+        now = timezone.now()
+        campaign: RewardCampaign = RewardCampaign.objects.create(
+            twitch_id="core-dashboard-reward",
+            name="Core Dashboard Reward",
+            brand="Core Brand",
+            starts_at=now - timedelta(hours=1),
+            ends_at=now + timedelta(hours=1),
+            status="ACTIVE",
+        )
+        Reward.objects.create(
+            reward_campaign=campaign,
+            twitch_id="core-dashboard-reward-item-1",
+            name="Core Dashboard Reward Item",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("core:dashboard"),
+        )
+        content: str = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Core Dashboard Reward Item" in content

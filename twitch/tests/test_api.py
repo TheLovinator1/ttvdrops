@@ -15,6 +15,7 @@ from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
@@ -88,6 +89,17 @@ class TwitchApiV1TestCase(TestCase):
             summary="Reward summary",
             external_url="https://example.com/reward",
             game=self.game,
+        )
+
+        self.reward = Reward.objects.create(
+            reward_campaign=self.reward_campaign,
+            twitch_id="reward-item-1",
+            name="Test Reward Item",
+            banner_image_url="https://example.com/banner.png",
+            thumbnail_image_url="https://example.com/thumbnail.png",
+            earnable_until=now + timedelta(days=1),
+            redemption_instructions="Redeem now.",
+            redemption_url="https://example.com/redeem",
         )
 
         self.badge_set = ChatBadgeSet.objects.create(set_id="test-badge-set")
@@ -759,6 +771,28 @@ class TwitchApiV1TestCase(TestCase):
         assert isinstance(data["external_url"], str)
         assert isinstance(data["about_url"], str)
         assert data["game"]["twitch_id"] == "game123"
+
+    def test_v1_reward_campaign_includes_rewards(self) -> None:
+        """Return individual rewards inside reward campaign responses."""
+        detail = self.client.get("/api/v1/twitch/reward-campaigns/reward123/")
+        assert detail.status_code == 200
+        rewards = detail.json()["rewards"]
+        assert len(rewards) == 1
+        item = rewards[0]
+        assert item["twitch_id"] == "reward-item-1"
+        assert item["name"] == "Test Reward Item"
+        assert item["banner_image_url"] == "https://example.com/banner.png"
+        assert item["thumbnail_image_url"] == "https://example.com/thumbnail.png"
+        assert item["image_url"] == "https://example.com/thumbnail.png"
+        assert item["earnable_until"] is not None
+        assert item["redemption_instructions"] == "Redeem now."
+        assert item["redemption_url"] == "https://example.com/redeem"
+
+        listing = self.client.get("/api/v1/twitch/reward-campaigns/")
+        assert listing.status_code == 200
+        listing_rewards = listing.json()["items"][0]["rewards"]
+        assert len(listing_rewards) == 1
+        assert listing_rewards[0]["twitch_id"] == "reward-item-1"
 
     def test_v1_reward_campaign_detail_no_game(self) -> None:
         """Return reward campaign detail with null game."""

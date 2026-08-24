@@ -17,6 +17,7 @@ from twitch.models import ChatBadgeSet
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.utils import normalize_twitch_box_art_url
 
@@ -173,6 +174,19 @@ class V1ChannelDetailSchema(V1ChannelSchema):
     campaigns: list[V1DropCampaignSummarySchema]
 
 
+class V1RewardSchema(Schema):
+    """Individual reward inside a Twitch reward campaign response."""
+
+    twitch_id: str
+    name: str
+    banner_image_url: str
+    thumbnail_image_url: str
+    image_url: str
+    earnable_until: datetime.datetime | None
+    redemption_instructions: str
+    redemption_url: str
+
+
 class V1RewardCampaignSchema(Schema):
     """Twitch reward campaign response."""
 
@@ -191,6 +205,7 @@ class V1RewardCampaignSchema(Schema):
     starts_at: datetime.datetime | None
     ends_at: datetime.datetime | None
     game: V1GameSummarySchema | None
+    rewards: list[V1RewardSchema]
     added_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -554,8 +569,22 @@ def _serialize_reward_campaign(
         starts_at=campaign.starts_at,
         ends_at=campaign.ends_at,
         game=_serialize_game_summary(campaign.game, now) if campaign.game else None,
+        rewards=[_serialize_reward(reward) for reward in campaign.rewards.all()],  # pyright: ignore[reportAttributeAccessIssue]
         added_at=campaign.added_at,
         updated_at=campaign.updated_at,
+    )
+
+
+def _serialize_reward(reward: Reward) -> V1RewardSchema:
+    return V1RewardSchema(
+        twitch_id=reward.twitch_id,
+        name=reward.name,
+        banner_image_url=reward.banner_image_url,
+        thumbnail_image_url=reward.thumbnail_image_url,
+        image_url=reward.image_best_url,
+        earnable_until=reward.earnable_until,
+        redemption_instructions=reward.redemption_instructions,
+        redemption_url=reward.redemption_url,
     )
 
 
@@ -648,7 +677,7 @@ def get_game(request: HttpRequest, twitch_id: str) -> V1GameDetailSchema:
         RewardCampaign.objects
         .filter(game=game)
         .select_related("game")
-        .prefetch_related("game__owners")
+        .prefetch_related("game__owners", "rewards")
         .order_by("-starts_at"),
     )
     return V1GameDetailSchema(
@@ -781,6 +810,7 @@ def list_reward_campaigns(
     now = timezone.now()
     queryset = RewardCampaign.objects.select_related("game").prefetch_related(
         "game__owners",
+        "rewards",
     )
     if game:
         queryset = queryset.filter(game__twitch_id=game)
@@ -811,6 +841,7 @@ def get_reward_campaign(
     campaign = get_object_or_404(
         RewardCampaign.objects.select_related("game").prefetch_related(
             "game__owners",
+            "rewards",
         ),
         twitch_id=twitch_id,
     )

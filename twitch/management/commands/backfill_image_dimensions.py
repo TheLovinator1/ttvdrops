@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 
 
@@ -89,6 +90,18 @@ class Command(BaseCommand):
         # Update RewardCampaign images
         self.stdout.write("Processing RewardCampaign image_file...")
         for reward in RewardCampaign.objects.exclude(image_file=""):
+            if reward.image_file and not reward.image_width:
+                try:
+                    reward.image_file.open()
+                    reward.save()
+                    total_updated += 1
+                    self.stdout.write(self.style.SUCCESS(f"  Updated {reward}"))
+                except (OSError, ValueError, AttributeError) as exc:
+                    self.stdout.write(self.style.ERROR(f"  Failed {reward}: {exc}"))
+
+        # Update individual Reward images
+        self.stdout.write("Processing Reward image_file...")
+        for reward in Reward.objects.exclude(image_file=""):
             if reward.image_file and not reward.image_width:
                 try:
                     reward.image_file.open()

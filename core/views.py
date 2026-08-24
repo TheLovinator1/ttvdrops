@@ -1229,6 +1229,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
         RewardCampaign.objects
         .filter(starts_at__lte=now, ends_at__gte=now)
         .select_related("game")
+        .prefetch_related("rewards")
         .order_by("-starts_at")
     )
 

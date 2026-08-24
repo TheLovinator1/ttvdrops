@@ -174,6 +174,47 @@
                     </div>
                 </div>
             </footer>
+            {% if reward_campaign.rewards.all %}
+                <h2 id="rewards-title" style="margin-bottom: 0.25rem;">Rewards</h2>
+                <ul style="list-style: none;
+                           padding: 0;
+                           margin: 0;
+                           display: grid;
+                           gap: 1rem">
+                    {% for reward in reward_campaign.rewards.all %}
+                        <li style="display: flex;
+                                   align-items: flex-start;
+                                   gap: 0.75rem;
+                                   border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                                   padding-top: 0.75rem">
+                            {% if reward.thumbnail_image_url or reward.banner_image_url %}
+                                <div style="flex-shrink: 0; line-height: 0;">{% picture reward.image_best_url alt=reward.name width=96 %}</div>
+                            {% endif %}
+                            <div>
+                                <div style="font-weight: 600;">{{ reward.name }}</div>
+                                {% if reward.earnable_until %}
+                                    <div>
+                                        Earnable until
+                                        <time datetime="{{ reward.earnable_until|date:'c' }}"
+                                              title="{{ reward.earnable_until|date:'DATETIME_FORMAT' }}">{{ reward.earnable_until|date:"M d, Y H:i" }}</time>
+                                        {% if reward.earnable_until > now %}
+                                            (in {{ reward.earnable_until|timeuntil }})
+                                        {% else %}
+                                            ({{ reward.earnable_until|timesince }} ago)
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                                {% if reward.redemption_instructions %}<div>{{ reward.redemption_instructions|linebreaksbr }}</div>{% endif %}
+                                {% if reward.redemption_url %}
+                                    <div>
+                                        <a href="{{ reward.redemption_url }}" title="Redeem {{ reward.name }}">[redeem]</a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
         </div>
     </div>
 {% endblock content %}

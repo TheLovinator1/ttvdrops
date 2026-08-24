@@ -1,50 +1,86 @@
 {% load image_tags %}
-<article id="reward-campaign-{{ campaign.twitch_id }}" style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start">
-  <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}" style="flex-shrink: 0; display: block; line-height: 0">{% picture campaign.image_best_url alt="Image for "|add:campaign.name width=120 %}</a>
-  <div>
-    <h3 style="margin: 0;">
-      <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
-        {% if campaign.brand %}{{ campaign.brand }}: {% endif %}{{ campaign.name }}
-      </a>
-    </h3>
-    <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
-      {% if campaign.starts_at <= now and campaign.ends_at >= now %}
-        <dt>Ends</dt>
-        <dd>
-          <time datetime="{{ campaign.ends_at|date:'c' }}" title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
-            {{ campaign.ends_at|date:"M d, Y H:i" }} ({{ campaign.ends_at|timeuntil }} left)
-          </time>
-        </dd>
-      {% elif campaign.starts_at > now %}
-        <dt>Starts</dt>
-        <dd>
-          <time datetime="{{ campaign.starts_at|date:'c' }}" title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
-            {{ campaign.starts_at|date:"M d, Y H:i" }} (in {{ campaign.starts_at|timeuntil }})
-          </time>
-        </dd>
-      {% else %}
-        <dt>Ended</dt>
-        <dd>
-          <time datetime="{{ campaign.ends_at|date:'c' }}" title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
-            {{ campaign.ends_at|date:"M d, Y H:i" }} ({{ campaign.ends_at|timesince }} ago)
-          </time>
-        </dd>
-      {% endif %}
-      {% if campaign.game %}
-        <dt>Game</dt>
-        <dd><a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a></dd>
-      {% elif campaign.is_sitewide %}
-        <dt>Type</dt>
-        <dd>Site-wide reward campaign</dd>
-      {% else %}
-        <dt>Type</dt>
-        <dd><a href="{% url 'twitch:game_less_rewards' %}">Brand reward</a></dd>
-      {% endif %}
-      <dt>Data source</dt>
-      <dd>{{ campaign.data_source }}</dd>
-    </dl>
-    {% if campaign.summary %}
-      <p style="margin: 0.5rem 0 0 0;">{{ campaign.summary }}</p>
-    {% endif %}
-  </div>
+<article id="reward-campaign-{{ campaign.twitch_id }}"
+         style="display: flex;
+                gap: 1rem;
+                margin-bottom: 1rem;
+                align-items: flex-start">
+    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
+       style="flex-shrink: 0;
+              display: block;
+              line-height: 0">{% picture campaign.image_best_url alt="Image for "|add:campaign.name width=120 %}</a>
+    <div>
+        <h3 style="margin: 0;">
+            <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                {% if campaign.brand %}{{ campaign.brand }}: {% endif %}{{ campaign.name }}
+            </a>
+        </h3>
+        <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
+            {% if campaign.starts_at <= now and campaign.ends_at >= now %}
+                <dt>Ends</dt>
+                <dd>
+                    <time datetime="{{ campaign.ends_at|date:'c' }}"
+                          title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                        {{ campaign.ends_at|date:"M d, Y H:i" }} ({{ campaign.ends_at|timeuntil }} left)
+                    </time>
+                </dd>
+            {% elif campaign.starts_at > now %}
+                <dt>Starts</dt>
+                <dd>
+                    <time datetime="{{ campaign.starts_at|date:'c' }}"
+                          title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">
+                        {{ campaign.starts_at|date:"M d, Y H:i" }} (in {{ campaign.starts_at|timeuntil }})
+                    </time>
+                </dd>
+            {% else %}
+                <dt>Ended</dt>
+                <dd>
+                    <time datetime="{{ campaign.ends_at|date:'c' }}"
+                          title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                        {{ campaign.ends_at|date:"M d, Y H:i" }} ({{ campaign.ends_at|timesince }} ago)
+                    </time>
+                </dd>
+            {% endif %}
+            {% if campaign.game %}
+                <dt>Game</dt>
+                <dd><a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a></dd>
+            {% elif campaign.is_sitewide %}
+                <dt>Type</dt>
+                <dd>
+                    Site-wide reward campaign
+                </dd>
+            {% else %}
+                <dt>Type</dt>
+                <dd><a href="{% url 'twitch:game_less_rewards' %}">Brand reward</a></dd>
+            {% endif %}
+            <dt>Data source</dt>
+            <dd>
+                {{ campaign.data_source }}
+            </dd>
+        </dl>
+        {% if campaign.summary %}
+            <p style="margin: 0.5rem 0 0 0;">{{ campaign.summary }}</p>
+        {% endif %}
+        {% if campaign.rewards.all %}
+            <div style="margin: 0.5rem 0 0 0;">
+                <div style="font-size: 0.8rem;
+                            color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+                            margin-bottom: 0.15rem;
+                            text-transform: uppercase;
+                            letter-spacing: 0.05em">Rewards</div>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    {% for reward in campaign.rewards.all %}
+                        <li style="display: flex;
+                                   align-items: center;
+                                   gap: 0.5rem;
+                                   margin-bottom: 0.25rem">
+                            {% if reward.thumbnail_image_url or reward.banner_image_url %}
+                                {% picture reward.image_best_url alt=reward.name width=48 %}
+                            {% endif %}
+                            <span>{{ reward.name }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+    </div>
 </article>

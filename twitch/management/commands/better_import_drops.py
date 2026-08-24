@@ -26,6 +26,7 @@ from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import GraphQLResponse
@@ -48,6 +49,7 @@ if TYPE_CHECKING:
     from twitch.schemas import DropCampaignACLSchema
     from twitch.schemas import DropCampaignSchema
     from twitch.schemas import GameSchema
+    from twitch.schemas import Reward as RewardSchema
     from twitch.schemas import RewardCampaign as RewardCampaignSchema
     from twitch.schemas import TimeBasedDropSchema
 
@@ -781,6 +783,14 @@ class Command(BaseCommand):
             return False, broken_dir
 
         for response in valid_responses:
+            # Process reward campaigns first so they are imported even when the
+            # response carries no drop campaigns.
+            if response.data.reward_campaigns_available_to_user:
+                self._process_reward_campaigns(
+                    reward_campaigns=response.data.reward_campaigns_available_to_user,
+                    options=options,
+                )
+
             campaigns_to_process: list[DropCampaignSchema] = []
 
             # Source 1: User or CurrentUser field (handles plural, singular, inventory)
@@ -895,13 +905,6 @@ class Command(BaseCommand):
                         campaign_obj=campaign_obj,
                         allow_schema=drop_campaign.allow,
                     )
-
-            # Process reward campaigns if present
-            if response.data.reward_campaigns_available_to_user:
-                self._process_reward_campaigns(
-                    reward_campaigns=response.data.reward_campaigns_available_to_user,
-                    options=options,
-                )
 
         return True, None
 
@@ -1157,6 +1160,93 @@ class Command(BaseCommand):
                 tqdm.write(
                     f"{Fore.GREEN}✓{Style.RESET_ALL} {action} reward campaign: {display_name}",
                 )
+
+            # Sync individual rewards; when updating an existing campaign the
+            # incoming reward list is authoritative, so drop stale entries.
+            self._sync_reward_campaign_rewards(
+                campaign_obj=reward_obj,
+                reward_schemas=reward_campaign.rewards,
+                options=options,
+                delete_stale=not created,
+            )
+
+    def _sync_reward_campaign_rewards(
+        self,
+        campaign_obj: RewardCampaign,
+        reward_schemas: list[RewardSchema],
+        options: dict[str, Any],
+        *,
+        delete_stale: bool = False,
+    ) -> None:
+        """Create/update the individual rewards belonging to a reward campaign.
+
+        Args:
+            campaign_obj: The parent RewardCampaign.
+            reward_schemas: Validated individual rewards from the API response.
+            options: Command options dictionary (uses "verbose").
+            delete_stale: If True, delete rewards that are no longer part of
+                the incoming reward list (full update semantics).
+        """
+        incoming_ids: list[str] = []
+        for reward_schema in reward_schemas:
+            self._process_reward_campaign_reward(
+                reward_schema=reward_schema,
+                campaign_obj=campaign_obj,
+                options=options,
+            )
+            incoming_ids.append(reward_schema.twitch_id)
+
+        if delete_stale and incoming_ids:
+            campaign_obj.rewards.exclude(twitch_id__in=incoming_ids).delete()  # pyright: ignore[reportAttributeAccessIssue]
+
+    def _process_reward_campaign_reward(
+        self,
+        reward_schema: RewardSchema,
+        campaign_obj: RewardCampaign,
+        options: dict[str, Any],
+    ) -> None:
+        """Create or update a single reward inside a reward campaign.
+
+        Args:
+            reward_schema: A validated individual reward schema.
+            campaign_obj: The parent RewardCampaign.
+            options: Command options dictionary (uses "verbose").
+        """
+        earnable_until_dt: datetime | None = (
+            parse_date(reward_schema.earnable_until)
+            if reward_schema.earnable_until
+            else None
+        )
+
+        defaults: dict[str, Any] = {
+            "reward_campaign": campaign_obj,
+            "name": reward_schema.name,
+            "banner_image_url": (
+                reward_schema.banner_image.image1x_url
+                if reward_schema.banner_image
+                else ""
+            ),
+            "thumbnail_image_url": (
+                reward_schema.thumbnail_image.image1x_url
+                if reward_schema.thumbnail_image
+                else ""
+            ),
+            "earnable_until": earnable_until_dt,
+            "redemption_instructions": reward_schema.redemption_instructions,
+            "redemption_url": reward_schema.redemption_url,
+        }
+
+        reward_obj, created = Reward.objects.get_or_create(
+            twitch_id=reward_schema.twitch_id,
+            defaults=defaults,
+        )
+        if not created:
+            self._save_if_changed(reward_obj, defaults)
+
+        if options.get("verbose") and created:
+            tqdm.write(
+                f"{Fore.GREEN}✓{Style.RESET_ALL} Created reward: {reward_schema.name}",
+            )
 
     def _dispatch_path_processing(
         self,

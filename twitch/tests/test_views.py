@@ -27,6 +27,7 @@ from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.views import _build_breadcrumb_schema
@@ -905,6 +906,30 @@ class TestChannelListView:
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
         assert response.status_code == 200
         assert "campaigns_by_game" in response.context
+
+    @pytest.mark.django_db
+    def test_dashboard_renders_reward_campaign_rewards(self, client: Client) -> None:
+        """Dashboard reward campaign cards should list their individual rewards."""
+        now: datetime.datetime = timezone.now()
+        reward_campaign: RewardCampaign = RewardCampaign.objects.create(
+            twitch_id="dashboard-reward-with-items",
+            name="Dashboard Reward",
+            brand="Dashboard Brand",
+            starts_at=now - timedelta(hours=1),
+            ends_at=now + timedelta(hours=1),
+            status="ACTIVE",
+        )
+        Reward.objects.create(
+            reward_campaign=reward_campaign,
+            twitch_id="dashboard-reward-item-1",
+            name="Dashboard Reward Item",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
+
+        assert response.status_code == 200
+        content: str = response.content.decode()
+        assert "Dashboard Reward Item" in content
 
     @pytest.mark.django_db
     def test_dashboard_dedupes_campaigns_for_multi_owner_game(
@@ -2805,6 +2830,79 @@ class TestRewardCampaignViews:
         assert reward.about_url in content
         assert response.context["is_active"] is True
 
+    def test_reward_campaign_detail_renders_individual_rewards(
+        self,
+        client: Client,
+    ) -> None:
+        """Render the individual rewards inside a reward campaign detail."""
+        game: Game = self._create_game("reward-items-game", "Reward Items Game")
+        reward = self._create_reward_campaign(
+            "reward-items",
+            brand="Items Brand",
+            name="Items Reward",
+            game=game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+        now: datetime.datetime = timezone.now()
+        item = Reward.objects.create(
+            reward_campaign=reward,
+            twitch_id="reward-item-view-1",
+            name="View Reward Item",
+            banner_image_url="https://example.com/banner.png",
+            thumbnail_image_url="https://example.com/thumbnail.png",
+            earnable_until=now + timedelta(days=1),
+            redemption_instructions="Redeem on the website.",
+            redemption_url="https://example.com/redeem",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:reward_campaign_detail", args=[reward.twitch_id]),
+        )
+
+        assert response.status_code == 200
+        content: str = response.content.decode()
+        assert "View Reward Item" in content
+        assert item.redemption_instructions in content
+        assert item.redemption_url in content
+        assert "https://example.com/thumbnail.png" in content
+
+    def test_reward_campaign_list_renders_individual_rewards(
+        self,
+        client: Client,
+    ) -> None:
+        """Render the individual rewards inside reward campaign list cards."""
+        game: Game = self._create_game("reward-list-items-game", "Reward List Items")
+        reward: RewardCampaign = self._create_reward_campaign(
+            "reward-list-items",
+            brand="List Items Brand",
+            name="List Items Reward",
+            game=game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+        item: Reward = Reward.objects.create(
+            reward_campaign=reward,
+            twitch_id="reward-list-item-1",
+            name="List Reward Item",
+            thumbnail_image_url="https://example.com/list-thumbnail.png",
+        )
+        Reward.objects.create(
+            reward_campaign=reward,
+            twitch_id="reward-list-item-2",
+            name="List Reward Item Two",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:reward_campaign_list"),
+        )
+
+        assert response.status_code == 200
+        content: str = response.content.decode()
+        assert item.name in content
+        assert "List Reward Item Two" in content
+        assert "https://example.com/list-thumbnail.png" in content
+
     def test_reward_campaign_detail_404_for_missing_campaign(
         self,
         client: Client,
@@ -2874,6 +2972,11 @@ class TestRewardCampaignViews:
             starts_delta=-timedelta(days=1),
             ends_delta=timedelta(days=1),
         )
+        Reward.objects.create(
+            reward_campaign=sitewide,
+            twitch_id="sitewide-reward-item",
+            name="Sitewide Reward Item",
+        )
 
         # Game-specific reward (is_sitewide=False) - should NOT appear
         self._create_reward_campaign(
@@ -2898,6 +3001,8 @@ class TestRewardCampaignViews:
             reverse("twitch:reward_campaign_detail", args=[sitewide.twitch_id])
             in content
         )
+        # Individual reward should be visible in the table
+        assert "Sitewide Reward Item" in content
 
         # Game-specific campaign should NOT appear
         assert "Game Brand: Game Specific" not in content
@@ -2945,6 +3050,39 @@ class TestRewardCampaignViews:
         assert len(response.context["active_campaigns"]) == 1
         assert len(response.context["upcoming_campaigns"]) == 1
         assert len(response.context["expired_campaigns"]) == 1
+
+    def test_game_less_rewards_renders_individual_rewards(
+        self,
+        client: Client,
+    ) -> None:
+        """Render individual rewards on the game-less rewards page."""
+        campaign = self._create_reward_campaign(
+            "game-less-reward-item",
+            brand="Brand Reward",
+            name="No Game Reward",
+            game=None,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+        item = Reward.objects.create(
+            reward_campaign=campaign,
+            twitch_id="game-less-item-1",
+            name="Game Less Reward Item",
+        )
+        Reward.objects.create(
+            reward_campaign=campaign,
+            twitch_id="game-less-item-2",
+            name="Game Less Reward Item Two",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:game_less_rewards"),
+        )
+
+        assert response.status_code == 200
+        content: str = response.content.decode()
+        assert item.name in content
+        assert "Game Less Reward Item Two" in content
 
 
 @pytest.mark.django_db

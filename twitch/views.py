@@ -1011,7 +1011,12 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     if game_filter:
         queryset = queryset.filter(game__twitch_id=game_filter)
 
-    queryset = queryset.select_related("game").order_by("-starts_at")
+    queryset = (
+        queryset
+        .select_related("game")
+        .prefetch_related("rewards")
+        .order_by("-starts_at")
+    )
 
     # Optionally filter by status (active, upcoming, expired)
     now: datetime.datetime = timezone.now()
@@ -1778,6 +1783,7 @@ def sitewide_rewards_view(request: HttpRequest) -> HttpResponse:
         RewardCampaign.objects
         .filter(is_sitewide=True)
         .select_related("game")
+        .prefetch_related("rewards")
         .order_by("-starts_at")
     )
 
@@ -1857,6 +1863,7 @@ def game_less_rewards_view(request: HttpRequest) -> HttpResponse:
         RewardCampaign.objects
         .filter(game__isnull=True)
         .select_related("game")
+        .prefetch_related("rewards")
         .order_by("-starts_at")
     )
 

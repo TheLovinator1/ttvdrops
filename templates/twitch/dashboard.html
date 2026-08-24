@@ -251,6 +251,12 @@
                                             <strong>Type:</strong> Site-wide reward campaign
                                         </p>
                                     {% endif %}
+                                    {% if campaign.rewards.all %}
+                                        <p style="margin: 0.25rem 0;">
+                                            <strong>Rewards:</strong>
+                                            {% for reward in campaign.rewards.all %}{{ reward.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                        </p>
+                                    {% endif %}
                                 </div>
                                 {% if campaign.external_url %}
                                     <div style="margin-top: 0.75rem;">

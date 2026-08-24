@@ -21,6 +21,8 @@ from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
+from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import DropBenefitSchema
 
@@ -171,8 +173,8 @@ class ExtractCampaignsTests(TestCase):
         campaign: DropCampaign = DropCampaign.objects.get(
             twitch_id="inventory-campaign-1",
         )
-        assert campaign.name == "Test Inventory Campaign"
         assert campaign.operation_names == ["Inventory"]
+        assert campaign.name == "Test Inventory Campaign"
 
     def test_import_does_not_update_campaign_when_data_unchanged(self) -> None:
         """Ensure repeated imports do not modify the campaign updated_at."""
@@ -368,6 +370,130 @@ class ExtractCampaignsTests(TestCase):
 
         assert channel.name == "testchannel"
         assert channel.twitch_id == "91070599"
+
+
+class RewardCampaignImportTests(TestCase):
+    """Tests for importing reward campaigns and their individual rewards."""
+
+    def test_imports_reward_campaign_with_individual_rewards(self) -> None:
+        """Verify reward campaigns and their rewards import correctly."""
+        command = Command()
+
+        payload: dict[str, object] = {
+            "data": {
+                "currentUser": {
+                    "id": "123",
+                    "__typename": "User",
+                },
+                "rewardCampaignsAvailableToUser": [
+                    {
+                        "id": "rc-1",
+                        "name": "Test Reward Campaign",
+                        "brand": "Test Brand",
+                        "startsAt": "2025-01-01T00:00:00Z",
+                        "endsAt": "2025-02-01T00:00:00Z",
+                        "status": "ACTIVE",
+                        "summary": "A summary.",
+                        "instructions": "",
+                        "externalURL": "https://example.com",
+                        "rewardValueURLParam": "",
+                        "aboutURL": "https://example.com/about",
+                        "isSitewide": True,
+                        "image": {
+                            "image1xURL": "https://example.com/campaign.png",
+                            "__typename": "RewardCampaignImageSet",
+                        },
+                        "rewards": [
+                            {
+                                "id": "r-1",
+                                "name": "Test Reward Item",
+                                "bannerImage": {
+                                    "image1xURL": "https://example.com/banner.png",
+                                    "__typename": "RewardCampaignImageSet",
+                                },
+                                "thumbnailImage": {
+                                    "image1xURL": "https://example.com/thumb.png",
+                                    "__typename": "RewardCampaignImageSet",
+                                },
+                                "earnableUntil": "2025-01-15T00:00:00Z",
+                                "redemptionInstructions": "Redeem it.",
+                                "redemptionURL": "https://example.com/redeem",
+                                "__typename": "Reward",
+                            },
+                        ],
+                        "__typename": "RewardCampaign",
+                    },
+                ],
+            },
+            "extensions": {"operationName": "RewardCampaigns"},
+        }
+
+        success, broken_dir = command.process_responses(
+            responses=[payload],
+            file_path=Path("test_rewards.json"),
+            options={},
+        )
+
+        assert success is True
+        assert broken_dir is None
+
+        campaign: RewardCampaign = RewardCampaign.objects.get(twitch_id="rc-1")
+        assert campaign.name == "Test Reward Campaign"
+        assert campaign.brand == "Test Brand"
+
+        reward: Reward = Reward.objects.get(twitch_id="r-1")
+        assert reward.reward_campaign == campaign
+        assert reward.name == "Test Reward Item"
+        assert reward.banner_image_url == "https://example.com/banner.png"
+        assert reward.thumbnail_image_url == "https://example.com/thumb.png"
+        assert reward.earnable_until is not None
+        assert reward.redemption_instructions == "Redeem it."
+        assert reward.redemption_url == "https://example.com/redeem"
+
+    def test_imports_reward_campaign_without_drop_campaigns(self) -> None:
+        """Verify reward campaigns import even when no drop campaigns exist."""
+        command = Command()
+
+        payload: dict[str, object] = {
+            "data": {
+                "currentUser": {
+                    "id": "123",
+                    "__typename": "User",
+                },
+                "rewardCampaignsAvailableToUser": [
+                    {
+                        "id": "rc-only",
+                        "name": "Standalone Reward Campaign",
+                        "brand": "Standalone",
+                        "startsAt": "2025-01-01T00:00:00Z",
+                        "endsAt": "2025-02-01T00:00:00Z",
+                        "status": "ACTIVE",
+                        "summary": "",
+                        "instructions": "",
+                        "externalURL": "",
+                        "rewardValueURLParam": "",
+                        "aboutURL": "",
+                        "isSitewide": False,
+                        "rewards": [],
+                        "__typename": "RewardCampaign",
+                    },
+                ],
+            },
+            "extensions": {"operationName": "RewardCampaigns"},
+        }
+
+        success, broken_dir = command.process_responses(
+            responses=[payload],
+            file_path=Path("test_rewards_only.json"),
+            options={},
+        )
+
+        assert success is True
+        assert broken_dir is None
+        assert RewardCampaign.objects.count() == 1
+        assert RewardCampaign.objects.get(twitch_id="rc-only").name == (
+            "Standalone Reward Campaign"
+        )
 
 
 class CampaignStructureDetectionTests(TestCase):

@@ -13,6 +13,7 @@ from PIL import Image
 
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 
 if TYPE_CHECKING:
@@ -105,6 +106,17 @@ class Command(BaseCommand):
                 )
                 self._merge_stats(total_stats, stats)
                 self._print_stats("Reward Campaigns", stats)
+
+                self.stdout.write(
+                    self.style.MIGRATE_HEADING("\nProcessing Individual Rewards..."),
+                )
+                stats = self._download_reward_images(
+                    client=client,
+                    limit=limit,
+                    force=force,
+                )
+                self._merge_stats(total_stats, stats)
+                self._print_stats("Individual Rewards", stats)
 
         if model_choice == "all":
             self.stdout.write(self.style.MIGRATE_HEADING("\nTotal Summary:"))
@@ -274,6 +286,54 @@ class Command(BaseCommand):
 
         return stats
 
+    def _download_reward_images(
+        self,
+        client: httpx.Client,
+        limit: int | None,
+        *,
+        force: bool,
+    ) -> dict[str, int]:
+        """Download individual Reward images (thumbnail preferred, banner fallback).
+
+        Returns:
+            Dictionary with download statistics (total, downloaded, skipped, failed, placeholders_404).
+        """
+        queryset: QuerySet[Reward] = Reward.objects.all().order_by("twitch_id")
+        if limit:
+            queryset = queryset[:limit]
+
+        stats: dict[str, int] = {
+            "total": 0,
+            "downloaded": 0,
+            "skipped": 0,
+            "failed": 0,
+            "placeholders_404": 0,
+        }
+        stats["total"] = queryset.count()
+
+        for reward in queryset:
+            image_url: str = reward.thumbnail_image_url or reward.banner_image_url
+            if not image_url:
+                stats["skipped"] += 1
+                continue
+            if (
+                reward.image_file
+                and getattr(reward.image_file, "name", "")
+                and not force
+            ):
+                stats["skipped"] += 1
+                continue
+
+            result: str = self._download_image(
+                client,
+                image_url,
+                reward.twitch_id,
+                reward.image_file,
+            )
+            stats[result] += 1
+
+        return stats
+
     def _download_image(
         self,
         client: httpx.Client,
@@ -409,7 +469,9 @@ class Command(BaseCommand):
         )
         if stats["downloaded"] > 0:
             media_path: Path = Path(settings.MEDIA_ROOT)
-            if "Campaigns" in model_name and "Reward" not in model_name:
+            if "Individual Rewards" in model_name:
+                image_dir: Path = media_path / "rewards" / "images"
+            elif "Campaigns" in model_name and "Reward" not in model_name:
                 image_dir: Path = media_path / "campaigns" / "images"
             elif "Benefits" in model_name:
                 image_dir: Path = media_path / "benefits" / "images"

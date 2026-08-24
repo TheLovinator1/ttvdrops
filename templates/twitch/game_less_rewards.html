@@ -66,6 +66,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Rewards</th>
                             <th>Type</th>
                             <th>Ends</th>
                         </tr>
@@ -87,6 +88,11 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ campaign.brand|default:"-" }}</td>
+                                <td>
+                                    {% for reward in campaign.rewards.all %}
+                                        {{ reward.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
                                 <td>
                                     {% if campaign.is_sitewide %}
                                         <strong>Site-wide</strong>
@@ -114,6 +120,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Rewards</th>
                             <th>Type</th>
                             <th>Starts</th>
                         </tr>
@@ -135,6 +142,11 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ campaign.brand|default:"-" }}</td>
+                                <td>
+                                    {% for reward in campaign.rewards.all %}
+                                        {{ reward.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
                                 <td>
                                     {% if campaign.is_sitewide %}
                                         <strong>Site-wide</strong>
@@ -162,6 +174,7 @@
                         <tr>
                             <th>Campaign</th>
                             <th>Brand</th>
+                            <th>Rewards</th>
                             <th>Type</th>
                             <th>Ended</th>
                         </tr>
@@ -183,6 +196,11 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ campaign.brand|default:"-" }}</td>
+                                <td>
+                                    {% for reward in campaign.rewards.all %}
+                                        {{ reward.name }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
                                 <td>
                                     {% if campaign.is_sitewide %}
                                         <strong>Site-wide</strong>
