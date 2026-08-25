@@ -875,6 +875,55 @@ class HistoricalImportTests(TestCase):
         assert not game.owners.exists()
         assert Organization.objects.count() == 0
 
+    def test_parse_and_import_drops_with_null_game(self) -> None:
+        """Verify drops with rewards[].game: null validate and import."""
+        raw = [
+            {
+                "endAt": "2026-06-21T10:59:00Z",
+                "gameBoxArtURL": "https://example.com/art.png",
+                "gameDisplayName": "No Game Game",
+                "gameId": "no-game-group-1",
+                "rewards": [
+                    {
+                        "id": "no-game-campaign-1",
+                        "self": None,
+                        "allow": {"isEnabled": True},
+                        "accountLinkURL": "https://example.com",
+                        "description": "No game",
+                        "detailsURL": "https://example.com",
+                        "endAt": "2026-06-21T10:59:00Z",
+                        "eventBasedDrops": [],
+                        "game": None,
+                        "imageURL": "",
+                        "name": "No Game Campaign",
+                        "owner": None,
+                        "startAt": "2026-06-12T15:00:00Z",
+                        "status": "ACTIVE",
+                        "timeBasedDrops": [],
+                        "__typename": "DropCampaign",
+                    },
+                ],
+                "startAt": "2026-06-12T15:00:00Z",
+                "__typename": "DropGroup",
+            },
+        ]
+        command = Command()
+        self._init_caches(command)
+        count: int = command._parse_and_import_drops(
+            raw_data=raw,
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=True,
+        )
+        assert count == 1
+        campaign: DropCampaign = DropCampaign.objects.get(
+            twitch_id="no-game-campaign-1",
+        )
+        assert campaign.data_source == "SunkwiBOT/twitch-drops-api"
+        # Group-level game is still imported
+        game: Game = Game.objects.get(twitch_id="no-game-group-1")
+        assert game.display_name == "No Game Game"
+
     @patch.object(Command, "_process_historical")
     def test_historical_flag_calls_process_historical(
         self,

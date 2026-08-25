@@ -795,7 +795,7 @@ class SunkwiBotRewardSchema(BaseModel):
     details_url: str = Field(alias="detailsURL")
     end_at: str = Field(alias="endAt")
     event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
-    game: SunkwiBotGameRefSchema
+    game: SunkwiBotGameRefSchema | None = None
     image_url: str = Field(alias="imageURL")
     name: str
     owner: SunkwiBotOrganizationSchema | None = None
