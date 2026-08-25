@@ -997,11 +997,12 @@ class Command(BaseCommand):
             skip_existing: If True, skip if campaign already exists.
         """
         # Owner organization
-        self._get_or_create_organization(
-            twitch_id=reward.owner.twitch_id,
-            name=reward.owner.name,
-            verbose=verbose,
-        )
+        if reward.owner:
+            self._get_or_create_organization(
+                twitch_id=reward.owner.twitch_id,
+                name=reward.owner.name,
+                verbose=verbose,
+            )
 
         # Parse dates
         start_at_dt = parse_date(reward.start_at)

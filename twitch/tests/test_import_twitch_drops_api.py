@@ -819,6 +819,59 @@ class HistoricalImportTests(TestCase):
         assert count == 1
         assert DropCampaign.objects.filter(twitch_id="hist-campaign-1").exists()
 
+    def test_parse_and_import_drops_with_null_owner(self) -> None:
+        """Verify drops with owner: null validate and import without an org."""
+        raw = [
+            {
+                "endAt": "2026-06-21T10:59:00Z",
+                "gameBoxArtURL": "https://example.com/art.png",
+                "gameDisplayName": "No Owner Game",
+                "gameId": "no-owner-game-1",
+                "rewards": [
+                    {
+                        "id": "no-owner-campaign-1",
+                        "self": None,
+                        "allow": {"isEnabled": True},
+                        "accountLinkURL": "https://example.com",
+                        "description": "No owner",
+                        "detailsURL": "https://example.com",
+                        "endAt": "2026-06-21T10:59:00Z",
+                        "eventBasedDrops": [],
+                        "game": {
+                            "id": "no-owner-game-1",
+                            "slug": "no-owner",
+                            "displayName": "No Owner Game",
+                        },
+                        "imageURL": "",
+                        "name": "No Owner Campaign",
+                        "owner": None,
+                        "startAt": "2026-06-12T15:00:00Z",
+                        "status": "ACTIVE",
+                        "timeBasedDrops": [],
+                        "__typename": "DropCampaign",
+                    },
+                ],
+                "startAt": "2026-06-12T15:00:00Z",
+                "__typename": "DropGroup",
+            },
+        ]
+        command = Command()
+        self._init_caches(command)
+        count: int = command._parse_and_import_drops(
+            raw_data=raw,
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=True,
+        )
+        assert count == 1
+        campaign: DropCampaign = DropCampaign.objects.get(
+            twitch_id="no-owner-campaign-1",
+        )
+        assert campaign.data_source == "SunkwiBOT/twitch-drops-api"
+        game: Game = Game.objects.get(twitch_id="no-owner-game-1")
+        assert not game.owners.exists()
+        assert Organization.objects.count() == 0
+
     @patch.object(Command, "_process_historical")
     def test_historical_flag_calls_process_historical(
         self,
