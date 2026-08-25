@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import subprocess  # ruff:ignore[suspicious-subprocess-import]
+from typing import LiteralString
 from typing import Self
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
 import httpx
 import pytest
+from django.core.management.base import CommandError
 from django.test import TestCase
 
 from twitch.management.commands.import_twitch_drops_api import Command
@@ -894,3 +897,178 @@ class HistoricalImportTests(TestCase):
             git_dir="",
         )
         mock_process.assert_called_once()
+
+    def test_start_from_requires_historical(self) -> None:
+        """Verify --start-from without --historical raises CommandError."""
+        command = Command()
+        with pytest.raises(CommandError):
+            command.handle(
+                historical=False,
+                start_from="02dabf1",
+                source="SunkwiBOT/twitch-drops-api",
+                verbose=False,
+                crash_on_error=False,
+                drops_url="",
+                rewards_url="",
+                drops_only=False,
+                rewards_only=False,
+                no_skip_latest=False,
+                max_commits=0,
+                git_dir="",
+            )
+
+    @patch.object(Command, "_process_historical")
+    def test_start_from_forwarded_to_process_historical(
+        self,
+        mock_process: MagicMock,
+    ) -> None:
+        """Verify --start-from is forwarded to _process_historical."""
+        mock_process.return_value = (0, 0, [])
+        command = Command()
+        command.handle(
+            historical=True,
+            start_from="02dabf1",
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=False,
+            drops_url="",
+            rewards_url="",
+            drops_only=False,
+            rewards_only=False,
+            no_skip_latest=False,
+            max_commits=0,
+            git_dir="",
+        )
+        mock_process.assert_called_once()
+        assert mock_process.call_args.kwargs["start_from"] == "02dabf1"
+
+    def _fake_git_for_from_commit(self) -> MagicMock:
+        """Return a mocked _git that resolves 02dabf1 to a full SHA."""
+        full_sha: LiteralString = "02dabf1" + "c" * 33
+
+        def fake_git(git_dir: str, *args: str, check: bool = True) -> str:
+            if args and args[0] == "rev-parse":
+                return f"{full_sha}\n"
+            if args and args[0] == "show":
+                return "1700000200\n"
+            return ""
+
+        return patch.object(Command, "_git", side_effect=fake_git)  # pyright: ignore[reportReturnType]
+
+    def test_filter_from_commit_matches_sha(self) -> None:
+        """Verify _filter_from_commit keeps commits at/after the given SHA."""
+        command = Command()
+        self._init_caches(command)
+        lines: list[str] = [
+            f"{'a' * 40} 1700000000",
+            f"{'b' * 40} 1700000100",
+            "02dabf1" + "c" * 33 + " 1700000200",
+            f"{'d' * 40} 1700000300",
+        ]
+        with self._fake_git_for_from_commit():
+            kept: list[str] = command._filter_from_commit(
+                git_dir="repo",
+                lines=lines,
+                file_path="drops.json",
+                start_from="02dabf1",
+            )
+        assert kept == lines[2:]
+
+    def test_filter_from_commit_falls_back_to_timestamp(self) -> None:
+        """Verify a commit not in a file's history still skips older commits."""
+        command = Command()
+        self._init_caches(command)
+        lines: list[str] = [
+            f"{'a' * 40} 1700000000",
+            f"{'b' * 40} 1700000100",
+            f"{'c' * 40} 1700000200",
+            f"{'d' * 40} 1700000300",
+        ]
+        with self._fake_git_for_from_commit():
+            kept = command._filter_from_commit(
+                git_dir="repo",
+                lines=lines,
+                file_path="rewards.json",
+                start_from="02dabf1",
+            )
+        # 02dabf1 never touched rewards.json; fall back to its commit time
+        assert kept == lines[2:]
+
+    def test_filter_from_commit_unknown_sha(self) -> None:
+        """Verify an unresolvable SHA raises CommandError."""
+        command = Command()
+        self._init_caches(command)
+
+        def fake_git(git_dir: str, *args: str, check: bool = True) -> str:
+            raise subprocess.CalledProcessError(128, "git")
+
+        with (
+            patch.object(Command, "_git", side_effect=fake_git),
+            pytest.raises(CommandError),
+        ):
+            command._filter_from_commit(
+                git_dir="repo",
+                lines=[f"{'a' * 40} 1700000000"],
+                file_path="drops.json",
+                start_from="deadbeef",
+            )
+
+    def test_import_historical_file_start_from(self) -> None:
+        """Verify --start-from only imports commits at/after the given SHA."""
+        command = Command()
+        self._init_caches(command)
+        sha_a: LiteralString = "a" * 40
+        sha_b: LiteralString = "02dabf1" + "c" * 33
+        sha_d: LiteralString = "d" * 40
+        lines: list[str] = [
+            f"{sha_a} 1700000000",
+            f"{sha_b} 1700000200",
+            f"{sha_d} 1700000300",
+        ]
+        contents: dict[str, str] = {
+            sha_a: json.dumps([
+                {"gameId": "g1", "gameDisplayName": "G1", "rewards": []},
+            ]),
+            sha_b: json.dumps([
+                {"gameId": "g2", "gameDisplayName": "G2", "rewards": []},
+            ]),
+            sha_d: json.dumps([
+                {"gameId": "g3", "gameDisplayName": "G3", "rewards": []},
+            ]),
+        }
+
+        def fake_git(git_dir: str, *args: str, check: bool = True) -> str:
+            if args and args[0] == "log":
+                return "\n".join(lines) + "\n"
+            if args and args[0] == "rev-parse":
+                return f"{sha_b}\n"
+            if args and args[0] == "show":
+                return (
+                    "1700000200\n"
+                    if args[1] == "-s"
+                    else contents[args[1].split(":")[0]]
+                )
+            return ""
+
+        with (
+            patch.object(Command, "_git", side_effect=fake_git),
+            patch.object(
+                Command,
+                "_parse_and_import_drops",
+                return_value=0,
+            ) as mock_import,
+        ):
+            command._import_historical_file(
+                git_dir="repo",
+                file_path="drops.json",
+                source="test",
+                verbose=False,
+                crash_on_error=False,
+                skip_latest=False,
+                max_commits=0,
+                skip_existing=False,
+                start_from="02dabf1",
+            )
+
+        labels = [call.kwargs["label"] for call in mock_import.call_args_list]
+        assert labels == ["drops@02dabf1", "drops@ddddddd"]

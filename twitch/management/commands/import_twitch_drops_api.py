@@ -15,6 +15,9 @@ Usage::
     uv run python manage.py import_twitch_drops_api --historical --max-commits 50
     uv run python manage.py import_twitch_drops_api --historical --git-dir /tmp/mirror
 
+    # Resume historical import from a specific commit (skips older history)
+    uv run python manage.py import_twitch_drops_api --merge --historical --start-from 02dabf1
+
 The ``--source`` argument controls the value stored in the
 ``data_source`` field on imported records (defaults to
 ``"SunkwiBOT/twitch-drops-api"``).
@@ -185,6 +188,16 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--start-from",
+            type=str,
+            default="",
+            help=(
+                "With --historical, skip commits older than this commit and "
+                "start importing from it (inclusive). Accepts a full or "
+                "abbreviated SHA, e.g. --start-from 02dabf1."
+            ),
+        )
+        parser.add_argument(
             "--from-file",
             type=str,
             default="",
@@ -210,6 +223,10 @@ class Command(BaseCommand):
         merge_mode: bool = options.get("merge", False)
         skip_existing: bool = not options.get("update_existing")
         historical: bool = options.get("historical", False)
+        start_from: str = options.get("start_from", "") or ""
+        if start_from and not historical:
+            msg = "--start-from can only be used with --historical."
+            raise CommandError(msg)
 
         # Caches for the duration of the command to avoid redundant DB lookups
         self._org_cache: dict[str, Organization] = {}
@@ -288,6 +305,7 @@ class Command(BaseCommand):
                 max_commits=options["max_commits"],
                 skip_existing=skip_existing,
                 git_dir=options["git_dir"],
+                start_from=options.get("start_from", ""),
             )
             drops_count += hist_drops
             rewards_count += hist_rewards
@@ -365,6 +383,7 @@ class Command(BaseCommand):
         max_commits: int,
         git_dir: str,
         skip_existing: bool = False,
+        start_from: str = "",
     ) -> tuple[int, int, list[str]]:
         """Clone the repo and iterate commits oldest-first to import historical data.
 
@@ -380,6 +399,8 @@ class Command(BaseCommand):
             max_commits: Max unique-content commits to process (0 = all).
             git_dir: Path to existing bare clone, or '' to create a temp one.
             skip_existing: If True, skip campaigns already in the database.
+            start_from: If set, skip commits older than this SHA and start
+                importing from it (inclusive).
 
         Returns:
             Tuple of (drops_count, rewards_count, error_messages).
@@ -414,6 +435,7 @@ class Command(BaseCommand):
                 skip_latest=skip_latest,
                 max_commits=max_commits,
                 skip_existing=skip_existing,
+                start_from=start_from,
             )
             rewards_count += self._import_historical_file(
                 git_dir=git_dir,
@@ -424,6 +446,7 @@ class Command(BaseCommand):
                 skip_latest=skip_latest,
                 max_commits=max_commits,
                 skip_existing=skip_existing,
+                start_from=start_from,
             )
         except Exception as exc:  # ruff:ignore[blind-except]
             errors.append(str(exc))
@@ -433,7 +456,7 @@ class Command(BaseCommand):
 
         return drops_count, rewards_count, errors
 
-    def _import_historical_file(  # ruff:ignore[too-many-arguments]
+    def _import_historical_file(  # ruff:ignore[too-many-arguments, too-many-statements]
         self,
         git_dir: str,
         file_path: str,
@@ -444,6 +467,7 @@ class Command(BaseCommand):
         skip_latest: bool,
         max_commits: int,
         skip_existing: bool,
+        start_from: str = "",
     ) -> int:
         """Import all historical versions of a single file from git history.
 
@@ -456,6 +480,8 @@ class Command(BaseCommand):
             skip_latest: If True, skip the newest commit.
             max_commits: Max unique-content commits (0 = all).
             skip_existing: If True, skip campaigns already in the database.
+            start_from: If set, skip commits older than this SHA and start
+                importing from it (inclusive).
 
         Returns:
             Number of campaigns imported/updated.
@@ -477,6 +503,14 @@ class Command(BaseCommand):
         lines = [ln.strip() for ln in log_output.strip().split("\n") if ln.strip()]
         total = len(lines)
         self.stdout.write(f"  Found {total} total commits for {file_path}")
+
+        if start_from:
+            lines = self._filter_from_commit(
+                git_dir=git_dir,
+                lines=lines,
+                file_path=file_path,
+                start_from=start_from,
+            )
 
         if skip_latest and total > 0:
             lines = lines[:-1]
@@ -566,6 +600,78 @@ class Command(BaseCommand):
             f"{total_campaigns} total campaigns imported for {file_path}",
         )
         return total_campaigns
+
+    def _filter_from_commit(
+        self,
+        git_dir: str,
+        lines: list[str],
+        file_path: str,
+        start_from: str,
+    ) -> list[str]:
+        """Keep only commits at or after ``start_from`` in the commit list.
+
+        The commit is matched by full SHA. If it never touched this file,
+        fall back to a timestamp cutoff so the import resumes at the same
+        point in time (handles e.g. a drops.json-only commit when importing
+        rewards.json).
+
+        Args:
+            git_dir: Path to bare clone.
+            lines: "SHA timestamp" lines from ``git log --reverse``, oldest first.
+            file_path: Path within repo (e.g. "drops.json"), for messages.
+            start_from: Full or abbreviated SHA to start from (inclusive).
+
+        Returns:
+            The filtered lines, still oldest-first.
+
+        Raises:
+            CommandError: If ``start_from`` does not resolve to a commit.
+        """
+        try:
+            full_sha: str = self._git(git_dir, "rev-parse", start_from).strip()
+        except subprocess.CalledProcessError:
+            msg: str = f"Unknown commit for --start-from: {start_from}"
+            raise CommandError(msg) from None
+
+        start_idx: int | None = None
+        for i, line in enumerate(lines):
+            sha: str = line.split(None, 1)[0]
+            if sha == full_sha:
+                start_idx = i
+                break
+
+        if start_idx is None:
+            try:
+                start_ct = int(
+                    self._git(
+                        git_dir,
+                        "show",
+                        "-s",
+                        "--format=%ct",
+                        full_sha,
+                    ).strip(),
+                )
+            except subprocess.CalledProcessError:
+                msg = f"Unknown commit for --start-from: {start_from}"
+                raise CommandError(msg) from None
+            for i, line in enumerate(lines):
+                _sha, _sep, ct = line.partition(" ")
+                if ct and int(ct) >= start_ct:
+                    start_idx = i
+                    break
+
+        if start_idx is None:
+            # Everything for this file is older than the start commit.
+            self.stdout.write(f"  No commits at or after {start_from} for {file_path}")
+            return []
+
+        skipped: int = start_idx
+        kept: list[str] = lines[start_idx:]
+        self.stdout.write(
+            f"  Starting from commit {start_from} ({skipped} older commits "
+            f"skipped, {len(kept)} remaining)",
+        )
+        return kept
 
     # ------------------------------------------------------------------
     # Git / filesystem helpers
