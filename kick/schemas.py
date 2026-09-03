@@ -39,6 +39,7 @@ class KickCategorySchema(BaseModel):
     name: str
     slug: str = ""
     image_url: str = ""
+    banner_image_url: str = ""
 
     model_config = {
         "extra": "forbid",
