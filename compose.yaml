@@ -1,0 +1,160 @@
+name: ttvdrops
+
+# Shared configuration for every container that runs the Django app.
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: ttvdrops:local
+  # Keep file ownership in sync with the host user.
+  user: "${UID:-1000}:${GID:-1000}"
+  env_file:
+    - .env
+  environment:
+    PYTHONUNBUFFERED: "1"
+    # Docker always uses PostgreSQL; SQLite is only for host-side development.
+    USE_SQLITE: "False"
+    POSTGRES_DB: "${POSTGRES_DB:-ttvdrops}"
+    POSTGRES_USER: "${POSTGRES_USER:-ttvdrops}"
+    POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-ttvdrops}"
+    POSTGRES_HOST: db
+    POSTGRES_PORT: "5432"
+    REDIS_URL_CACHE: redis://valkey:6379/0
+    REDIS_URL_CELERY: redis://valkey:6379/1
+    # platformdirs puts media/, staticfiles/ and datasets/ under $XDG_DATA_HOME/TTVDrops.
+    XDG_DATA_HOME: /app/data
+    TTVDROPS_PENDING_DIR: /srv/ttvdrops/responses/pending
+    TTVDROPS_IMPORTED_DIR: /srv/ttvdrops/responses/imported
+    TTVDROPS_BROKEN_DIR: /srv/ttvdrops/responses/broken
+  volumes:
+    - app_data:/app/data
+    - ${TTVDROPS_RESPONSES_DIR:-./responses}:/srv/ttvdrops/responses
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:18-trixie
+    environment:
+      POSTGRES_DB: "${POSTGRES_DB:-ttvdrops}"
+      POSTGRES_USER: "${POSTGRES_USER:-ttvdrops}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-ttvdrops}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\"" ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8-trixie
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  # One-shot container: migrations + static files before any worker starts.
+  init:
+    <<: *app
+    command: [ "sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput" ]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  web:
+    <<: *app
+    command:
+      - sh
+      - -c
+      - >-
+        gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers $${WEB_CONCURRENCY:-4} --name ttvdrops --max-requests 1200 --max-requests-jitter 50 --access-logfile - --error-logfile -
+    ports:
+      - "${TTVDROPS_HTTP_HOST:-127.0.0.1}:${TTVDROPS_HTTP_PORT:-8000}:8000"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      # TCP check only: with DEBUG=False Django rejects requests to 127.0.0.1
+      # (ALLOWED_HOSTS is fixed to the production domain).
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=3).close()"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  celery-worker:
+    <<: *app
+    command:
+      - sh
+      - -c
+      - >-
+        celery -A config worker --queues imports,api-fetches,image-downloads,default --concurrency $${CELERY_CONCURRENCY:-4} --loglevel INFO
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  celery-beat:
+    <<: *app
+    command:
+      - celery
+      - -A
+      - config
+      - beat
+      - --scheduler
+      - django_celery_beat.schedulers:DatabaseScheduler
+      - --loglevel
+      - INFO
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+  # Optional: docker compose --profile monitoring up -d
+  flower:
+    <<: *app
+    profiles: [ monitoring ]
+    command:
+      - celery
+      - -A
+      - config
+      - flower
+      - --address=0.0.0.0
+      - --port=5555
+    ports:
+      - "127.0.0.1:5555:5555"
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  valkey_data:
+  app_data:

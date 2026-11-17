@@ -1,0 +1,58 @@
+name: Build Docker image
+
+# Pushes to the container registry of the Forgejo instance.
+#
+# Required repository secret:
+#   REGISTRY_TOKEN - access token with the `write:package` scope. The
+#                    automatic FORGEJO_TOKEN cannot push to the registry.
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 14 * * *"
+      timezone: Europe/Stockholm
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to the container registry
+        if: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) }}
+        uses: docker/login-action@v4
+        with:
+          registry: git.lovinator.space
+          username: TheLovinator
+          password: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: git.lovinator.space/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,format=short,prefix=sha-
+          labels: |
+            org.opencontainers.image.source=git.lovinator.space/TheLovinator/ttvdrops
+            org.opencontainers.image.title=ttvdrops
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')) }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false

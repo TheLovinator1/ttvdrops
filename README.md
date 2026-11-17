@@ -60,7 +60,83 @@ Contributions are welcome! Here's how to get started:
 6. Run tests with `uv run pytest`
 7. Submit a pull request
 
-## TL;DR (Arch Linux + PostgreSQL)
+## Docker (recommended)
+
+Docker Compose runs PostgreSQL, Valkey, Gunicorn, a Celery worker, and Celery Beat. The
+image includes `git` and `pg_dump`, so no host-side programs are needed.
+
+1. Create `.env` and set `DJANGO_SECRET_KEY`, the Twitch credentials, and `DEBUG=False`
+   for production:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Keep `DEBUG=True` for local testing; otherwise `ALLOWED_HOSTS` is fixed to
+   `ttvdrops.lovinator.space`.
+
+2. Create the response directories:
+
+   ```bash
+   mkdir -p responses/{pending,imported,broken}
+   ```
+
+   To reuse existing files, set `TTVDROPS_RESPONSES_DIR` in `.env`. `UID`/`GID` should
+   match their owner.
+
+3. Start the stack:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+4. Optional: create an admin and follow the logs:
+
+   ```bash
+   docker compose exec web python manage.py createsuperuser
+   docker compose logs -f web celery-worker celery-beat
+   ```
+
+The site is published on `127.0.0.1:8000` (change `TTVDROPS_HTTP_HOST` /
+`TTVDROPS_HTTP_PORT` in `.env`). Serve `/static/` and `/media/` from the
+`ttvdrops_app_data` volume. `docker compose down` keeps data; `down -v` deletes it.
+
+| Action                     | Command                                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Stop                       | `docker compose down`                                                                                     |
+| Stop and delete all data   | `docker compose down -v`                                                                                  |
+| Shell in the web container | `docker compose exec web sh`                                                                              |
+| Run a management command   | `docker compose exec web python manage.py <command>`                                                      |
+| Import pending drops       | `docker compose exec web python manage.py better_import_drops /srv/ttvdrops/responses/pending --recursive` |
+| Create a database backup   | `docker compose exec celery-worker python manage.py backup_db`                                            |
+| Flower task monitor        | `docker compose --profile monitoring up -d`, then open <http://127.0.0.1:5555>                            |
+
+### Migrating from the host install
+
+Copy media files and datasets into the app volume:
+
+```bash
+docker compose run --rm -v "$HOME/.local/share/TTVDrops:/old-data" web \
+  sh -c 'cp -a /old-data/. /app/data/TTVDrops/'
+```
+
+Restore an existing PostgreSQL dump before starting the app:
+
+```bash
+docker compose up -d db
+pg_dump -Fc -U ttvdrops ttvdrops > /tmp/ttvdrops.dump
+docker compose exec -T db pg_restore -U ttvdrops -d ttvdrops --clean --if-exists < /tmp/ttvdrops.dump
+docker compose up -d --build
+```
+
+If the old install used SQLite, export from the host and load into the container:
+
+```bash
+uv run python manage.py dumpdata --natural-foreign --natural-primary -o /tmp/ttvdrops.json
+docker compose run --rm -v /tmp:/host web python manage.py loaddata /host/ttvdrops.json
+```
+
+## TL;DR (Arch Linux + PostgreSQL, host install)
 
 Install and initialize Postgres, then start the service:
 
