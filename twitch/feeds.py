@@ -187,7 +187,7 @@ class TTVDropsBaseFeed(Feed):
         """
         # TODO(TheLovinator): Refactor to avoid this mess.  # ruff:ignore[missing-todo-link]
         try:
-            from django.contrib.sites import shortcuts as sites_shortcuts  # ruff:ignore[unsorted-imports, import-outside-top-level]
+            from django.contrib.sites import shortcuts as sites_shortcuts  # ruff:ignore[import-outside-top-level]
         except ImportError:
             sites_shortcuts = None
 

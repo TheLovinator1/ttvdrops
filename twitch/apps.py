@@ -39,7 +39,7 @@ class TwitchConfig(AppConfig):
 
         # Register post_save signal handlers that dispatch image download tasks
         # when new Twitch records are created.
-        from django.db.models.signals import m2m_changed  # ruff:ignore[unsorted-imports, import-outside-top-level]
+        from django.db.models.signals import m2m_changed  # ruff:ignore[import-outside-top-level]
         from django.db.models.signals import post_save  # ruff:ignore[import-outside-top-level]
 
         from twitch.models import DropBenefit  # ruff:ignore[import-outside-top-level]

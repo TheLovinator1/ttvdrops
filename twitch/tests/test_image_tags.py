@@ -1,3 +1,5 @@
+import inspect
+
 from django.template import Context
 from django.template import Template
 from django.test import SimpleTestCase
@@ -36,6 +38,11 @@ class ImageTagsTests(SimpleTestCase):
         # If initialization reached this point without raising, we consider
         # the protection successful.
         assert g.twitch_id == "test-game"
+
+    def test_annotations_resolve_at_runtime(self) -> None:
+        """Template tag registration must be able to inspect annotations."""
+        spec = inspect.getfullargspec(picture)
+        assert spec.annotations["return"] is SafeString
 
 
 class TestGetFormatUrl:

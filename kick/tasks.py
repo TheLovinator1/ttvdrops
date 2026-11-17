@@ -8,7 +8,7 @@ from django.core.management import call_command
 logger = logging.getLogger("ttvdrops.tasks")
 
 
-@shared_task(bind=True, queue="api-fetches", max_retries=3, default_retry_delay=120)
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
 def import_kick_drops(self) -> None:  # ruff:ignore[missing-type-function-argument]
     """Fetch and upsert Kick drop campaigns from the public API."""
     try:

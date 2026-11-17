@@ -213,3 +213,4 @@ responses/
 staticfiles/
 archive/
 check_these_please/
+.django-stub-gen/rule-tables.json

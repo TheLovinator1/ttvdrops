@@ -159,6 +159,7 @@ MIDDLEWARE: list[str] = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "core.middleware.TimezoneMiddleware",
+    "core.middleware.PageCacheMiddleware",
 ]
 
 
@@ -255,12 +256,37 @@ REDIS_URL_CELERY: str = os.getenv(
     default="redis://localhost:6379/1",
 )
 
-CACHES: dict[str, dict[str, str]] = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": REDIS_URL_CACHE,
-    },
-}
+# Full-page response cache. Uses a dedicated Valkey/Redis instance with a
+# volatile keyspace, so entries never need to survive a restart. Tests force it
+# off so request/query-count assertions are deterministic; cache tests opt in
+# with ``override_settings(PAGE_CACHE_ENABLED=True)``.
+PAGE_CACHE_ENABLED: bool = not TESTING and env_bool(
+    key="PAGE_CACHE_ENABLED",
+    default=not DEBUG,
+)
+PAGE_CACHE_ALIAS: str = "default"
+PAGE_CACHE_RELEASE: str = (os.getenv("GIT_SHA") or os.getenv("RELEASE") or "dev")[:12]
+PAGE_CACHE_GZIP: bool = env_bool(key="PAGE_CACHE_GZIP", default=True)
+# Covers the largest export response (campaigns JSON, ~12 MB raw).
+PAGE_CACHE_MAX_BODY: int = env_int(key="PAGE_CACHE_MAX_BODY", default=16 * 1024 * 1024)
+
+if TESTING:
+    CACHES: dict[str, dict[str, Any]] = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        },
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL_CACHE,
+            "OPTIONS": {
+                "socket_timeout": 1,
+                "socket_connect_timeout": 1,
+            },
+        },
+    }
 
 CELERY_BROKER_URL: str = REDIS_URL_CELERY
 CELERY_RESULT_BACKEND = "django-db"

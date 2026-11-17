@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 logger: logging.Logger = logging.getLogger("ttvdrops.tasks")
 
 
-@shared_task(bind=True, queue="imports", max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def scan_pending_twitch_files(self) -> None:  # ruff:ignore[missing-type-function-argument]
     """Scan TTVDROPS_PENDING_DIR for JSON files and dispatch an import task for each."""
     pending_dir: str = os.getenv("TTVDROPS_PENDING_DIR", "")
@@ -43,10 +43,10 @@ def scan_pending_twitch_files(self) -> None:  # ruff:ignore[missing-type-functio
         logger.info("Dispatched %d Twitch file import task(s).", len(json_files))
 
 
-@shared_task(bind=True, queue="imports", max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def import_twitch_file(self, file_path: str) -> None:  # ruff:ignore[missing-type-function-argument]
     """Import a single Twitch JSON drop file via BetterImportDrops logic."""
-    from twitch.management.commands.better_import_drops import Command as Importer  # ruff:ignore[unsorted-imports, import-outside-top-level]
+    from twitch.management.commands.better_import_drops import Command as Importer  # ruff:ignore[import-outside-top-level]
 
     path = Path(file_path)
     if not path.is_file():
@@ -149,10 +149,10 @@ def _save_modern_formats(img: Image, source: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def download_game_image(self, game_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the box art image for a single Game."""
-    from twitch.models import Game  # ruff:ignore[import-outside-top-level, unsorted-imports]
+    from twitch.models import Game  # ruff:ignore[import-outside-top-level]
     from twitch.utils import is_twitch_box_art_url  # ruff:ignore[import-outside-top-level]
     from twitch.utils import normalize_twitch_box_art_url  # ruff:ignore[import-outside-top-level]
 
@@ -171,7 +171,7 @@ def download_game_image(self, game_pk: int) -> None:  # ruff:ignore[missing-type
         raise self.retry(exc=exc) from exc
 
 
-@shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def download_campaign_image(self, campaign_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the image for a single DropCampaign."""
     from twitch.models import DropCampaign  # ruff:ignore[import-outside-top-level]
@@ -190,7 +190,7 @@ def download_campaign_image(self, campaign_pk: int) -> None:  # ruff:ignore[miss
         raise self.retry(exc=exc) from exc
 
 
-@shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def download_benefit_image(self, benefit_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the image for a single DropBenefit."""
     from twitch.models import DropBenefit  # ruff:ignore[import-outside-top-level]
@@ -213,7 +213,7 @@ def download_benefit_image(self, benefit_pk: int) -> None:  # ruff:ignore[missin
         raise self.retry(exc=exc) from exc
 
 
-@shared_task(bind=True, queue="image-downloads", max_retries=3, default_retry_delay=300)
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
 def download_reward_campaign_image(self, reward_pk: int) -> None:  # ruff:ignore[missing-type-function-argument]
     """Download and cache the image for a single RewardCampaign."""
     from twitch.models import RewardCampaign  # ruff:ignore[import-outside-top-level]
@@ -232,7 +232,7 @@ def download_reward_campaign_image(self, reward_pk: int) -> None:  # ruff:ignore
         raise self.retry(exc=exc) from exc
 
 
-@shared_task(queue="image-downloads")
+@shared_task
 def download_all_images() -> None:
     """Weekly full-refresh: download images for all Twitch models."""
     call_command("download_box_art")
@@ -244,7 +244,7 @@ def download_all_images() -> None:
 # ---------------------------------------------------------------------------
 
 
-@shared_task(bind=True, queue="api-fetches", max_retries=3, default_retry_delay=120)
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
 def import_chat_badges(self) -> None:  # ruff:ignore[missing-type-function-argument]
     """Fetch and upsert Twitch global chat badges via the Helix API."""
     try:
@@ -258,7 +258,7 @@ def import_chat_badges(self) -> None:  # ruff:ignore[missing-type-function-argum
 # ---------------------------------------------------------------------------
 
 
-@shared_task(queue="default")
+@shared_task
 def backup_database() -> None:
     """Create a zstd-compressed SQL backup of the dataset tables."""
     call_command("backup_db")

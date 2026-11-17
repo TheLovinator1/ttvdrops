@@ -23,9 +23,7 @@ def _dispatch(task_fn: Any, pk: int) -> None:  # ruff:ignore[any-type]
 def on_game_saved(sender: Any, instance: Any, created: bool, **kwargs: Any) -> None:  # ruff:ignore[any-type, boolean-type-hint-positional-argument]
     """Dispatch a box-art download task when a new Game is created."""
     if created:
-        from twitch.tasks import (  # ruff:ignore[import-outside-top-level]
-            download_game_image,
-        )
+        from twitch.tasks import download_game_image  # ruff:ignore[import-outside-top-level]
 
         _dispatch(download_game_image, instance.pk)
 
@@ -38,9 +36,7 @@ def on_drop_campaign_saved(
 ) -> None:
     """Dispatch an image download task when a new DropCampaign is created."""
     if created:
-        from twitch.tasks import (  # ruff:ignore[import-outside-top-level]
-            download_campaign_image,
-        )
+        from twitch.tasks import download_campaign_image  # ruff:ignore[import-outside-top-level]
 
         _dispatch(download_campaign_image, instance.pk)
 
@@ -53,9 +49,7 @@ def on_drop_benefit_saved(
 ) -> None:
     """Dispatch an image download task when a new DropBenefit is created."""
     if created:
-        from twitch.tasks import (  # ruff:ignore[import-outside-top-level]
-            download_benefit_image,
-        )
+        from twitch.tasks import download_benefit_image  # ruff:ignore[import-outside-top-level]
 
         _dispatch(download_benefit_image, instance.pk)
 
@@ -68,9 +62,7 @@ def on_reward_campaign_saved(
 ) -> None:
     """Dispatch an image download task when a new RewardCampaign is created."""
     if created:
-        from twitch.tasks import (  # ruff:ignore[import-outside-top-level]
-            download_reward_campaign_image,
-        )
+        from twitch.tasks import download_reward_campaign_image  # ruff:ignore[import-outside-top-level]
 
         _dispatch(download_reward_campaign_image, instance.pk)
 

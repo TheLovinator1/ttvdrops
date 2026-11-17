@@ -369,7 +369,7 @@ def _validate_repair_result(
             # Otherwise return as-is
             return fixed
     # Single dict - check if it's a GraphQL response
-    elif isinstance(parsed_data, dict):
+    elif isinstance(parsed_data, dict):  # ruff: ignore[collapsible-if]
         if "data" in parsed_data or "extensions" in parsed_data:
             return fixed
     return None

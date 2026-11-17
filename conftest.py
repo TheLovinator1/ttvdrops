@@ -1,10 +1,23 @@
 from typing import TYPE_CHECKING
 
 import pytest
+from django.core.cache import caches
 from zeal import zeal_context
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+
+@pytest.fixture(autouse=True)
+def clear_cache() -> Generator[None]:
+    """Clear the default cache before and after each test.
+
+    Yields:
+        None: Control back to pytest for test execution.
+    """
+    caches["default"].clear()
+    yield
+    caches["default"].clear()
 
 
 @pytest.fixture(autouse=True)

@@ -1,5 +1,4 @@
 import logging
-from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from django import template
@@ -7,9 +6,6 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
-
-if TYPE_CHECKING:
-    from django.utils.safestring import SafeText
 
 register = template.Library()
 logger = logging.getLogger("ttvdrops.image_tags")
@@ -54,7 +50,7 @@ def picture(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
     loading: str = "lazy",
     css_class: str = "",
     style: str = "",
-) -> SafeText:
+) -> SafeString:
     """Render a responsive picture element with modern image formats.
 
     Args:
@@ -67,7 +63,7 @@ def picture(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
         style: Inline styles to apply
 
     Returns:
-        SafeText containing the picture element HTML
+        SafeString containing the picture element HTML
     """
     if not src:
         return SafeString("")
