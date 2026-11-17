@@ -45,6 +45,18 @@
             available rewards. Some campaigns may not be available in your region.
             <a href="https://help.twitch.tv/s/article/mission-based-drops">Learn more about Drops</a>.
         </p>
+        <p style="font-size: 0.9rem;
+                  color: color-mix(in srgb, CanvasText 70%, transparent 30%)">
+            {% if latest_campaign_added_at %}
+                Last updated at
+                <time datetime="{{ latest_campaign_added_at|date:'c' }}"
+                      title="{{ latest_campaign_added_at|date:'DATETIME_FORMAT' }}">
+                    {{ latest_campaign_added_at|timesince }} ago
+                </time>
+            {% else %}
+                No campaigns have been added yet.
+            {% endif %}
+        </p>
         <hr />
         <section id="twitch-campaigns-section">
             <header style="margin-bottom: 1rem;">
@@ -64,9 +76,9 @@
                                             text-transform: uppercase;
                                             letter-spacing: 0.05em">
                                     Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
+                                                 title="RSS feed documentation"
+                                                 style="color: inherit;
+                                                        text-decoration: none">(?)</a>
                                 </div>
                                 <div>
                                     Campaigns:
@@ -236,9 +248,9 @@
                                                 text-transform: uppercase;
                                                 letter-spacing: 0.05em">
                                         Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
+                                                     title="RSS feed documentation"
+                                                     style="color: inherit;
+                                                            text-decoration: none">(?)</a>
                                     </div>
                                     <div>
                                         Rewards:
@@ -355,9 +367,9 @@
                                             text-transform: uppercase;
                                             letter-spacing: 0.05em">
                                     Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
+                                                 title="RSS feed documentation"
+                                                 style="color: inherit;
+                                                        text-decoration: none">(?)</a>
                                 </div>
                                 <div>
                                     Campaigns:
@@ -429,7 +441,7 @@
                                         {% for org in game_data.organizations %}
                                             <a href="{% url 'kick:organization_detail' org.kick_id %}"
                                                style="color: inherit">{{ org.name }}</a>
-                                            {% if not forloop.last %}, {% endif %}
+                                            {% if not forloop.last %},{% endif %}
                                         {% endfor %}
                                     </div>
                                 {% endif %}

@@ -154,3 +154,46 @@ class TestCoreDashboardRewardCampaigns(TestCase):
 
         assert response.status_code == 200
         assert "Core Dashboard Reward Item" in content
+
+
+class TestCoreDashboardLatestCampaign(TestCase):
+    """Tests for the "last campaign added" line on the core dashboard."""
+
+    def test_shows_most_recently_added_campaign(self) -> None:
+        """The dashboard should show when the newest campaign was added."""
+        org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-latest-1",
+            name="Latest Org",
+        )
+        campaign: KickDropCampaign = KickDropCampaign.objects.create(
+            kick_id="camp-latest-1",
+            name="Latest Campaign",
+            status="active",
+            starts_at=dt(2020, 1, 1, tzinfo=UTC),
+            ends_at=dt(2099, 12, 31, tzinfo=UTC),
+            organization=org,
+            rule_id=1,
+            rule_name="Watch to redeem",
+            is_fully_imported=True,
+        )
+        added_at = dt(2020, 1, 2, 3, 4, 5, tzinfo=UTC)
+        KickDropCampaign.objects.filter(pk=campaign.pk).update(added_at=added_at)
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("core:dashboard"),
+        )
+        content: str = response.content.decode()
+
+        assert response.status_code == 200
+        assert "Last campaign added" in content
+        assert 'datetime="2020-01-02T03:04:05+00:00"' in content
+
+    def test_shows_empty_state_without_campaigns(self) -> None:
+        """The dashboard should handle having no campaigns gracefully."""
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("core:dashboard"),
+        )
+        content: str = response.content.decode()
+
+        assert response.status_code == 200
+        assert "No campaigns have been added yet." in content

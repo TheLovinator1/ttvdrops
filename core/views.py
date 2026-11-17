@@ -1233,6 +1233,20 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
         .order_by("-starts_at")
     )
 
+    # Most recent time any campaign was added to the site, across all platforms.
+    latest_campaign_added_at: datetime.datetime | None = max(
+        (
+            added_at
+            for added_at in [
+                DropCampaign.objects.aggregate(max=Max("added_at"))["max"],
+                RewardCampaign.objects.aggregate(max=Max("added_at"))["max"],
+                KickDropCampaign.objects.aggregate(max=Max("added_at"))["max"],
+            ]
+            if added_at is not None
+        ),
+        default=None,
+    )
+
     website_schema: dict[str, str | dict[str, str | dict[str, str]]] = {
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -1266,6 +1280,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
             "campaigns_by_game": twitch_campaigns_by_game,
             "kick_campaigns_by_game": kick_campaigns_by_game,
             "active_reward_campaigns": active_reward_campaigns,
+            "latest_campaign_added_at": latest_campaign_added_at,
             "now": now,
             **seo_context,
         },
