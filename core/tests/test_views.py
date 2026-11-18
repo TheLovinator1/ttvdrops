@@ -157,7 +157,7 @@ class TestCoreDashboardRewardCampaigns(TestCase):
 
 
 class TestCoreDashboardLatestCampaign(TestCase):
-    """Tests for the "last campaign added" line on the core dashboard."""
+    """Tests for the "Last updated at" line on the core dashboard."""
 
     def test_shows_most_recently_added_campaign(self) -> None:
         """The dashboard should show when the newest campaign was added."""
@@ -185,7 +185,7 @@ class TestCoreDashboardLatestCampaign(TestCase):
         content: str = response.content.decode()
 
         assert response.status_code == 200
-        assert "Last campaign added" in content
+        assert "Last updated at" in content
         assert 'datetime="2020-01-02T03:04:05+00:00"' in content
 
     def test_shows_empty_state_without_campaigns(self) -> None:

@@ -1,4 +1,5 @@
 {% load static %}
+{% load discord_embed %}
 <!--
     TTVDrops has a public JSON API and downloadable datasets.
     You do not need to scrape this site for this data.
@@ -35,6 +36,7 @@
         <meta name="keywords" content="Twitch, Drops" />
         <title>{% block title %}{% firstof page_title "Twitch, Kick & Chzzk Drops, Rewards and Campaigns" %}{% endblock title %} | TTVDrops</title>
         {% include "includes/meta_tags.html" %}
+        {% discord_component_embed %}
         <!-- Feed discovery links -->
         <!-- Read {% url 'core:docs_rss' %} for more details on available feeds -->
         <link rel="alternate"

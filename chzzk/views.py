@@ -11,6 +11,8 @@ from django.utils.safestring import SafeText
 from django.views import generic
 
 from chzzk import models
+from core.discord_embed import CHZZK_ACCENT_COLOR
+from core.discord_embed import embed_buttons
 from twitch.feeds import TTVDropsBaseFeed
 
 if TYPE_CHECKING:
@@ -46,6 +48,13 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
             "page_description": (
                 "Browse active Chzzk drop campaigns, rewards and schedules."
             ),
+            "discord_embed_accent_color": CHZZK_ACCENT_COLOR,
+            "discord_embed_buttons": embed_buttons(
+                ("Chzzk Drops", "https://chzzk.naver.com/"),
+                ("Campaigns", "/chzzk/campaigns/"),
+                ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+                ("Kick Drops", "/kick/"),
+            ),
         },
     )
 
@@ -71,6 +80,13 @@ class CampaignListView(generic.ListView):
         context["page_title"] = "Chzzk Drop Campaigns, Rewards and Archive"
         context["page_description"] = (
             "Browse all Chzzk drop campaigns, rewards and past campaigns."
+        )
+        context["discord_embed_accent_color"] = CHZZK_ACCENT_COLOR
+        context["discord_embed_buttons"] = embed_buttons(
+            ("Chzzk Drops", "https://chzzk.naver.com/"),
+            ("Campaigns", "/chzzk/campaigns/"),
+            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Kick Drops", "/kick/"),
         )
         return context
 
@@ -98,6 +114,12 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
             "rewards": rewards,
             "page_title": f"{campaign.title} - Chzzk Drop Campaign and Rewards",
             "page_description": campaign.description or campaign.title,
+            "discord_embed_accent_color": CHZZK_ACCENT_COLOR,
+            "discord_embed_buttons": embed_buttons(
+                ("Campaign page", campaign.pc_link_url),
+                ("Chzzk Drops", "https://chzzk.naver.com/"),
+                ("All campaigns", "/chzzk/campaigns/"),
+            ),
         },
     )
 

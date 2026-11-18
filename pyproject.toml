@@ -12,6 +12,7 @@ dependencies = [
     "django-celery-beat",
     "django-celery-results",
     "django-debug-toolbar",
+    "django-mcpz",
     "django-ninja",
     "django-zeal",
     "django",

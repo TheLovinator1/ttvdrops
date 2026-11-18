@@ -19,9 +19,38 @@ licensed under CC0.
 
 - **Multi-platform**: Twitch, Kick, and Chzzk
 - **RSS/Atom feeds**: Subscribe to campaigns, games, organizations, and rewards
+- **MCP server**: Search drops, rewards, games, organizations, and dates from AI clients at `/mcp`
 - **Historical archive**: Past campaigns remain searchable and downloadable
 - **Search & browse**: Find campaigns by game, organization, channel, or reward
 - **Open data**: All data is freely available under CC0
+
+## MCP server
+
+The site exposes an [MCP](https://modelcontextprotocol.io/) server at
+`https://ttvdrops.lovinator.space/mcp` for AI clients. It is read-only and
+unauthenticated, matching the public website and API.
+
+Available tools:
+
+- `search_drops`: Search campaigns by text, platform, status, game, organization, and date.
+- `list_drops_between_dates`: List campaigns running during an inclusive date range.
+- `get_drop`: Get a campaign's rewards, watch requirements, channels, and links.
+- `search_games`: Find Twitch games and Kick categories with campaign counts.
+- `search_organizations`: Find Twitch and Kick organizations with campaign counts.
+- `get_stats`: Get campaign counts by platform and status.
+
+Add it to an MCP client configuration as a Streamable HTTP server:
+
+```json
+{
+  "mcpServers": {
+    "ttvdrops": {
+      "type": "http",
+      "url": "https://ttvdrops.lovinator.space/mcp"
+    }
+  }
+}
+```
 
 ## Project links
 

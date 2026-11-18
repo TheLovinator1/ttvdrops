@@ -6,6 +6,7 @@ from typing import Any
 from django.shortcuts import render
 
 from core.base_url import build_absolute_uri
+from core.discord_embed import embed_buttons
 
 if TYPE_CHECKING:
     from django.http import HttpRequest
@@ -147,5 +148,11 @@ def index(request: HttpRequest) -> HttpResponse:
         "page_description": PAGE_DESCRIPTION,
         "organization_groups": organization_groups,
         "schema_data": json.dumps(schema),
+        "discord_embed_buttons": embed_buttons(
+            ("YouTube Help", "https://support.google.com/youtube/answer/9024948"),
+            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Kick Drops", "/kick/"),
+            ("Datasets", "/datasets/"),
+        ),
     }
     return render(request=request, template_name="youtube/index.html", context=context)

@@ -136,7 +136,7 @@ _COMPILED_ROUTES: tuple[tuple[Pattern[str], RouteSpec], ...] = tuple(
     (re.compile(pattern), spec) for pattern, spec in _ROUTE_TABLE
 )
 
-_EXCLUDED_PATHS: frozenset[str] = frozenset({"/api/v1/"})
+_EXCLUDED_PATHS: frozenset[str] = frozenset({"/api/v1/", "/mcp"})
 _EXCLUDED_PREFIXES: tuple[str, ...] = (
     "/__debug__/",
     "/api/v1/docs",

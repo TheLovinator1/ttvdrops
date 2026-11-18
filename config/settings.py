@@ -152,6 +152,7 @@ INSTALLED_APPS: list[str] = [
     "ninja",
     "django_celery_results",
     "django_celery_beat",
+    "django_mcpz",
 ]
 
 MIDDLEWARE: list[str] = [

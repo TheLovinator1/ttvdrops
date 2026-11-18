@@ -27,6 +27,8 @@ from django.views.generic import DetailView
 from django.views.generic import ListView
 
 from core.base_url import build_absolute_uri
+from core.discord_embed import TWITCH_ACCENT_COLOR
+from core.discord_embed import embed_buttons
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -38,6 +40,7 @@ from twitch.models import RewardCampaign
 
 if TYPE_CHECKING:
     import datetime
+    from collections.abc import Iterable
 
     from django.db.models import QuerySet
     from django.http import HttpRequest
@@ -49,6 +52,34 @@ logger: logging.Logger = logging.getLogger("ttvdrops.views")
 MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
 DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and more."
+
+
+def _gallery_items(
+    items: Iterable[tuple[str, str]],
+    *,
+    exclude_url: str = "",
+    limit: int = 6,
+) -> list[dict[str, str]]:
+    """Build deduplicated media gallery items for Discord component embeds.
+
+    Args:
+        items: ``(description, image_url)`` pairs.
+        exclude_url: Image URL to skip, typically the embed thumbnail.
+        limit: Maximum number of gallery items.
+
+    Returns:
+        list[dict[str, str]]: Gallery items with ``url`` and ``description``.
+    """
+    gallery: list[dict[str, str]] = []
+    seen_urls: set[str] = set()
+    for description, image_url in items:
+        if not image_url or image_url == exclude_url or image_url in seen_urls:
+            continue
+        seen_urls.add(image_url)
+        gallery.append({"url": image_url, "description": description})
+        if len(gallery) >= limit:
+            break
+    return gallery
 
 
 def _pick_owner(owners: list[Organization]) -> Organization | None:
@@ -145,6 +176,13 @@ def _build_seo_context(
         "page_description": page_description or DEFAULT_SITE_DESCRIPTION,
         "og_type": "website",
         "robots_directive": "index, follow",
+        "discord_embed_accent_color": TWITCH_ACCENT_COLOR,
+        "discord_embed_buttons": embed_buttons(
+            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Campaigns", "/twitch/campaigns/"),
+            ("Games", "/twitch/games/"),
+            ("Reward Campaigns", "/twitch/reward-campaigns/"),
+        ),
     }
     if seo_meta:
         page_url = seo_meta.get("page_url")
@@ -377,6 +415,9 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
             "published_date": organization.added_at.isoformat(),
             "modified_date": organization.updated_at.isoformat(),
         },
+    )
+    seo_context["discord_embed_gallery"] = _gallery_items(
+        ((org_game.display_name, org_game.box_art_best_url) for org_game in games),
     )
     total_campaigns: int = sum(getattr(g, "campaign_count", 0) or 0 for g in games)
 
@@ -648,6 +689,28 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             else None,
         },
     )
+    seo_context["discord_embed_buttons"] = embed_buttons(
+        ("Details", campaign.details_url),
+        ("Connect", campaign.account_link_url),
+        (
+            "Twitch streams",
+            campaign.game.twitch_directory_url if campaign.game else "",
+        ),
+        (
+            f"All {game_name} campaigns",
+            reverse("twitch:game_detail", args=[campaign.game.twitch_id])
+            if campaign.game
+            else "",
+        ),
+    )
+    seo_context["discord_embed_gallery"] = _gallery_items(
+        (
+            (benefit.name, benefit.image_best_url)
+            for enhanced_drop in enhanced_drops
+            for benefit in enhanced_drop["drop"].benefits.all()
+        ),
+        exclude_url=campaign_image or "",
+    )
     context.update(seo_context)
 
     return render(request, "twitch/campaign_detail.html", context)
@@ -838,6 +901,11 @@ class GameDetailView(DetailView):
                 if game.updated_at
                 else None,
             },
+        )
+        seo_context["discord_embed_buttons"] = embed_buttons(
+            ("Twitch streams", game.twitch_directory_url),
+            ("All campaigns", "/twitch/campaigns/"),
+            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
         )
         # Compute campaign date range from all campaigns
         campaign_dates: list[datetime.datetime] = [
@@ -1192,6 +1260,12 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
             "modified_date": reward_campaign.updated_at.isoformat(),
         },
     )
+    seo_context["discord_embed_gallery"] = _gallery_items(
+        (
+            (reward.name, reward.image_best_url)
+            for reward in reward_campaign.rewards.all()[:6]
+        ),
+    )
     context: dict[str, Any] = {
         "reward_campaign": reward_campaign,
         "now": now,
@@ -1370,6 +1444,11 @@ class ChannelDetailView(DetailView):
                 if channel.updated_at
                 else None,
             },
+        )
+        seo_context["discord_embed_buttons"] = embed_buttons(
+            ("Watch on Twitch", f"https://www.twitch.tv/{channel.name}"),
+            ("All channels", "/twitch/channels/"),
+            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
         )
         context.update({
             "active_campaigns": active_campaigns,

@@ -6,6 +6,7 @@ from django.urls import include
 from django.urls import path
 
 from core import views as core_views
+from core.mcp import server as mcp_server
 
 if TYPE_CHECKING:
     from django.urls.resolvers import URLPattern
@@ -43,6 +44,8 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=core_views.sitemap_youtube_view,
         name="sitemap-youtube",
     ),
+    # MCP server (no trailing slash: some clients strip it)
+    path(route="mcp", view=mcp_server),
     # API v1
     path(
         "api/v1/",

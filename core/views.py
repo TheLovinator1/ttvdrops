@@ -25,6 +25,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.base_url import build_absolute_uri
+from core.discord_embed import DEFAULT_ACCENT_COLOR
+from core.discord_embed import embed_buttons
 from kick.models import KickChannel
 from kick.models import KickDropCampaign
 from twitch.models import Channel
@@ -102,6 +104,13 @@ def _build_seo_context(  # ruff:ignore[too-many-arguments, too-many-positional-a
         "page_description": page_description or DEFAULT_SITE_DESCRIPTION,
         "og_type": og_type,
         "robots_directive": robots_directive,
+        "discord_embed_accent_color": DEFAULT_ACCENT_COLOR,
+        "discord_embed_buttons": embed_buttons(
+            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Kick Drops", "/kick/"),
+            ("Chzzk Drops", "/chzzk/"),
+            ("Datasets", "/datasets/"),
+        ),
     }
     if page_url:
         context["page_url"] = page_url

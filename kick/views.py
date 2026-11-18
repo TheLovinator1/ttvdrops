@@ -16,6 +16,8 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.base_url import build_absolute_uri
+from core.discord_embed import KICK_ACCENT_COLOR
+from core.discord_embed import embed_buttons
 from kick.models import KickCategory
 from kick.models import KickDropCampaign
 from kick.models import KickOrganization
@@ -55,6 +57,13 @@ def _build_seo_context(
         "page_description": page_description or "Archive of Kick drops.",
         "og_type": "website",
         "robots_directive": "index, follow",
+        "discord_embed_accent_color": KICK_ACCENT_COLOR,
+        "discord_embed_buttons": embed_buttons(
+            ("Kick Drops", "https://kick.com/drops"),
+            ("Campaigns", "/kick/campaigns/"),
+            ("Games", "/kick/games/"),
+            ("Organizations", "/kick/organizations/"),
+        ),
     }
     if seo_meta:
         page_url: str | None = seo_meta.get("page_url")
@@ -351,6 +360,15 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
             "modified_date": campaign.updated_at.isoformat(),
         },
     )
+    category_slug: str = (
+        campaign.category.slug if campaign.category and campaign.category.slug else ""
+    )
+    seo_context["discord_embed_buttons"] = embed_buttons(
+        ("Details", campaign.url),
+        ("Connect", campaign.connect_url),
+        ("Watch on Kick", f"https://kick.com/category/{category_slug}"),
+        ("All campaigns", "/kick/campaigns/"),
+    )
     return render(
         request,
         "kick/campaign_detail.html",
@@ -466,6 +484,11 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
             "published_date": category.added_at.isoformat(),
             "modified_date": category.updated_at.isoformat(),
         },
+    )
+    seo_context["discord_embed_buttons"] = embed_buttons(
+        ("Watch on Kick", f"https://kick.com/category/{category.slug}"),
+        ("All campaigns", f"/kick/campaigns/?game={category.kick_id}"),
+        ("Kick Drops", "https://kick.com/drops"),
     )
     return render(
         request,
