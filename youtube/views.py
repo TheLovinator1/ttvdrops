@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from django.http import HttpResponse
 
 
-PAGE_TITLE = "YouTube channels with rewards"
+PAGE_TITLE = "YouTube Channels with Rewards and In-Game Bonuses"
 PAGE_DESCRIPTION = "Browse YouTube channels listed as reward-enabled, including Call of Duty, Blizzard, Fortnite, Riot Games, and more."
 
 

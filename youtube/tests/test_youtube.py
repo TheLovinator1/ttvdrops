@@ -18,14 +18,17 @@ class YouTubeIndexViewTest(TestCase):
         content: str = response.content.decode()
 
         assert response.context is not None
-        assert response.context["page_title"] == "YouTube channels with rewards"
+        assert (
+            response.context["page_title"]
+            == "YouTube Channels with Rewards and In-Game Bonuses"
+        )
         assert (
             response.context["page_description"]
             == "Browse YouTube channels listed as reward-enabled, including Call of Duty, Blizzard, "
             "Fortnite, Riot Games, and more."
         )
         assert (
-            '<meta property="og:title" content="YouTube channels with rewards" />'
+            '<meta property="og:title" content="YouTube Channels with Rewards and In-Game Bonuses" />'
             in content
         )
         assert (
@@ -34,7 +37,7 @@ class YouTubeIndexViewTest(TestCase):
             'Blizzard, Fortnite, Riot Games, and more." />'
         ) in content
         assert (
-            '<meta name="twitter:title" content="YouTube channels with rewards" />'
+            '<meta name="twitter:title" content="YouTube Channels with Rewards and In-Game Bonuses" />'
             in content
         )
         assert (
@@ -53,7 +56,7 @@ class YouTubeIndexViewTest(TestCase):
         schema: dict[str, Any] = json.loads(response.context["schema_data"])
         assert schema["@context"] == "https://schema.org"
         assert schema["@type"] == "ItemList"
-        assert schema["name"] == "YouTube channels with rewards"
+        assert schema["name"] == "YouTube Channels with Rewards and In-Game Bonuses"
         assert "itemListElement" in schema
 
         items: list[dict[str, Any]] = schema["itemListElement"]

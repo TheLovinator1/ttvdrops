@@ -33,11 +33,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <meta name="keywords" content="Twitch, Drops" />
-        <title>
-            {% block title %}
-                ttvdrops
-            {% endblock title %}
-        </title>
+        <title>{% block title %}{% firstof page_title "Twitch, Kick & Chzzk Drops, Rewards and Campaigns" %}{% endblock title %} | TTVDrops</title>
         {% include "includes/meta_tags.html" %}
         <!-- Feed discovery links -->
         <!-- Read {% url 'core:docs_rss' %} for more details on available feeds -->

@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from typing import Any
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -41,6 +42,10 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         template_name="chzzk/dashboard.html",
         context={
             "active_campaigns": active_campaigns,
+            "page_title": "Chzzk Drops - Campaigns, Rewards and Schedule",
+            "page_description": (
+                "Browse active Chzzk drop campaigns, rewards and schedules."
+            ),
         },
     )
 
@@ -52,6 +57,22 @@ class CampaignListView(generic.ListView):
     template_name = "chzzk/campaign_list.html"
     context_object_name = "campaigns"
     paginate_by = 25
+
+    def get_context_data(self, **kwargs) -> dict[str, Any]:
+        """Add SEO metadata to the campaign list context.
+
+        Args:
+            **kwargs: Additional context data.
+
+        Returns:
+            dict[str, Any]: Context data with page title and description.
+        """
+        context: dict[str, Any] = super().get_context_data(**kwargs)
+        context["page_title"] = "Chzzk Drop Campaigns, Rewards and Archive"
+        context["page_description"] = (
+            "Browse all Chzzk drop campaigns, rewards and past campaigns."
+        )
+        return context
 
 
 def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse:
@@ -75,6 +96,8 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
         context={
             "campaign": campaign,
             "rewards": rewards,
+            "page_title": f"{campaign.title} - Chzzk Drop Campaign and Rewards",
+            "page_description": campaign.description or campaign.title,
         },
     )
 

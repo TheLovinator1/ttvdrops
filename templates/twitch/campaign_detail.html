@@ -1,9 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
 {% load image_tags %}
-{% block title %}
-    {{ campaign.clean_name }}
-{% endblock title %}
 {% block extra_head %}
     {% if campaign and campaign.game %}
         <link rel="alternate"

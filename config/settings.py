@@ -149,6 +149,7 @@ INSTALLED_APPS: list[str] = [
     "twitch.apps.TwitchConfig",
     "youtube.apps.YoutubeConfig",
     # Third-party apps
+    "ninja",
     "django_celery_results",
     "django_celery_beat",
 ]

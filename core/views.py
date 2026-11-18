@@ -509,7 +509,7 @@ def about_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered about page.
     """
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="About ttvdrops.lovinator.space",
+        page_title="About TTVDrops - Twitch, Kick and Chzzk Drops Archive",
         page_description=(
             "Track limited-time free rewards across Twitch, Kick, Chzzk, and YouTube."
         ),
@@ -542,7 +542,7 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
     )
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Feed Documentation",
+        page_title="RSS and Atom Feed Documentation for TTVDrops",
         page_description="Documentation for the RSS feeds available on ttvdrops.lovinator.space, including how to use them and what data they contain.",
         page_url=build_absolute_uri(reverse("core:docs_rss")),
     )
@@ -778,7 +778,7 @@ def debug_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-lo
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Debug",
+        page_title="TTVDrops Data Debug and Consistency Report",
         page_description="Debug view showing potentially broken or inconsistent data.",
         robots_directive="noindex, nofollow",
     )
@@ -885,7 +885,7 @@ def dataset_backups_view(request: HttpRequest) -> HttpResponse:
         dataset_schema["distribution"] = dataset_distributions
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch/Kick drop data",
+        page_title="Download Twitch and Kick Drops Datasets (JSON, SQL)",
         page_description="Twitch/Kick datasets available for download, including historical drop campaign data and more.",
         schema_data=dataset_schema,
     )
@@ -1067,10 +1067,10 @@ def search_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-s
 
     # TODO(TheLovinator): Make the description more informative by including counts of each result type, e.g. "Found 5 games, 3 campaigns, and 10 drops for 'rust'."   # ruff:ignore[missing-todo-link]
     if query:
-        page_title: str = f"Search Results for '{query}'"[:60]
+        page_title: str = f"Search Results for '{query}' - Twitch and Kick Drops"[:70]
         page_description: str = f"Found {total_results_count} results for '{query}'."
     else:
-        page_title = "Search"
+        page_title = "Search Twitch, Kick and Chzzk Drops, Games and Channels"
         page_description = "Search for drops, games, channels, and organizations."
 
     seo_context: dict[str, Any] = _build_seo_context(
@@ -1265,7 +1265,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch/Kick Drops",
+        page_title="Twitch, Kick and Chzzk Drops, Rewards and Campaigns",
         page_description=(
             "RSS feeds, historical data, and information about Twitch and Kick drops, campaigns, rewards, and more."
         ),

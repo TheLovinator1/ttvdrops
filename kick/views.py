@@ -163,7 +163,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
     )
 
     seo_context: dict[str, str] = _build_seo_context(
-        page_title="Kick Drops",
+        page_title="Kick Drops, Reward Campaigns and Drop Archive",
         page_description="Overview of active Kick drop campaigns.",
     )
     return render(
@@ -219,7 +219,7 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
     except EmptyPage:
         campaigns = paginator.page(paginator.num_pages)
 
-    title = "Kick Drop Campaigns"
+    title = "Kick Drop Campaigns, Rewards and Drop Archive"
     if status_filter:
         title += f" ({status_filter.capitalize()})"
 
@@ -343,7 +343,7 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=campaign.name,
+        page_title=f"{campaign.name} - Kick Drops Campaign and Rewards",
         page_description=f"Kick drop campaign: {campaign.name}.",
         seo_meta={
             "schema_data": campaign_schema,
@@ -377,7 +377,7 @@ def category_list_view(request: HttpRequest) -> HttpResponse:
     ).order_by("name")
 
     seo_context: dict[str, str] = _build_seo_context(
-        page_title="Kick Games",
+        page_title="Kick Games with Drops, Rewards and Campaigns",
         page_description="Games on Kick that have drop campaigns.",
     )
     return render(
@@ -459,7 +459,7 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=category.name,
+        page_title=f"{category.name} - Kick Drops and Campaigns",
         page_description=f"Kick drop campaigns for {category.name}.",
         seo_meta={
             "schema_data": category_schema,
@@ -494,7 +494,7 @@ def organization_list_view(request: HttpRequest) -> HttpResponse:
     ).order_by("name")
 
     seo_context: dict[str, str] = _build_seo_context(
-        page_title="Kick Organizations",
+        page_title="Kick Organizations with Drop Campaigns",
         page_description="Organizations that run Kick drop campaigns.",
     )
     return render(
@@ -574,7 +574,7 @@ def organization_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=org.name,
+        page_title=f"{org.name} - Kick Drops and Campaigns",
         page_description=f"Kick drop campaigns by {org.name}.",
         seo_meta={
             "schema_data": org_schema,
