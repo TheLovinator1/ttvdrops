@@ -74,6 +74,28 @@ def run_git(git_dir: str, *args: str, check: bool = True) -> str:
         return result.stdout
 
 
+def extract_json_items(data: Any) -> list[dict[str, Any]]:  # ruff:ignore[any-type]
+    """Return the item array from an old-style or new-style JSON file.
+
+    Old files are bare arrays. New files wrap the items in an object:
+    drops.json uses ``games`` and rewards.json uses ``campaigns``.
+
+    Args:
+        data: Parsed JSON data.
+
+    Returns:
+        The list of items, or an empty list for an unknown shape.
+    """
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in ("games", "campaigns", "drops", "rewards", "items", "data"):
+            items = data.get(key)
+            if isinstance(items, list):
+                return items
+    return []
+
+
 def extract(
     git_dir: str,
     file_path: str,
@@ -123,11 +145,11 @@ def extract(
         seen_hashes.add(content_hash)
 
         try:
-            data = json.loads(content)
+            data = extract_json_items(json.loads(content))
         except json.JSONDecodeError:
             continue
 
-        if not isinstance(data, list):
+        if not data:
             continue
 
         if file_path == "drops.json":

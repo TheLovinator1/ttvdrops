@@ -264,9 +264,7 @@ class Command(BaseCommand):
             with from_file_path.open(encoding="utf-8") as f:
                 raw_data = json.load(f)
 
-            if not isinstance(raw_data, list):
-                msg = f"Expected a JSON array in {from_file}, got {type(raw_data).__name__}"
-                raise CommandError(msg)
+            raw_data = self._extract_json_items(raw_data, source=from_file)
 
             # Detect file type by content structure
             is_drops = any("gameId" in item for item in raw_data)
@@ -456,7 +454,7 @@ class Command(BaseCommand):
 
         return drops_count, rewards_count, errors
 
-    def _import_historical_file(  # ruff:ignore[too-many-arguments, too-many-statements]
+    def _import_historical_file(  # ruff:ignore[too-many-arguments]
         self,
         git_dir: str,
         file_path: str,
@@ -556,15 +554,13 @@ class Command(BaseCommand):
 
             try:
                 data = json.loads(content)
-            except json.JSONDecodeError:
+                data = self._extract_json_items(data, source=f"{file_path}@{sha[:7]}")
+            except (json.JSONDecodeError, TypeError):
                 if verbose:
                     self.stdout.write(
                         f"{Fore.YELLOW}→{Style.RESET_ALL} {sha[:7]}: "
                         f"invalid JSON, skipping",
                     )
-                continue
-
-            if not isinstance(data, list):
                 continue
 
             short_sha = sha[:7]
@@ -713,7 +709,12 @@ class Command(BaseCommand):
     # drops.json import
     # ------------------------------------------------------------------
     def _fetch_json(self, url: str, label: str) -> list[dict[str, Any]]:
-        """Fetch a JSON file from a URL and parse it into a list of dicts.
+        """Fetch a JSON file from a URL and return its item array.
+
+        Supports both the original top-level array format and the newer
+        object format that wraps the items under a key, such as
+        ``{"games": [...]}`` for drops and ``{"campaigns": [...]}`` for
+        rewards.
 
         Args:
             url: The URL to fetch.
@@ -721,19 +722,49 @@ class Command(BaseCommand):
 
         Returns:
             Parsed JSON data as a list of dicts.
-
-        Raises:
-            TypeError: If the response is not a JSON array.
         """
         self.stdout.write(f"Fetching {label} from {url} …")
         with httpx.Client(timeout=HTTP_TIMEOUT, follow_redirects=True) as client:
             response = client.get(url)
             response.raise_for_status()
         data: Any = response.json()
-        if not isinstance(data, list):
-            msg = f"Expected a JSON array from {url}, got {type(data).__name__}"
-            raise TypeError(msg)
-        return data
+        return self._extract_json_items(data, source=url)
+
+    @staticmethod
+    def _extract_json_items(
+        data: Any,  # ruff:ignore[any-type]
+        *,
+        source: str,
+    ) -> list[dict[str, Any]]:
+        """Return the item array from an old-style or new-style JSON file.
+
+        The old files are bare arrays. The new files wrap the same arrays in
+        an object: drops.json uses ``games`` and rewards.json uses
+        ``campaigns``.
+
+        Args:
+            data: Parsed JSON data.
+            source: URL or filename for error messages.
+
+        Returns:
+            The list of item dictionaries.
+
+        Raises:
+            TypeError: If ``data`` is neither a list nor an object containing
+                a known item array.
+        """
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            for key in ("games", "campaigns", "drops", "rewards", "items", "data"):
+                items = data.get(key)
+                if isinstance(items, list):
+                    return items
+        msg = (
+            "Expected a JSON array, or an object containing a 'games' or "
+            f"'campaigns' array, in {source}; got {type(data).__name__}"
+        )
+        raise TypeError(msg)
 
     def _import_drops(
         self,

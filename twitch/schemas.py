@@ -755,6 +755,7 @@ class SunkwiBotTimeBasedDropSchema(BaseModel):
     end_at: str = Field(alias="endAt")
     name: str
     precondition_drops: None = Field(default=None, alias="preconditionDrops")
+    repeat: bool | None = None
     required_minutes_watched: int | None = Field(
         default=None,
         alias="requiredMinutesWatched",
@@ -795,6 +796,7 @@ class SunkwiBotRewardSchema(BaseModel):
     details_url: str = Field(alias="detailsURL")
     end_at: str = Field(alias="endAt")
     event_based_drops: list | None = Field(default=None, alias="eventBasedDrops")
+    first_seen_at: str | None = Field(default=None, alias="firstSeenAt")
     game: SunkwiBotGameRefSchema | None = None
     image_url: str = Field(alias="imageURL")
     name: str
@@ -805,6 +807,7 @@ class SunkwiBotRewardSchema(BaseModel):
         default=[],
         alias="timeBasedDrops",
     )
+    web_url: str | None = Field(default=None, alias="webUrl")
 
     model_config = {
         "extra": "forbid",
@@ -892,12 +895,14 @@ class SunkwiBotRewardCampaignSchema(BaseModel):
     brand: str
     ends_at: str = Field(alias="endsAt")
     external_url: str = Field(alias="externalURL")
+    first_seen_at: str | None = Field(default=None, alias="firstSeenAt")
     game: dict | None = None
     twitch_id: str = Field(alias="id")
     image: SunkwiBotRewardImageSetSchema | None = None
     instructions: str
     is_sitewide: bool = Field(alias="isSitewide")
     name: str
+    reward_groups: list | None = Field(default=None, alias="rewardGroups")
     rewards: list[SunkwiBotIndividualRewardSchema] = Field(default=[])
     reward_value_url_param: str = Field(default="", alias="rewardValueURLParam")
     starts_at: str = Field(alias="startsAt")
@@ -907,6 +912,7 @@ class SunkwiBotRewardCampaignSchema(BaseModel):
         default=None,
         alias="unlockRequirements",
     )
+    web_url: str | None = Field(default=None, alias="webUrl")
 
     model_config = {
         "extra": "forbid",

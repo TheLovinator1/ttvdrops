@@ -10,7 +10,8 @@
             ],
             "django": true,
             "autoStartBrowser": false,
-            "program": "${workspaceFolder}/manage.py"
+            "program": "${workspaceFolder}/manage.py",
+            "python": "${workspaceFolder}/.venv/bin/python"
         },
         {
             "name": "Import Drops",
@@ -22,7 +23,8 @@
             ],
             "django": false,
             "autoStartBrowser": false,
-            "program": "${workspaceFolder}/manage.py"
+            "program": "${workspaceFolder}/manage.py",
+            "python": "${workspaceFolder}/.venv/bin/python"
         }
     ]
 }

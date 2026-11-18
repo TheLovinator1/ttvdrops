@@ -168,7 +168,7 @@ def mock_httpx_get(data: list[dict]) -> MagicMock:
 class MockResponse:
     """Minimal mock for httpx.Response used as a context-manager return."""
 
-    def __init__(self, json_data: list[dict]) -> None:
+    def __init__(self, json_data: list[dict] | dict) -> None:
         """Initialise with JSON data to return from .json().
 
         Args:
@@ -176,7 +176,7 @@ class MockResponse:
         """
         self._json_data = json_data
 
-    def json(self) -> list[dict]:
+    def json(self) -> list[dict] | dict:
         """Return the mocked JSON data.
 
         Returns:
@@ -191,7 +191,11 @@ class MockResponse:
 class MockHttpxClient:
     """Mock for httpx.Client that returns canned data from its get() method."""
 
-    def __init__(self, drops_data: list[dict], rewards_data: list[dict]) -> None:
+    def __init__(
+        self,
+        drops_data: list[dict] | dict,
+        rewards_data: list[dict] | dict,
+    ) -> None:
         """Initialise with data for each endpoint.
 
         Args:
@@ -301,6 +305,54 @@ class ImportTwitchDropsApiTests(TestCase):
         # DropBenefitEdge
         edge = DropBenefitEdge.objects.get(drop=tbd, benefit=benefit)
         assert edge.entitlement_limit == 1
+
+    @patch("httpx.Client")
+    def test_import_drops_new_wrapped_format(self, mock_client: MagicMock) -> None:
+        """Verify the newer {"games": [...]} drops.json format is imported."""
+        mock_client.return_value = MockHttpxClient(
+            drops_data={"games": SAMPLE_DROPS_JSON},
+            rewards_data=[],
+        )
+
+        self.command.handle(
+            drops_url=self.drops_url,
+            rewards_url=self.rewards_url,
+            drops_only=True,
+            rewards_only=False,
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=True,
+        )
+
+        campaign = DropCampaign.objects.get(twitch_id="reward-campaign-1")
+        assert campaign.name == "Overwatch 2 x Twitch Drops"
+        assert Game.objects.filter(twitch_id="515025").exists()
+
+    @patch("httpx.Client")
+    def test_import_rewards_new_wrapped_format(self, mock_client: MagicMock) -> None:
+        """Verify the newer {"campaigns": [...]} rewards.json format is imported."""
+        Game.objects.create(
+            twitch_id="27471",
+            display_name="Minecraft",
+            name="Minecraft",
+        )
+        mock_client.return_value = MockHttpxClient(
+            drops_data=[],
+            rewards_data={"campaigns": SAMPLE_REWARDS_JSON},
+        )
+
+        self.command.handle(
+            drops_url=self.drops_url,
+            rewards_url=self.rewards_url,
+            drops_only=False,
+            rewards_only=True,
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=True,
+        )
+
+        campaign = RewardCampaign.objects.get(twitch_id="reward-campaign-2")
+        assert campaign.name == "Tubbo's WatchTime"
 
     @patch("httpx.Client")
     def test_import_drops_idempotent(self, mock_client: MagicMock) -> None:
@@ -654,6 +706,40 @@ class ImportTwitchDropsApiTests(TestCase):
         # No data should have been imported
         assert DropCampaign.objects.count() == 0
         assert RewardCampaign.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# _extract_json_items tests
+# ---------------------------------------------------------------------------
+
+
+class ExtractJsonItemsTests(TestCase):
+    """Tests for Command._extract_json_items."""
+
+    def test_accepts_old_list_format(self) -> None:
+        """Old files are bare arrays."""
+        items = [{"id": "1"}]
+        assert Command._extract_json_items(items, source="drops.json") == items
+
+    def test_accepts_new_drops_format(self) -> None:
+        """New drops.json wraps items under "games"."""
+        items = [{"gameId": "1"}]
+        data = {"games": items, "refreshedAt": "2026-11-18T22:16:01.397Z"}
+        assert Command._extract_json_items(data, source="drops.json") == items
+
+    def test_accepts_new_rewards_format(self) -> None:
+        """New rewards.json wraps items under "campaigns"."""
+        items = [{"id": "reward-1"}]
+        data = {"campaigns": items, "refreshedAt": "2026-11-18T14:28:03.716Z"}
+        assert Command._extract_json_items(data, source="rewards.json") == items
+
+    def test_rejects_unknown_object(self) -> None:
+        """An object without a known item array is rejected."""
+        with pytest.raises(TypeError, match="Expected a JSON array"):
+            Command._extract_json_items(
+                {"not": "an item array"},
+                source="drops.json",
+            )
 
 
 # ---------------------------------------------------------------------------
