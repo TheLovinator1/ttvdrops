@@ -94,7 +94,7 @@ services:
       - sh
       - -c
       - >-
-        gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --name ttvdrops --max-requests 1200 --max-requests-jitter 50 --access-logfile - --error-logfile -
+        gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --name ttvdrops --max-requests 1200 --max-requests-jitter 50 --access-logfile - --error-logfile - --no-control-socket
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
