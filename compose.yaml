@@ -1,42 +1,15 @@
 name: ttvdrops
 
-# Shared configuration for every container that runs the Django app.
-x-app: &app
-  image: git.lovinator.space/thelovinator/ttvdrops:latest
-  # Keep file ownership in sync with the host user.
-  user: "${UID:-1000}:${GID:-1000}"
-  env_file:
-    - .env
-  environment:
-    PYTHONUNBUFFERED: "1"
-    # Docker always uses PostgreSQL; SQLite is only for host-side development.
-    USE_SQLITE: "False"
-    POSTGRES_DB: "${POSTGRES_DB:-ttvdrops}"
-    POSTGRES_USER: "${POSTGRES_USER:-ttvdrops}"
-    POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-ttvdrops}"
-    POSTGRES_HOST: db
-    POSTGRES_PORT: "5432"
-    REDIS_URL_CACHE: redis://valkey:6379/0
-    REDIS_URL_CELERY: redis://valkey:6379/1
-    # platformdirs puts media/, staticfiles/ and datasets/ under $XDG_DATA_HOME/TTVDrops.
-    XDG_DATA_HOME: /app/data
-    TTVDROPS_PENDING_DIR: /srv/ttvdrops/responses/pending
-    TTVDROPS_IMPORTED_DIR: /srv/ttvdrops/responses/imported
-    TTVDROPS_BROKEN_DIR: /srv/ttvdrops/responses/broken
-  volumes:
-    - app_data:/app/data
-    - ${TTVDROPS_RESPONSES_DIR:-./responses}:/srv/ttvdrops/responses
-  restart: unless-stopped
-
 services:
   db:
     image: postgres:18-trixie
     environment:
-      POSTGRES_DB: "${POSTGRES_DB:-ttvdrops}"
-      POSTGRES_USER: "${POSTGRES_USER:-ttvdrops}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-ttvdrops}"
+      POSTGRES_DB: ttvdrops
+      POSTGRES_USER: ttvdrops
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18 uses PGDATA=/var/lib/postgresql/18/docker, so mount the parent.
+      - /mnt/Docker/Data/ttvdrops/postgres:/var/lib/postgresql
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\"" ]
       interval: 5s
@@ -46,9 +19,9 @@ services:
     restart: unless-stopped
 
   valkey:
-    image: valkey/valkey:8-trixie
+    image: valkey/valkey:9-trixie
     volumes:
-      - valkey_data:/data
+      - /mnt/Docker/Data/ttvdrops/valkey:/data
     healthcheck:
       test: [ "CMD", "valkey-cli", "ping" ]
       interval: 5s
@@ -58,7 +31,31 @@ services:
 
   # One-shot container: migrations + static files before any worker starts.
   init:
-    <<: *app
+    image: git.lovinator.space/thelovinator/ttvdrops:latest
+    user: "1001:1002"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
+      # container user has no passwd entry, so HOME would otherwise be /.
+      HOME: /tmp
+      USE_SQLITE: "False"
+      POSTGRES_DB: ttvdrops
+      POSTGRES_USER: ttvdrops
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL_CACHE: redis://valkey:6379/0
+      REDIS_URL_CELERY: redis://valkey:6379/1
+      # platformdirs puts media/, staticfiles/ and datasets/ under $XDG_DATA_HOME/TTVDrops.
+      XDG_DATA_HOME: /app/data
+      TTVDROPS_PENDING_DIR: /srv/ttvdrops/responses/pending
+      TTVDROPS_IMPORTED_DIR: /srv/ttvdrops/responses/imported
+      TTVDROPS_BROKEN_DIR: /srv/ttvdrops/responses/broken
+    volumes:
+      - /mnt/Docker/Data/ttvdrops/app:/app/data/TTVDrops
+      - /mnt/fourteen/Data/Responses:/srv/ttvdrops/responses
     command: [ "sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput" ]
     restart: "no"
     depends_on:
@@ -68,14 +65,39 @@ services:
         condition: service_healthy
 
   web:
-    <<: *app
+    image: git.lovinator.space/thelovinator/ttvdrops:latest
+    user: "1001:1002"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
+      # container user has no passwd entry, so HOME would otherwise be /.
+      HOME: /tmp
+      USE_SQLITE: "False"
+      POSTGRES_DB: ttvdrops
+      POSTGRES_USER: ttvdrops
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL_CACHE: redis://valkey:6379/0
+      REDIS_URL_CELERY: redis://valkey:6379/1
+      # platformdirs puts media/, staticfiles/ and datasets/ under $XDG_DATA_HOME/TTVDrops.
+      XDG_DATA_HOME: /app/data
+      TTVDROPS_PENDING_DIR: /srv/ttvdrops/responses/pending
+      TTVDROPS_IMPORTED_DIR: /srv/ttvdrops/responses/imported
+      TTVDROPS_BROKEN_DIR: /srv/ttvdrops/responses/broken
+    volumes:
+      - /mnt/Docker/Data/ttvdrops/app:/app/data/TTVDrops
+      - /mnt/fourteen/Data/Responses:/srv/ttvdrops/responses
     command:
       - sh
       - -c
       - >-
-        gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers $${WEB_CONCURRENCY:-4} --name ttvdrops --max-requests 1200 --max-requests-jitter 50 --access-logfile - --error-logfile -
+        gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --name ttvdrops --max-requests 1200 --max-requests-jitter 50 --access-logfile - --error-logfile -
     ports:
-      - "${TTVDROPS_HTTP_HOST:-127.0.0.1}:${TTVDROPS_HTTP_PORT:-8000}:8000"
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
     depends_on:
       init:
         condition: service_completed_successfully
@@ -97,12 +119,37 @@ services:
       start_period: 30s
 
   celery-worker:
-    <<: *app
+    image: git.lovinator.space/thelovinator/ttvdrops:latest
+    user: "1001:1002"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
+      # container user has no passwd entry, so HOME would otherwise be /.
+      HOME: /tmp
+      USE_SQLITE: "False"
+      POSTGRES_DB: ttvdrops
+      POSTGRES_USER: ttvdrops
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL_CACHE: redis://valkey:6379/0
+      REDIS_URL_CELERY: redis://valkey:6379/1
+      # platformdirs puts media/, staticfiles/ and datasets/ under $XDG_DATA_HOME/TTVDrops.
+      XDG_DATA_HOME: /app/data
+      TTVDROPS_PENDING_DIR: /srv/ttvdrops/responses/pending
+      TTVDROPS_IMPORTED_DIR: /srv/ttvdrops/responses/imported
+      TTVDROPS_BROKEN_DIR: /srv/ttvdrops/responses/broken
+    volumes:
+      - /mnt/Docker/Data/ttvdrops/app:/app/data/TTVDrops
+      - /mnt/fourteen/Data/Responses:/srv/ttvdrops/responses
     command:
       - sh
       - -c
       - >-
-        celery -A config worker --queues imports,api-fetches,image-downloads,default --concurrency $${CELERY_CONCURRENCY:-4} --loglevel INFO
+        celery -A config worker --queues imports,api-fetches,image-downloads,default --concurrency 4 --loglevel INFO
+    restart: unless-stopped
     depends_on:
       init:
         condition: service_completed_successfully
@@ -112,7 +159,31 @@ services:
         condition: service_healthy
 
   celery-beat:
-    <<: *app
+    image: git.lovinator.space/thelovinator/ttvdrops:latest
+    user: "1001:1002"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
+      # container user has no passwd entry, so HOME would otherwise be /.
+      HOME: /tmp
+      USE_SQLITE: "False"
+      POSTGRES_DB: ttvdrops
+      POSTGRES_USER: ttvdrops
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL_CACHE: redis://valkey:6379/0
+      REDIS_URL_CELERY: redis://valkey:6379/1
+      # platformdirs puts media/, staticfiles/ and datasets/ under $XDG_DATA_HOME/TTVDrops.
+      XDG_DATA_HOME: /app/data
+      TTVDROPS_PENDING_DIR: /srv/ttvdrops/responses/pending
+      TTVDROPS_IMPORTED_DIR: /srv/ttvdrops/responses/imported
+      TTVDROPS_BROKEN_DIR: /srv/ttvdrops/responses/broken
+    volumes:
+      - /mnt/Docker/Data/ttvdrops/app:/app/data/TTVDrops
+      - /mnt/fourteen/Data/Responses:/srv/ttvdrops/responses
     command:
       - celery
       - -A
@@ -122,6 +193,7 @@ services:
       - django_celery_beat.schedulers:DatabaseScheduler
       - --loglevel
       - INFO
+    restart: unless-stopped
     depends_on:
       init:
         condition: service_completed_successfully
@@ -132,8 +204,32 @@ services:
 
   # Optional: docker compose --profile monitoring up -d
   flower:
-    <<: *app
+    image: git.lovinator.space/thelovinator/ttvdrops:latest
+    user: "1001:1002"
+    env_file:
+      - .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
+      # container user has no passwd entry, so HOME would otherwise be /.
+      HOME: /tmp
+      USE_SQLITE: "False"
+      POSTGRES_DB: ttvdrops
+      POSTGRES_USER: ttvdrops
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      REDIS_URL_CACHE: redis://valkey:6379/0
+      REDIS_URL_CELERY: redis://valkey:6379/1
+      # platformdirs puts media/, staticfiles/ and datasets/ under $XDG_DATA_HOME/TTVDrops.
+      XDG_DATA_HOME: /app/data
+      TTVDROPS_PENDING_DIR: /srv/ttvdrops/responses/pending
+      TTVDROPS_IMPORTED_DIR: /srv/ttvdrops/responses/imported
+      TTVDROPS_BROKEN_DIR: /srv/ttvdrops/responses/broken
     profiles: [ monitoring ]
+    volumes:
+      - /mnt/Docker/Data/ttvdrops/app:/app/data/TTVDrops
+      - /mnt/fourteen/Data/Responses:/srv/ttvdrops/responses
     command:
       - celery
       - -A
@@ -143,6 +239,7 @@ services:
       - --port=5555
     ports:
       - "127.0.0.1:5555:5555"
+    restart: unless-stopped
     depends_on:
       init:
         condition: service_completed_successfully
@@ -150,8 +247,3 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
-
-volumes:
-  postgres_data:
-  valkey_data:
-  app_data:

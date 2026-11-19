@@ -208,6 +208,7 @@ __marimo__/
 
 # TTVDrops
 responses/
+data/
 
 # Directories tied to our project
 staticfiles/

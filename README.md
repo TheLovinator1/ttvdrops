@@ -102,21 +102,32 @@ image includes `git` and `pg_dump`, so no host-side programs are needed.
    ```
 
    Keep `DEBUG=True` for local testing; otherwise `ALLOWED_HOSTS` is fixed to
-   `ttvdrops.lovinator.space`.
+   `ttvdrops.lovinator.space`. `POSTGRES_PASSWORD` must be non-empty because the database
+   container does not fall back to defaults.
 
-2. Create the response directories:
+2. `compose.yaml` is pinned to the production layout:
+
+   - `/mnt/Docker/Data/ttvdrops/app` for `media/`, `staticfiles/` and `datasets/`
+   - `/mnt/Docker/Data/ttvdrops/postgres` for PostgreSQL (mounted at
+     `/var/lib/postgresql`, since PG 18 keeps `PGDATA` in `18/docker`)
+   - `/mnt/Docker/Data/ttvdrops/valkey` for Valkey
+   - `/mnt/fourteen/Data/Responses` for `pending/`, `imported/` and `broken/`
+   - container user `1001:1002` (UID 1001, GID of the `responses` group)
+
+   Make sure those directories exist and are writable by that user, or edit the bind
+   mounts and `user:` in `compose.yaml` to match your host.
+
+3. Start the stack. The image comes from the Forgejo registry:
 
    ```bash
-   mkdir -p responses/{pending,imported,broken}
+   docker compose pull
+   docker compose up -d
    ```
 
-   To reuse existing files, set `TTVDROPS_RESPONSES_DIR` in `.env`. `UID`/`GID` should
-   match their owner.
-
-3. Start the stack:
+   Log in first if the registry is private:
 
    ```bash
-   docker compose up -d --build
+   docker login git.lovinator.space
    ```
 
 4. Optional: create an admin and follow the logs:
@@ -126,14 +137,15 @@ image includes `git` and `pg_dump`, so no host-side programs are needed.
    docker compose logs -f web celery-worker celery-beat
    ```
 
-The site is published on `127.0.0.1:8000` (change `TTVDROPS_HTTP_HOST` /
-`TTVDROPS_HTTP_PORT` in `.env`). Serve `/static/` and `/media/` from the
-`ttvdrops_app_data` volume. `docker compose down` keeps data; `down -v` deletes it.
+The site is published on `127.0.0.1:8000` (edit the `web` port mapping in
+`compose.yaml` to change it). `/static/` and `/media/` are under
+`/mnt/Docker/Data/ttvdrops/app`, so point the reverse proxy there. All data is on host
+bind mounts, so `docker compose down` and `down -v` leave it untouched.
 
 | Action                     | Command                                                                                                   |
 | -------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Stop                       | `docker compose down`                                                                                     |
-| Stop and delete all data   | `docker compose down -v`                                                                                  |
+| Stop and remove containers | `docker compose down -v` (data stays on the bind mounts)                                                   |
 | Shell in the web container | `docker compose exec web sh`                                                                              |
 | Run a management command   | `docker compose exec web python manage.py <command>`                                                      |
 | Import pending drops       | `docker compose exec web python manage.py better_import_drops /srv/ttvdrops/responses/pending --recursive` |
@@ -142,20 +154,24 @@ The site is published on `127.0.0.1:8000` (change `TTVDROPS_HTTP_HOST` /
 
 ### Migrating from the host install
 
-Copy media files and datasets into the app volume:
+Move the host install's data directory into the bind mount before the first start:
 
 ```bash
-docker compose run --rm -v "$HOME/.local/share/TTVDrops:/old-data" web \
-  sh -c 'cp -a /old-data/. /app/data/TTVDrops/'
+sudo mkdir -p /mnt/Docker/Data/ttvdrops
+sudo mv ~/.local/share/TTVDrops /mnt/Docker/Data/ttvdrops/app
+
+# Keep the old proxy path working, or update the proxy roots instead.
+sudo ln -s /mnt/Docker/Data/ttvdrops/app ~/.local/share/TTVDrops
 ```
 
 Restore an existing PostgreSQL dump before starting the app:
 
 ```bash
-docker compose up -d db
 pg_dump -Fc -U ttvdrops ttvdrops > /tmp/ttvdrops.dump
+docker compose up -d db
 docker compose exec -T db pg_restore -U ttvdrops -d ttvdrops --clean --if-exists < /tmp/ttvdrops.dump
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 If the old install used SQLite, export from the host and load into the container:
@@ -320,11 +336,11 @@ uv run python manage.py backup_db --output-dir "<path>" --prefix "ttvdrops"
 ### How the duck does permissions work on Linux?
 
 ```bash
-sudo chown -R ttvdrops:http /home/ttvdrops/.local/share/TTVDrops/media/
-sudo find /home/ttvdrops/.local/share/TTVDrops/media -type d -exec chmod 2775 {} \;
-sudo find /home/ttvdrops/.local/share/TTVDrops/media -type f -exec chmod 664 {} \;
+sudo chown -R ttvdrops:http /mnt/Docker/Data/ttvdrops/app/media/
+sudo find /mnt/Docker/Data/ttvdrops/app/media -type d -exec chmod 2775 {} \;
+sudo find /mnt/Docker/Data/ttvdrops/app/media -type f -exec chmod 664 {} \;
 
-sudo chown -R ttvdrops:http /home/ttvdrops/.local/share/TTVDrops/datasets/
-sudo find /home/ttvdrops/.local/share/TTVDrops/datasets -type d -exec chmod 2775 {} \;
-sudo find /home/ttvdrops/.local/share/TTVDrops/datasets -type f -exec chmod 664 {} \;
+sudo chown -R ttvdrops:http /mnt/Docker/Data/ttvdrops/app/datasets/
+sudo find /mnt/Docker/Data/ttvdrops/app/datasets -type d -exec chmod 2775 {} \;
+sudo find /mnt/Docker/Data/ttvdrops/app/datasets -type f -exec chmod 664 {} \;
 ```

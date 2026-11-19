@@ -37,10 +37,11 @@ WORKDIR /app
 # Resolve dependencies from pyproject.toml first so this layer is cached when
 # only project code changes. No lock file is needed or shipped in the image.
 COPY pyproject.toml README.md ./
+# UV_PYTHON takes precedence over VIRTUAL_ENV, so target the venv explicitly.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv /app/.venv \
     && uv pip compile pyproject.toml -o /tmp/requirements.txt \
-    && uv pip install -r /tmp/requirements.txt
+    && uv pip install --python /app/.venv/bin/python -r /tmp/requirements.txt
 
 COPY . /app
 # The app is imported from /app (WORKDIR), so installing the project itself

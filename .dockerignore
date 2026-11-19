@@ -14,6 +14,7 @@ __pycache__
 db.sqlite3
 db.sqlite3-journal
 responses/
+data/
 staticfiles/
 archive/
 check_these_please/
