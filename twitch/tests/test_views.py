@@ -16,6 +16,7 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
+from core.discord_embed import MAX_EMBED_BYTES
 from kick.models import KickCategory
 from kick.models import KickDropCampaign
 from kick.models import KickOrganization
@@ -24,6 +25,7 @@ from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
 from twitch.models import DropBenefit
+from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
@@ -45,6 +47,40 @@ if TYPE_CHECKING:
     from django.test.utils import ContextList
 
     from twitch.views import Page
+
+
+def _component_embed(content: str) -> tuple[dict[str, Any], int]:
+    """Return the parsed Discord component embed and its serialized byte length.
+
+    Args:
+        content: Rendered HTML response body.
+
+    Returns:
+        tuple[dict[str, Any], int]: Parsed payload and serialized payload size.
+    """
+    prefix: str = '<script id="discord:component-embed" type="application/json">'
+    start: int = content.index(prefix) + len(prefix)
+    end: int = content.index("</script>", start)
+    serialized: str = content[start:end]
+    return json.loads(serialized), len(serialized.encode("utf-8"))
+
+
+def _component_embed_text(payload: dict[str, Any]) -> str:
+    """Return the Text Display content from a parsed component embed.
+
+    Args:
+        payload: Parsed Discord component embed.
+
+    Returns:
+        str: Text Display content, or an empty string when none is present.
+    """
+    for component in payload["component"]["components"]:
+        if component["type"] == 10:
+            return component["content"]
+        for child in component.get("components", []):
+            if child["type"] == 10:
+                return child["content"]
+    return ""
 
 
 @pytest.mark.django_db
@@ -3502,6 +3538,133 @@ class TestSEOMetaTags:
         assert response.status_code == 200
         assert "page_title" in response.context
         assert "page_description" in response.context
+
+    def test_campaign_detail_embed_description_lists_all_drops_and_dates(
+        self,
+        client: Client,
+    ) -> None:
+        """Campaign previews should list every drop, reward, channel, and date."""
+        game: Game = Game.objects.create(
+            twitch_id="game-embed-drops",
+            name="Game",
+            display_name="Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="campaign-embed-drops",
+            name="Campaign",
+            description="Marketing copy that should stay out of the embed.",
+            game=game,
+            start_at=datetime.datetime(2026, 11, 11, 20, 0, tzinfo=datetime.UTC),
+            end_at=datetime.datetime(2026, 11, 13, 1, 14, tzinfo=datetime.UTC),
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id="channel-embed",
+            name="warframe",
+            display_name="Warframe",
+        )
+        campaign.allow_channels.add(channel)
+
+        rewards: tuple[str, ...] = (
+            "250 Moonflesh",
+            "Built Forma",
+            "Neolyst Natah Floof",
+        )
+        for index, (minutes, reward) in enumerate(
+            zip((30, 60, 90), rewards, strict=True),
+            start=1,
+        ):
+            drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+                twitch_id=f"drop-embed-{index}",
+                name=f"Drop {index}",
+                campaign=campaign,
+                required_minutes_watched=minutes,
+            )
+            benefit: DropBenefit = DropBenefit.objects.create(
+                twitch_id=f"benefit-embed-{index}",
+                name=reward,
+            )
+            DropBenefitEdge.objects.create(drop=drop, benefit=benefit)
+
+        early_drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop-embed-early",
+            name="Early Drop",
+            campaign=campaign,
+            required_minutes_watched=120,
+            start_at=datetime.datetime(2026, 11, 12, 12, 0, tzinfo=datetime.UTC),
+            end_at=datetime.datetime(2026, 11, 13, 0, 0, tzinfo=datetime.UTC),
+        )
+        early_benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit-embed-early",
+            name="Early Reward",
+        )
+        DropBenefitEdge.objects.create(drop=early_drop, benefit=early_benefit)
+
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        description: str = response.context["discord_embed_description"]
+
+        assert "**Starts:** <t:1794427200:F> (<t:1794427200:R>)" in description
+        assert "**Ends:** <t:1794532440:F> (<t:1794532440:R>)" in description
+        assert "**Drops**" in description
+        assert "- 30 min watched: 250 Moonflesh" in description
+        assert "- 60 min watched: Built Forma" in description
+        assert "- 90 min watched: Neolyst Natah Floof" in description
+        assert (
+            "- 120 min watched: Early Reward "
+            "(<t:1794484800:f> - <t:1794528000:f>)" in description
+        )
+        assert "**Channels**" in description
+        assert "Warframe" in description
+        assert "Marketing copy" not in description
+        assert response.context["discord_embed_description_is_markdown"] is True
+
+        payload: dict[str, Any]
+        payload_size: int
+        payload, payload_size = _component_embed(response.content.decode())
+        assert description in _component_embed_text(payload)
+        assert payload_size <= MAX_EMBED_BYTES
+
+    def test_campaign_detail_embed_keeps_every_drop_that_fits(
+        self,
+        client: Client,
+    ) -> None:
+        """Campaign previews should keep every drop instead of a short summary."""
+        game: Game = Game.objects.create(
+            twitch_id="game-embed-many-drops",
+            name="Game",
+            display_name="Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="campaign-embed-many-drops",
+            name="Campaign",
+            game=game,
+            start_at=datetime.datetime(2026, 11, 11, 20, 0, tzinfo=datetime.UTC),
+            end_at=datetime.datetime(2026, 11, 13, 1, 14, tzinfo=datetime.UTC),
+        )
+        for index in range(1, 21):
+            drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+                twitch_id=f"drop-embed-many-{index}",
+                name=f"Drop {index}",
+                campaign=campaign,
+                required_minutes_watched=index * 15,
+            )
+            benefit: DropBenefit = DropBenefit.objects.create(
+                twitch_id=f"benefit-embed-many-{index}",
+                name=f"Reward {index}",
+            )
+            DropBenefitEdge.objects.create(drop=drop, benefit=benefit)
+
+        url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+        payload: dict[str, Any]
+        payload_size: int
+        payload, payload_size = _component_embed(response.content.decode())
+        text: str = _component_embed_text(payload)
+
+        assert payload_size <= MAX_EMBED_BYTES
+        for index in range(1, 21):
+            assert f"- {index * 15} min watched: Reward {index}" in text
+        assert "…" not in text
 
     def test_campaign_detail_view_has_breadcrumb(
         self,

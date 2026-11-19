@@ -29,6 +29,7 @@ from django.views.generic import ListView
 from core.base_url import build_absolute_uri
 from core.discord_embed import TWITCH_ACCENT_COLOR
 from core.discord_embed import embed_buttons
+from core.discord_embed import escape_markdown
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -37,6 +38,7 @@ from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import RewardCampaign
+from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
     import datetime
@@ -51,6 +53,7 @@ logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
 MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
+MAX_EMBED_CHANNELS = 8
 DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and more."
 
 
@@ -153,6 +156,179 @@ def _truncate_description(text: str, max_length: int = 160) -> str:
     if len(text) <= max_length:
         return text
     return text[:max_length].rsplit(" ", 1)[0] + "…"
+
+
+def _discord_timestamp(value: datetime.datetime | None, style: str = "F") -> str:
+    """Return a Discord timestamp token for a datetime.
+
+    Args:
+        value: Datetime to format, or None when the date is unknown.
+        style: Discord timestamp style flag, such as ``F`` or ``R``.
+
+    Returns:
+        str: Timestamp token like ``<t:1794427200:F>``, or an empty string.
+    """
+    if value is None:
+        return ""
+    return f"<t:{int(value.timestamp())}:{style}>"
+
+
+def _drop_requirement_label(drop: TimeBasedDrop) -> str:
+    """Return a compact requirement label for a drop.
+
+    Args:
+        drop: Time-based drop.
+
+    Returns:
+        str: Label such as ``"30 min watched + 1 sub"``.
+    """
+    parts: list[str] = []
+    if drop.required_minutes_watched:
+        parts.append(f"{drop.required_minutes_watched} min watched")
+    if drop.required_subs:
+        suffix: str = "" if drop.required_subs == 1 else "s"
+        parts.append(f"{drop.required_subs} sub{suffix}")
+    return " + ".join(parts)
+
+
+def _drop_reward_names(drop: TimeBasedDrop) -> list[str]:
+    """Return the reward names unlocked by a drop.
+
+    Args:
+        drop: Time-based drop.
+
+    Returns:
+        list[str]: Unique benefit names, falling back to the drop name.
+    """
+    names: list[str] = []
+    for benefit in drop.benefits.all():
+        name: str = (benefit.name or "").strip()
+        if name and name not in names:
+            names.append(name)
+    if not names:
+        name = (drop.name or "").strip()
+        if name:
+            names.append(name)
+    return names
+
+
+def _drop_availability_label(
+    drop: TimeBasedDrop,
+    campaign: DropCampaign,
+) -> str:
+    """Return a timestamp range when a drop's availability differs.
+
+    Args:
+        drop: Time-based drop.
+        campaign: Campaign that owns the drop.
+
+    Returns:
+        str: Timestamp range, or an empty string when the drop uses the
+        campaign's full window.
+    """
+    drop_start = drop.start_at
+    drop_end = drop.end_at
+    start_differs: bool = drop_start is not None and drop_start != campaign.start_at
+    end_differs: bool = drop_end is not None and drop_end != campaign.end_at
+    if not (start_differs or end_differs):
+        return ""
+
+    start: datetime.datetime | None = drop_start or campaign.start_at
+    end: datetime.datetime | None = drop_end or campaign.end_at
+    start_token: str = _discord_timestamp(start, "f")
+    end_token: str = _discord_timestamp(end, "f")
+    if start_token and end_token:
+        return f"{start_token} - {end_token}"
+    return start_token or end_token
+
+
+def _campaign_embed_description(
+    campaign: DropCampaign,
+    drops: list[dict[str, Any]],
+    channels: list[Channel],
+) -> str:
+    """Build a Discord markdown body with campaign dates, drops, and channels.
+
+    Args:
+        campaign: Campaign being rendered.
+        drops: Enhanced drop entries from ``DropCampaign.enhanced_drops_for_detail``.
+        channels: Channels allowed to award the campaign's drops.
+
+    Returns:
+        str: Markdown suitable for a Discord Text Display component.
+    """
+    blocks: list[str] = []
+
+    start_absolute: str = _discord_timestamp(campaign.start_at, "F")
+    end_absolute: str = _discord_timestamp(campaign.end_at, "F")
+    date_lines: list[str] = []
+    if start_absolute:
+        date_lines.append(
+            f"**Starts:** {start_absolute} ({_discord_timestamp(campaign.start_at, 'R')})",
+        )
+    if end_absolute:
+        date_lines.append(
+            f"**Ends:** {end_absolute} ({_discord_timestamp(campaign.end_at, 'R')})",
+        )
+    if date_lines:
+        blocks.append("\n".join(date_lines))
+
+    drop_lines: list[str] = []
+    for entry in drops:
+        drop: TimeBasedDrop = entry["drop"]
+        requirement: str = _drop_requirement_label(drop)
+        reward_names: list[str] = _drop_reward_names(drop)
+        reward_text: str = ", ".join(
+            escape_markdown(name) for name in reward_names
+        ) or escape_markdown(drop.name or "Drop")
+        drop_line: str = (
+            f"- {requirement}: {reward_text}" if requirement else f"- {reward_text}"
+        )
+        availability: str = _drop_availability_label(drop, campaign)
+        if availability:
+            drop_line += f" ({availability})"
+        drop_lines.append(drop_line)
+    if drop_lines:
+        blocks.append("**Drops**\n" + "\n".join(drop_lines))
+
+    if channels:
+        shown_channels: list[str] = [
+            escape_markdown(channel.preferred_name)
+            for channel in channels[:MAX_EMBED_CHANNELS]
+        ]
+        channel_text: str = ", ".join(shown_channels)
+        hidden_count: int = len(channels) - len(shown_channels)
+        if hidden_count > 0:
+            channel_text += f" +{hidden_count} more"
+        blocks.append("**Channels**\n" + channel_text)
+
+    return "\n\n".join(blocks)
+
+
+def _campaign_gallery_items(
+    drops: list[dict[str, Any]],
+    *,
+    exclude_url: str = "",
+) -> list[dict[str, str]]:
+    """Build reward gallery items for a campaign's Discord embed.
+
+    Args:
+        drops: Enhanced drop entries from ``DropCampaign.enhanced_drops_for_detail``.
+        exclude_url: Image URL to skip, normally the embed thumbnail.
+
+    Returns:
+        list[dict[str, str]]: Deduplicated gallery items.
+    """
+    items: list[tuple[str, str]] = []
+    for entry in drops:
+        drop: TimeBasedDrop = entry["drop"]
+        requirement: str = _drop_requirement_label(drop)
+        for benefit in drop.benefits.all():
+            description: str = (
+                f"{requirement}: {benefit.name}" if requirement else benefit.name
+            )
+            items.append((description, benefit.image_best_url))
+    return _gallery_items(items, exclude_url=exclude_url)
 
 
 def _build_seo_context(
@@ -581,6 +757,11 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         if campaign.description
         else f"Twitch drop campaign: {campaign_name}"
     )
+    campaign_embed_description: str = _campaign_embed_description(
+        campaign,
+        enhanced_drops,
+        list(getattr(campaign, "channels_ordered", [])),
+    )
     single_reward: DropBenefit | None = campaign.single_reward_benefit
     single_reward_image: str = single_reward.image_best_url if single_reward else ""
     campaign_image: str | None = single_reward_image or campaign.image_best_url
@@ -703,12 +884,11 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
             else "",
         ),
     )
-    seo_context["discord_embed_gallery"] = _gallery_items(
-        (
-            (benefit.name, benefit.image_best_url)
-            for enhanced_drop in enhanced_drops
-            for benefit in enhanced_drop["drop"].benefits.all()
-        ),
+    if campaign_embed_description:
+        seo_context["discord_embed_description"] = campaign_embed_description
+        seo_context["discord_embed_description_is_markdown"] = True
+    seo_context["discord_embed_gallery"] = _campaign_gallery_items(
+        enhanced_drops,
         exclude_url=campaign_image or "",
     )
     context.update(seo_context)

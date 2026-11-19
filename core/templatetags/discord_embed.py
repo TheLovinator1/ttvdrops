@@ -24,11 +24,12 @@ register = template.Library()
 def discord_component_embed(context: Context) -> SafeString:
     """Render the Discord component-embed script for the current page.
 
-    The tag reads the same SEO context used for Open Graph tags, plus an
-    optional ``discord_embed_buttons`` list and ``discord_embed_accent_color``.
-    The title links back to the current page and pages without a page image
-    fall back to the site icon. It renders nothing when a payload cannot fit
-    within Discord's size limit.
+    The tag reads the same SEO context used for Open Graph tags, plus optional
+    ``discord_embed_description``, ``discord_embed_description_is_markdown``,
+    ``discord_embed_buttons``, and ``discord_embed_accent_color`` values. The
+    title links back to the current page and pages without a page image fall
+    back to the site icon. It renders nothing when a payload cannot fit within
+    Discord's size limit.
 
     Args:
         context: Template context for the current request.
@@ -38,7 +39,8 @@ def discord_component_embed(context: Context) -> SafeString:
     """
     title: str = context.get("page_title") or "TTVDrops - Twitch, Kick and Chzzk Drops"
     description: str = (
-        context.get("page_description")
+        context.get("discord_embed_description")
+        or context.get("page_description")
         or "Archive of Twitch, Kick and Chzzk drops, campaigns, and rewards."
     )
     image_url: str = context.get("page_image") or static("android-chrome-512x512.png")
@@ -54,10 +56,14 @@ def discord_component_embed(context: Context) -> SafeString:
     accent_color: int = (
         context.get("discord_embed_accent_color") or DEFAULT_ACCENT_COLOR
     )
+    description_is_markdown: bool = bool(
+        context.get("discord_embed_description_is_markdown"),
+    )
 
     payload: str = build_component_embed(
         title=title,
         description=description,
+        description_is_markdown=description_is_markdown,
         image_url=image_url,
         page_url=page_url,
         gallery=gallery,

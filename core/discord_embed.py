@@ -25,9 +25,33 @@ MAX_BUTTON_URL_LENGTH = 512
 MAX_IMAGE_URL_LENGTH = 2048
 MAX_PAGE_URL_LENGTH = 2048
 MAX_TITLE_LENGTH = 120
-MAX_DESCRIPTION_LENGTH = 300
+MAX_DESCRIPTION_LENGTH = 2500
 MAX_GALLERY_ITEMS = 10
 MAX_GALLERY_DESCRIPTION_LENGTH = 100
+
+DESCRIPTION_LENGTH_CANDIDATES: tuple[int, ...] = (
+    MAX_DESCRIPTION_LENGTH,
+    2400,
+    2300,
+    2200,
+    2100,
+    2000,
+    1800,
+    1600,
+    1400,
+    1200,
+    1000,
+    850,
+    700,
+    550,
+    450,
+    350,
+    250,
+    160,
+    90,
+    50,
+    0,
+)
 
 DEFAULT_ACCENT_COLOR = 5793266
 TWITCH_ACCENT_COLOR = 0x9146FF
@@ -37,7 +61,7 @@ CHZZK_ACCENT_COLOR = 0x00FFA3
 _MARKDOWN_ESCAPE_CHARS = ("\\", "*", "_", "~", "`", "|", ">", "[", "]", "#")
 
 
-def _escape_markdown(text: str) -> str:
+def escape_markdown(text: str) -> str:
     """Escape characters that would otherwise be interpreted as markdown.
 
     Args:
@@ -64,7 +88,28 @@ def _clean_text(text: str, limit: int) -> str:
     cleaned: str = " ".join((text or "").split())
     if len(cleaned) > limit:
         cleaned = cleaned[:limit].rsplit(" ", 1)[0].rstrip() + "…"
-    return _escape_markdown(cleaned)
+    return escape_markdown(cleaned)
+
+
+def _clean_markdown_text(text: str, limit: int) -> str:
+    """Trim markdown text on a line boundary while preserving formatting.
+
+    Args:
+        text: Markdown text to clean.
+        limit: Maximum length in characters.
+
+    Returns:
+        str: Trimmed markdown with line breaks and markdown markers intact.
+    """
+    cleaned: str = (text or "").strip()
+    if len(cleaned) <= limit:
+        return cleaned
+
+    truncated: str = cleaned[:limit]
+    newline_index: int = truncated.rfind("\n")
+    if newline_index > 0:
+        return truncated[:newline_index].rstrip() + "\n…"
+    return truncated.rsplit(" ", 1)[0].rstrip() + "…"
 
 
 def _valid_url(url: str, *, max_length: int) -> str:
@@ -326,6 +371,7 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
     *,
     title: str,
     description: str = "",
+    description_is_markdown: bool = False,
     image_url: str = "",
     page_url: str = "",
     gallery: Iterable[Mapping[str, str] | tuple[str, str]] = (),
@@ -340,7 +386,10 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
 
     Args:
         title: Embed title.
-        description: Short description shown under the title.
+        description: Description shown under the title.
+        description_is_markdown: Preserve line breaks and markdown formatting in
+            the description instead of escaping it. Only use this for trusted,
+            server-generated text.
         image_url: Optional thumbnail image URL.
         page_url: Optional URL to link the title to.
         gallery: Optional media gallery images shown below the text.
@@ -365,8 +414,13 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
         title_candidates = ["TTVDrops"]
 
     description_candidates: list[str] = []
-    for limit in (MAX_DESCRIPTION_LENGTH, 200, 140, 90, 50, 0):
-        candidate = _clean_text(description, limit) if limit else ""
+    for limit in DESCRIPTION_LENGTH_CANDIDATES:
+        if not limit:
+            candidate = ""
+        elif description_is_markdown:
+            candidate = _clean_markdown_text(description, limit)
+        else:
+            candidate = _clean_text(description, limit)
         if candidate not in description_candidates:
             description_candidates.append(candidate)
 

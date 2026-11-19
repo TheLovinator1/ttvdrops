@@ -125,6 +125,63 @@ def test_escapes_html_and_markdown_characters() -> None:
     assert "\\*bold\\*" in content
 
 
+def test_markdown_description_preserves_line_breaks_and_formatting() -> None:
+    """Markdown descriptions should keep formatting and line breaks intact."""
+    description: str = (
+        "**Starts:** <t:1794427200:F> (<t:1794427200:R>)\n"
+        "\n"
+        "**Drops**\n"
+        "- 30 min watched: 250 Moonflesh"
+    )
+    payload: dict[str, Any] = json.loads(
+        build_component_embed(
+            title="Campaign",
+            description=description,
+            description_is_markdown=True,
+        ),
+    )
+
+    text_component: dict[str, Any] = payload["component"]["components"][0]
+    content: str = text_component["content"]
+    assert description in content
+    assert "\\*\\*" not in content
+
+
+def test_markdown_description_still_escapes_html() -> None:
+    """Markdown descriptions must not break out of the script element."""
+    raw: str = build_component_embed(
+        title="Campaign",
+        description="<script>alert(1)</script>\n**Drops**",
+        description_is_markdown=True,
+    )
+
+    assert "<" not in raw
+    assert ">" not in raw
+    assert "\\u003cscript" in raw
+    assert "**Drops**" in json.loads(raw)["component"]["components"][0]["content"]
+
+
+def test_markdown_description_truncates_on_line_boundaries() -> None:
+    """Markdown descriptions should not end in the middle of a drop line."""
+    description: str = "\n".join(
+        f"- Drop {index}: Reward {index}" for index in range(100)
+    )
+    payload: dict[str, Any] = json.loads(
+        build_component_embed(
+            title="Campaign",
+            description=description,
+            description_is_markdown=True,
+            max_bytes=500,
+        ),
+    )
+
+    text_component: dict[str, Any] = payload["component"]["components"][0]
+    content: str = text_component["content"]
+    lines: list[str] = content.splitlines()
+    assert lines[-1] == "…"
+    assert all(line.startswith("- Drop ") for line in lines[1:-1])
+
+
 def test_builds_media_gallery() -> None:
     """Gallery images should be emitted as a Media Gallery component."""
     payload: dict[str, Any] = json.loads(
