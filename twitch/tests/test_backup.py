@@ -52,6 +52,7 @@ class TestBackupCommand:
         assert backup_files[0].exists()
         assert backup_files[0].stat().st_size > 0
 
+    @pytest.mark.django_db(transaction=True)
     def test_backup_contains_sql_content(self, tmp_path: Path) -> None:
         """Test that backup file contains valid SQL content."""
         _skip_if_pg_dump_missing()
@@ -215,8 +216,13 @@ class TestBackupHelperFunctions:
         assert not any(table.startswith("django_") for table in tables)
         assert not any(table.startswith("debug_toolbar_") for table in tables)
 
+    @pytest.mark.django_db(transaction=True)
     def test_write_dump_includes_schema_and_data(self, tmp_path: Path) -> None:
-        """Test _write_dump writes complete SQL dump."""
+        """Test _write_dump writes complete SQL dump.
+
+        `transaction=True` commits the test rows so the external `pg_dump`
+        process can see them.
+        """
         # Create test data
         Organization.objects.create(twitch_id="test789", name="Write Test Org")
 
