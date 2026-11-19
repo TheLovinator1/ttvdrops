@@ -1,6 +1,7 @@
 .git
 .github
 .venv
+uv.lock
 __pycache__
 *.py[cod]
 .coverage
