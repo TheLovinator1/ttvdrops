@@ -2214,19 +2214,22 @@ _HISTORY_PERIOD_DAYS: dict[str, int] = {
 }
 
 
-def _history_page_number(request: HttpRequest) -> int:
-    """Return the requested one-based page number.
+def _history_cursor(request: HttpRequest) -> tuple[str | None, str]:
+    """Return the requested cursor and direction.
 
     Args:
         request: The HTTP request.
 
     Returns:
-        Parsed page number, defaulting to 1.
+        Tuple of cursor string (or None) and direction.
     """
-    try:
-        return max(1, int(request.GET.get("page", "1")))
-    except TypeError, ValueError:
-        return 1
+    older: str | None = request.GET.get("older")
+    newer: str | None = request.GET.get("newer")
+    if older:
+        return older, "older"
+    if newer:
+        return newer, "newer"
+    return None, "older"
 
 
 def _paginate_history(  # ruff:ignore[too-many-arguments]
@@ -2252,10 +2255,14 @@ def _paginate_history(  # ruff:ignore[too-many-arguments]
         Tuple of the history page and rendered event rows.
     """
     page: HistoryPage
+    cursor: str | None
+    direction: str
+    cursor, direction = _history_cursor(request)
     if querysets is not None:
         page = history_page_for_querysets(
             querysets,
-            page_number=_history_page_number(request),
+            cursor=cursor,
+            direction=direction,
             per_page=HISTORY_PAGE_SIZE,
         )
     else:
@@ -2264,7 +2271,8 @@ def _paginate_history(  # ruff:ignore[too-many-arguments]
             action_filter=action_filter,
             q=q,
             since=since,
-            page_number=_history_page_number(request),
+            cursor=cursor,
+            direction=direction,
             per_page=HISTORY_PAGE_SIZE,
         )
     return page, build_event_rows(page.rows)
@@ -2283,17 +2291,21 @@ def _history_pagination_context(
     *,
     base_url: str,
 ) -> dict[str, Any]:
-    pagination_info: list[dict[str, str]] | None = _build_pagination_info(
-        request,
-        page,
-        base_url,
-    )
+    """Build cursor pagination context for a history page.
+
+    Args:
+        request: The HTTP request.
+        page: Materialized history page.
+        base_url: Base URL preserving current filters.
+
+    Returns:
+        Template pagination context.
+    """
     return {
-        "page_obj": page,
-        "is_paginated": page.has_other_pages(),
-        "pagination_info": pagination_info,
         "history_base_url": base_url,
         "page_join": "&" if "?" in base_url else "?",
+        "older_cursor": page.older_cursor,
+        "newer_cursor": page.newer_cursor,
     }
 
 

@@ -24,7 +24,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.timesince import timesince
 
-from twitch.utils import normalize_twitch_box_art_url
+from twitch.utils import normalize_twitch_image_url
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -329,7 +329,7 @@ class Game(auto_prefetch.Model):
                 return self.box_art_file.url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve Game.box_art_file url: %s", exc)
-        return normalize_twitch_box_art_url(self.box_art or "")
+        return normalize_twitch_image_url(self.box_art or "")
 
     @property
     def image_best_url(self) -> str:
@@ -339,7 +339,7 @@ class Game(auto_prefetch.Model):
     @property
     def dashboard_box_art_url(self) -> str:
         """Dashboard-safe box art URL without touching deferred image fields."""
-        return normalize_twitch_box_art_url(self.box_art or "")
+        return normalize_twitch_image_url(self.box_art or "")
 
     @classmethod
     def for_detail_view(cls) -> models.QuerySet[Game]:
@@ -1925,7 +1925,7 @@ class DropCampaign(auto_prefetch.Model):
             logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
 
         if self.image_url:
-            return self.image_url
+            return normalize_twitch_image_url(self.image_url)
 
         # If no campaign image, use the first benefit image
         for drop in self.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
@@ -1948,15 +1948,15 @@ class DropCampaign(auto_prefetch.Model):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
-        return self.image_url or ""
+        return normalize_twitch_image_url(self.image_url or "")
 
     @property
     def dashboard_image_url(self) -> str:
         """Dashboard-safe campaign or single-reward image URL."""
         benefit: DropBenefit | None = self.single_reward_benefit
         if benefit and benefit.image_asset_url:
-            return benefit.image_asset_url
-        return self.image_url or ""
+            return normalize_twitch_image_url(benefit.image_asset_url)
+        return normalize_twitch_image_url(self.image_url or "")
 
     @property
     def duration_iso(self) -> str:
@@ -2178,7 +2178,7 @@ class DropBenefit(auto_prefetch.Model):
                         return file_url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve DropBenefit.image_file url: %s", exc)
-        return self.image_asset_url or ""
+        return normalize_twitch_image_url(self.image_asset_url or "")
 
 
 # MARK: DropBenefitEdge
@@ -2267,12 +2267,6 @@ class TimeBasedDrop(auto_prefetch.Model):
 
     precondition_drops = models.JSONField(
         help_text="Raw precondition drops data returned by Twitch.",
-        blank=True,
-        null=True,
-    )
-
-    localized_content = models.JSONField(
-        help_text="Raw localized content returned by Twitch.",
         blank=True,
         null=True,
     )
@@ -2556,7 +2550,7 @@ class RewardCampaign(auto_prefetch.Model):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve RewardCampaign.image_file url: %s", exc)
-        return self.image_url or ""
+        return normalize_twitch_image_url(self.image_url or "")
 
 
 # MARK: Reward
@@ -2669,7 +2663,9 @@ class Reward(auto_prefetch.Model):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve Reward.image_file url: %s", exc)
-        return self.thumbnail_image_url or self.banner_image_url or ""
+        return normalize_twitch_image_url(
+            self.thumbnail_image_url or self.banner_image_url or "",
+        )
 
 
 # MARK: ChatBadgeSet

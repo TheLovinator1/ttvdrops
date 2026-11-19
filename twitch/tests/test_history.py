@@ -3,6 +3,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import quote
 
 import pytest
 from django.core.management import call_command
@@ -11,18 +12,24 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from pghistory.models import Events
 
+from twitch.history import HistoryResolver
+from twitch.history import build_event_detail
 from twitch.history import build_event_rows
 from twitch.history import campaign_history_querysets
+from twitch.history import history_page
 from twitch.history import history_page_for_querysets
+from twitch.history_replay import HistoryReplay
 from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
 from twitch.models import Game
+from twitch.models import GameOwner
 from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.schemas import GameSchema
 
 if TYPE_CHECKING:
     from django.test import Client
@@ -63,6 +70,67 @@ def test_build_history_backdates_events_and_resumes(tmp_path: Path) -> None:
     event_count: int = event_model.objects.count()
     call_command("build_history", str(tmp_path), "--recursive")
     assert event_model.objects.count() == event_count
+
+
+def test_history_replay_game_name_does_not_flap() -> None:
+    """Missing game name fields must not alternate between populated and empty."""
+    game: Game = Game.objects.create(
+        twitch_id="flap-game",
+        name="Marvel Rivals",
+        display_name="Marvel Rivals",
+    )
+    replay: HistoryReplay = HistoryReplay()
+    without_name: GameSchema = GameSchema.model_validate({
+        "id": "flap-game",
+        "displayName": "Marvel Rivals",
+        "__typename": "Game",
+    })
+    with_name: GameSchema = GameSchema.model_validate({
+        "id": "flap-game",
+        "name": "Marvel Rivals",
+        "displayName": "Marvel Rivals",
+        "__typename": "Game",
+    })
+
+    replay._process_game(without_name)
+    replay._process_game(with_name)
+    count_after_name: int = Game.pgh_event_model.objects.filter(pgh_obj=game).count()
+
+    replay._process_game(without_name)
+
+    assert Game.pgh_event_model.objects.filter(pgh_obj=game).count() == count_after_name
+
+
+def test_history_replay_owner_membership_is_additive() -> None:
+    """Missing owner data must not produce owner_removed events."""
+    game: Game = Game.objects.create(
+        twitch_id="owner-history-game",
+        display_name="Owner History Game",
+    )
+    org: Organization = Organization.objects.create(
+        twitch_id="owner-history-org",
+        name="Owner History Org",
+    )
+    game.owners.add(org)
+
+    replay: HistoryReplay = HistoryReplay()
+    replay._emit_owner_membership(game, {int(org.pk)})
+    count_after_add: int = GameOwner.pgh_event_model.objects.filter(
+        game_id=game.pk,
+    ).count()
+
+    replay._emit_owner_membership(game, set())
+
+    assert (
+        GameOwner.pgh_event_model.objects.filter(
+            game_id=game.pk,
+        ).count()
+        == count_after_add
+    )
+    assert not GameOwner.pgh_event_model.objects.filter(
+        pgh_label="owner_removed",
+        game_id=game.pk,
+    ).exists()
 
 
 def test_history_only_does_not_modify_live_rows(tmp_path: Path) -> None:
@@ -279,7 +347,7 @@ def test_history_for_objects_groups_model_types() -> None:
     )
 
     page = history_page_for_querysets(campaign_history_querysets(campaign))
-    assert page.total >= 2
+    assert len(page.rows) >= 2
 
 
 def test_source_labels_come_from_data_source() -> None:
@@ -301,6 +369,105 @@ def test_source_labels_come_from_data_source() -> None:
     assert row["source"] == "TwitchDropsMiner"
     assert row["source_url"] == "https://github.com/DevilXD/TwitchDropsMiner"
     assert row["mode"] == "replay"
+
+
+def test_history_pagination_is_cursor_based(client: Client) -> None:
+    """Pagination must not fetch page-sized offsets from every event table."""
+    game: Game = Game.objects.create(
+        twitch_id="cursor-game",
+        display_name="Cursor Game",
+    )
+    campaign: DropCampaign = DropCampaign.objects.create(
+        twitch_id="cursor-campaign",
+        name="Cursor Campaign 0",
+        game=game,
+    )
+    for index in range(1, 150):
+        campaign.name = f"Cursor Campaign {index}"
+        campaign.save(update_fields=["name"])
+
+    with CaptureQueriesContext(connection) as first_queries:
+        first_response = client.get(f"{reverse('twitch:history')}?period=all")
+
+    assert first_response.status_code == 200
+    assert b"[last]" not in first_response.content
+
+    page = history_page(per_page=100)
+    assert page.older_cursor is not None
+
+    with CaptureQueriesContext(connection) as older_queries:
+        older_response = client.get(
+            f"{reverse('twitch:history')}?period=all&older={quote(page.older_cursor)}",
+        )
+
+    assert older_response.status_code == 200
+    assert b"[newer]" in older_response.content
+    assert b"[last]" not in older_response.content
+
+    for query in (*first_queries.captured_queries, *older_queries.captured_queries):
+        sql: str = query["sql"].upper()
+        assert "OFFSET" not in sql
+        if "ORDER BY" in sql and "LIMIT" in sql and "PGH_CREATED_AT" in sql:
+            assert "LIMIT 101" in sql
+
+
+def test_image_fields_get_preview_urls() -> None:
+    """Image fields should expose a browser-loadable preview URL."""
+    resolver: HistoryResolver = HistoryResolver([])
+
+    external = resolver.value(
+        "box_art",
+        "https://static-cdn.jtvnw.net/ttv-boxart/1630982727_IGDB-120x160.jpg",
+    )
+    assert external.image_url == (
+        "https://static-cdn.jtvnw.net/ttv-boxart/1630982727_IGDB.jpg"
+    )
+
+    profile = resolver.value(
+        "image_url",
+        "https://static-cdn.jtvnw.net/jtv_user_pictures/example-profile_image-70x70.png",
+    )
+    assert profile.image_url == (
+        "https://static-cdn.jtvnw.net/jtv_user_pictures/example-profile_image-300x300.png"
+    )
+
+    emote = resolver.value(
+        "image_asset_url",
+        "https://static-cdn.jtvnw.net/emoticons/v1/414579/1.0",
+    )
+    assert emote.image_url == "https://static-cdn.jtvnw.net/emoticons/v1/414579/3.0"
+
+    local = resolver.value("image_file", "campaigns/images/example.png")
+    assert local.image_url == "/media/campaigns/images/example.png"
+
+    empty = resolver.value("box_art", "")
+    assert not empty.image_url
+
+
+def test_first_observed_update_is_labeled_clearly() -> None:
+    """An update without a previous snapshot should not say 0 fields changed."""
+    event: dict[str, object] = {
+        "pgh_slug": "twitch.DropCampaignEvent:1",
+        "pgh_model": "twitch.DropCampaignEvent",
+        "pgh_id": 1,
+        "pgh_created_at": datetime.now(UTC),
+        "pgh_label": "updated",
+        "pgh_data": {
+            "twitch_id": "first-observed-campaign",
+            "name": "First Observed Campaign",
+        },
+        "pgh_diff": None,
+        "pgh_obj_model": "twitch.DropCampaign",
+        "pgh_obj_id": 1,
+        "pgh_context": {},
+    }
+
+    row = build_event_rows([event])[0]
+    assert row["summary"] == "First observed"
+
+    detail = build_event_detail(event)
+    assert detail["before"] == []
+    assert detail["after"]
 
 
 def test_history_page_query_count(client: Client) -> None:
@@ -502,11 +669,6 @@ def test_query_count_does_not_scale_with_event_volume(client: Client) -> None:
         client,
         reverse("twitch:campaign_history", args=[campaign.twitch_id]),
         30,
-    )
-    _assert_query_bound(
-        client,
-        f"{reverse('twitch:history')}?period=all&page=2",
-        40,
     )
 
 

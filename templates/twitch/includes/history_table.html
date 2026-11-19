@@ -37,9 +37,29 @@
                                     {% for change in event.diff|slice:":5" %}
                                         <div class="history-diff-row">
                                             <span class="history-field">{{ change.field }}</span>
-                                            <span class="history-old">{{ change.old.text }}</span>
+                                            <span class="history-old">
+                                                {% if change.old.image_url %}
+                                                    <a href="{{ change.old.image_url }}" target="_blank" rel="noopener">
+                                                        <img class="history-diff-image"
+                                                             src="{{ change.old.image_url }}"
+                                                             alt=""
+                                                             loading="lazy" />
+                                                    </a>
+                                                {% endif %}
+                                                {{ change.old.text }}
+                                            </span>
                                             <span class="history-arrow">→</span>
-                                            <span class="history-new">{{ change.new.text }}</span>
+                                            <span class="history-new">
+                                                {% if change.new.image_url %}
+                                                    <a href="{{ change.new.image_url }}" target="_blank" rel="noopener">
+                                                        <img class="history-diff-image"
+                                                             src="{{ change.new.image_url }}"
+                                                             alt=""
+                                                             loading="lazy" />
+                                                    </a>
+                                                {% endif %}
+                                                {{ change.new.text }}
+                                            </span>
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -50,9 +70,33 @@
                                             {% for change in event.diff|slice:"5:" %}
                                                 <div class="history-diff-row">
                                                     <span class="history-field">{{ change.field }}</span>
-                                                    <span class="history-old">{{ change.old.text }}</span>
+                                                    <span class="history-old">
+                                                        {% if change.old.image_url %}
+                                                            <a href="{{ change.old.image_url }}"
+                                                               target="_blank"
+                                                               rel="noopener">
+                                                                <img class="history-diff-image"
+                                                                     src="{{ change.old.image_url }}"
+                                                                     alt=""
+                                                                     loading="lazy" />
+                                                            </a>
+                                                        {% endif %}
+                                                        {{ change.old.text }}
+                                                    </span>
                                                     <span class="history-arrow">→</span>
-                                                    <span class="history-new">{{ change.new.text }}</span>
+                                                    <span class="history-new">
+                                                        {% if change.new.image_url %}
+                                                            <a href="{{ change.new.image_url }}"
+                                                               target="_blank"
+                                                               rel="noopener">
+                                                                <img class="history-diff-image"
+                                                                     src="{{ change.new.image_url }}"
+                                                                     alt=""
+                                                                     loading="lazy" />
+                                                            </a>
+                                                        {% endif %}
+                                                        {{ change.new.text }}
+                                                    </span>
                                                 </div>
                                             {% endfor %}
                                         </div>

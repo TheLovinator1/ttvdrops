@@ -56,6 +56,7 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import SunkwiBotDropGroupSchema
 from twitch.schemas import SunkwiBotRewardCampaignSchema
+from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
 
 if TYPE_CHECKING:
@@ -1160,7 +1161,7 @@ class Command(BaseCommand):
         defaults: dict[str, Any] = {
             "name": reward.name,
             "description": reward.description,
-            "image_url": reward.image_url,
+            "image_url": normalize_twitch_image_url(reward.image_url),
             "game": game_obj,
             "start_at": start_at_dt,
             "end_at": end_at_dt,
@@ -1189,7 +1190,7 @@ class Command(BaseCommand):
             changed = False
             merge_fields: dict[str, str | object | None] = {
                 "description": reward.description,
-                "image_url": reward.image_url,
+                "image_url": normalize_twitch_image_url(reward.image_url),
                 "details_url": reward.details_url,
                 "api_status": reward.status,
                 "event_based_drops": reward.event_based_drops or [],
@@ -1387,7 +1388,9 @@ class Command(BaseCommand):
             )
             benefit_defaults: dict[str, Any] = {
                 "name": benefit_schema.name,
-                "image_asset_url": benefit_schema.image_asset_url,
+                "image_asset_url": normalize_twitch_image_url(
+                    benefit_schema.image_asset_url,
+                ),
                 "entitlement_limit": benefit_schema.entitlement_limit,
                 "is_ios_available": benefit_schema.is_ios_available,
                 "distribution_type": benefit_schema.distribution_type or "",
@@ -1411,7 +1414,9 @@ class Command(BaseCommand):
         else:
             defaults: dict[str, Any] = {
                 "name": benefit_schema.name,
-                "image_asset_url": benefit_schema.image_asset_url,
+                "image_asset_url": normalize_twitch_image_url(
+                    benefit_schema.image_asset_url,
+                ),
                 "entitlement_limit": benefit_schema.entitlement_limit,
                 "is_ios_available": benefit_schema.is_ios_available,
                 "distribution_type": benefit_schema.distribution_type or "",
@@ -1665,7 +1670,9 @@ class Command(BaseCommand):
             "about_url": campaign.about_url,
             "is_sitewide": campaign.is_sitewide,
             "game": game_obj,
-            "image_url": campaign.image.image1x_url if campaign.image else "",
+            "image_url": normalize_twitch_image_url(
+                campaign.image.image1x_url if campaign.image else "",
+            ),
             "last_seen_at": self._get_observation_timestamp(),
             "data_source": source,
         }
@@ -1686,7 +1693,9 @@ class Command(BaseCommand):
             merge_fields = {
                 "summary": campaign.summary,
                 "instructions": campaign.instructions,
-                "image_url": campaign.image.image1x_url if campaign.image else "",
+                "image_url": normalize_twitch_image_url(
+                    campaign.image.image1x_url if campaign.image else "",
+                ),
                 "about_url": campaign.about_url,
                 "external_url": campaign.external_url,
             }
@@ -1822,15 +1831,15 @@ class Command(BaseCommand):
         defaults: dict[str, Any] = {
             "reward_campaign": campaign_obj,
             "name": reward_schema.name,
-            "banner_image_url": (
+            "banner_image_url": normalize_twitch_image_url(
                 reward_schema.banner_image.image1x_url
                 if reward_schema.banner_image
-                else ""
+                else "",
             ),
-            "thumbnail_image_url": (
+            "thumbnail_image_url": normalize_twitch_image_url(
                 reward_schema.thumbnail_image.image1x_url
                 if reward_schema.thumbnail_image
-                else ""
+                else "",
             ),
             "earnable_until": earnable_until_dt,
             "redemption_instructions": reward_schema.redemption_instructions,
@@ -1992,24 +2001,24 @@ class Command(BaseCommand):
             )
             return cached
 
+        normalized_box_art: str = normalize_twitch_image_url(box_art_url)
         defaults: dict[str, Any] = {
             "display_name": display_name,
             "name": display_name,
-            "box_art": box_art_url,
+            "box_art": normalized_box_art,
         }
         game_obj, created = Game.objects.get_or_create(
             twitch_id=twitch_id,
             defaults=defaults,
         )
         if not created:
-            self._save_if_changed(
-                game_obj,
-                {
-                    "display_name": display_name,
-                    "name": display_name,
-                    "box_art": box_art_url,
-                },
-            )
+            update_defaults: dict[str, Any] = {
+                "display_name": display_name,
+                "name": display_name,
+            }
+            if normalized_box_art:
+                update_defaults["box_art"] = normalized_box_art
+            self._save_if_changed(game_obj, update_defaults)
         # Assign owner organization if provided
         if (
             org_obj is not None

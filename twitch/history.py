@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from math import ceil
 from typing import TYPE_CHECKING
 from typing import Any
 
+from django.conf import settings
 from django.db.models import Q
 from django.urls import reverse
 from pghistory.models import Context
@@ -24,6 +25,7 @@ from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.utils import normalize_twitch_image_url
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -123,7 +125,6 @@ FIELD_LABELS: dict[str, str] = {
     "image_file": "Image file",
     "is_account_connected": "Account connected",
     "is_ios_available": "iOS available",
-    "localized_content": "Localized content",
     "precondition_drops": "Precondition drops",
     "required_minutes_watched": "Required minutes",
     "required_subs": "Required subs",
@@ -148,6 +149,7 @@ FK_FIELDS: dict[str, str] = {
 class _Value:
     text: str
     url: str = ""
+    image_url: str = ""
 
 
 def event_models_for_filter(model_filter: str) -> list[type[Model]]:
@@ -174,52 +176,51 @@ _SEARCH_FIELDS: tuple[str, ...] = ("name", "display_name", "twitch_id", "slug")
 
 @dataclass
 class HistoryPage:
-    """A page of aggregate history events without the pghistory CTE."""
+    """A cursor-paginated page of aggregate history events."""
 
-    number: int
-    per_page: int
-    total: int
     rows: list[dict[str, Any]]
+    older_cursor: str | None = None
+    newer_cursor: str | None = None
 
-    @property
-    def num_pages(self) -> int:
-        """Total number of pages."""
-        return max(1, ceil(self.total / self.per_page))
 
-    @property
-    def page_range(self) -> range:
-        """One-based page numbers for pagination controls."""
-        return range(1, self.num_pages + 1)
+def encode_event_cursor(event: Any) -> str:  # ruff:ignore[any-type]
+    """Encode an event's position as an opaque pagination cursor.
 
-    def has_previous(self) -> bool:
-        """Return True when a previous page exists."""
-        return self.number > 1
+    Args:
+        event: Event model instance.
 
-    def has_next(self) -> bool:
-        """Return True when a next page exists."""
-        return self.number < self.num_pages
+    Returns:
+        URL-safe cursor string.
+    """
+    payload: str = (
+        f"{event.pgh_created_at.isoformat()}|"
+        f"{event._meta.label}|"  # ruff:ignore[private-member-access]
+        f"{event.pk}"
+    )
+    return base64.urlsafe_b64encode(payload.encode()).decode()
 
-    def has_other_pages(self) -> bool:
-        """Return True when more than one page exists."""
-        return self.num_pages > 1
 
-    def previous_page_number(self) -> int:
-        """Return the previous page number."""
-        return self.number - 1
+def decode_event_cursor(cursor: str | None) -> tuple[datetime, str, int] | None:
+    """Decode an opaque pagination cursor.
 
-    def next_page_number(self) -> int:
-        """Return the next page number."""
-        return self.number + 1
+    Args:
+        cursor: Cursor string from the query string.
 
-    @property
-    def start_index(self) -> int:
-        """One-based index of the first row on this page."""
-        return 0 if self.total == 0 else (self.number - 1) * self.per_page + 1
-
-    @property
-    def end_index(self) -> int:
-        """One-based index of the last row on this page."""
-        return min(self.number * self.per_page, self.total)
+    Returns:
+        Tuple of timestamp, event model label, and event ID, or None.
+    """
+    if not cursor:
+        return None
+    try:
+        raw: str = base64.urlsafe_b64decode(cursor.encode()).decode()
+        timestamp_raw, model_label, event_id_raw = raw.split("|")
+        return (
+            datetime.fromisoformat(timestamp_raw),
+            model_label,
+            int(event_id_raw),
+        )
+    except ValueError, TypeError, UnicodeDecodeError:
+        return None
 
 
 def _search_q(event_model: Any, q: str) -> Q:  # ruff:ignore[any-type]
@@ -386,43 +387,98 @@ def _materialize_events(events: Iterable[Any]) -> list[dict[str, Any]]:
 def history_page_for_querysets(
     querysets: Iterable[QuerySet],
     *,
-    page_number: int = 1,
+    cursor: str | None = None,
+    direction: str = "older",
     per_page: int = 100,
 ) -> HistoryPage:
-    """Build a history page from per-event-model querysets.
+    """Build a cursor-paginated history page from per-event-model querysets.
 
     Args:
         querysets: Querysets, one per event model.
-        page_number: Requested one-based page number.
+        cursor: Opaque cursor for the current page.
+        direction: ``older`` or ``newer`` relative to the cursor.
         per_page: Number of rows per page.
 
     Returns:
         Materialized history page.
     """
     queryset_list: list[QuerySet] = list(querysets)
-    counts: list[int] = [queryset.count() for queryset in queryset_list]
-    total: int = sum(counts)
-    total_pages: int = max(1, ceil(total / per_page))
-    current_page: int = min(max(page_number, 1), total_pages)
-
-    # Fetch just enough from each table to cover the requested page, then merge
-    # and sort in Python. This avoids the expensive aggregate pghistory CTE.
-    fetch_limit: int = current_page * per_page
+    cursor_data: tuple[datetime, str, int] | None = decode_event_cursor(cursor)
     events: list[Any] = []
-    for queryset, count in zip(queryset_list, counts, strict=True):
-        if count:
+
+    for base_queryset in queryset_list:
+        label: str = base_queryset.model._meta.label  # ruff:ignore[private-member-access]
+        queryset: QuerySet = base_queryset
+        if cursor_data is not None:
+            timestamp, cursor_label, cursor_id = cursor_data
+            if direction == "newer":
+                if label == cursor_label:
+                    queryset = queryset.filter(
+                        Q(pgh_created_at__gt=timestamp)
+                        | Q(pgh_created_at=timestamp, pgh_id__gt=cursor_id),
+                    )
+                elif label > cursor_label:
+                    queryset = queryset.filter(pgh_created_at__gte=timestamp)
+                else:
+                    queryset = queryset.filter(pgh_created_at__gt=timestamp)
+            elif label == cursor_label:
+                queryset = queryset.filter(
+                    Q(pgh_created_at__lt=timestamp)
+                    | Q(pgh_created_at=timestamp, pgh_id__lt=cursor_id),
+                )
+            elif label < cursor_label:
+                queryset = queryset.filter(pgh_created_at__lte=timestamp)
+            else:
+                queryset = queryset.filter(pgh_created_at__lt=timestamp)
+
+        if direction == "newer":
             events.extend(
-                queryset.order_by("-pgh_created_at", "-pgh_id")[:fetch_limit],
+                queryset.order_by("pgh_created_at", "pgh_id")[: per_page + 1],
+            )
+        else:
+            events.extend(
+                queryset.order_by("-pgh_created_at", "-pgh_id")[: per_page + 1],
             )
 
-    events.sort(key=lambda event: (event.pgh_created_at, event.pgh_id), reverse=True)
-    start: int = (current_page - 1) * per_page
-    selected: list[Any] = events[start : start + per_page]
+    if direction == "newer":
+        events.sort(
+            key=lambda event: (
+                event.pgh_created_at,
+                event._meta.label,  # ruff:ignore[private-member-access]
+                event.pgh_id,
+            ),
+        )
+    else:
+        events.sort(
+            key=lambda event: (
+                event.pgh_created_at,
+                event._meta.label,  # ruff:ignore[private-member-access]
+                event.pgh_id,
+            ),
+            reverse=True,
+        )
+
+    has_more: bool = len(events) > per_page
+    selected: list[Any] = events[:per_page]
+    if direction == "newer":
+        selected.reverse()
+
+    older_cursor: str | None = None
+    newer_cursor: str | None = None
+    if selected:
+        if direction == "older":
+            newer_cursor = cursor if cursor_data is not None else None
+            if has_more:
+                older_cursor = encode_event_cursor(selected[-1])
+        else:
+            older_cursor = encode_event_cursor(selected[-1])
+            if has_more:
+                newer_cursor = encode_event_cursor(selected[0])
+
     return HistoryPage(
-        number=current_page,
-        per_page=per_page,
-        total=total,
         rows=_materialize_events(selected),
+        older_cursor=older_cursor,
+        newer_cursor=newer_cursor,
     )
 
 
@@ -432,7 +488,8 @@ def history_page(  # ruff:ignore[too-many-arguments]
     action_filter: str = "",
     q: str = "",
     since: datetime | None = None,
-    page_number: int = 1,
+    cursor: str | None = None,
+    direction: str = "older",
     per_page: int = 100,
 ) -> HistoryPage:
     """Build the global/event-filtered history page.
@@ -442,7 +499,8 @@ def history_page(  # ruff:ignore[too-many-arguments]
         action_filter: Optional UI action filter.
         q: Optional name or ID search string.
         since: Optional lower bound for pgh_created_at.
-        page_number: Requested one-based page number.
+        cursor: Opaque cursor for the current page.
+        direction: ``older`` or ``newer`` relative to the cursor.
         per_page: Number of rows per page.
 
     Returns:
@@ -455,7 +513,8 @@ def history_page(  # ruff:ignore[too-many-arguments]
             q=q,
             since=since,
         ),
-        page_number=page_number,
+        cursor=cursor,
+        direction=direction,
         per_page=per_page,
     )
 
@@ -614,6 +673,33 @@ def _json_value(value: Any) -> str:  # ruff:ignore[any-type]
 
 def _format_datetime(value: datetime) -> str:
     return value.strftime("%b %d, %Y %H:%M")
+
+
+_IMAGE_FIELDS: set[str] = {
+    "banner_image_url",
+    "box_art",
+    "image_asset_url",
+    "image_file",
+    "image_url",
+    "thumbnail_image_url",
+}
+
+
+def _image_preview_url(value: Any) -> str:  # ruff:ignore[any-type]
+    """Return a browser-loadable URL for an image field value.
+
+    Args:
+        value: Raw field value.
+
+    Returns:
+        Image URL, or an empty string when there is no image.
+    """
+    if not isinstance(value, str) or not value:
+        return ""
+    if value.startswith(("https://", "http://", "/")):
+        return normalize_twitch_image_url(value)
+    media_url: str = settings.MEDIA_URL or "/media/"
+    return f"{media_url.rstrip('/')}/{value.lstrip('/')}"
 
 
 def _format_generic(value: Any) -> str:  # ruff:ignore[any-type]
@@ -805,6 +891,11 @@ class HistoryResolver:
         Returns:
             Formatted value with an optional link.
         """
+        if field in _IMAGE_FIELDS:
+            preview_url: str = _image_preview_url(value)
+            if preview_url:
+                return _Value(_format_generic(value), image_url=preview_url)
+
         kind: str = FK_FIELDS.get(field, "")
         if kind == "campaign" and isinstance(value, int):
             return _Value(self.campaign_name(value), self.campaign_url(value))
@@ -948,7 +1039,7 @@ def _snapshot_rows(
             "changed": field in diff,
         })
 
-    if label == "created":
+    if label == "created" or (label == "updated" and not diff):
         before = []
     elif label == "deleted":
         after = []
@@ -1010,6 +1101,8 @@ def build_event_rows(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
             summary = "Created"
         elif label == "deleted":
             summary = "Deleted"
+        elif not diff_rows:
+            summary = "First observed"
         else:
             summary = f"{len(diff_rows)} field(s) changed"
 

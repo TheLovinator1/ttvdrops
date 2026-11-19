@@ -49,7 +49,17 @@
                             {% for row in event.before %}
                                 <tr {% if row.changed %}class="history-changed"{% endif %}>
                                     <th scope="row">{{ row.field }}</th>
-                                    <td>{{ row.value.text }}</td>
+                                    <td>
+                                        {% if row.value.image_url %}
+                                            <a href="{{ row.value.image_url }}" target="_blank" rel="noopener">
+                                                <img class="history-snapshot-image"
+                                                     src="{{ row.value.image_url }}"
+                                                     alt=""
+                                                     loading="lazy" />
+                                            </a>
+                                        {% endif %}
+                                        {{ row.value.text }}
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -64,7 +74,17 @@
                             {% for row in event.after %}
                                 <tr {% if row.changed %}class="history-changed"{% endif %}>
                                     <th scope="row">{{ row.field }}</th>
-                                    <td>{{ row.value.text }}</td>
+                                    <td>
+                                        {% if row.value.image_url %}
+                                            <a href="{{ row.value.image_url }}" target="_blank" rel="noopener">
+                                                <img class="history-snapshot-image"
+                                                     src="{{ row.value.image_url }}"
+                                                     alt=""
+                                                     loading="lazy" />
+                                            </a>
+                                        {% endif %}
+                                        {{ row.value.text }}
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>

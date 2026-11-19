@@ -336,6 +336,21 @@ History-only mode writes pghistory event rows and leaves campaigns, drops,
 benefits, games, organizations, and channels untouched. It is resumable and
 backdates events to the filename timestamps.
 
+## Replace cached images
+
+Re-download already-cached Twitch images from their normalized high-resolution
+URLs:
+
+```bash
+uv run python manage.py replace_downloaded_images
+uv run python manage.py replace_downloaded_images --model games
+uv run python manage.py replace_downloaded_images --dry-run
+```
+
+The command replaces the original file, removes stale WebP/AVIF variants, and
+regenerates missing modern-format files. Use `--include-missing` to also fill in
+records that do not have a local image yet.
+
 ## Import Chat Badges
 
 Import Twitch's global chat badges for archival and reference:

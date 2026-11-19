@@ -7,6 +7,8 @@ from django.core.files.storage import default_storage
 from django.utils.html import format_html
 from django.utils.safestring import SafeString
 
+from twitch.utils import normalize_twitch_image_url
+
 register = template.Library()
 logger = logging.getLogger("ttvdrops.image_tags")
 
@@ -82,6 +84,7 @@ def picture(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
 
     # For Twitch CDN URLs, skip format conversion and use simple img tag
     if "static-cdn.jtvnw.net" in src:
+        src = normalize_twitch_image_url(src)
         return format_html(
             format_string='<img src="{src}"{width}{height}{loading}{css_class}{style}{alt} />',
             src=src,

@@ -26,6 +26,7 @@ from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
 
 if TYPE_CHECKING:
@@ -116,14 +117,20 @@ class HistoryReplay:
         self._campaign_channels[int(campaign.pk)] = channel_ids
 
     def _emit_owner_membership(self, game: Game, org_ids: set[int]) -> None:
+        """Record newly observed game owners without inferring removals.
+
+        Responses are not authoritative about the full owner set, so a missing
+        owner only means “not present in this response”, not “removed”.
+
+        Args:
+            game: Live game receiving the ownership observation.
+            org_ids: Organization IDs observed in this response.
+        """
         previous: set[int] = self._game_owners.get(int(game.pk), set())
         for org_id in org_ids - previous:
             row = GameOwner(id=0, game_id=game.pk, organization_id=org_id)
             pghistory.create_event(row, label="owner_added")
-        for org_id in previous - org_ids:
-            row = GameOwner(id=0, game_id=game.pk, organization_id=org_id)
-            pghistory.create_event(row, label="owner_removed")
-        self._game_owners[int(game.pk)] = org_ids
+        self._game_owners[int(game.pk)] = previous | org_ids
 
     def _live_edge(
         self,
@@ -166,15 +173,15 @@ class HistoryReplay:
         live_game = self._live(Game, schema.twitch_id)
         if live_game is None:
             return None
-        updates: dict[str, Any] = {
-            "twitch_id": schema.twitch_id,
-            "display_name": schema.display_name or schema.name or "",
-            "name": schema.name or "",
-        }
+        updates: dict[str, Any] = {"twitch_id": schema.twitch_id}
+        if schema.display_name:
+            updates["display_name"] = schema.display_name
+        if schema.name:
+            updates["name"] = schema.name
         if schema.slug:
             updates["slug"] = schema.slug
         if schema.box_art_url:
-            updates["box_art"] = schema.box_art_url
+            updates["box_art"] = normalize_twitch_image_url(schema.box_art_url)
         self._emit(Game, live_game, updates)
 
         if schema.owner_organization:
@@ -205,15 +212,17 @@ class HistoryReplay:
         if live_game is None:
             return None
         name = str(game_data.get("displayName") or game_data.get("name") or "")
-        updates: dict[str, Any] = {
-            "twitch_id": game_id,
-            "display_name": name,
-            "name": str(game_data.get("name") or name),
-        }
+        updates: dict[str, Any] = {"twitch_id": game_id}
+        if name:
+            updates["display_name"] = name
+        if game_data.get("name"):
+            updates["name"] = str(game_data["name"])
         if game_data.get("slug"):
             updates["slug"] = str(game_data["slug"])
         if game_data.get("boxArtURL"):
-            updates["box_art"] = str(game_data["boxArtURL"])
+            updates["box_art"] = normalize_twitch_image_url(
+                str(game_data["boxArtURL"]),
+            )
         self._emit(Game, live_game, updates)
         return live_game
 
@@ -274,7 +283,7 @@ class HistoryReplay:
         if schema.account_link_url:
             updates["account_link_url"] = schema.account_link_url
         if schema.image_url:
-            updates["image_url"] = schema.image_url
+            updates["image_url"] = normalize_twitch_image_url(schema.image_url)
         if schema.event_based_drops is not None:
             updates["event_based_drops"] = schema.event_based_drops
         if owner_id is not None:
@@ -334,8 +343,6 @@ class HistoryReplay:
                 updates["end_at"] = end_at
             if schema.precondition_drops is not None:
                 updates["precondition_drops"] = schema.precondition_drops
-            if schema.localized_content is not None:
-                updates["localized_content"] = schema.localized_content
             if schema.repeat is not None:
                 updates["repeat"] = schema.repeat
             self._emit(TimeBasedDrop, live_drop, updates)
@@ -355,7 +362,9 @@ class HistoryReplay:
 
         updates: dict[str, Any] = {"twitch_id": schema.twitch_id, "name": schema.name}
         if schema.image_asset_url:
-            updates["image_asset_url"] = schema.image_asset_url
+            updates["image_asset_url"] = normalize_twitch_image_url(
+                schema.image_asset_url,
+            )
         if schema.created_at:
             created_at = parse_date(schema.created_at)
             if created_at is not None:
@@ -417,7 +426,9 @@ class HistoryReplay:
             "reward_value_url_param": schema.reward_value_url_param,
             "about_url": schema.about_url,
             "is_sitewide": schema.is_sitewide,
-            "image_url": schema.image.image1x_url if schema.image else "",
+            "image_url": normalize_twitch_image_url(
+                schema.image.image1x_url if schema.image else "",
+            ),
             "data_source": "TwitchDropsMiner",
         }
         if game_id is not None:
@@ -439,11 +450,11 @@ class HistoryReplay:
             "twitch_id": schema.twitch_id,
             "reward_campaign_id": campaign.pk,
             "name": schema.name,
-            "banner_image_url": (
-                schema.banner_image.image1x_url if schema.banner_image else ""
+            "banner_image_url": normalize_twitch_image_url(
+                schema.banner_image.image1x_url if schema.banner_image else "",
             ),
-            "thumbnail_image_url": (
-                schema.thumbnail_image.image1x_url if schema.thumbnail_image else ""
+            "thumbnail_image_url": normalize_twitch_image_url(
+                schema.thumbnail_image.image1x_url if schema.thumbnail_image else "",
             ),
             "redemption_instructions": schema.redemption_instructions,
             "redemption_url": schema.redemption_url,

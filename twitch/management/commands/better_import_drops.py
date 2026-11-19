@@ -35,7 +35,7 @@ from twitch.schemas import GraphQLResponse
 from twitch.schemas import OrganizationSchema
 from twitch.utils import image_tasks_suppressed
 from twitch.utils import is_twitch_box_art_url
-from twitch.utils import normalize_twitch_box_art_url
+from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
 
 if TYPE_CHECKING:
@@ -754,7 +754,7 @@ class Command(BaseCommand):
         if game_obj.box_art_file and getattr(game_obj.box_art_file, "name", ""):
             return
 
-        normalized_url: str = normalize_twitch_box_art_url(box_art_url)
+        normalized_url: str = normalize_twitch_image_url(box_art_url)
         parsed_url = urlparse(normalized_url)
         suffix: str = Path(parsed_url.path).suffix or ".jpg"
         file_name: str = f"{game_obj.twitch_id}{suffix}"
@@ -935,7 +935,7 @@ class Command(BaseCommand):
                 defaults: dict[str, object] = {
                     "name": drop_campaign.name,
                     "description": drop_campaign.description,
-                    "image_url": drop_campaign.image_url,
+                    "image_url": normalize_twitch_image_url(drop_campaign.image_url),
                     "game": game_obj,
                     "start_at": start_at_dt,
                     "end_at": end_at_dt,
@@ -1033,8 +1033,6 @@ class Command(BaseCommand):
                 )
             if drop_schema.precondition_drops is not None:
                 drop_defaults["precondition_drops"] = drop_schema.precondition_drops
-            if drop_schema.localized_content is not None:
-                drop_defaults["localized_content"] = drop_schema.localized_content
             if drop_schema.repeat is not None:
                 drop_defaults["repeat"] = drop_schema.repeat
             if start_at_dt is not None:
@@ -1084,7 +1082,9 @@ class Command(BaseCommand):
         distribution_type: str | None = benefit_schema.distribution_type
         benefit_defaults: dict[str, object] = {
             "name": benefit_schema.name,
-            "image_asset_url": benefit_schema.image_asset_url,
+            "image_asset_url": normalize_twitch_image_url(
+                benefit_schema.image_asset_url,
+            ),
         }
         if benefit_schema.entitlement_limit is not None:
             benefit_defaults["entitlement_limit"] = benefit_schema.entitlement_limit
@@ -1338,9 +1338,9 @@ class Command(BaseCommand):
                 "about_url": reward_campaign.about_url,
                 "is_sitewide": reward_campaign.is_sitewide,
                 "game": game_obj,
-                "image_url": reward_campaign.image.image1x_url
-                if reward_campaign.image
-                else "",
+                "image_url": normalize_twitch_image_url(
+                    reward_campaign.image.image1x_url if reward_campaign.image else "",
+                ),
                 "last_seen_at": observation_timestamp,
             }
 
@@ -1426,15 +1426,15 @@ class Command(BaseCommand):
         defaults: dict[str, Any] = {
             "reward_campaign": campaign_obj,
             "name": reward_schema.name,
-            "banner_image_url": (
+            "banner_image_url": normalize_twitch_image_url(
                 reward_schema.banner_image.image1x_url
                 if reward_schema.banner_image
-                else ""
+                else "",
             ),
-            "thumbnail_image_url": (
+            "thumbnail_image_url": normalize_twitch_image_url(
                 reward_schema.thumbnail_image.image1x_url
                 if reward_schema.thumbnail_image
-                else ""
+                else "",
             ),
             "earnable_until": earnable_until_dt,
             "redemption_instructions": reward_schema.redemption_instructions,

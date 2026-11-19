@@ -5,7 +5,7 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
-from twitch.utils import normalize_twitch_box_art_url
+from twitch.utils import normalize_twitch_image_url
 
 
 class OrganizationSchema(BaseModel):
@@ -72,7 +72,7 @@ class GameSchema(BaseModel):
             The normalized box_art_url string, or None if input was None.
         """
         if v:
-            return normalize_twitch_box_art_url(v)
+            return normalize_twitch_image_url(v)
         return v
 
     @model_validator(mode="before")

@@ -19,7 +19,7 @@ from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
-from twitch.utils import normalize_twitch_box_art_url
+from twitch.utils import normalize_twitch_image_url
 
 if TYPE_CHECKING:
     from django.db.models import QuerySet
@@ -355,7 +355,7 @@ def _game_box_art_url(game: Game) -> str:
     if deferred_fields.isdisjoint(local_image_fields):
         return game.box_art_best_url
     if "box_art" not in deferred_fields:
-        return normalize_twitch_box_art_url(game.box_art or "")
+        return normalize_twitch_image_url(game.box_art or "")
     return ""
 
 

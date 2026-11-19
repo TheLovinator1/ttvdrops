@@ -141,6 +141,26 @@
     color: color-mix(in srgb, CanvasText 45%, transparent 55%);
 }
 
+.history-diff-image {
+    display: block;
+    max-width: 160px;
+    max-height: 160px;
+    border: 1px solid color-mix(in srgb, CanvasText 15%, transparent 85%);
+    border-radius: 0.35rem;
+    margin: 0.2rem 0 0.35rem;
+    object-fit: contain;
+}
+
+.history-snapshot-image {
+    display: block;
+    max-width: 220px;
+    max-height: 220px;
+    border: 1px solid color-mix(in srgb, CanvasText 15%, transparent 85%);
+    border-radius: 0.35rem;
+    margin-bottom: 0.35rem;
+    object-fit: contain;
+}
+
 .history-source {
     display: inline-block;
     border-radius: 0.25rem;

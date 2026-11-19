@@ -87,6 +87,62 @@ def normalize_twitch_box_art_url(url: str) -> str:
     return str(urlunparse(parsed._replace(path=normalized_path)))
 
 
+def normalize_twitch_image_url(url: str) -> str:
+    """Normalize Twitch CDN image URLs to the largest available variant.
+
+    Handles box art, profile images, emotes, and VOD thumbnails.
+
+    Args:
+        url: Twitch CDN image URL.
+
+    Returns:
+        URL pointing at the highest-quality variant when possible.
+    """
+    if not url:
+        return url
+
+    parsed: ParseResult = urlparse(url)
+    if parsed.netloc != TWITCH_BOX_ART_HOST:
+        return url
+
+    path: str = parsed.path
+    if path.startswith(TWITCH_BOX_ART_PATH_PREFIX):
+        path = TWITCH_BOX_ART_SIZE_PATTERN.sub("", path)
+    elif "/emoticons/v1/" in path:
+        path = re.sub(
+            r"(/emoticons/v1/\d+/)[012][0-9.]*$",
+            r"\g<1>3.0",
+            path,
+        )
+    elif "/emoticons/v2/" in path:
+        path = re.sub(
+            r"(/emoticons/v2/(?:[0-9]+|emotesv2_[0-9a-f]{10,})/[^/]+/[a-z]+/)[0-4][0-9.]*$",
+            r"\g<1>5.0",
+            path,
+        )
+    elif "/thumb/thumb" in path:
+        path = re.sub(
+            r"(/thumb/thumb[0-9]*-)[0-9]+x[0-9]+(\.[a-z]+)$",
+            r"\g<1>0x0\2",
+            path,
+        )
+    elif "/jtv_user_pictures/" in path:
+        upgraded: str = re.sub(
+            r"-(?:50x50|70x70)(\.[^/.]+)$",
+            r"-300x300\1",
+            path,
+        )
+        path = (
+            upgraded
+            if upgraded != path
+            else re.sub(r"-[0-9]+x[0-9]+(\.[^/.]+)$", r"\1", path)
+        )
+    else:
+        path = re.sub(r"-[0-9]+x[0-9]+(\.[^/.]+)$", r"\1", path)
+
+    return str(urlunparse(parsed._replace(path=path)))
+
+
 @lru_cache(maxsize=40 * 40 * 1024)
 def parse_date(value: str) -> datetime | None:
     """Parse a datetime string into a timezone-aware datetime using dateparser.
