@@ -2,10 +2,7 @@ name: ttvdrops
 
 # Shared configuration for every container that runs the Django app.
 x-app: &app
-  build:
-    context: .
-    dockerfile: Dockerfile
-  image: ttvdrops:local
+  image: git.lovinator.space/thelovinator/ttvdrops:latest
   # Keep file ownership in sync with the host user.
   user: "${UID:-1000}:${GID:-1000}"
   env_file:
