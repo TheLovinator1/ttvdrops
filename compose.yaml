@@ -49,7 +49,7 @@ services:
     restart: unless-stopped
 
   valkey:
-    image: valkey/valkey:8-trixie
+    image: valkey/valkey:9-trixie
     volumes:
       - valkey_data:/data
     healthcheck:
