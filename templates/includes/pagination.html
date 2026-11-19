@@ -1,0 +1,29 @@
+{% if is_paginated %}
+    <nav class="pagination" aria-label="Pagination">
+        {% if page_obj.has_previous %}
+            <a href="{{ history_base_url }}{{ page_join }}page={{ page_obj.previous_page_number }}">[prev]</a>
+        {% else %}
+            <span>[prev]</span>
+        {% endif %}
+        {% for num in page_obj.page_range %}
+            {% if page_obj.number == num %}
+                <strong>{{ num }}</strong>
+            {% elif num > page_obj.number|add:"-10" and num < page_obj.number|add:"10" %}
+                <a href="{{ history_base_url }}{{ page_join }}page={{ num }}">{{ num }}</a>
+            {% elif num == 1 or num == page_obj.num_pages %}
+                <a href="{{ history_base_url }}{{ page_join }}page={{ num }}">{{ num }}</a>
+            {% elif num == page_obj.number|add:"-10" or num == page_obj.number|add:"10" %}
+                <span>…</span>
+            {% endif %}
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <a href="{{ history_base_url }}{{ page_join }}page={{ page_obj.next_page_number }}">[next]</a>
+            <a href="{{ history_base_url }}{{ page_join }}page={{ page_obj.num_pages }}">[last]</a>
+        {% else %}
+            <span>[next]</span>
+        {% endif %}
+        <span class="history-muted">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.total }}
+        </span>
+    </nav>
+{% endif %}

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import datetime
 import json
 import logging
 from typing import TYPE_CHECKING
@@ -30,6 +31,18 @@ from core.base_url import build_absolute_uri
 from core.discord_embed import TWITCH_ACCENT_COLOR
 from core.discord_embed import embed_buttons
 from core.discord_embed import escape_markdown
+from twitch.history import MODEL_FILTER_LABELS
+from twitch.history import HistoryPage
+from twitch.history import build_event_detail
+from twitch.history import build_event_rows
+from twitch.history import campaign_history_querysets
+from twitch.history import channel_history_querysets
+from twitch.history import event_detail_by_slug
+from twitch.history import game_history_querysets
+from twitch.history import history_page
+from twitch.history import history_page_for_querysets
+from twitch.history import organization_history_querysets
+from twitch.history import reward_campaign_history_querysets
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -41,7 +54,6 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
 if TYPE_CHECKING:
-    import datetime
     from collections.abc import Iterable
 
     from django.db.models import QuerySet
@@ -2189,3 +2201,390 @@ def game_less_rewards_view(request: HttpRequest) -> HttpResponse:
     }
 
     return render(request, "twitch/game_less_rewards.html", context)
+
+
+# MARK: History
+HISTORY_PAGE_SIZE = 100
+
+_HISTORY_PERIOD_DAYS: dict[str, int] = {
+    "24h": 1,
+    "7d": 7,
+    "30d": 30,
+    "90d": 90,
+}
+
+
+def _history_page_number(request: HttpRequest) -> int:
+    """Return the requested one-based page number.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        Parsed page number, defaulting to 1.
+    """
+    try:
+        return max(1, int(request.GET.get("page", "1")))
+    except TypeError, ValueError:
+        return 1
+
+
+def _paginate_history(  # ruff:ignore[too-many-arguments]
+    request: HttpRequest,
+    *,
+    model_filter: str = "",
+    action_filter: str = "",
+    q: str = "",
+    since: datetime.datetime | None = None,
+    querysets: list[QuerySet] | None = None,
+) -> tuple[HistoryPage, list[dict[str, Any]]]:
+    """Build a materialized history page and presentation rows.
+
+    Args:
+        request: The HTTP request.
+        model_filter: Optional model filter for global pages.
+        action_filter: Optional action filter for global pages.
+        q: Optional search string for global pages.
+        since: Optional lower time bound for global pages.
+        querysets: Per-model querysets for entity pages.
+
+    Returns:
+        Tuple of the history page and rendered event rows.
+    """
+    page: HistoryPage
+    if querysets is not None:
+        page = history_page_for_querysets(
+            querysets,
+            page_number=_history_page_number(request),
+            per_page=HISTORY_PAGE_SIZE,
+        )
+    else:
+        page = history_page(
+            model_filter=model_filter,
+            action_filter=action_filter,
+            q=q,
+            since=since,
+            page_number=_history_page_number(request),
+            per_page=HISTORY_PAGE_SIZE,
+        )
+    return page, build_event_rows(page.rows)
+
+
+def _history_since(period: str) -> datetime.datetime | None:
+    days: int | None = _HISTORY_PERIOD_DAYS.get(period)
+    if days is None:
+        return None
+    return timezone.now() - datetime.timedelta(days=days)
+
+
+def _history_pagination_context(
+    request: HttpRequest,
+    page: HistoryPage,
+    *,
+    base_url: str,
+) -> dict[str, Any]:
+    pagination_info: list[dict[str, str]] | None = _build_pagination_info(
+        request,
+        page,
+        base_url,
+    )
+    return {
+        "page_obj": page,
+        "is_paginated": page.has_other_pages(),
+        "pagination_info": pagination_info,
+        "history_base_url": base_url,
+        "page_join": "&" if "?" in base_url else "?",
+    }
+
+
+def history_view(request: HttpRequest) -> HttpResponse:
+    """Display the global SteamDB-style history browser.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        Rendered global history page.
+    """
+    model_filter: str = request.GET.get("model", "")
+    action_filter: str = request.GET.get("action", "")
+    period: str = request.GET.get("period", "7d")
+    search: str = request.GET.get("q", "").strip()
+
+    page, rows = _paginate_history(
+        request,
+        model_filter=model_filter,
+        action_filter=action_filter,
+        q=search,
+        since=_history_since(period),
+    )
+
+    base_url: str = "/twitch/history/"
+    query_params: dict[str, str] = {
+        key: value
+        for key, value in (
+            ("model", model_filter),
+            ("action", action_filter),
+            ("period", period),
+            ("q", search),
+        )
+        if value
+    }
+    if query_params:
+        base_url += "?" + urlencode(query_params)
+
+    model_options: list[dict[str, str]] = [
+        {"value": value, "label": label} for value, label in MODEL_FILTER_LABELS.items()
+    ]
+    action_options: list[dict[str, str]] = [
+        {"value": "", "label": "All actions"},
+        {"value": "created", "label": "Created"},
+        {"value": "updated", "label": "Updated"},
+        {"value": "deleted", "label": "Deleted"},
+        {"value": "membership_added", "label": "Membership added"},
+        {"value": "membership_removed", "label": "Membership removed"},
+    ]
+
+    url: str = build_absolute_uri(base_url)
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title="Twitch archive history",
+        page_description="Browse a timestamped history of Twitch drop changes.",
+        seo_meta={"page_url": url},
+    )
+    context: dict[str, Any] = {
+        "events": rows,
+        "history_title": "Twitch archive history",
+        "history_description": (
+            "Every tracked change to campaigns, drops, rewards, games, "
+            "organizations and channels."
+        ),
+        "show_filters": True,
+        "model_options": model_options,
+        "action_options": action_options,
+        "period_options": [
+            {"value": "24h", "label": "Last 24 hours"},
+            {"value": "7d", "label": "Last 7 days"},
+            {"value": "30d", "label": "Last 30 days"},
+            {"value": "90d", "label": "Last 90 days"},
+            {"value": "all", "label": "All time"},
+        ],
+        "selected_model": model_filter,
+        "selected_action": action_filter,
+        "selected_period": period,
+        "search_query": search,
+        **_history_pagination_context(request, page, base_url=base_url),
+        **seo_context,
+    }
+    return render(request, "twitch/history.html", context)
+
+
+def _render_entity_history(  # ruff:ignore[too-many-arguments]
+    request: HttpRequest,
+    *,
+    entity: object,
+    entity_name: str,
+    entity_url: str,
+    title: str,
+    description: str,
+    querysets: list[QuerySet],
+) -> HttpResponse:
+    """Render a per-object history page.
+
+    Args:
+        request: The HTTP request.
+        entity: The object the history belongs to.
+        entity_name: Human-readable object name.
+        entity_url: Canonical object URL.
+        title: Page title.
+        description: Page description.
+        querysets: Per-event-model querysets.
+
+    Returns:
+        Rendered history page.
+    """
+    page, rows = _paginate_history(request, querysets=querysets)
+    base_url: str = request.path
+    url: str = build_absolute_uri(base_url)
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title=title,
+        page_description=description,
+        seo_meta={"page_url": url},
+    )
+    context: dict[str, Any] = {
+        "events": rows,
+        "history_title": title,
+        "history_description": description,
+        "show_filters": False,
+        "entity": entity,
+        "entity_name": entity_name,
+        "entity_url": entity_url,
+        **_history_pagination_context(request, page, base_url=base_url),
+        **seo_context,
+    }
+    return render(request, "twitch/history.html", context)
+
+
+def drop_campaign_history_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+    """Display the history of a drop campaign and its children.
+
+    Args:
+        request: The HTTP request.
+        twitch_id: The campaign Twitch ID.
+
+    Returns:
+        Rendered campaign history page.
+    """
+    campaign: DropCampaign = get_object_or_404(DropCampaign, twitch_id=twitch_id)
+    querysets: list[QuerySet] = campaign_history_querysets(campaign)
+    entity_url: str = reverse("twitch:campaign_detail", args=[campaign.twitch_id])
+    return _render_entity_history(
+        request,
+        entity=campaign,
+        entity_name=campaign.name,
+        entity_url=entity_url,
+        title=f"{campaign.name} history",
+        description=f"Timestamped changes for the Twitch campaign {campaign.name}.",
+        querysets=querysets,
+    )
+
+
+def game_history_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+    """Display the history of a game and its campaigns/rewards.
+
+    Args:
+        request: The HTTP request.
+        twitch_id: The game Twitch ID.
+
+    Returns:
+        Rendered game history page.
+    """
+    game: Game = get_object_or_404(Game, twitch_id=twitch_id)
+    querysets: list[QuerySet] = game_history_querysets(game)
+    entity_url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+    return _render_entity_history(
+        request,
+        entity=game,
+        entity_name=game.get_game_name,
+        entity_url=entity_url,
+        title=f"{game.get_game_name} history",
+        description=f"Timestamped changes for the Twitch game {game.get_game_name}.",
+        querysets=querysets,
+    )
+
+
+def organization_history_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+    """Display the history of an organization and its games.
+
+    Args:
+        request: The HTTP request.
+        twitch_id: The organization Twitch ID.
+
+    Returns:
+        Rendered organization history page.
+    """
+    organization: Organization = get_object_or_404(Organization, twitch_id=twitch_id)
+    querysets: list[QuerySet] = organization_history_querysets(organization)
+    entity_url: str = reverse(
+        "twitch:organization_detail",
+        args=[organization.twitch_id],
+    )
+    return _render_entity_history(
+        request,
+        entity=organization,
+        entity_name=organization.name,
+        entity_url=entity_url,
+        title=f"{organization.name} history",
+        description=f"Timestamped changes for the Twitch organization {organization.name}.",
+        querysets=querysets,
+    )
+
+
+def channel_history_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+    """Display the history of a channel and its campaign memberships.
+
+    Args:
+        request: The HTTP request.
+        twitch_id: The channel Twitch ID.
+
+    Returns:
+        Rendered channel history page.
+    """
+    channel: Channel = get_object_or_404(Channel, twitch_id=twitch_id)
+    querysets: list[QuerySet] = channel_history_querysets(channel)
+    entity_url: str = reverse("twitch:channel_detail", args=[channel.twitch_id])
+    display_name: str = channel.display_name or channel.name
+    return _render_entity_history(
+        request,
+        entity=channel,
+        entity_name=display_name,
+        entity_url=entity_url,
+        title=f"{display_name} history",
+        description=f"Timestamped changes for the Twitch channel {display_name}.",
+        querysets=querysets,
+    )
+
+
+def reward_campaign_history_view(
+    request: HttpRequest,
+    twitch_id: str,
+) -> HttpResponse:
+    """Display the history of a reward campaign and its rewards.
+
+    Args:
+        request: The HTTP request.
+        twitch_id: The reward campaign Twitch ID.
+
+    Returns:
+        Rendered reward campaign history page.
+    """
+    reward_campaign: RewardCampaign = get_object_or_404(
+        RewardCampaign,
+        twitch_id=twitch_id,
+    )
+    querysets: list[QuerySet] = reward_campaign_history_querysets(reward_campaign)
+    entity_url: str = reverse(
+        "twitch:reward_campaign_detail",
+        args=[reward_campaign.twitch_id],
+    )
+    return _render_entity_history(
+        request,
+        entity=reward_campaign,
+        entity_name=reward_campaign.name,
+        entity_url=entity_url,
+        title=f"{reward_campaign.name} history",
+        description=(
+            f"Timestamped changes for the Twitch reward campaign {reward_campaign.name}."
+        ),
+        querysets=querysets,
+    )
+
+
+def history_event_detail_view(request: HttpRequest, slug: str) -> HttpResponse:
+    """Display a single history event with before/after values.
+
+    Args:
+        request: The HTTP request.
+        slug: Aggregate event slug.
+
+    Returns:
+        Rendered event detail page.
+
+    Raises:
+        Http404: If no event matches the slug.
+    """
+    event: dict[str, Any] | None = event_detail_by_slug(slug)
+    if event is None:
+        msg = "No history event found matching the query"
+        raise Http404(msg)
+
+    detail: dict[str, Any] = build_event_detail(event)
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title=f"{detail['object_name']} · {detail['label']}",
+        page_description="A single historical change from the Twitch archive.",
+        seo_meta={"robots_directive": "noindex, follow"},
+    )
+    context: dict[str, Any] = {
+        "event": detail,
+        **seo_context,
+    }
+    return render(request, "twitch/history_event.html", context)

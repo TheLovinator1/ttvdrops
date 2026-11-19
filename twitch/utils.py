@@ -1,4 +1,6 @@
+import contextvars
 import re
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
@@ -8,6 +10,7 @@ import dateparser
 from django.utils import timezone
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from datetime import datetime
     from urllib.parse import ParseResult
 
@@ -16,6 +19,34 @@ TWITCH_BOX_ART_PATH_PREFIX = "/ttv-boxart/"
 TWITCH_BOX_ART_SIZE_PATTERN: re.Pattern[str] = re.compile(
     r"-(\{width\}|\d+)x(\{height\}|\d+)(?=\.[A-Za-z0-9]+$)",
 )
+
+_IMAGE_TASKS_SUPPRESSED: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "twitch_image_tasks_suppressed",
+    default=False,
+)
+
+
+@contextmanager
+def suppress_image_tasks() -> Generator[None]:
+    """Temporarily stop dispatching and performing Twitch image work.
+
+    Yields:
+        None: Control back to the caller.
+    """
+    token: contextvars.Token[bool] = _IMAGE_TASKS_SUPPRESSED.set(True)
+    try:
+        yield
+    finally:
+        _IMAGE_TASKS_SUPPRESSED.reset(token)
+
+
+def image_tasks_suppressed() -> bool:
+    """Return True when image downloads and task dispatch should be skipped.
+
+    Returns:
+        bool: Whether image work is currently suppressed.
+    """
+    return _IMAGE_TASKS_SUPPRESSED.get()
 
 
 def is_twitch_box_art_url(url: str) -> bool:

@@ -250,43 +250,13 @@ def test_email_settings_from_env(
     assert reloaded.SERVER_EMAIL == "me@example.com"
 
 
-def test_database_settings_when_use_sqlite_enabled(
+def test_database_settings(
     monkeypatch: pytest.MonkeyPatch,
     reload_settings_module: Callable[..., ModuleType],
 ) -> None:
-    """When USE_SQLITE=1 and not testing, DATABASES should use SQLite file."""
+    """DATABASES should always use the Postgres configuration."""
     monkeypatch.setattr("sys.argv", ["manage.py", "runserver"])
     monkeypatch.delenv("PYTEST_VERSION", raising=False)
-    monkeypatch.setenv("USE_SQLITE", "1")
-
-    reloaded: ModuleType = reload_settings_module(
-        TESTING=None,
-        PYTEST_VERSION=None,
-        POSTGRES_DB="prod_db",
-        POSTGRES_USER="prod_user",
-        POSTGRES_PASSWORD="secret",
-        POSTGRES_HOST="db.host",
-        POSTGRES_PORT="5433",
-        CONN_MAX_AGE="120",
-        CONN_HEALTH_CHECKS="0",
-    )
-
-    assert reloaded.TESTING is False
-    db_cfg: dict[str, Any] = reloaded.DATABASES["default"]
-    assert db_cfg["ENGINE"] == "django.db.backends.sqlite3"
-    # Should use a file, not in-memory
-    assert db_cfg["NAME"].endswith("db.sqlite3")
-
-
-def test_database_settings_when_not_testing(
-    monkeypatch: pytest.MonkeyPatch,
-    reload_settings_module: Callable[..., ModuleType],
-) -> None:
-    """When not running tests, DATABASES should use the Postgres configuration."""
-    # Ensure the module believes it's not running tests and USE_SQLITE is unset
-    monkeypatch.setattr("sys.argv", ["manage.py", "runserver"])
-    monkeypatch.delenv("PYTEST_VERSION", raising=False)
-    monkeypatch.setenv("USE_SQLITE", "0")
 
     reloaded: ModuleType = reload_settings_module(
         TESTING=None,

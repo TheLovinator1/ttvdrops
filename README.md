@@ -84,7 +84,7 @@ Contributions are welcome! Here's how to get started:
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Install dependencies with `uv sync`
-4. Rename .env.example to .env (Probably want to use USE_SQLITE=True)
+4. Rename .env.example to .env and configure PostgreSQL
 5. Make your changes
 6. Run tests with `uv run pytest`
 7. Submit a pull request
@@ -172,13 +172,6 @@ docker compose up -d db
 docker compose exec -T db pg_restore -U ttvdrops -d ttvdrops --clean --if-exists < /tmp/ttvdrops.dump
 docker compose pull
 docker compose up -d
-```
-
-If the old install used SQLite, export from the host and load into the container:
-
-```bash
-uv run python manage.py dumpdata --natural-foreign --natural-primary -o /tmp/ttvdrops.json
-docker compose run --rm -v /tmp:/host web python manage.py loaddata /host/ttvdrops.json
 ```
 
 ## TL;DR (Arch Linux + PostgreSQL, host install)
@@ -306,8 +299,29 @@ Image downloads also run **immediately** on record creation via `post_save` sign
 ## Import Drops
 
 ```bash
-uv run python manage.py better_import_drops <file|dir> [--recursive] [--verbose] [--crash-on-error] [--skip-broken-moves]
+uv run python manage.py better_import_drops <file|dir> [--recursive] [--verbose] [--crash-on-error] [--skip-broken-moves] [--keep-files]
 ```
+
+## Build history from old response files
+
+`build_history` replays historical Twitch JSON files and backdates their
+`django-pghistory` events to the timestamp embedded in each filename.
+
+```bash
+uv run python manage.py build_history <file|dir> [--recursive] [--dry-run]
+```
+
+- The default path is `TTVDROPS_IMPORTED_DIR`.
+- Source files are strictly read-only: they are never moved, renamed, or deleted.
+- Files without a parsable timestamp are copied to
+  `history_missing_timestamp/<relative source path>/` in the project directory and
+  skipped. The originals stay where they are.
+- Completed files are recorded in `pghistory` context metadata, so a rerun resumes
+  automatically without reprocessing them.
+
+Browse the resulting changelog at `/twitch/history/`. Campaign, game,
+organization, channel, and reward-campaign detail pages also link to their own
+history pages.
 
 ## Import Chat Badges
 

@@ -155,6 +155,8 @@
                             <div>
                                 <a href="{% url 'api-v1:twitch-api-v1_get_campaign' campaign.twitch_id %}"
                                    title="Twitch campaign API">[api]</a>
+                                <a href="{% url 'twitch:campaign_history' campaign.twitch_id %}"
+                                   title="Campaign history">[history]</a>
                             </div>
                         </div>
                     </div>

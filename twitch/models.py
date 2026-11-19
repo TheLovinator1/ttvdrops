@@ -6,6 +6,7 @@ from typing import Any
 from typing import Self
 
 import auto_prefetch
+import pghistory
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
@@ -26,9 +27,37 @@ from django.utils.timesince import timesince
 from twitch.utils import normalize_twitch_box_art_url
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from django.db.models import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
+
+
+def _track_history(
+    *,
+    exclude: list[str] | None = None,
+) -> Callable[[type[models.Model]], type[models.Model]]:
+    """Track insert/update/delete snapshots for an archive model.
+
+    Args:
+        exclude: Model fields that should not be copied into event snapshots.
+
+    Returns:
+        The configured pghistory tracking decorator.
+    """
+    excluded: list[str] = ["added_at", "updated_at", *(exclude or [])]
+    return pghistory.track(
+        pghistory.InsertEvent("created"),
+        pghistory.UpdateEvent("updated"),
+        pghistory.DeleteEvent("deleted"),
+        exclude=excluded,
+        meta={
+            "indexes": [
+                models.Index(fields=["-pgh_created_at"]),
+            ],
+        },
+    )
 
 
 def _format_minutes(minutes: int) -> str:
@@ -47,6 +76,7 @@ def _format_minutes(minutes: int) -> str:
 
 
 # MARK: Organization
+@_track_history()
 class Organization(auto_prefetch.Model):
     """Represents an organization on Twitch that can own drop campaigns."""
 
@@ -149,6 +179,7 @@ class Organization(auto_prefetch.Model):
 
 
 # MARK: Game
+@_track_history()
 class Game(auto_prefetch.Model):
     """Represents a game on Twitch."""
 
@@ -510,6 +541,7 @@ class TwitchGameData(auto_prefetch.Model):
 
 
 # MARK: Channel
+@_track_history(exclude=["allowed_campaign_count"])
 class Channel(auto_prefetch.Model):
     """Represents a Twitch channel that can participate in drop campaigns."""
 
@@ -616,7 +648,8 @@ class Channel(auto_prefetch.Model):
 
 
 # MARK: DropCampaign
-class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
+@_track_history(exclude=["is_fully_imported"])  # ruff: ignore[too-many-public-methods]
+class DropCampaign(auto_prefetch.Model):
     """Represents a Twitch drop campaign."""
 
     twitch_id = models.TextField(
@@ -756,6 +789,33 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
         default=False,
     )
 
+    api_status = models.TextField(
+        help_text="Raw campaign status returned by Twitch (ACTIVE, EXPIRED, UPCOMING).",
+        max_length=20,
+        blank=True,
+        default="",
+    )
+
+    is_account_connected = models.BooleanField(
+        help_text="Whether the current Twitch account is connected to this campaign.",
+        default=False,
+    )
+
+    event_based_drops = models.JSONField(
+        help_text="Raw event-based drop data returned by Twitch.",
+        default=list,
+        blank=True,
+    )
+
+    owner = auto_prefetch.ForeignKey(
+        help_text="Organization that owns this campaign.",
+        related_name="drop_campaigns",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        to=Organization,
+    )
+
     class Meta(auto_prefetch.Model.Meta):
         ordering = ["-start_at"]
         indexes = [
@@ -766,6 +826,8 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
             models.Index(fields=["name"]),
             models.Index(fields=["description"]),
             models.Index(fields=["allow_is_enabled"]),
+            models.Index(fields=["api_status"]),
+            models.Index(fields=["owner"]),
             GinIndex(fields=["operation_names"], name="twitch_drop_operati_gin_idx"),
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
@@ -1937,6 +1999,7 @@ class DropCampaign(auto_prefetch.Model):  # ruff:ignore[too-many-public-methods]
 
 
 # MARK: DropBenefit
+@_track_history()
 class DropBenefit(auto_prefetch.Model):
     """Represents a benefit that can be earned from a drop."""
 
@@ -2004,6 +2067,24 @@ class DropBenefit(auto_prefetch.Model):
         default="",
     )
 
+    game = auto_prefetch.ForeignKey(
+        help_text="Game associated with this benefit.",
+        related_name="drop_benefits",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        to=Game,
+    )
+
+    owner_organization = auto_prefetch.ForeignKey(
+        help_text="Organization that owns this benefit.",
+        related_name="drop_benefits",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        to=Organization,
+    )
+
     added_at = models.DateTimeField(
         help_text="Timestamp when this benefit record was created.",
         auto_now_add=True,
@@ -2022,6 +2103,8 @@ class DropBenefit(auto_prefetch.Model):
             models.Index(fields=["name"]),
             models.Index(fields=["distribution_type"]),
             models.Index(fields=["is_ios_available"]),
+            models.Index(fields=["game"]),
+            models.Index(fields=["owner_organization"]),
             models.Index(fields=["added_at"]),
             models.Index(fields=["updated_at"]),
             # Composite index for badge award lookups (distribution_type="BADGE", name__in=titles)
@@ -2092,6 +2175,7 @@ class DropBenefit(auto_prefetch.Model):
 
 
 # MARK: DropBenefitEdge
+@_track_history()
 class DropBenefitEdge(auto_prefetch.Model):
     """Link a TimeBasedDrop to a DropBenefit."""
 
@@ -2110,6 +2194,12 @@ class DropBenefitEdge(auto_prefetch.Model):
     entitlement_limit = models.PositiveIntegerField(
         help_text="Max times this benefit can be claimed for this drop.",
         default=1,
+    )
+
+    claim_count = models.PositiveIntegerField(
+        help_text="Number of times this benefit has been claimed, when reported by Twitch.",
+        blank=True,
+        null=True,
     )
 
     added_at = models.DateTimeField(
@@ -2143,6 +2233,7 @@ class DropBenefitEdge(auto_prefetch.Model):
 
 
 # MARK: TimeBasedDrop
+@_track_history()
 class TimeBasedDrop(auto_prefetch.Model):
     """Represents a time-based drop in a drop campaign."""
 
@@ -2165,6 +2256,24 @@ class TimeBasedDrop(auto_prefetch.Model):
     required_subs = models.PositiveIntegerField(
         help_text="Number of subscriptions required to unlock this drop.",
         default=0,
+    )
+
+    precondition_drops = models.JSONField(
+        help_text="Raw precondition drops data returned by Twitch.",
+        blank=True,
+        null=True,
+    )
+
+    localized_content = models.JSONField(
+        help_text="Raw localized content returned by Twitch.",
+        blank=True,
+        null=True,
+    )
+
+    repeat = models.BooleanField(
+        help_text="Whether this drop repeats, when reported by the source API.",
+        blank=True,
+        null=True,
     )
 
     start_at = models.DateTimeField(
@@ -2227,6 +2336,7 @@ class TimeBasedDrop(auto_prefetch.Model):
 
 
 # MARK: RewardCampaign
+@_track_history()
 class RewardCampaign(auto_prefetch.Model):
     """Represents a Twitch reward campaign (Quest rewards)."""
 
@@ -2436,6 +2546,7 @@ class RewardCampaign(auto_prefetch.Model):
 
 
 # MARK: Reward
+@_track_history()
 class Reward(auto_prefetch.Model):
     """Represents an individual reward inside a Twitch reward campaign."""
 
@@ -2731,3 +2842,42 @@ class ChatBadge(auto_prefetch.Model):
             title: [campaigns_by_pk[pk] for pk in sorted(pks) if pk in campaigns_by_pk]
             for title, pks in title_to_campaign_pks.items()
         }
+
+
+# MARK: Through-model history
+@pghistory.track(
+    pghistory.InsertEvent("channel_added"),
+    pghistory.DeleteEvent("channel_removed"),
+    obj_field=None,
+    meta={
+        "indexes": [
+            models.Index(fields=["-pgh_created_at"]),
+        ],
+    },
+)
+class DropCampaignAllowedChannel(DropCampaign.allow_channels.through):
+    """Proxy used to track channel add/remove events for campaigns."""
+
+    class Meta:
+        """Configure the proxy model."""
+
+        proxy = True
+
+
+@pghistory.track(
+    pghistory.InsertEvent("owner_added"),
+    pghistory.DeleteEvent("owner_removed"),
+    obj_field=None,
+    meta={
+        "indexes": [
+            models.Index(fields=["-pgh_created_at"]),
+        ],
+    },
+)
+class GameOwner(Game.owners.through):
+    """Proxy used to track game owner add/remove events."""
+
+    class Meta:
+        """Configure the proxy model."""
+
+        proxy = True

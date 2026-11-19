@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 
 import httpx
 import json_repair
+import pghistory
 from colorama import Fore
 from colorama import Style
 from colorama import init as colorama_init
@@ -31,6 +32,7 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import GraphQLResponse
 from twitch.schemas import OrganizationSchema
+from twitch.utils import image_tasks_suppressed
 from twitch.utils import is_twitch_box_art_url
 from twitch.utils import normalize_twitch_box_art_url
 from twitch.utils import parse_date
@@ -506,6 +508,12 @@ class Command(BaseCommand):
                 " during testing to avoid unnecessary file moves"
             ),
         )
+        parser.add_argument(
+            "--keep-files",
+            dest="skip_completed_moves",
+            action="store_true",
+            help="Do not move successfully processed files to the imported directory",
+        )
 
     def _validate_responses(
         self,
@@ -592,6 +600,35 @@ class Command(BaseCommand):
         obj.save(update_fields=changed_fields)
         return True
 
+    def _save_campaign_if_changed(
+        self,
+        campaign_obj: DropCampaign,
+        defaults: Mapping[str, object],
+    ) -> bool:
+        """Save a campaign without replacing populated fields with empty values.
+
+        Inventory and dashboard responses omit some descriptive fields that
+        DropCampaignDetails provides. Replaying those responses in time order
+        must not make those fields flap between empty and populated.
+
+        Args:
+            campaign_obj: The existing campaign to update.
+            defaults: Incoming field values.
+
+        Returns:
+            True if the object was saved, False if no changes were detected.
+        """
+        filtered: dict[str, object] = dict(defaults)
+        for field_name in (
+            "account_link_url",
+            "description",
+            "details_url",
+            "image_url",
+        ):
+            if not filtered.get(field_name) and getattr(campaign_obj, field_name, ""):
+                filtered.pop(field_name, None)
+        return self._save_if_changed(campaign_obj, filtered)
+
     def _get_or_create_organization(self, org_data: OrganizationSchema) -> Organization:
         """Get or create an organization.
 
@@ -664,12 +701,23 @@ class Command(BaseCommand):
             "slug": game_data.slug or "",
             "box_art": game_data.box_art_url or "",
         }
+        # Dashboard/inventory responses can omit slug and box art entirely.
+        # Never replace populated values with those missing fields.
+        partial_defaults: dict[str, object] = {}
+        if game_data.display_name:
+            partial_defaults["display_name"] = game_data.display_name
+        if game_data.name:
+            partial_defaults["name"] = game_data.name
+        if game_data.slug:
+            partial_defaults["slug"] = game_data.slug
+        if game_data.box_art_url:
+            partial_defaults["box_art"] = game_data.box_art_url
 
         cached_game: Game | None = cache.get(game_data.twitch_id)
         if cached_game is not None:
             if owner_orgs:
                 cached_game.owners.add(*owner_orgs)
-            self._save_if_changed(cached_game, defaults)
+            self._save_if_changed(cached_game, partial_defaults)
             return cached_game
 
         game_obj: Game | None = Game.objects.filter(
@@ -685,7 +733,7 @@ class Command(BaseCommand):
         if created or owner_orgs:
             game_obj.owners.add(*owner_orgs)
         if not created:
-            self._save_if_changed(game_obj, defaults)
+            self._save_if_changed(game_obj, partial_defaults)
         else:
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created new game: {game_data.display_name}",
@@ -696,6 +744,8 @@ class Command(BaseCommand):
 
     def _download_game_box_art(self, game_obj: Game, box_art_url: str | None) -> None:
         """Download and cache Twitch box art locally when possible."""
+        if image_tasks_suppressed():
+            return
         if not box_art_url:
             return
         if not is_twitch_box_art_url(box_art_url):
@@ -738,6 +788,16 @@ class Command(BaseCommand):
             "name": channel_info.name,
             "display_name": display_name,
         }
+
+        cache: dict[str, Channel] = getattr(self, "_channel_cache", {})
+        if not hasattr(self, "_channel_cache"):
+            self._channel_cache = cache
+
+        cached_channel: Channel | None = cache.get(channel_info.twitch_id)
+        if cached_channel is not None:
+            self._save_if_changed(cached_channel, defaults)
+            return cached_channel
+
         channel_obj, created = Channel.objects.get_or_create(
             twitch_id=channel_info.twitch_id,
             defaults=defaults,
@@ -749,9 +809,10 @@ class Command(BaseCommand):
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {display_name}",
             )
 
+        cache[channel_info.twitch_id] = channel_obj
         return channel_obj
 
-    def process_responses(  # ruff:ignore[too-many-statements]
+    def process_responses(  # ruff:ignore[too-many-statements, too-many-locals]
         self,
         responses: list[dict[str, Any]],
         file_path: Path,
@@ -848,19 +909,41 @@ class Command(BaseCommand):
                     "end_at": end_at_dt,
                     "details_url": drop_campaign.details_url,
                     "account_link_url": drop_campaign.account_link_url,
+                    "api_status": drop_campaign.status,
+                    "is_account_connected": drop_campaign.self.is_account_connected,
                 }
+                if org_obj is not None:
+                    defaults["owner"] = org_obj
+                if drop_campaign.event_based_drops is not None:
+                    defaults["event_based_drops"] = drop_campaign.event_based_drops
 
-                campaign_obj: DropCampaign | None = DropCampaign.objects.filter(
-                    twitch_id=drop_campaign.twitch_id,
-                ).first()
-                created: bool = campaign_obj is None
-                if campaign_obj is None:
-                    campaign_obj = DropCampaign.objects.create(
-                        twitch_id=drop_campaign.twitch_id,
-                        **defaults,
-                    )
+                campaign_cache: dict[str, DropCampaign] = getattr(
+                    self,
+                    "_campaign_cache",
+                    {},
+                )
+                if not hasattr(self, "_campaign_cache"):
+                    self._campaign_cache = campaign_cache
+
+                campaign_obj: DropCampaign | None = campaign_cache.get(
+                    drop_campaign.twitch_id,
+                )
+                created: bool = False
+                if campaign_obj is not None:
+                    self._save_campaign_if_changed(campaign_obj, defaults)
                 else:
-                    self._save_if_changed(campaign_obj, defaults)
+                    campaign_obj = DropCampaign.objects.filter(
+                        twitch_id=drop_campaign.twitch_id,
+                    ).first()
+                    created = campaign_obj is None
+                    if campaign_obj is None:
+                        campaign_obj = DropCampaign.objects.create(
+                            twitch_id=drop_campaign.twitch_id,
+                            **defaults,
+                        )
+                    else:
+                        self._save_campaign_if_changed(campaign_obj, defaults)
+                    campaign_cache[drop_campaign.twitch_id] = campaign_obj
                 if created:
                     tqdm.write(
                         f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}",
@@ -871,7 +954,7 @@ class Command(BaseCommand):
                 # call_command("download_campaign_images")
                 # call_command("convert_images_to_modern_formats")
                 # # After all downloads and processing, mark as fully imported
-                if campaign_obj:
+                if campaign_obj and not campaign_obj.is_fully_imported:
                     campaign_obj.is_fully_imported = True
                     campaign_obj.save(update_fields=["is_fully_imported"])
 
@@ -923,7 +1006,7 @@ class Command(BaseCommand):
             start_at_dt: datetime | None = parse_date(drop_schema.start_at)
             end_at_dt: datetime | None = parse_date(drop_schema.end_at)
 
-            drop_defaults: dict[str, str | int | datetime | DropCampaign] = {
+            drop_defaults: dict[str, object] = {
                 "campaign": campaign_obj,
                 "name": drop_schema.name,
                 "required_subs": drop_schema.required_subs,
@@ -933,22 +1016,40 @@ class Command(BaseCommand):
                 drop_defaults["required_minutes_watched"] = (
                     drop_schema.required_minutes_watched
                 )
+            if drop_schema.precondition_drops is not None:
+                drop_defaults["precondition_drops"] = drop_schema.precondition_drops
+            if drop_schema.localized_content is not None:
+                drop_defaults["localized_content"] = drop_schema.localized_content
+            if drop_schema.repeat is not None:
+                drop_defaults["repeat"] = drop_schema.repeat
             if start_at_dt is not None:
                 drop_defaults["start_at"] = start_at_dt
             if end_at_dt is not None:
                 drop_defaults["end_at"] = end_at_dt
 
-            drop_obj: TimeBasedDrop | None = TimeBasedDrop.objects.filter(
-                twitch_id=drop_schema.twitch_id,
-            ).first()
-            created: bool = drop_obj is None
-            if drop_obj is None:
-                drop_obj = TimeBasedDrop.objects.create(
-                    twitch_id=drop_schema.twitch_id,
-                    **drop_defaults,
-                )
+            drop_obj: TimeBasedDrop | None
+            drop_cache: dict[str, TimeBasedDrop] = getattr(self, "_drop_cache", {})
+            if not hasattr(self, "_drop_cache"):
+                self._drop_cache = drop_cache
+
+            cached_drop: TimeBasedDrop | None = drop_cache.get(drop_schema.twitch_id)
+            if cached_drop is not None:
+                self._save_if_changed(cached_drop, drop_defaults)
+                drop_obj = cached_drop
+                created = False
             else:
-                self._save_if_changed(drop_obj, drop_defaults)
+                drop_obj = TimeBasedDrop.objects.filter(
+                    twitch_id=drop_schema.twitch_id,
+                ).first()
+                created = drop_obj is None
+                if drop_obj is None:
+                    drop_obj = TimeBasedDrop.objects.create(
+                        twitch_id=drop_schema.twitch_id,
+                        **drop_defaults,
+                    )
+                else:
+                    self._save_if_changed(drop_obj, drop_defaults)
+                drop_cache[drop_schema.twitch_id] = drop_obj
             if created:
                 tqdm.write(
                     f"{Fore.GREEN}✓{Style.RESET_ALL} Created TimeBasedDrop: {drop_schema.name}",
@@ -965,23 +1066,43 @@ class Command(BaseCommand):
         if not hasattr(self, "_benefit_cache"):
             self._benefit_cache = cache
 
-        distribution_type: str = (benefit_schema.distribution_type or "").strip()
-        benefit_defaults: dict[str, str | int | datetime | bool | None] = {
+        distribution_type: str | None = benefit_schema.distribution_type
+        benefit_defaults: dict[str, object] = {
             "name": benefit_schema.name,
             "image_asset_url": benefit_schema.image_asset_url,
-            "entitlement_limit": benefit_schema.entitlement_limit,
-            "is_ios_available": benefit_schema.is_ios_available,
-            "distribution_type": distribution_type,
         }
+        if benefit_schema.entitlement_limit is not None:
+            benefit_defaults["entitlement_limit"] = benefit_schema.entitlement_limit
+        if benefit_schema.is_ios_available is not None:
+            benefit_defaults["is_ios_available"] = benefit_schema.is_ios_available
+        if distribution_type is not None:
+            benefit_defaults["distribution_type"] = distribution_type.strip()
 
         if benefit_schema.created_at:
             created_at_dt: datetime | None = parse_date(benefit_schema.created_at)
             if created_at_dt:
                 benefit_defaults["created_at"] = created_at_dt
 
+        if benefit_schema.game:
+            game_id: object = benefit_schema.game.get("id")
+            if isinstance(game_id, str) and game_id:
+                game_obj: Game | None = getattr(self, "_game_cache", {}).get(game_id)
+                if game_obj is None:
+                    game_obj = Game.objects.filter(twitch_id=game_id).first()
+                if game_obj is not None:
+                    benefit_defaults["game"] = game_obj
+
+        if benefit_schema.owner_organization:
+            owner_org_data = OrganizationSchema.model_validate(
+                benefit_schema.owner_organization,
+            )
+            benefit_defaults["owner_organization"] = self._get_or_create_organization(
+                org_data=owner_org_data,
+            )
+
         cached_benefit: DropBenefit | None = cache.get(benefit_schema.twitch_id)
         if cached_benefit is not None:
-            self._save_if_changed(cached_benefit, benefit_defaults)
+            self._save_benefit_if_changed(cached_benefit, benefit_defaults)
             return cached_benefit
 
         benefit_obj: DropBenefit | None = DropBenefit.objects.filter(
@@ -993,9 +1114,9 @@ class Command(BaseCommand):
                 twitch_id=benefit_schema.twitch_id,
                 **benefit_defaults,
             )
-        if not created:
-            self._save_if_changed(benefit_obj, benefit_defaults)
         else:
+            self._save_benefit_if_changed(benefit_obj, benefit_defaults)
+        if created:
             tqdm.write(
                 f"{Fore.GREEN}✓{Style.RESET_ALL} Created DropBenefit: {benefit_schema.name}",
             )
@@ -1003,6 +1124,25 @@ class Command(BaseCommand):
         cache[benefit_schema.twitch_id] = benefit_obj
 
         return benefit_obj
+
+    def _save_benefit_if_changed(
+        self,
+        benefit_obj: DropBenefit,
+        defaults: Mapping[str, object],
+    ) -> bool:
+        """Save a benefit without replacing populated fields with empty values.
+
+        Args:
+            benefit_obj: The existing benefit to update.
+            defaults: Incoming field values.
+
+        Returns:
+            True if the object was saved, False otherwise.
+        """
+        filtered: dict[str, object] = dict(defaults)
+        if not filtered.get("image_asset_url") and benefit_obj.image_asset_url:
+            filtered.pop("image_asset_url", None)
+        return self._save_if_changed(benefit_obj, filtered)
 
     def _process_benefit_edges(
         self,
@@ -1022,7 +1162,26 @@ class Command(BaseCommand):
                 benefit_schema=benefit_schema,
             )
 
-            defaults = {"entitlement_limit": edge_schema.entitlement_limit}
+            defaults: dict[str, object] = {
+                "entitlement_limit": edge_schema.entitlement_limit,
+            }
+            if edge_schema.claim_count is not None:
+                defaults["claim_count"] = edge_schema.claim_count
+
+            edge_cache: dict[tuple[int, int], DropBenefitEdge] = getattr(
+                self,
+                "_edge_cache",
+                {},
+            )
+            if not hasattr(self, "_edge_cache"):
+                self._edge_cache = edge_cache
+
+            cache_key: tuple[int, int] = (int(drop_obj.pk), int(benefit_obj.pk))
+            cached_edge: DropBenefitEdge | None = edge_cache.get(cache_key)
+            if cached_edge is not None:
+                self._save_if_changed(cached_edge, defaults)
+                continue
+
             edge_obj: DropBenefitEdge | None = DropBenefitEdge.objects.filter(
                 drop=drop_obj,
                 benefit=benefit_obj,
@@ -1034,9 +1193,10 @@ class Command(BaseCommand):
                     benefit=benefit_obj,
                     **defaults,
                 )
-            if not created:
-                self._save_if_changed(edge_obj, defaults)
             else:
+                self._save_if_changed(edge_obj, defaults)
+            edge_cache[cache_key] = edge_obj
+            if created:
                 tqdm.write(
                     f"{Fore.GREEN}✓{Style.RESET_ALL} Linked benefit: {benefit_schema.name} → {drop_obj.name}",
                 )
@@ -1057,11 +1217,11 @@ class Command(BaseCommand):
         """
         # Update the allow_is_enabled flag if changed
         # Default to True if is_enabled is None (API doesn't always provide this field)
-        is_enabled: bool = (
-            allow_schema.is_enabled if allow_schema.is_enabled is not None else True
-        )
-        if campaign_obj.allow_is_enabled != is_enabled:
-            campaign_obj.allow_is_enabled = is_enabled
+        if (
+            allow_schema.is_enabled is not None
+            and campaign_obj.allow_is_enabled != allow_schema.is_enabled
+        ):
+            campaign_obj.allow_is_enabled = allow_schema.is_enabled
             campaign_obj.save(update_fields=["allow_is_enabled"])
 
         # Get or create all channels and collect them
@@ -1069,14 +1229,29 @@ class Command(BaseCommand):
         # This prevents clearing existing channel associations when the API returns
         # no channels (which can happen for disabled campaigns or incomplete responses).
         channel_objects: list[Channel] = []
-        if allow_schema.channels:
+        if allow_schema.channels is not None:
             for channel_schema in allow_schema.channels:
                 channel_obj: Channel = self._get_or_create_channel(
                     channel_info=channel_schema,
                 )
                 channel_objects.append(channel_obj)
-            # Only update the M2M relationship if we have channels
-            campaign_obj.allow_channels.set(channel_objects)
+
+            acl_cache: dict[int, frozenset[int]] = getattr(
+                self,
+                "_allow_channels_cache",
+                {},
+            )
+            if not hasattr(self, "_allow_channels_cache"):
+                self._allow_channels_cache = acl_cache
+
+            desired_ids: frozenset[int] = frozenset(
+                int(channel.pk) for channel in channel_objects
+            )
+            campaign_pk: int = int(campaign_obj.pk)
+            if acl_cache.get(campaign_pk) != desired_ids:
+                # An explicit empty list clears the ACL; null means "unknown".
+                campaign_obj.allow_channels.set(channel_objects)
+                acl_cache[campaign_pk] = desired_ids
 
     def _process_reward_campaigns(
         self,
@@ -1609,11 +1784,17 @@ class Command(BaseCommand):
 
         # Normalize and filter to dict responses only
         responses: list[dict[str, Any]] = self._normalize_responses(parsed_json)
-        processed, broken_dir = self.process_responses(
-            responses=responses,
-            file_path=file_path,
-            options=options,
-        )
+        with pghistory.context(
+            command="better_import_drops",
+            data_source="TwitchDropsMiner",
+            source_file=str(file_path),
+            operation_name=operation_name,
+        ):
+            processed, broken_dir = self.process_responses(
+                responses=responses,
+                file_path=file_path,
+                options=options,
+            )
 
         if not processed:
             # File was already moved to broken during validation
@@ -1626,11 +1807,12 @@ class Command(BaseCommand):
         campaign_structure: str | None = self._detect_campaign_structure(
             responses[0] if responses else {},
         )
-        move_completed_file(
-            file_path=file_path,
-            operation_name=operation_name,
-            campaign_structure=campaign_structure,
-        )
+        if not options.get("skip_completed_moves"):
+            move_completed_file(
+                file_path=file_path,
+                operation_name=operation_name,
+                campaign_structure=campaign_structure,
+            )
         return {"success": True}
 
     def process_file_worker(
@@ -1755,11 +1937,17 @@ class Command(BaseCommand):
         # Normalize and filter to dict responses only
         responses: list[dict[str, Any]] = self._normalize_responses(parsed_json)
 
-        processed, broken_dir = self.process_responses(
-            responses=responses,
-            file_path=file_path,
-            options=options,
-        )
+        with pghistory.context(
+            command="better_import_drops",
+            data_source="TwitchDropsMiner",
+            source_file=str(file_path),
+            operation_name=operation_name,
+        ):
+            processed, broken_dir = self.process_responses(
+                responses=responses,
+                file_path=file_path,
+                options=options,
+            )
 
         if not processed:
             # File already moved during validation; nothing more to do here.
@@ -1772,11 +1960,12 @@ class Command(BaseCommand):
         campaign_structure: str | None = self._detect_campaign_structure(
             responses[0] if responses else {},
         )
-        move_completed_file(
-            file_path=file_path,
-            operation_name=operation_name,
-            campaign_structure=campaign_structure,
-        )
+        if not options.get("skip_completed_moves"):
+            move_completed_file(
+                file_path=file_path,
+                operation_name=operation_name,
+                campaign_structure=campaign_structure,
+            )
 
         progress_bar.update(1)
         progress_bar.write(f"{Fore.GREEN}✓{Style.RESET_ALL} {file_path.name}")

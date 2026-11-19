@@ -14,6 +14,7 @@ dependencies = [
     "django-debug-toolbar",
     "django-mcpz",
     "django-ninja",
+    "django-pghistory",
     "django-zeal",
     "django",
     "flower",

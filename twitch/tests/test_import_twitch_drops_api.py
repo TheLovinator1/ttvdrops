@@ -290,6 +290,7 @@ class ImportTwitchDropsApiTests(TestCase):
         campaign = DropCampaign.objects.get(twitch_id="reward-campaign-1")
         assert campaign.name == "Overwatch 2 x Twitch Drops"
         assert campaign.data_source == "SunkwiBOT/twitch-drops-api"
+        assert campaign.operation_names == ["SunkwiBOT/twitch-drops-api"]
         assert campaign.is_fully_imported is True
 
         # TimeBasedDrop
@@ -305,6 +306,39 @@ class ImportTwitchDropsApiTests(TestCase):
         # DropBenefitEdge
         edge = DropBenefitEdge.objects.get(drop=tbd, benefit=benefit)
         assert edge.entitlement_limit == 1
+
+    @patch("httpx.Client")
+    def test_import_drops_appends_operation_names(self, mock_client: MagicMock) -> None:
+        """Repeated imports should accumulate operation/source names."""
+        mock_client.return_value = MockHttpxClient(
+            drops_data=SAMPLE_DROPS_JSON,
+            rewards_data=[],
+        )
+
+        self.command.handle(
+            drops_url=self.drops_url,
+            rewards_url=self.rewards_url,
+            drops_only=True,
+            rewards_only=False,
+            source="SunkwiBOT/twitch-drops-api",
+            verbose=False,
+            crash_on_error=True,
+        )
+        self.command.handle(
+            drops_url=self.drops_url,
+            rewards_url=self.rewards_url,
+            drops_only=True,
+            rewards_only=False,
+            source="CustomSource",
+            verbose=False,
+            crash_on_error=True,
+        )
+
+        campaign = DropCampaign.objects.get(twitch_id="reward-campaign-1")
+        assert campaign.operation_names == [
+            "SunkwiBOT/twitch-drops-api",
+            "CustomSource",
+        ]
 
     @patch("httpx.Client")
     def test_import_drops_new_wrapped_format(self, mock_client: MagicMock) -> None:

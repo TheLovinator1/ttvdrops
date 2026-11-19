@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'history.css' %}" />
+{% endblock extra_head %}
+{% block content %}
+    <main class="history-page">
+        <header>
+            <h1>{{ history_title }}</h1>
+            <nav aria-label="Breadcrumb">
+                <a href="{% url 'twitch:dashboard' %}">Twitch</a>
+                &gt; <a href="{% url 'twitch:history' %}">History</a>
+                {% if entity_name %}
+                    &gt; <a href="{{ entity_url }}">{{ entity_name }}</a>
+                {% endif %}
+            </nav>
+            <p class="history-description">{{ history_description }}</p>
+            {% if entity_name %}
+                <p>
+                    <a href="{{ entity_url }}">← Back to {{ entity_name }}</a>
+                </p>
+            {% endif %}
+        </header>
+        {% if show_filters %}
+            <form method="get"
+                  action="{% url 'twitch:history' %}"
+                  class="history-filters">
+                <label>
+                    Object
+                    <select name="model">
+                        {% for option in model_options %}
+                            <option value="{{ option.value }}"
+                                    {% if selected_model == option.value %}selected{% endif %}>
+                                {{ option.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    Action
+                    <select name="action">
+                        {% for option in action_options %}
+                            <option value="{{ option.value }}"
+                                    {% if selected_action == option.value %}selected{% endif %}>
+                                {{ option.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    Period
+                    <select name="period">
+                        {% for option in period_options %}
+                            <option value="{{ option.value }}"
+                                    {% if selected_period == option.value %}selected{% endif %}>
+                                {{ option.label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>
+                    Search
+                    <input type="search"
+                           name="q"
+                           value="{{ search_query }}"
+                           placeholder="Campaign, drop, game, org…" />
+                </label>
+                <button type="submit">Apply</button>
+                <a href="{% url 'twitch:history' %}">Reset</a>
+            </form>
+        {% endif %}
+        {% include "twitch/includes/history_table.html" %}
+        {% include "includes/pagination.html" %}
+    </main>
+{% endblock content %}

@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 import httpx
+import pghistory
 from colorama import Fore
 from colorama import Style
 from colorama import init as colorama_init
@@ -61,6 +62,7 @@ if TYPE_CHECKING:
     from django.db.models import Model
 
     from twitch.schemas import SunkwiBotBenefitEdgeSchema
+    from twitch.schemas import SunkwiBotBenefitSchema
     from twitch.schemas import SunkwiBotDropCampaignACLSchema
     from twitch.schemas import SunkwiBotIndividualRewardSchema
     from twitch.schemas import SunkwiBotRewardSchema
@@ -555,7 +557,7 @@ class Command(BaseCommand):
             try:
                 data = json.loads(content)
                 data = self._extract_json_items(data, source=f"{file_path}@{sha[:7]}")
-            except (json.JSONDecodeError, TypeError):
+            except json.JSONDecodeError, TypeError:
                 if verbose:
                     self.stdout.write(
                         f"{Fore.YELLOW}→{Style.RESET_ALL} {sha[:7]}: "
@@ -788,14 +790,19 @@ class Command(BaseCommand):
             Number of drop campaigns imported/updated.
         """
         raw_data = self._fetch_json(url, "drops.json")
-        return self._parse_and_import_drops(
-            raw_data=raw_data,
-            source=source,
-            verbose=verbose,
-            crash_on_error=crash_on_error,
+        with pghistory.context(
+            command="import_twitch_drops_api",
+            data_source=source,
             label="drops.json",
-            skip_existing=skip_existing,
-        )
+        ):
+            return self._parse_and_import_drops(
+                raw_data=raw_data,
+                source=source,
+                verbose=verbose,
+                crash_on_error=crash_on_error,
+                label="drops.json",
+                skip_existing=skip_existing,
+            )
 
     @staticmethod
     def _strip_typename(data: Any) -> Any:  # ruff:ignore[any-type]
@@ -1134,8 +1141,9 @@ class Command(BaseCommand):
             skip_existing: If True, skip if campaign already exists.
         """
         # Owner organization
+        owner_org_obj: Organization | None = None
         if reward.owner:
-            self._get_or_create_organization(
+            owner_org_obj = self._get_or_create_organization(
                 twitch_id=reward.owner.twitch_id,
                 name=reward.owner.name,
                 verbose=verbose,
@@ -1154,8 +1162,12 @@ class Command(BaseCommand):
             "end_at": end_at_dt,
             "details_url": reward.details_url,
             "account_link_url": reward.account_link_url,
+            "api_status": reward.status,
+            "event_based_drops": reward.event_based_drops or [],
             "data_source": source,
         }
+        if owner_org_obj is not None:
+            defaults["owner"] = owner_org_obj
 
         existing: DropCampaign | None = DropCampaign.objects.filter(
             twitch_id=reward.twitch_id,
@@ -1168,6 +1180,9 @@ class Command(BaseCommand):
                 "description": reward.description,
                 "image_url": reward.image_url,
                 "details_url": reward.details_url,
+                "api_status": reward.status,
+                "event_based_drops": reward.event_based_drops or [],
+                "owner": owner_org_obj,
             }
             for field, new_value in merge_fields.items():
                 old_value = getattr(existing, field, None)
@@ -1177,9 +1192,7 @@ class Command(BaseCommand):
             if changed:
                 existing.save(update_fields=list(merge_fields.keys()))
             # Track enrichment
-            if source not in existing.operation_names:
-                existing.operation_names.append(source)
-                existing.save(update_fields=["operation_names"])
+            self._append_operation_name(existing, source)
             if verbose:
                 action = "Merged" if changed else "Skipped (merged)"
                 self.stdout.write(
@@ -1211,6 +1224,7 @@ class Command(BaseCommand):
                     f"{Fore.YELLOW}→{Style.RESET_ALL} Skipped campaign: "
                     f"{reward.name} (already exists)",
                 )
+            self._append_operation_name(existing, source)
             # Still accumulate channels and time-based drops for skipped
             # campaigns so historical channels are never lost.
             if reward.time_based_drops:
@@ -1238,6 +1252,7 @@ class Command(BaseCommand):
         )
         if not created:
             self._save_if_changed(campaign_obj, defaults)
+        self._append_operation_name(campaign_obj, source)
 
         if verbose:
             action = "Created" if created else "Updated"
@@ -1297,6 +1312,10 @@ class Command(BaseCommand):
             drop_defaults["required_minutes_watched"] = (
                 tbd_schema.required_minutes_watched
             )
+        if tbd_schema.precondition_drops is not None:
+            drop_defaults["precondition_drops"] = tbd_schema.precondition_drops
+        if tbd_schema.repeat is not None:
+            drop_defaults["repeat"] = tbd_schema.repeat
         if start_at_dt is not None:
             drop_defaults["start_at"] = start_at_dt
         if end_at_dt is not None:
@@ -1355,14 +1374,23 @@ class Command(BaseCommand):
                 if benefit_schema.created_at
                 else None
             )
+            benefit_defaults: dict[str, Any] = {
+                "name": benefit_schema.name,
+                "image_asset_url": benefit_schema.image_asset_url,
+                "entitlement_limit": benefit_schema.entitlement_limit,
+                "is_ios_available": benefit_schema.is_ios_available,
+                "distribution_type": benefit_schema.distribution_type or "",
+                "created_at": created_at_dt,
+            }
+            benefit_defaults.update(
+                self._benefit_relationship_defaults(
+                    benefit_schema=benefit_schema,
+                    verbose=verbose,
+                ),
+            )
             benefit_obj = DropBenefit.objects.create(
                 twitch_id=benefit_schema.twitch_id,
-                name=benefit_schema.name,
-                image_asset_url=benefit_schema.image_asset_url,
-                entitlement_limit=benefit_schema.entitlement_limit,
-                is_ios_available=benefit_schema.is_ios_available,
-                distribution_type=benefit_schema.distribution_type or "",
-                created_at=created_at_dt,
+                **benefit_defaults,
             )
             if verbose:
                 self.stdout.write(
@@ -1381,12 +1409,20 @@ class Command(BaseCommand):
                 created_at_dt = parse_date(benefit_schema.created_at)
                 if created_at_dt:
                     defaults["created_at"] = created_at_dt
+            defaults.update(
+                self._benefit_relationship_defaults(
+                    benefit_schema=benefit_schema,
+                    verbose=verbose,
+                ),
+            )
             self._save_if_changed(benefit_obj, defaults)
 
         self._benefit_cache[cache_key] = benefit_obj
 
         # Create or update the edge
-        edge_defaults = {"entitlement_limit": edge_schema.entitlement_limit}
+        edge_defaults: dict[str, Any] = {
+            "entitlement_limit": edge_schema.entitlement_limit,
+        }
         edge_obj, edge_created = DropBenefitEdge.objects.get_or_create(
             drop=drop_obj,
             benefit=benefit_obj,
@@ -1394,6 +1430,44 @@ class Command(BaseCommand):
         )
         if not edge_created:
             self._save_if_changed(edge_obj, edge_defaults)
+
+    def _benefit_relationship_defaults(
+        self,
+        benefit_schema: SunkwiBotBenefitSchema,
+        *,
+        verbose: bool,
+    ) -> dict[str, Any]:
+        """Resolve game and owner relationships for a SunkwiBOT benefit.
+
+        Args:
+            benefit_schema: The benefit schema to inspect.
+            verbose: Print per-record messages.
+
+        Returns:
+            Field defaults for the game and owner organization.
+        """
+        defaults: dict[str, Any] = {}
+
+        if benefit_schema.game:
+            game_id = benefit_schema.game.get("id")
+            if isinstance(game_id, str) and game_id:
+                game_obj: Game | None = self._game_cache.get(game_id)
+                if game_obj is None:
+                    game_obj = Game.objects.filter(twitch_id=game_id).first()
+                if game_obj is not None:
+                    defaults["game"] = game_obj
+
+        if benefit_schema.owner_organization:
+            org_id = benefit_schema.owner_organization.get("id")
+            org_name = benefit_schema.owner_organization.get("name")
+            if isinstance(org_id, str) and isinstance(org_name, str):
+                defaults["owner_organization"] = self._get_or_create_organization(
+                    twitch_id=org_id,
+                    name=org_name,
+                    verbose=verbose,
+                )
+
+        return defaults
 
     def _process_allow_channels(
         self,
@@ -1414,7 +1488,7 @@ class Command(BaseCommand):
             campaign_obj.allow_is_enabled = allow_schema.is_enabled
             campaign_obj.save(update_fields=["allow_is_enabled"])
 
-        if not allow_schema.channels:
+        if allow_schema.channels is None:
             return
 
         channel_objects: list[Channel] = []
@@ -1438,7 +1512,7 @@ class Command(BaseCommand):
                 )
             channel_objects.append(channel_obj)
 
-        campaign_obj.allow_channels.add(*channel_objects)
+        campaign_obj.allow_channels.set(channel_objects)
 
     # ------------------------------------------------------------------
     # rewards.json import
@@ -1466,14 +1540,19 @@ class Command(BaseCommand):
             Number of reward campaigns imported/updated.
         """
         raw_data = self._fetch_json(url, "rewards.json")
-        return self._parse_and_import_rewards(
-            raw_data=raw_data,
-            source=source,
-            verbose=verbose,
-            crash_on_error=crash_on_error,
+        with pghistory.context(
+            command="import_twitch_drops_api",
+            data_source=source,
             label="rewards.json",
-            skip_existing=skip_existing,
-        )
+        ):
+            return self._parse_and_import_rewards(
+                raw_data=raw_data,
+                source=source,
+                verbose=verbose,
+                crash_on_error=crash_on_error,
+                label="rewards.json",
+                skip_existing=skip_existing,
+            )
 
     def _parse_and_import_rewards(  # ruff:ignore[too-many-arguments]
         self,
@@ -1801,6 +1880,21 @@ class Command(BaseCommand):
 
         obj.save(update_fields=changed_fields)
         return True
+
+    def _append_operation_name(
+        self,
+        campaign_obj: DropCampaign,
+        operation_name: str,
+    ) -> None:
+        """Append an operation/source name without replacing existing entries.
+
+        Args:
+            campaign_obj: Campaign to update.
+            operation_name: GraphQL operation or import source label.
+        """
+        if operation_name and operation_name not in campaign_obj.operation_names:
+            campaign_obj.operation_names.append(operation_name)
+            campaign_obj.save(update_fields=["operation_names"])
 
     def _get_or_create_organization(
         self,

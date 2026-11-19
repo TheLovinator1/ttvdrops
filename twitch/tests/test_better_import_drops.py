@@ -2,10 +2,8 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
-from unittest import skipIf
 from unittest.mock import patch
 
-from django.db import connection
 from django.test import TestCase
 
 from twitch.management.commands.better_import_drops import Command
@@ -25,9 +23,119 @@ from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import DropBenefitSchema
+from twitch.schemas import DropCampaignACLSchema
+from twitch.schemas import GameSchema
 
 if TYPE_CHECKING:
     from twitch.models import Channel
+
+
+class CampaignPartialUpdateTests(TestCase):
+    """Tests for avoiding empty-field overwrites during mixed imports."""
+
+    def test_game_partial_response_preserves_slug_and_box_art(self) -> None:
+        """Dashboard responses without slug/box art must not clear them."""
+        command: Command = Command()
+        full_game: GameSchema = GameSchema.model_validate({
+            "id": "partial-game",
+            "displayName": "Partial Game",
+            "slug": "partial-game",
+            "boxArtURL": "https://static-cdn.jtvnw.net/ttv-boxart/partial.jpg",
+            "__typename": "Game",
+        })
+        partial_game: GameSchema = GameSchema.model_validate({
+            "id": "partial-game",
+            "displayName": "Partial Game",
+            "__typename": "Game",
+        })
+
+        command._get_or_create_game(full_game, None)
+        command._get_or_create_game(partial_game, None)
+
+        game: Game = Game.objects.get(twitch_id="partial-game")
+        assert game.slug == "partial-game"
+        assert game.box_art == "https://static-cdn.jtvnw.net/ttv-boxart/partial.jpg"
+
+    def test_missing_allow_is_enabled_preserves_existing_value(self) -> None:
+        """A null isEnabled field must not force the campaign back to enabled."""
+        game: Game = Game.objects.create(
+            twitch_id="partial-allow-game",
+            display_name="Partial Allow Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="partial-allow-campaign",
+            name="Partial Allow Campaign",
+            game=game,
+            allow_is_enabled=False,
+        )
+        allow_schema: DropCampaignACLSchema = DropCampaignACLSchema.model_validate({
+            "channels": None,
+            "isEnabled": None,
+            "__typename": "DropCampaignACL",
+        })
+
+        Command()._process_allowed_channels(campaign, allow_schema)
+
+        campaign.refresh_from_db()
+        assert campaign.allow_is_enabled is False
+
+    def test_missing_ios_availability_preserves_existing_value(self) -> None:
+        """A benefit response without isIosAvailable must not clear it."""
+        command: Command = Command()
+        full_benefit = DropBenefitSchema.model_validate({
+            "id": "partial-benefit",
+            "name": "Partial Benefit",
+            "imageAssetURL": "https://example.com/benefit.png",
+            "entitlementLimit": 1,
+            "isIosAvailable": True,
+            "__typename": "DropBenefit",
+        })
+        partial_benefit = DropBenefitSchema.model_validate({
+            "id": "partial-benefit",
+            "name": "Partial Benefit",
+            "imageAssetURL": "https://example.com/benefit.png",
+            "__typename": "DropBenefit",
+        })
+
+        command._get_or_update_benefit(full_benefit)
+        command._get_or_update_benefit(partial_benefit)
+
+        benefit: DropBenefit = DropBenefit.objects.get(twitch_id="partial-benefit")
+        assert benefit.is_ios_available is True
+
+    def test_empty_descriptive_fields_do_not_clear_existing_values(self) -> None:
+        """Inventory responses should not erase richer DropCampaignDetails fields."""
+        game: Game = Game.objects.create(
+            twitch_id="partial-update-game",
+            display_name="Partial Update Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="partial-update-campaign",
+            name="Partial Update Campaign",
+            game=game,
+            description="Full description",
+            image_url="https://example.com/image.png",
+            details_url="https://example.com/details",
+            account_link_url="https://example.com/link",
+        )
+
+        Command()._save_campaign_if_changed(
+            campaign,
+            {
+                "description": "",
+                "image_url": "",
+                "details_url": "",
+                "account_link_url": "",
+                "api_status": "ACTIVE",
+            },
+        )
+
+        campaign.refresh_from_db()
+        assert campaign.description == "Full description"
+        assert campaign.image_url == "https://example.com/image.png"
+        assert campaign.details_url == "https://example.com/details"
+        assert campaign.account_link_url == "https://example.com/link"
+        assert campaign.api_status == "ACTIVE"
 
 
 class GetOrUpdateBenefitTests(TestCase):
@@ -651,10 +759,6 @@ class FileMoveUtilityTests(TestCase):
 class OperationNameFilteringTests(TestCase):
     """Tests for filtering campaigns by operation_name field."""
 
-    @skipIf(
-        connection.vendor == "sqlite",
-        reason="SQLite doesn't support JSON contains lookup",
-    )
     def test_can_filter_campaigns_by_operation_name(self) -> None:
         """Ensure campaigns can be filtered by operation_name to separate data sources."""
         command = Command()

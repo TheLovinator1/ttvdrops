@@ -10,6 +10,10 @@ logger = logging.getLogger("ttvdrops.signals")
 
 def _dispatch(task_fn: Any, pk: int) -> None:  # ruff:ignore[any-type]
     """Dispatch a Celery task, logging rather than raising when the broker is unavailable."""
+    from twitch.utils import image_tasks_suppressed  # ruff:ignore[import-outside-top-level]
+
+    if image_tasks_suppressed():
+        return
     try:
         task_fn.delay(pk)
     except Exception:  # ruff:ignore[blind-except]

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from django.conf import settings
-from django.db import connection
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
@@ -661,28 +660,15 @@ def debug_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-lo
     ]
 
     # Campaigns missing DropCampaignDetails operation name
-    # Need to handle SQLite separately since it doesn't support JSONField lookups
-    # Sqlite is used when testing
-    if connection.vendor == "sqlite":
-        all_campaigns: QuerySet[DropCampaign] = DropCampaign.objects.select_related(
-            "game",
-        ).order_by("game__display_name", "name")
-        campaigns_missing_dropcampaigndetails: list[DropCampaign] = [
-            c
-            for c in all_campaigns
-            if c.operation_names is None
-            or "DropCampaignDetails" not in c.operation_names
-        ]
-    else:
-        campaigns_missing_dropcampaigndetails: list[DropCampaign] = list(
-            DropCampaign.objects
-            .filter(
-                Q(operation_names__isnull=True)
-                | ~Q(operation_names__contains=["DropCampaignDetails"]),
-            )
-            .select_related("game")
-            .order_by("game__display_name", "name"),
+    campaigns_missing_dropcampaigndetails: list[DropCampaign] = list(
+        DropCampaign.objects
+        .filter(
+            Q(operation_names__isnull=True)
+            | ~Q(operation_names__contains=["DropCampaignDetails"]),
         )
+        .select_related("game")
+        .order_by("game__display_name", "name"),
+    )
 
     # ── Data source diff ────────────────────────────────────────────────
     # Compare campaigns imported from different data sources

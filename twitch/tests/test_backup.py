@@ -1,6 +1,5 @@
 import io
 import json
-import math
 import os
 import shutil
 from compression import zstd
@@ -15,10 +14,8 @@ from django.urls import reverse
 
 from twitch.management.commands.backup_db import _get_allowed_tables
 from twitch.management.commands.backup_db import _json_default
-from twitch.management.commands.backup_db import _sql_literal
 from twitch.management.commands.backup_db import _write_json_dump
 from twitch.management.commands.backup_db import _write_postgres_dump
-from twitch.management.commands.backup_db import _write_sqlite_dump
 from twitch.models import Game
 from twitch.models import Organization
 
@@ -218,31 +215,6 @@ class TestBackupHelperFunctions:
         assert not any(table.startswith("django_") for table in tables)
         assert not any(table.startswith("debug_toolbar_") for table in tables)
 
-    def test_sql_literal_handles_none(self) -> None:
-        """Test _sql_literal converts None to NULL."""
-        assert _sql_literal(None) == "NULL"
-
-    def test_sql_literal_handles_booleans(self) -> None:
-        """Test _sql_literal converts booleans to 1/0."""
-        assert _sql_literal(True) == "1"
-        assert _sql_literal(False) == "0"
-
-    def test_sql_literal_handles_numbers(self) -> None:
-        """Test _sql_literal handles int and float."""
-        assert _sql_literal(42) == "42"
-        assert _sql_literal(math.pi) == str(math.pi)
-
-    def test_sql_literal_handles_strings(self) -> None:
-        """Test _sql_literal quotes and escapes strings."""
-        assert _sql_literal("test") == "'test'"
-        assert _sql_literal("o'reilly") == "'o''reilly'"
-        assert _sql_literal("test\nline") == "'test\nline'"
-
-    def test_sql_literal_handles_bytes(self) -> None:
-        """Test _sql_literal converts bytes to hex notation."""
-        assert _sql_literal(b"\x00\x01\x02") == "X'000102'"
-        assert _sql_literal(b"hello") == "X'68656c6c6f'"
-
     def test_write_dump_includes_schema_and_data(self, tmp_path: Path) -> None:
         """Test _write_dump writes complete SQL dump."""
         # Create test data
@@ -250,34 +222,20 @@ class TestBackupHelperFunctions:
 
         tables = _get_allowed_tables("twitch_")
 
-        if connection.vendor == "postgresql":
-            if not shutil.which("pg_dump"):
-                pytest.skip("pg_dump is not available")
-            output_path = tmp_path / "backup.sql.zst"
-            _write_postgres_dump(output_path, tables)
-            with (
-                output_path.open("rb") as raw_handle,
-                zstd.open(raw_handle, "r") as compressed,
-                io.TextIOWrapper(compressed, encoding="utf-8") as handle,
-            ):
-                content = handle.read()
-            assert "CREATE TABLE" in content
-            assert "INSERT INTO" in content
-            assert "twitch_organization" in content
-            assert "Write Test Org" in content
-        else:
-            db_connection = connection.connection
-            output = io.StringIO()
-            _write_sqlite_dump(output, db_connection, tables)
-            content = output.getvalue()
-            assert "PRAGMA foreign_keys=OFF;" in content
-            assert "BEGIN TRANSACTION;" in content
-            assert "COMMIT;" in content
-            assert "PRAGMA foreign_keys=ON;" in content
-            assert "CREATE TABLE" in content
-            assert "twitch_organization" in content
-            assert "INSERT INTO" in content
-            assert "Write Test Org" in content
+        if not shutil.which("pg_dump"):
+            pytest.skip("pg_dump is not available")
+        output_path = tmp_path / "backup.sql.zst"
+        _write_postgres_dump(output_path, tables)
+        with (
+            output_path.open("rb") as raw_handle,
+            zstd.open(raw_handle, "r") as compressed,
+            io.TextIOWrapper(compressed, encoding="utf-8") as handle,
+        ):
+            content = handle.read()
+        assert "CREATE TABLE" in content
+        assert "INSERT INTO" in content
+        assert "twitch_organization" in content
+        assert "Write Test Org" in content
 
     def test_write_json_dump_creates_valid_json(self, tmp_path: Path) -> None:
         """Test _write_json_dump creates valid compressed JSON with all tables."""

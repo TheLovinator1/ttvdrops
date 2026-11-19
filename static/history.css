@@ -1,0 +1,213 @@
+.history-page {
+    max-width: 100%;
+}
+
+.history-description {
+    color: color-mix(in srgb, CanvasText 65%, transparent 35%);
+    max-width: 80ch;
+}
+
+.history-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    padding: 0.75rem;
+    border: 1px solid color-mix(in srgb, CanvasText 15%, transparent 85%);
+    border-radius: 0.5rem;
+}
+
+.history-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.85rem;
+}
+
+.history-filters input,
+.history-filters select {
+    min-width: 10rem;
+}
+
+.history-table-wrap {
+    overflow-x: auto;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.history-table th,
+.history-table td {
+    border-bottom: 1px solid color-mix(in srgb, CanvasText 12%, transparent 88%);
+    padding: 0.45rem 0.55rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.history-table thead th {
+    position: sticky;
+    top: 0;
+    background: Canvas;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, CanvasText 60%, transparent 40%);
+}
+
+.history-table tbody tr:hover {
+    background: color-mix(in srgb, CanvasText 5%, transparent 95%);
+}
+
+.history-when {
+    white-space: nowrap;
+}
+
+.history-muted {
+    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+    font-size: 0.78rem;
+}
+
+.history-badge {
+    display: inline-block;
+    border: 1px solid color-mix(in srgb, CanvasText 25%, transparent 75%);
+    border-radius: 999px;
+    padding: 0.05rem 0.45rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.history-badge-campaign { border-color: #2f81f7; color: #2f81f7; }
+.history-badge-drop { border-color: #3fb950; color: #3fb950; }
+.history-badge-benefit { border-color: #d29922; color: #d29922; }
+.history-badge-game { border-color: #a371f7; color: #a371f7; }
+.history-badge-organization { border-color: #db6d28; color: #db6d28; }
+.history-badge-channel { border-color: #39c5cf; color: #39c5cf; }
+.history-badge-reward_campaign { border-color: #f778ba; color: #f778ba; }
+.history-badge-reward { border-color: #f778ba; color: #f778ba; }
+.history-badge-channel_access,
+.history-badge-game_owner { border-color: #8b949e; color: #8b949e; }
+
+.history-change {
+    min-width: 22rem;
+}
+
+.history-diff {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.history-diff-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem;
+    line-height: 1.35;
+}
+
+.history-field {
+    color: color-mix(in srgb, CanvasText 65%, transparent 35%);
+    font-size: 0.78rem;
+    min-width: 7rem;
+}
+
+.history-old,
+.history-new {
+    border-radius: 0.25rem;
+    padding: 0.02rem 0.3rem;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+}
+
+.history-old {
+    background: color-mix(in srgb, #f85149 18%, transparent 82%);
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in srgb, #f85149 70%, transparent 30%);
+}
+
+.history-new {
+    background: color-mix(in srgb, #3fb950 18%, transparent 82%);
+}
+
+.history-arrow {
+    color: color-mix(in srgb, CanvasText 45%, transparent 55%);
+}
+
+.history-source {
+    display: inline-block;
+    border-radius: 0.25rem;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.history-source-file {
+    max-width: 18rem;
+    overflow-wrap: anywhere;
+}
+
+.history-empty {
+    padding: 2rem 0;
+    color: color-mix(in srgb, CanvasText 60%, transparent 40%);
+}
+
+.history-event-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.2rem 0.75rem;
+}
+
+.history-event-meta dt {
+    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+.history-event-meta dd {
+    margin: 0;
+}
+
+.history-snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.history-snapshot-table th {
+    width: 35%;
+    font-weight: 600;
+}
+
+.history-snapshot-table tr.history-changed {
+    background: color-mix(in srgb, #d29922 12%, transparent 88%);
+}
+
+.history-raw {
+    max-height: 40rem;
+    overflow: auto;
+    padding: 0.75rem;
+    border: 1px solid color-mix(in srgb, CanvasText 15%, transparent 85%);
+    border-radius: 0.5rem;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 1rem 0 2rem;
+}

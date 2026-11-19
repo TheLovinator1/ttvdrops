@@ -28,6 +28,10 @@
             <time datetime="{{ channel.updated_at|date:'c' }}"
                   title="{{ channel.updated_at|date:'DATETIME_FORMAT' }}">{{ channel.updated_at|date:"M d, Y H:i" }}</time> ({{ channel.updated_at|timesince }} ago)
         </dd>
+        <dt>History</dt>
+        <dd>
+            <a href="{% url 'twitch:channel_history' channel.twitch_id %}">[history]</a>
+        </dd>
     </dl>
     <!-- Twitch Stream Embed -->
     <iframe src="https://player.twitch.tv/?channel={{ channel.name }}&parent={{ request.get_host }}&muted=false"

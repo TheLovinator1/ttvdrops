@@ -40,7 +40,6 @@ services:
       # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
       # container user has no passwd entry, so HOME would otherwise be /.
       HOME: /tmp
-      USE_SQLITE: "False"
       POSTGRES_DB: ttvdrops
       POSTGRES_USER: ttvdrops
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
@@ -74,7 +73,6 @@ services:
       # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
       # container user has no passwd entry, so HOME would otherwise be /.
       HOME: /tmp
-      USE_SQLITE: "False"
       POSTGRES_DB: ttvdrops
       POSTGRES_USER: ttvdrops
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
@@ -128,7 +126,6 @@ services:
       # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
       # container user has no passwd entry, so HOME would otherwise be /.
       HOME: /tmp
-      USE_SQLITE: "False"
       POSTGRES_DB: ttvdrops
       POSTGRES_USER: ttvdrops
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
@@ -168,7 +165,6 @@ services:
       # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
       # container user has no passwd entry, so HOME would otherwise be /.
       HOME: /tmp
-      USE_SQLITE: "False"
       POSTGRES_DB: ttvdrops
       POSTGRES_USER: ttvdrops
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
@@ -213,7 +209,6 @@ services:
       # Gunicorn 27 keeps its control socket in $HOME/.gunicorn; the numeric
       # container user has no passwd entry, so HOME would otherwise be /.
       HOME: /tmp
-      USE_SQLITE: "False"
       POSTGRES_DB: ttvdrops
       POSTGRES_USER: ttvdrops
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"

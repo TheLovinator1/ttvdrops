@@ -138,6 +138,7 @@ LOGGING: dict[str, Any] = {
 
 INSTALLED_APPS: list[str] = [
     # Django built-in apps
+    "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.staticfiles",
@@ -153,6 +154,8 @@ INSTALLED_APPS: list[str] = [
     "django_celery_results",
     "django_celery_beat",
     "django_mcpz",
+    "pghistory",
+    "pgtrigger",
 ]
 
 MIDDLEWARE: list[str] = [
@@ -181,33 +184,15 @@ TEMPLATES: list[dict[str, Any]] = [
 ]
 
 
-def configure_databases(*, testing: bool, base_dir: Path) -> dict[str, dict[str, Any]]:
-    """Configure Django databases based on environment variables and testing mode.
+def configure_databases(*, base_dir: Path) -> dict[str, dict[str, Any]]:
+    """Configure the Django database connection.
 
     Args:
-        testing (bool): Whether the application is running in testing mode.
-        base_dir (Path): The base directory of the project, used for SQLite file location.
+        base_dir (Path): The base directory of the project.
 
     Returns:
         dict[str, dict[str, Any]]: The DATABASES setting for Django.
     """
-    use_sqlite: bool = env_bool("USE_SQLITE", default=False)
-
-    if testing:
-        return {
-            "default": {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": ":memory:",
-            },
-        }
-    if use_sqlite:
-        return {
-            "default": {
-                "ENGINE": "django.db.backends.sqlite3",
-                "NAME": str(base_dir / "db.sqlite3"),
-            },
-        }
-    # Default: PostgreSQL
     return {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -223,10 +208,7 @@ def configure_databases(*, testing: bool, base_dir: Path) -> dict[str, dict[str,
     }
 
 
-DATABASES: dict[str, dict[str, Any]] = configure_databases(
-    testing=TESTING,
-    base_dir=BASE_DIR,
-)
+DATABASES: dict[str, dict[str, Any]] = configure_databases(base_dir=BASE_DIR)
 
 if DEBUG or TESTING:
     INSTALLED_APPS.append("zeal")

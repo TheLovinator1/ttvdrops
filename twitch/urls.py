@@ -39,6 +39,13 @@ urlpatterns: list[URLPattern | URLResolver] = [
             query_string=True,
         ),
     ),
+    # /twitch/history/
+    path("history/", views.history_view, name="history"),
+    path(
+        "history/event/<path:slug>/",
+        views.history_event_detail_view,
+        name="history_event_detail",
+    ),
     # /twitch/badges/
     path("badges/", views.badge_list_view, name="badge_list"),
     # /twitch/badges/<set_id>/
@@ -51,6 +58,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         views.drop_campaign_detail_view,
         name="campaign_detail",
     ),
+    # /twitch/campaigns/<twitch_id>/history/
+    path(
+        "campaigns/<str:twitch_id>/history/",
+        views.drop_campaign_history_view,
+        name="campaign_history",
+    ),
     # /twitch/channels/
     path("channels/", views.ChannelListView.as_view(), name="channel_list"),
     # /twitch/channels/<twitch_id>/
@@ -58,6 +71,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         "channels/<str:twitch_id>/",
         views.ChannelDetailView.as_view(),
         name="channel_detail",
+    ),
+    # /twitch/channels/<twitch_id>/history/
+    path(
+        "channels/<str:twitch_id>/history/",
+        views.channel_history_view,
+        name="channel_history",
     ),
     # /twitch/emotes/
     path("emotes/", views.emote_gallery_view, name="emote_gallery"),
@@ -67,6 +86,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("games/list/", views.GamesListView.as_view(), name="games_list"),
     # /twitch/games/<twitch_id>/
     path("games/<str:twitch_id>/", views.GameDetailView.as_view(), name="game_detail"),
+    # /twitch/games/<twitch_id>/history/
+    path(
+        "games/<str:twitch_id>/history/",
+        views.game_history_view,
+        name="game_history",
+    ),
     # /twitch/organizations/
     path("organizations/", views.org_list_view, name="org_list"),
     # /twitch/organizations/<twitch_id>/
@@ -74,6 +99,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         "organizations/<str:twitch_id>/",
         views.organization_detail_view,
         name="organization_detail",
+    ),
+    # /twitch/organizations/<twitch_id>/history/
+    path(
+        "organizations/<str:twitch_id>/history/",
+        views.organization_history_view,
+        name="organization_history",
     ),
     # /twitch/reward-campaigns/
     path(
@@ -86,6 +117,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         "reward-campaigns/<str:twitch_id>/",
         views.reward_campaign_detail_view,
         name="reward_campaign_detail",
+    ),
+    # /twitch/reward-campaigns/<twitch_id>/history/
+    path(
+        "reward-campaigns/<str:twitch_id>/history/",
+        views.reward_campaign_history_view,
+        name="reward_campaign_history",
     ),
     # /twitch/sitewide/
     path(

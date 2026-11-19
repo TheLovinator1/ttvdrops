@@ -167,6 +167,8 @@
                         <div>
                             <a href="{% url 'api-v1:twitch-api-v1_get_reward_campaign' reward_campaign.twitch_id %}"
                                title="Twitch reward campaign API">[api]</a>
+                            <a href="{% url 'twitch:reward_campaign_history' reward_campaign.twitch_id %}"
+                               title="Reward campaign history">[history]</a>
                         </div>
                     </div>
                 </div>

@@ -209,6 +209,7 @@ __marimo__/
 # TTVDrops
 responses/
 data/
+history_missing_timestamp/
 
 # Directories tied to our project
 staticfiles/

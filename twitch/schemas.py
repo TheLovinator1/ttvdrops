@@ -155,8 +155,8 @@ class DropBenefitSchema(BaseModel):
     name: str
     image_asset_url: str = Field(alias="imageAssetURL")
     created_at: str | None = Field(default=None, alias="createdAt")
-    entitlement_limit: int = Field(default=1, alias="entitlementLimit")
-    is_ios_available: bool = Field(default=False, alias="isIosAvailable")
+    entitlement_limit: int | None = Field(default=None, alias="entitlementLimit")
+    is_ios_available: bool | None = Field(default=None, alias="isIosAvailable")
 
     # Optional in some API responses
     distribution_type: str | None = Field(default=None, alias="distributionType")
@@ -212,10 +212,13 @@ class TimeBasedDropSchema(BaseModel):
     type_name: Literal["TimeBasedDrop"] = Field(alias="__typename")
 
     # Inventory-specific fields
-    precondition_drops: None = Field(default=None, alias="preconditionDrops")
+    precondition_drops: list | dict | None = Field(
+        default=None, alias="preconditionDrops"
+    )
     self_edge: dict | None = Field(default=None, alias="self")
     campaign: dict | None = None
     localized_content: dict | None = Field(default=None, alias="localizedContent")
+    repeat: bool | None = None
 
     model_config = {
         "extra": "forbid",

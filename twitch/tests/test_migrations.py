@@ -85,10 +85,9 @@ def test_0021_backfills_allowed_campaign_count() -> None:  # ruff:ignore[too-man
     }
 
     # Restore database to the latest migration so subsequent tests don't
-    # encounter missing columns (SQLite DDL persists across transaction
-    # rollbacks, so the schema changes made by this test are permanent).
-    latest: list[tuple[str, str]] = [
-        ("twitch", "0024_dropcampaign_data_source_rewardcampaign_data_source"),
-    ]
+    # encounter missing columns.
     executor = MigrationExecutor(connection)
+    latest: list[tuple[str, str]] = [
+        node for node in executor.loader.graph.leaf_nodes() if node[0] == "twitch"
+    ]
     executor.migrate(latest)

@@ -146,6 +146,8 @@
                         <div>
                             <a href="{% url 'api-v1:twitch-api-v1_get_game' game.twitch_id %}"
                                title="Twitch game API">[api]</a>
+                            <a href="{% url 'twitch:game_history' game.twitch_id %}"
+                               title="Game history">[history]</a>
                         </div>
                     </div>
                 </div>

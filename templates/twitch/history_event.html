@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'history.css' %}" />
+{% endblock extra_head %}
+{% block content %}
+    <main class="history-page">
+        <header>
+            <h1>{{ event.object_name }} · {{ event.label }}</h1>
+            <nav aria-label="Breadcrumb">
+                <a href="{% url 'twitch:dashboard' %}">Twitch</a>
+                &gt; <a href="{% url 'twitch:history' %}">History</a>
+                {% if event.object_url %}
+                    &gt; <a href="{{ event.object_url }}">{{ event.object_name }}</a>
+                {% endif %}
+            </nav>
+            <dl class="history-event-meta">
+                <dt>When</dt>
+                <dd>
+                    <time datetime="{{ event.created_at|date:'c' }}"
+                          title="{{ event.created_at|date:'DATETIME_FORMAT' }}">
+                        {{ event.created_at|date:"M d, Y H:i:s" }}
+                    </time>
+                </dd>
+                <dt>Type</dt>
+                <dd>
+                    {{ event.model }} · {{ event.label }}
+                </dd>
+                <dt>Source</dt>
+                <dd>
+                    {% if event.source_url %}
+                        <a href="{{ event.source_url }}" class="history-source">{{ event.source }}</a>
+                    {% else %}
+                        <span class="history-source">{{ event.source }}</span>
+                    {% endif %}
+                    {% if event.source_file %}
+                        <div class="history-muted">{{ event.source_file }}</div>
+                    {% endif %}
+                </dd>
+            </dl>
+            {% if event.object_url %}<p><a href="{{ event.object_url }}">← Back to {{ event.object_name }}</a></p>{% endif %}
+        </header>
+        <div class="history-snapshot-grid {% if not event.before %}history-snapshot-single{% endif %}">
+            {% if event.before %}
+                <section>
+                    <h2>Before</h2>
+                    <table class="history-table history-snapshot-table">
+                        <tbody>
+                            {% for row in event.before %}
+                                <tr {% if row.changed %}class="history-changed"{% endif %}>
+                                    <th scope="row">{{ row.field }}</th>
+                                    <td>{{ row.value.text }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            {% endif %}
+            {% if event.after %}
+                <section>
+                    <h2>After</h2>
+                    <table class="history-table history-snapshot-table">
+                        <tbody>
+                            {% for row in event.after %}
+                                <tr {% if row.changed %}class="history-changed"{% endif %}>
+                                    <th scope="row">{{ row.field }}</th>
+                                    <td>{{ row.value.text }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            {% endif %}
+        </div>
+        <details>
+            <summary>Full event snapshot</summary>
+            <pre class="history-raw">{{ event.raw_json }}</pre>
+        </details>
+    </main>
+{% endblock content %}

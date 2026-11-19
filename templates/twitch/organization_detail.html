@@ -103,6 +103,8 @@
                     <div>
                         <a href="https://twitch-drops.fenrisapps.com/organizations/{{ organization.twitch_id }}"
                            title="View this organization on Fenris Apps">[fenrisapps]</a>
+                        <a href="{% url 'twitch:organization_history' organization.twitch_id %}"
+                           title="Organization history">[history]</a>
                     </div>
                 </div>
             </div>

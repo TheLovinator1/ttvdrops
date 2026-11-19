@@ -247,9 +247,20 @@ class SiteEndpointSmokeTest(TestCase):
                 {"twitch_id": self.twitch_campaign.twitch_id},
                 200,
             ),
+            (
+                "twitch:campaign_history",
+                {"twitch_id": self.twitch_campaign.twitch_id},
+                200,
+            ),
+            ("twitch:history", {}, 200),
             ("twitch:channel_list", {}, 200),
             (
                 "twitch:channel_detail",
+                {"twitch_id": self.twitch_channel.twitch_id},
+                200,
+            ),
+            (
+                "twitch:channel_history",
                 {"twitch_id": self.twitch_channel.twitch_id},
                 200,
             ),
@@ -257,15 +268,30 @@ class SiteEndpointSmokeTest(TestCase):
             ("twitch:games_grid", {}, 200),
             ("twitch:games_list", {}, 200),
             ("twitch:game_detail", {"twitch_id": self.twitch_game.twitch_id}, 200),
+            (
+                "twitch:game_history",
+                {"twitch_id": self.twitch_game.twitch_id},
+                200,
+            ),
             ("twitch:org_list", {}, 200),
             (
                 "twitch:organization_detail",
                 {"twitch_id": self.twitch_org.twitch_id},
                 200,
             ),
+            (
+                "twitch:organization_history",
+                {"twitch_id": self.twitch_org.twitch_id},
+                200,
+            ),
             ("twitch:reward_campaign_list", {}, 200),
             (
                 "twitch:reward_campaign_detail",
+                {"twitch_id": self.twitch_reward_campaign.twitch_id},
+                200,
+            ),
+            (
+                "twitch:reward_campaign_history",
                 {"twitch_id": self.twitch_reward_campaign.twitch_id},
                 200,
             ),
@@ -365,4 +391,3 @@ class SiteEndpointSmokeTest(TestCase):
             assert response.status_code == expected_status, (
                 f"{route_name} returned {response.status_code}, expected {expected_status}"
             )
-            response.close()
