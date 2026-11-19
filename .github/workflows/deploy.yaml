@@ -22,9 +22,35 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: uv sync --all-extras --dev -U
-      - run: uv run pytest
-      - name: Check if makemigrations are needed
+      - name: Run tests and check migrations with a temporary PostgreSQL cluster
         run: |
+          set -euo pipefail
+
+          if command -v pg_config >/dev/null 2>&1; then
+            pg_bindir="$(pg_config --bindir)"
+          else
+            pg_bindir="$(dirname "$(command -v initdb)")"
+          fi
+
+          test_db_dir="$(mktemp -d)"
+          cleanup() {
+            "$pg_bindir/pg_ctl" -D "$test_db_dir/data" -m immediate stop >/dev/null 2>&1 || true
+            rm -rf "$test_db_dir"
+          }
+          trap cleanup EXIT
+
+          "$pg_bindir/initdb" -D "$test_db_dir/data" --auth=trust --no-locale --encoding=UTF8 >/dev/null
+          "$pg_bindir/pg_ctl" -D "$test_db_dir/data" -l "$test_db_dir/postgres.log" \
+            -o "-k $test_db_dir -c listen_addresses=''" -w start >/dev/null
+
+          export POSTGRES_HOST="$test_db_dir"
+          export POSTGRES_PORT=5432
+          export POSTGRES_USER="$(id -un)"
+          export POSTGRES_PASSWORD=
+          export POSTGRES_DB=postgres
+
+          uv run pytest
+
           if uv run python manage.py makemigrations --check --dry-run; then
             echo "No migrations needed."
           else
