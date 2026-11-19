@@ -3576,6 +3576,60 @@ class TestSEOMetaTags:
         assert "breadcrumb_schema" in response.context
         assert "modified_date" in response.context
 
+    def test_game_detail_description_uses_campaign_stats(
+        self,
+        client: Client,
+        game_with_campaign: dict[str, Any],
+    ) -> None:
+        """The game description reports campaign counts instead of filler text."""
+        game: Game = game_with_campaign["game"]
+        now = timezone.now()
+        DropCampaign.objects.create(
+            twitch_id="active-camp",
+            name="Active campaign",
+            game=game,
+            start_at=now - timedelta(days=1),
+            end_at=now + timedelta(days=1),
+        )
+        DropCampaign.objects.create(
+            twitch_id="upcoming-camp",
+            name="Upcoming campaign",
+            game=game,
+            start_at=now + timedelta(days=1),
+            end_at=now + timedelta(days=2),
+        )
+
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        assert (
+            response.context["page_description"]
+            == "1 active · 1 upcoming · 3 campaigns · 0 rewards"
+        )
+
+    def test_game_detail_embed_buttons_are_game_specific(
+        self,
+        client: Client,
+        game_with_campaign: dict[str, Any],
+    ) -> None:
+        """Game embeds link to the game itself, not the all-campaigns list."""
+        game: Game = game_with_campaign["game"]
+        game.slug = "test-game"
+        game.save(update_fields=["slug"])
+
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+        response: _MonkeyPatchedWSGIResponse = client.get(url)
+
+        buttons: list[dict[str, str]] = response.context["discord_embed_buttons"]
+        assert [button["label"] for button in buttons] == [
+            "Twitch streams",
+            "Twitch",
+        ]
+        assert (
+            buttons[0]["url"]
+            == "https://www.twitch.tv/directory/category/test-game?filter=drops"
+        )
+
     def test_organization_detail_view_has_breadcrumb(self, client: Client) -> None:
         """Test organization detail view has breadcrumb."""
         org: Organization = Organization.objects.create(

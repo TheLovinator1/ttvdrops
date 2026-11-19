@@ -1,6 +1,7 @@
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from django.conf import settings
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -131,6 +132,24 @@ class ChzzkDashboardViewTests(TestCase):
 
         assert included in campaigns
         assert all(c.state != "TESTING" for c in campaigns)
+
+    def test_embed_buttons_only_link_to_chzzk(self) -> None:
+        """Chzzk embeds should not cross-link to Twitch or Kick."""
+        for route_name in ("chzzk:dashboard", "chzzk:campaign_list"):
+            response: _MonkeyPatchedWSGIResponse = self.client.get(
+                reverse(route_name),
+            )
+            buttons: list[dict[str, str]] = response.context["discord_embed_buttons"]
+
+            assert [button["label"] for button in buttons] == [
+                "Chzzk Drops",
+                "Campaigns",
+            ]
+            assert all(
+                button["url"] == "https://chzzk.naver.com/"
+                or button["url"].startswith(f"{settings.BASE_URL}/chzzk/")
+                for button in buttons
+            )
 
     def test_campaign_detail_view_renders_chzzk_campaign_and_rewards(self) -> None:
         """Test that the campaign detail view correctly renders the details of a chzzk campaign and its rewards."""

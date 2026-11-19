@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from django import template
+from django.templatetags.static import static
 from django.utils.safestring import SafeString
 from django.utils.safestring import mark_safe
 
@@ -18,11 +19,6 @@ if TYPE_CHECKING:
 
 register = template.Library()
 
-FALLBACK_TITLE = "TTVDrops - Twitch, Kick and Chzzk Drops"
-FALLBACK_DESCRIPTION = (
-    "Archive of Twitch, Kick and Chzzk drops, campaigns, and rewards."
-)
-
 
 @register.simple_tag(takes_context=True)
 def discord_component_embed(context: Context) -> SafeString:
@@ -30,7 +26,9 @@ def discord_component_embed(context: Context) -> SafeString:
 
     The tag reads the same SEO context used for Open Graph tags, plus an
     optional ``discord_embed_buttons`` list and ``discord_embed_accent_color``.
-    It renders nothing when a payload cannot fit within Discord's size limit.
+    The title links back to the current page and pages without a page image
+    fall back to the site icon. It renders nothing when a payload cannot fit
+    within Discord's size limit.
 
     Args:
         context: Template context for the current request.
@@ -38,11 +36,18 @@ def discord_component_embed(context: Context) -> SafeString:
     Returns:
         SafeString: A ``<script>`` element with the component embed payload.
     """
-    title: str = context.get("page_title") or FALLBACK_TITLE
-    description: str = context.get("page_description") or FALLBACK_DESCRIPTION
-    image_url: str = context.get("page_image") or ""
-    if image_url:
-        image_url = build_absolute_uri(image_url)
+    title: str = context.get("page_title") or "TTVDrops - Twitch, Kick and Chzzk Drops"
+    description: str = (
+        context.get("page_description")
+        or "Archive of Twitch, Kick and Chzzk drops, campaigns, and rewards."
+    )
+    image_url: str = context.get("page_image") or static("android-chrome-512x512.png")
+    image_url = build_absolute_uri(image_url)
+
+    request = context.get("request")
+    page_url: str = context.get("page_url") or ""
+    if not page_url and request is not None:
+        page_url = build_absolute_uri(request=request)
 
     buttons: Any = context.get("discord_embed_buttons") or []
     gallery: Any = context.get("discord_embed_gallery") or []
@@ -54,6 +59,7 @@ def discord_component_embed(context: Context) -> SafeString:
         title=title,
         description=description,
         image_url=image_url,
+        page_url=page_url,
         gallery=gallery,
         buttons=buttons,
         accent_color=accent_color,

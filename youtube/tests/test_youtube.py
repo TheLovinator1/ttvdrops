@@ -133,3 +133,18 @@ class YouTubeIndexViewTest(TestCase):
         assert content.index(activision_cell) < content.index(
             blizzard_cell,
         )
+
+    def test_index_embed_buttons_are_youtube_focused(self) -> None:
+        """The YouTube embed should not cross-link to Twitch or Kick."""
+        response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
+        buttons: list[dict[str, str]] = response.context["discord_embed_buttons"]
+
+        assert [button["label"] for button in buttons] == [
+            "YouTube",
+            "YouTube Help",
+            "Datasets",
+        ]
+        assert all(
+            "twitch.tv" not in button["url"] and "kick.com" not in button["url"]
+            for button in buttons
+        )

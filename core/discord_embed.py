@@ -23,6 +23,7 @@ MAX_BUTTONS = 5
 MAX_BUTTON_LABEL_LENGTH = 80
 MAX_BUTTON_URL_LENGTH = 512
 MAX_IMAGE_URL_LENGTH = 2048
+MAX_PAGE_URL_LENGTH = 2048
 MAX_TITLE_LENGTH = 120
 MAX_DESCRIPTION_LENGTH = 300
 MAX_GALLERY_ITEMS = 10
@@ -223,6 +224,18 @@ def _serialize(payload: dict[str, object]) -> str:
     return data.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
 
 
+def _markdown_url(url: str) -> str:
+    """Escape parentheses and whitespace so a URL cannot break markdown links.
+
+    Args:
+        url: Absolute HTTP(S) URL.
+
+    Returns:
+        str: URL safe to place inside a Discord markdown link.
+    """
+    return url.replace("(", "%28").replace(")", "%29").replace(" ", "%20")
+
+
 def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
     title: str,
     description: str,
@@ -230,6 +243,7 @@ def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     gallery: list[dict[str, str]],
     buttons: list[dict[str, str]],
     accent_color: int,
+    page_url: str = "",
 ) -> dict[str, object]:
     """Assemble the Container component for the embed.
 
@@ -240,11 +254,15 @@ def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-argume
         gallery: Valid media gallery items.
         buttons: Valid link buttons.
         accent_color: Container accent color as a 24-bit integer.
+        page_url: Absolute URL the title should link to, may be empty.
 
     Returns:
         dict[str, object]: Component embed payload.
     """
-    content: str = f"# {title}"
+    title_content: str = title
+    if page_url:
+        title_content = f"**[{title}]({_markdown_url(page_url)})**"
+    content: str = f"# {title_content}"
     if description:
         content += f"\n{description}"
 
@@ -309,6 +327,7 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
     title: str,
     description: str = "",
     image_url: str = "",
+    page_url: str = "",
     gallery: Iterable[Mapping[str, str] | tuple[str, str]] = (),
     buttons: Iterable[Mapping[str, str] | tuple[str, str]] = (),
     accent_color: int = DEFAULT_ACCENT_COLOR,
@@ -323,6 +342,7 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
         title: Embed title.
         description: Short description shown under the title.
         image_url: Optional thumbnail image URL.
+        page_url: Optional URL to link the title to.
         gallery: Optional media gallery images shown below the text.
         buttons: Optional link buttons.
         accent_color: Container accent color as a 24-bit integer.
@@ -332,6 +352,7 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
         str: Compact JSON payload, or an empty string if nothing fits.
     """
     image: str = _absolute_http_url(image_url, max_length=MAX_IMAGE_URL_LENGTH)
+    link_url: str = _absolute_http_url(page_url, max_length=MAX_PAGE_URL_LENGTH)
     normalized_gallery: list[dict[str, str]] = _normalize_gallery(gallery)
     normalized_buttons: list[dict[str, str]] = _normalize_buttons(buttons)
 
@@ -378,6 +399,7 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
             normalized_gallery[:gallery_count],
             normalized_buttons[:button_count],
             accent_color,
+            link_url,
         )
         data: str = _serialize(payload)
         if len(data.encode("utf-8")) <= max_bytes:

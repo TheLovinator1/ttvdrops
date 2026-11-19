@@ -149,9 +149,8 @@ def index(request: HttpRequest) -> HttpResponse:
         "organization_groups": organization_groups,
         "schema_data": json.dumps(schema),
         "discord_embed_buttons": embed_buttons(
+            ("YouTube", "https://www.youtube.com/"),
             ("YouTube Help", "https://support.google.com/youtube/answer/9024948"),
-            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
-            ("Kick Drops", "/kick/"),
             ("Datasets", "/datasets/"),
         ),
     }

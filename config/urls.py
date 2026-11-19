@@ -2,8 +2,10 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.conf.urls.static import static
+from django.templatetags.static import static as static_url
 from django.urls import include
 from django.urls import path
+from django.views.generic.base import RedirectView
 
 from core import views as core_views
 from core.mcp import server as mcp_server
@@ -13,6 +15,13 @@ if TYPE_CHECKING:
     from django.urls.resolvers import URLResolver
 
 urlpatterns: list[URLPattern | URLResolver] = [
+    # Browsers and crawlers request the favicon from the site root even when
+    # the page already links to the static asset.
+    path(
+        route="favicon.ico",
+        view=RedirectView.as_view(url=static_url("favicon.ico"), permanent=True),
+        name="favicon",
+    ),
     path(route="sitemap.xml", view=core_views.sitemap_view, name="sitemap"),
     path(
         route="sitemap-static.xml",

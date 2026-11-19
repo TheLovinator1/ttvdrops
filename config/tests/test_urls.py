@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from types import ModuleType
 
+    from django.test import Client
+
 
 def _pattern_strings(module: ModuleType) -> Iterable[str]:
     """Return string representations of the URL patterns' route/regex."""
@@ -39,6 +41,7 @@ def _reload_urls_with(**overrides) -> ModuleType:
 def test_top_level_named_routes_available() -> None:
     """Top-level routes defined in `config.urls` are reversible."""
     assert reverse("sitemap") == "/sitemap.xml"
+    assert reverse("favicon") == "/favicon.ico"
 
     # ensure the included `twitch` namespace is present
     msg: str = f"Expected 'twitch:dashboard' to reverse to '/twitch/', got {reverse('twitch:dashboard')}"
@@ -46,6 +49,14 @@ def test_top_level_named_routes_available() -> None:
 
     youtube_msg: str = f"Expected 'youtube:index' to reverse to '/youtube/', got {reverse('youtube:index')}"
     assert reverse("youtube:index") == "/youtube/", youtube_msg
+
+
+def test_root_favicon_redirects_to_static_asset(client: Client) -> None:
+    """Browsers and crawlers can fetch the favicon from the site root."""
+    response = client.get("/favicon.ico")
+
+    assert response.status_code == 301
+    assert response["Location"] == "/static/favicon.ico"
 
 
 def test_debug_tools_not_present_while_testing() -> None:

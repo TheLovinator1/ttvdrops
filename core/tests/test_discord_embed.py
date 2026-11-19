@@ -93,6 +93,19 @@ def test_builds_container_with_title_description_and_buttons() -> None:
     ]
 
 
+def test_links_title_to_page_url() -> None:
+    """The embed title should link back to the page being shared."""
+    payload: dict[str, Any] = json.loads(
+        build_component_embed(
+            title="Test title",
+            page_url="https://example.com/page",
+        ),
+    )
+
+    text_component: dict[str, Any] = payload["component"]["components"][0]
+    assert text_component["content"] == "# **[Test title](https://example.com/page)**"
+
+
 def test_escapes_html_and_markdown_characters() -> None:
     """Titles must not be able to break out of the script element."""
     raw: str = build_component_embed(
@@ -252,6 +265,22 @@ def test_home_page_includes_embed(client: Client) -> None:
 
     assert payload["component"]["type"] == 17
     assert len(_buttons(payload)) <= 5
+
+    text_component: dict[str, Any] = payload["component"]["components"][0]
+    assert (
+        text_component["components"][0]["content"]
+        == "# **[Twitch, Kick and Chzzk Drops, Rewards and Campaigns](https://ttvdrops.lovinator.space/)**\nRSS feeds, historical data, and information about Twitch and Kick drops, campaigns, rewards, and more."
+    )
+    assert (
+        text_component["accessory"]["media"]["url"]
+        == "https://ttvdrops.lovinator.space/static/android-chrome-512x512.png"
+    )
+
+    buttons: dict[str, str] = {
+        button["label"]: button["url"] for button in _buttons(payload)
+    }
+    assert list(buttons) == ["Twitch Drops", "Kick Drops", "Datasets"]
+    assert buttons["Twitch Drops"] == "https://ttvdrops.lovinator.space/twitch/"
 
     match = EMBED_PATTERN.search(content)
     assert match is not None

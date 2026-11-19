@@ -200,6 +200,7 @@ class TestRouteTable:
             "/search/",
             "/debug/",
             "/datasets/download/file.json/",
+            "/favicon.ico",
             "/api/v1/docs/",
             "/api/v1/openapi.json",
             "/api/v1/",

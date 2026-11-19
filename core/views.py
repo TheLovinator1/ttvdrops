@@ -106,9 +106,8 @@ def _build_seo_context(  # ruff:ignore[too-many-arguments, too-many-positional-a
         "robots_directive": robots_directive,
         "discord_embed_accent_color": DEFAULT_ACCENT_COLOR,
         "discord_embed_buttons": embed_buttons(
-            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Twitch Drops", "/twitch/"),
             ("Kick Drops", "/kick/"),
-            ("Chzzk Drops", "/chzzk/"),
             ("Datasets", "/datasets/"),
         ),
     }

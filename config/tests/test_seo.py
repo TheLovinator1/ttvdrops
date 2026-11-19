@@ -77,12 +77,26 @@ def test_meta_tags_use_explicit_page_url_for_og_url_and_canonical() -> None:
     assert canonical_pattern.search(content) is not None
 
 
-def test_meta_tags_twitter_card_is_summary_without_image() -> None:
-    """Test that without page_image in context, twitter:card is summary and no twitter:image tag is present."""
+def test_meta_tags_twitter_card_is_summary_with_default_image() -> None:
+    """Without page_image, use the site icon as the summary image."""
     content: str = _render_meta_tags()
 
     assert _extract_meta_content(content, "twitter:card") == "summary"
-    assert 'name="twitter:image"' not in content
+    assert (
+        _extract_meta_content(content, "twitter:image")
+        == "https://ttvdrops.lovinator.space/static/android-chrome-512x512.png"
+    )
+    assert (
+        _extract_meta_content(content, "og:image")
+        == "https://ttvdrops.lovinator.space/static/android-chrome-512x512.png"
+    )
+
+
+def test_meta_tags_include_site_name() -> None:
+    """Discord uses og:site_name as the provider name in previews."""
+    content: str = _render_meta_tags()
+
+    assert _extract_meta_content(content, "og:site_name") == "TTVDrops"
 
 
 def test_meta_tags_twitter_card_is_summary_large_image_with_page_image() -> None:

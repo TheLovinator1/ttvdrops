@@ -178,7 +178,7 @@ def _build_seo_context(
         "robots_directive": "index, follow",
         "discord_embed_accent_color": TWITCH_ACCENT_COLOR,
         "discord_embed_buttons": embed_buttons(
-            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Twitch", "https://www.twitch.tv/drops/campaigns"),
             ("Campaigns", "/twitch/campaigns/"),
             ("Games", "/twitch/games/"),
             ("Reward Campaigns", "/twitch/reward-campaigns/"),
@@ -828,7 +828,15 @@ class GameDetailView(DetailView):
         owners: list[Organization] = list(getattr(game, "owners_for_detail", []))
 
         game_name: str = game.get_game_name
-        game_description: str = f"Twitch drops for {game_name}."
+        active_count: int = len(active_campaigns)
+        upcoming_count: int = len(upcoming_campaigns)
+        campaign_count: int = len(campaigns_list)
+        reward_count: int = len(all_reward_campaigns)
+        game_description: str = (
+            f"{active_count} active · {upcoming_count} upcoming · "
+            f"{campaign_count} campaign{'' if campaign_count == 1 else 's'} · "
+            f"{reward_count} reward{'' if reward_count == 1 else 's'}"
+        )
         game_image: str | None = game.box_art_best_url
         game_image_width: int | None = game.box_art_width if game.box_art_file else None
         game_image_height: int | None = (
@@ -904,8 +912,7 @@ class GameDetailView(DetailView):
         )
         seo_context["discord_embed_buttons"] = embed_buttons(
             ("Twitch streams", game.twitch_directory_url),
-            ("All campaigns", "/twitch/campaigns/"),
-            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Twitch", "https://www.twitch.tv/drops/campaigns"),
         )
         # Compute campaign date range from all campaigns
         campaign_dates: list[datetime.datetime] = [
@@ -925,8 +932,8 @@ class GameDetailView(DetailView):
             "active_rewards": active_rewards,
             "upcoming_rewards": upcoming_rewards,
             "expired_rewards": expired_rewards,
-            "total_campaigns": len(campaigns_list),
-            "total_rewards": len(all_reward_campaigns),
+            "total_campaigns": campaign_count,
+            "total_rewards": reward_count,
             "first_campaign_date": first_campaign_date,
             "last_campaign_date": last_campaign_date,
             "owner": owners[0] if owners else None,
@@ -1448,7 +1455,7 @@ class ChannelDetailView(DetailView):
         seo_context["discord_embed_buttons"] = embed_buttons(
             ("Watch on Twitch", f"https://www.twitch.tv/{channel.name}"),
             ("All channels", "/twitch/channels/"),
-            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
+            ("Twitch", "https://www.twitch.tv/drops/campaigns"),
         )
         context.update({
             "active_campaigns": active_campaigns,

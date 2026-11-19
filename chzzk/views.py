@@ -52,8 +52,6 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
             "discord_embed_buttons": embed_buttons(
                 ("Chzzk Drops", "https://chzzk.naver.com/"),
                 ("Campaigns", "/chzzk/campaigns/"),
-                ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
-                ("Kick Drops", "/kick/"),
             ),
         },
     )
@@ -85,8 +83,6 @@ class CampaignListView(generic.ListView):
         context["discord_embed_buttons"] = embed_buttons(
             ("Chzzk Drops", "https://chzzk.naver.com/"),
             ("Campaigns", "/chzzk/campaigns/"),
-            ("Twitch Drops", "https://www.twitch.tv/drops/campaigns"),
-            ("Kick Drops", "/kick/"),
         )
         return context
 
