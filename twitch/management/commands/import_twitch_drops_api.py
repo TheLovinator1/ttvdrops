@@ -42,6 +42,7 @@ from colorama import Style
 from colorama import init as colorama_init
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
+from django.utils import timezone
 from pydantic import ValidationError
 
 from twitch.models import Channel
@@ -58,6 +59,8 @@ from twitch.schemas import SunkwiBotRewardCampaignSchema
 from twitch.utils import parse_date
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from django.core.management.base import CommandParser
     from django.db.models import Model
 
@@ -235,6 +238,7 @@ class Command(BaseCommand):
         self._game_cache: dict[str, Game] = {}
         self._channel_cache: dict[str, Channel] = {}
         self._benefit_cache: dict[str, DropBenefit] = {}
+        self._observation_timestamp: Any = timezone.now()
 
         # Merge mode: fill empty fields on existing campaigns instead of skipping
         self._merge_mode: bool = merge_mode
@@ -1164,6 +1168,7 @@ class Command(BaseCommand):
             "account_link_url": reward.account_link_url,
             "api_status": reward.status,
             "event_based_drops": reward.event_based_drops or [],
+            "last_seen_at": self._get_observation_timestamp(),
             "data_source": source,
         }
         if owner_org_obj is not None:
@@ -1172,6 +1177,12 @@ class Command(BaseCommand):
         existing: DropCampaign | None = DropCampaign.objects.filter(
             twitch_id=reward.twitch_id,
         ).first()
+        if (
+            existing is not None
+            and existing.last_seen_at is not None
+            and existing.last_seen_at > self._get_observation_timestamp()
+        ):
+            return
 
         # Merge mode: fill empty fields, never overwrite populated ones
         if existing is not None and getattr(self, "_merge_mode", False):
@@ -1655,12 +1666,19 @@ class Command(BaseCommand):
             "is_sitewide": campaign.is_sitewide,
             "game": game_obj,
             "image_url": campaign.image.image1x_url if campaign.image else "",
+            "last_seen_at": self._get_observation_timestamp(),
             "data_source": source,
         }
 
         existing_reward: RewardCampaign | None = RewardCampaign.objects.filter(
             twitch_id=campaign.twitch_id,
         ).first()
+        if (
+            existing_reward is not None
+            and existing_reward.last_seen_at is not None
+            and existing_reward.last_seen_at > self._get_observation_timestamp()
+        ):
+            return
 
         # Merge mode: fill empty fields, never overwrite populated ones
         if existing_reward is not None and getattr(self, "_merge_mode", False):
@@ -1880,6 +1898,14 @@ class Command(BaseCommand):
 
         obj.save(update_fields=changed_fields)
         return True
+
+    def _get_observation_timestamp(self) -> datetime:
+        """Return the observation timestamp for this command run.
+
+        Returns:
+            Timestamp of the import run.
+        """
+        return getattr(self, "_observation_timestamp", None) or timezone.now()
 
     def _append_operation_name(
         self,

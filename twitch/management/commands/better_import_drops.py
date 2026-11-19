@@ -18,6 +18,7 @@ from colorama import init as colorama_init
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
+from django.utils import timezone
 from pydantic import ValidationError
 from tqdm import tqdm
 
@@ -843,6 +844,10 @@ class Command(BaseCommand):
             # File already moved due to validation failure; signal caller to skip further handling.
             return False, broken_dir
 
+        observation_timestamp: datetime = (
+            options.get("observation_timestamp") or timezone.now()
+        )
+
         for response in valid_responses:
             # Process reward campaigns first so they are imported even when the
             # response carries no drop campaigns.
@@ -873,6 +878,33 @@ class Command(BaseCommand):
                 continue
 
             for drop_campaign in campaigns_to_process:
+                campaign_cache: dict[str, DropCampaign] = getattr(
+                    self,
+                    "_campaign_cache",
+                    {},
+                )
+                if not hasattr(self, "_campaign_cache"):
+                    self._campaign_cache = campaign_cache
+
+                campaign_obj: DropCampaign | None = campaign_cache.get(
+                    drop_campaign.twitch_id,
+                )
+                if campaign_obj is None:
+                    campaign_obj = DropCampaign.objects.filter(
+                        twitch_id=drop_campaign.twitch_id,
+                    ).first()
+                    if campaign_obj is not None:
+                        campaign_cache[drop_campaign.twitch_id] = campaign_obj
+
+                if (
+                    campaign_obj is not None
+                    and campaign_obj.last_seen_at is not None
+                    and campaign_obj.last_seen_at > observation_timestamp
+                ):
+                    # This file is older than the newest observation we already
+                    # applied for this campaign. Replaying it would rewind data.
+                    continue
+
                 # Handle campaigns without owner (e.g., from Inventory operation)
                 owner_data: OrganizationSchema | None = getattr(
                     drop_campaign,
@@ -911,39 +943,22 @@ class Command(BaseCommand):
                     "account_link_url": drop_campaign.account_link_url,
                     "api_status": drop_campaign.status,
                     "is_account_connected": drop_campaign.self.is_account_connected,
+                    "last_seen_at": observation_timestamp,
                 }
                 if org_obj is not None:
                     defaults["owner"] = org_obj
                 if drop_campaign.event_based_drops is not None:
                     defaults["event_based_drops"] = drop_campaign.event_based_drops
 
-                campaign_cache: dict[str, DropCampaign] = getattr(
-                    self,
-                    "_campaign_cache",
-                    {},
-                )
-                if not hasattr(self, "_campaign_cache"):
-                    self._campaign_cache = campaign_cache
-
-                campaign_obj: DropCampaign | None = campaign_cache.get(
-                    drop_campaign.twitch_id,
-                )
-                created: bool = False
-                if campaign_obj is not None:
-                    self._save_campaign_if_changed(campaign_obj, defaults)
-                else:
-                    campaign_obj = DropCampaign.objects.filter(
+                created: bool = campaign_obj is None
+                if campaign_obj is None:
+                    campaign_obj = DropCampaign.objects.create(
                         twitch_id=drop_campaign.twitch_id,
-                    ).first()
-                    created = campaign_obj is None
-                    if campaign_obj is None:
-                        campaign_obj = DropCampaign.objects.create(
-                            twitch_id=drop_campaign.twitch_id,
-                            **defaults,
-                        )
-                    else:
-                        self._save_campaign_if_changed(campaign_obj, defaults)
-                    campaign_cache[drop_campaign.twitch_id] = campaign_obj
+                        **defaults,
+                    )
+                else:
+                    self._save_campaign_if_changed(campaign_obj, defaults)
+                campaign_cache[drop_campaign.twitch_id] = campaign_obj
                 if created:
                     tqdm.write(
                         f"{Fore.GREEN}✓{Style.RESET_ALL} Created new campaign: {drop_campaign.name}",
@@ -1268,7 +1283,21 @@ class Command(BaseCommand):
             ValueError: If datetime parsing fails for campaign dates and
                 crash-on-error is enabled.
         """
+        observation_timestamp: datetime = (
+            options.get("observation_timestamp") or timezone.now()
+        )
+
         for reward_campaign in reward_campaigns:
+            existing_reward: RewardCampaign | None = RewardCampaign.objects.filter(
+                twitch_id=reward_campaign.twitch_id,
+            ).first()
+            if (
+                existing_reward is not None
+                and existing_reward.last_seen_at is not None
+                and existing_reward.last_seen_at > observation_timestamp
+            ):
+                continue
+
             starts_at_dt: datetime | None = parse_date(reward_campaign.starts_at)
             ends_at_dt: datetime | None = parse_date(reward_campaign.ends_at)
 
@@ -1312,6 +1341,7 @@ class Command(BaseCommand):
                 "image_url": reward_campaign.image.image1x_url
                 if reward_campaign.image
                 else "",
+                "last_seen_at": observation_timestamp,
             }
 
             reward_obj, created = RewardCampaign.objects.get_or_create(

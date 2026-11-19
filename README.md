@@ -323,6 +323,19 @@ Browse the resulting changelog at `/twitch/history/`. Campaign, game,
 organization, channel, and reward-campaign detail pages also link to their own
 history pages.
 
+### Backfill history only
+
+To add historical events to a database that already contains live data without
+changing the live archive tables:
+
+```bash
+uv run python manage.py build_history <file|dir> --recursive --history-only
+```
+
+History-only mode writes pghistory event rows and leaves campaigns, drops,
+benefits, games, organizations, and channels untouched. It is resumable and
+backdates events to the filename timestamps.
+
 ## Import Chat Badges
 
 Import Twitch's global chat badges for archival and reference:

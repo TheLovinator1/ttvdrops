@@ -28,6 +28,7 @@ from django.db import transaction
 from pghistory.models import Context
 from tqdm import tqdm
 
+from twitch.history_replay import HistoryReplay
 from twitch.management.commands.better_import_drops import Command as Importer
 from twitch.models import Channel
 from twitch.models import DropBenefit
@@ -216,8 +217,11 @@ def _quarantine_file(
     return destination
 
 
-def _processed_source_files() -> set[str]:
+def _processed_source_files(*, mode: str) -> set[str]:
     """Return source files that were already imported by a history run.
+
+    Args:
+        mode: History mode metadata value to match.
 
     Returns:
         Set of absolute source path strings.
@@ -226,7 +230,7 @@ def _processed_source_files() -> set[str]:
         str(source_file)
         for source_file in (
             Context.objects.filter(
-                metadata__mode="history",
+                metadata__mode=mode,
                 metadata__status__in=["ok", "skipped"],
             ).values_list("metadata__source_file", flat=True)
         )
@@ -279,6 +283,14 @@ class Command(BaseCommand):
             action="store_true",
             help="List what would be processed without writing anything",
         )
+        parser.add_argument(
+            "--history-only",
+            action="store_true",
+            help=(
+                "Write pghistory events only; never save live campaign, drop, "
+                "game, organization, or channel rows"
+            ),
+        )
 
     def handle(  # ruff:ignore[too-many-statements, too-many-locals]
         self,
@@ -291,6 +303,8 @@ class Command(BaseCommand):
         input_path: Path = _get_input_path(options.get("path"))
         dry_run: bool = bool(options.get("dry_run"))
         recursive: bool = bool(options.get("recursive"))
+        history_only: bool = bool(options.get("history_only"))
+        mode: str = "history-only" if history_only else "history"
 
         all_files: list[Path] = _collect_json_files(input_path, recursive=recursive)
         if not all_files:
@@ -325,7 +339,7 @@ class Command(BaseCommand):
             )
             return
 
-        processed: set[str] = _processed_source_files()
+        processed: set[str] = _processed_source_files(mode=mode)
         pending: list[tuple[datetime, Path]] = [
             (timestamp, file_path)
             for timestamp, file_path in dated_files
@@ -348,6 +362,7 @@ class Command(BaseCommand):
             return
 
         importer: Importer = Importer()
+        replay: HistoryReplay | None = HistoryReplay() if history_only else None
         importer_options: dict[str, Any] = {
             "recursive": False,
             "crash_on_error": True,
@@ -361,7 +376,7 @@ class Command(BaseCommand):
         failed_count: int = 0
         event_count: int = 0
 
-        with tqdm(
+        with tqdm(  # ruff: ignore[too-many-nested-blocks]
             total=len(pending),
             desc="Building history",
             unit="file",
@@ -378,7 +393,7 @@ class Command(BaseCommand):
 
                 with (
                     pghistory.context(
-                        mode="history",
+                        mode=mode,
                         data_source="TwitchDropsMiner",
                         event_group=group,
                         source_file=str(file_path),
@@ -386,12 +401,19 @@ class Command(BaseCommand):
                     ),
                     suppress_image_tasks(),
                 ):
-                    try:
+                    try:  # ruff: ignore[too-many-statements-in-try-clause]
                         with transaction.atomic():
-                            result = importer.process_file_worker(
-                                file_path=file_path,
-                                options=importer_options,
-                            )
+                            if replay is not None:
+                                result = replay.process_file(
+                                    file_path=file_path,
+                                    options=importer_options,
+                                )
+                            else:
+                                importer_options["observation_timestamp"] = timestamp
+                                result = importer.process_file_worker(
+                                    file_path=file_path,
+                                    options=importer_options,
+                                )
                     except Exception as exc:  # ruff:ignore[blind-except]
                         failure = str(exc) or exc.__class__.__name__
 

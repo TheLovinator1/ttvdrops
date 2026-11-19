@@ -648,7 +648,7 @@ class Channel(auto_prefetch.Model):
 
 
 # MARK: DropCampaign
-@_track_history(exclude=["is_fully_imported"])  # ruff: ignore[too-many-public-methods]
+@_track_history(exclude=["is_fully_imported", "last_seen_at"])  # ruff: ignore[too-many-public-methods]
 class DropCampaign(auto_prefetch.Model):
     """Represents a Twitch drop campaign."""
 
@@ -787,6 +787,13 @@ class DropCampaign(auto_prefetch.Model):
     is_fully_imported = models.BooleanField(
         help_text="True if all images and formats are imported and ready for display.",
         default=False,
+    )
+
+    last_seen_at = models.DateTimeField(
+        help_text="Timestamp of the newest source observation applied to this campaign.",
+        blank=True,
+        null=True,
+        db_index=True,
     )
 
     api_status = models.TextField(
@@ -2336,7 +2343,7 @@ class TimeBasedDrop(auto_prefetch.Model):
 
 
 # MARK: RewardCampaign
-@_track_history()
+@_track_history(exclude=["last_seen_at"])
 class RewardCampaign(auto_prefetch.Model):
     """Represents a Twitch reward campaign (Quest rewards)."""
 
@@ -2442,13 +2449,20 @@ class RewardCampaign(auto_prefetch.Model):
     )
 
     data_source = models.TextField(
-        help_text="Identifies the origin tool/script that imported this campaign data.",
+        help_text="Identifies the origin tool/script that imported this reward campaign data.",
         max_length=50,
         choices=[
             ("TwitchDropsMiner", "TwitchDropsMiner"),
             ("SunkwiBOT/twitch-drops-api", "SunkwiBOT/twitch-drops-api"),
         ],
         default="TwitchDropsMiner",
+    )
+
+    last_seen_at = models.DateTimeField(
+        help_text="Timestamp of the newest source observation applied to this reward campaign.",
+        blank=True,
+        null=True,
+        db_index=True,
     )
 
     game = auto_prefetch.ForeignKey(

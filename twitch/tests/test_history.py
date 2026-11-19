@@ -65,6 +65,82 @@ def test_build_history_backdates_events_and_resumes(tmp_path: Path) -> None:
     assert event_model.objects.count() == event_count
 
 
+def test_history_only_does_not_modify_live_rows(tmp_path: Path) -> None:
+    """History-only replay must write events without saving live archive rows."""
+    org: Organization = Organization.objects.create(
+        twitch_id="51a157a0-674a-4863-b120-7bb6ee2466a8",
+        name="Hi-Rez Studios",
+    )
+    game: Game = Game.objects.create(
+        twitch_id="2094865572",
+        slug="smite-2",
+        name="SMITE 2",
+        display_name="SMITE 2",
+        box_art="https://static-cdn.jtvnw.net/ttv-boxart/2094865572_IGDB.jpg",
+    )
+    game.owners.add(org)
+    campaign: DropCampaign = DropCampaign.objects.create(
+        twitch_id="3b965979-ecd2-11f0-876e-0a58a9feac02",
+        name="Live Production Name",
+        game=game,
+        owner=org,
+        last_seen_at=datetime(2026, 11, 19, 12, 0, tzinfo=UTC),
+    )
+
+    source_dir: Path = tmp_path / "imported" / "DropCampaignDetails"
+    source_dir.mkdir(parents=True)
+    source: Path = source_dir / "20261119T041604_555664.json"
+    source.write_text(json.dumps(_example_payload()), encoding="utf-8")
+
+    call_command("build_history", str(tmp_path), "--recursive", "--history-only")
+
+    campaign.refresh_from_db()
+    assert campaign.name == "Live Production Name"
+    assert campaign.last_seen_at == datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    assert not TimeBasedDrop.objects.filter(campaign=campaign).exists()
+
+    event = DropCampaign.pgh_event_model.objects.get(
+        pgh_obj=campaign,
+        pgh_label="created",
+        name="Jan Drops Week 2",
+    )
+    assert event.name == "Jan Drops Week 2"
+    assert event.pgh_created_at == datetime(
+        2026,
+        11,
+        19,
+        4,
+        16,
+        4,
+        555664,
+        tzinfo=UTC,
+    )
+
+
+def test_build_history_skips_older_files(tmp_path: Path) -> None:
+    """Files older than the stored observation must not rewind campaign data."""
+    game: Game = Game.objects.create(
+        twitch_id="older-file-game",
+        display_name="Older File Game",
+    )
+    campaign: DropCampaign = DropCampaign.objects.create(
+        twitch_id="3b965979-ecd2-11f0-876e-0a58a9feac02",
+        name="Newer State",
+        game=game,
+        last_seen_at=datetime(2026, 11, 19, 12, 0, tzinfo=UTC),
+    )
+
+    source_dir: Path = tmp_path / "imported" / "DropCampaignDetails"
+    source_dir.mkdir(parents=True)
+    source: Path = source_dir / "20261119T100000_000000.json"
+    source.write_text(json.dumps(_example_payload()), encoding="utf-8")
+
+    call_command("build_history", str(tmp_path), "--recursive")
+
+    campaign.refresh_from_db()
+    assert campaign.name == "Newer State"
+
+
 def test_build_history_copies_files_without_timestamp(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

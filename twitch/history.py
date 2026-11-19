@@ -285,24 +285,26 @@ def _load_previous_events(events: list[Any]) -> dict[tuple[type[Any], int], Any]
 
     previous_events: dict[tuple[type[Any], int], Any] = {}
     for event_model, model_events in grouped.items():
-        earliest_by_obj: dict[int, int] = {}
+        earliest_by_obj: dict[int, tuple[datetime, int]] = {}
         for event in model_events:
             obj_id = event.pgh_obj_id
-            current_min: int = earliest_by_obj.get(obj_id, event.pgh_id)
-            earliest_by_obj[obj_id] = min(current_min, event.pgh_id)
+            key = (event.pgh_created_at, event.pgh_id)
+            current_min: tuple[datetime, int] = earliest_by_obj.get(obj_id, key)
+            earliest_by_obj[obj_id] = min(current_min, key)
 
-        values_sql: str = ", ".join("(%s, %s)" for _ in earliest_by_obj)
-        params: list[int] = []
-        for obj_id, earliest_id in earliest_by_obj.items():
-            params.extend((obj_id, earliest_id))
+        values_sql: str = ", ".join("(%s, %s, %s)" for _ in earliest_by_obj)
+        params: list[Any] = []
+        for obj_id, (created_at, event_id) in earliest_by_obj.items():
+            params.extend((obj_id, created_at, event_id))
 
         table: str = event_model._meta.db_table  # ruff:ignore[private-member-access]
         sql: str = (
             f"SELECT DISTINCT ON (e.pgh_obj_id) e.* "  # ruff: ignore[hardcoded-sql-expression]
             f"FROM {table} e "
-            f"JOIN (VALUES {values_sql}) AS v(obj_id, min_id) "
-            "ON e.pgh_obj_id = v.obj_id AND e.pgh_id < v.min_id "
-            "ORDER BY e.pgh_obj_id, e.pgh_id DESC"
+            f"JOIN (VALUES {values_sql}) AS v(obj_id, min_created_at, min_id) "
+            "ON e.pgh_obj_id = v.obj_id "
+            "AND (e.pgh_created_at, e.pgh_id) < (v.min_created_at, v.min_id) "
+            "ORDER BY e.pgh_obj_id, e.pgh_created_at DESC, e.pgh_id DESC"
         )
         previous_before: dict[int, Any] = {
             row.pgh_obj_id: row for row in event_model.objects.raw(sql, params)
@@ -316,7 +318,12 @@ def _load_previous_events(events: list[Any]) -> dict[tuple[type[Any], int], Any]
             chain: list[Any] = []
             if previous_before.get(obj_id) is not None:
                 chain.append(previous_before[obj_id])
-            chain.extend(sorted(obj_events, key=lambda event: event.pgh_id))
+            chain.extend(
+                sorted(
+                    obj_events,
+                    key=lambda event: (event.pgh_created_at, event.pgh_id),
+                ),
+            )
             for index in range(1, len(chain)):
                 previous_events[event_model, chain[index].pk] = chain[index - 1]
 
