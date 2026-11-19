@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.14-slim-trixie
+FROM python:3.15-slim-trixie
 
 # uv from the official distroless image.
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
