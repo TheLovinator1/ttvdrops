@@ -67,7 +67,10 @@ Other sites that track Twitch drops:
 - [twitchdrops.app](https://twitchdrops.app/)
 - [Fenrisapps Twitch Drops](https://twitch-drops.fenrisapps.com/)
 - [twitch-drops-api](https://github.com/SunkwiBOT/twitch-drops-api) (the API that powers some of these tools)
-- [Drop Hunter](https://drophunter.app/?src=ttvdrops.lovinator.space) (paid, $3/mo)
+- [Drop Hunter](https://drophunter.app/?src=ttvdrops.lovinator.space)
+- [BadgeEmoteHQ](https://badgeemotehq.hipdiscovery.com/twitch)
+- [Drop Lookout](https://www.botscabin.com/drop-lookout)
+- [DropScope](https://www.dropscope.games/)
 
 ## Bug reports & feature requests
 
@@ -142,15 +145,15 @@ The site is published on `127.0.0.1:8000` (edit the `web` port mapping in
 `/mnt/Docker/Data/ttvdrops/app`, so point the reverse proxy there. All data is on host
 bind mounts, so `docker compose down` and `down -v` leave it untouched.
 
-| Action                     | Command                                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Stop                       | `docker compose down`                                                                                     |
+| Action                     | Command                                                                                                    |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Stop                       | `docker compose down`                                                                                      |
 | Stop and remove containers | `docker compose down -v` (data stays on the bind mounts)                                                   |
-| Shell in the web container | `docker compose exec web sh`                                                                              |
-| Run a management command   | `docker compose exec web python manage.py <command>`                                                      |
+| Shell in the web container | `docker compose exec web sh`                                                                               |
+| Run a management command   | `docker compose exec web python manage.py <command>`                                                       |
 | Import pending drops       | `docker compose exec web python manage.py better_import_drops /srv/ttvdrops/responses/pending --recursive` |
-| Create a database backup   | `docker compose exec celery-worker python manage.py backup_db`                                            |
-| Flower task monitor        | `docker compose --profile monitoring up -d`, then open <http://127.0.0.1:5555>                            |
+| Create a database backup   | `docker compose exec celery-worker python manage.py backup_db`                                             |
+| Flower task monitor        | `docker compose --profile monitoring up -d`, then open <http://127.0.0.1:5555>                             |
 
 ### Migrating from the host install
 
