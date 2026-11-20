@@ -68,6 +68,25 @@ class ChannelDisplayNameTests(TestCase):
         channel.refresh_from_db()
         assert channel.display_name == "XanderSilver"
 
+    def test_non_latin_display_name_is_not_replaced_by_login(self) -> None:
+        """Uncased scripts like CJK and Korean must survive login fallbacks."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="zousenpai",
+            name="zousenpai",
+            display_name="象先輩",
+        )
+        schema: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+            "id": "zousenpai",
+            "name": "zousenpai",
+            "__typename": "Channel",
+        })
+
+        Command()._get_or_create_channel(schema)
+
+        channel.refresh_from_db()
+        assert channel.display_name == "象先輩"
+        assert channel.display_names == ["象先輩", "zousenpai"]
+
 
 class CampaignPartialUpdateTests(TestCase):
     """Tests for avoiding empty-field overwrites during mixed imports."""

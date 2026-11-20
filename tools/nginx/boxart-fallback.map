@@ -6,16 +6,16 @@
 # Include it inside the http {} block in /etc/nginx/nginx.conf:
 # http {
 #     include /etc/nginx/boxart-fallback.map;
-# 
+#
 #     # ... existing config ...
 # }
 # Then add this to the server {} block that serves the site. If you already have a location /media/, just add the error_page line to it instead of duplicating it:
 # location /media/ {
 #     error_page 404 = @box_art_fallback;
-# 
+#
 #     # ... your existing root/alias ...
 # }
-# 
+#
 # location @box_art_fallback {
 #     if ($box_art_fallback = "") {
 #         return 404;

@@ -353,7 +353,7 @@ def _materialize_events(events: Iterable[Any]) -> list[dict[str, Any]]:
         event.pgh_context_id for event in event_list if event.pgh_context_id
     }
     contexts: dict[Any, dict[str, Any]] = dict(
-        Context.objects.filter(pk__in=context_ids).values_list("pk", "metadata")
+        Context.objects.filter(pk__in=context_ids).values_list("pk", "metadata"),
     )
     previous_events: dict[tuple[type[Any], int], Any] = _load_previous_events(
         event_list,
@@ -1002,7 +1002,8 @@ def _diff_rows(
         new_value: _Value = resolver.value(field, change[1] if change else None)
         rows.append({
             "field": FIELD_LABELS.get(
-                field, field.replace("_id", "").replace("_", " ").title()
+                field,
+                field.replace("_id", "").replace("_", " ").title(),
             ),
             "old": old_value,
             "new": new_value,
@@ -1026,14 +1027,16 @@ def _snapshot_rows(
         new_value: _Value = resolver.value(field, new_raw)
         before.append({
             "field": FIELD_LABELS.get(
-                field, field.replace("_id", "").replace("_", " ").title()
+                field,
+                field.replace("_id", "").replace("_", " ").title(),
             ),
             "value": old_value,
             "changed": field in diff,
         })
         after.append({
             "field": FIELD_LABELS.get(
-                field, field.replace("_id", "").replace("_", " ").title()
+                field,
+                field.replace("_id", "").replace("_", " ").title(),
             ),
             "value": new_value,
             "changed": field in diff,

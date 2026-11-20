@@ -921,6 +921,30 @@ class ChannelDisplayNameTests(TestCase):
         channel.refresh_from_db()
         assert channel.display_name == "TwyneTV"
 
+    def test_non_latin_display_name_is_not_replaced_by_login(self) -> None:
+        """Uncased scripts like CJK and Korean must survive login fallbacks."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="zousenpai",
+            name="zousenpai",
+            display_name="象先輩",
+        )
+        allow_schema: SunkwiBotDropCampaignACLSchema = (
+            SunkwiBotDropCampaignACLSchema.model_validate({
+                "isEnabled": True,
+                "channels": [{"id": "zousenpai", "name": "zousenpai"}],
+            })
+        )
+
+        Command()._process_allow_channels(
+            allow_schema=allow_schema,
+            campaign_obj=self._campaign(),
+            verbose=False,
+        )
+
+        channel.refresh_from_db()
+        assert channel.display_name == "象先輩"
+        assert channel.display_names == ["象先輩", "zousenpai"]
+
 
 # ---------------------------------------------------------------------------
 # Historical import tests

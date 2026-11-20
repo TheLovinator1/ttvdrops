@@ -213,7 +213,8 @@ class TimeBasedDropSchema(BaseModel):
 
     # Inventory-specific fields
     precondition_drops: list | dict | None = Field(
-        default=None, alias="preconditionDrops"
+        default=None,
+        alias="preconditionDrops",
     )
     self_edge: dict | None = Field(default=None, alias="self")
     campaign: dict | None = None

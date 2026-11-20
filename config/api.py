@@ -23,7 +23,10 @@ class TTVDropsSwaggerDocs(Swagger):
     """Swagger UI docs page with SEO and Discord component-embed context."""
 
     def render_page(
-        self, request: HttpRequest, api: NinjaAPI, **kwargs: str
+        self,
+        request: HttpRequest,
+        api: NinjaAPI,
+        **kwargs: str,
     ) -> HttpResponse:
         """Render the Swagger UI page with page metadata.
 

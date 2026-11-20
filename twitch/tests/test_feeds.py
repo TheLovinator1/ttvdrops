@@ -1440,6 +1440,41 @@ def test_rss_feeds_return_200(
     assert response.status_code == 200
 
 
+@pytest.mark.django_db
+def test_campaign_feed_channel_links_use_login_and_localized_name(
+    client: Client,
+) -> None:
+    """RSS channel links should use the login while showing the display name."""
+    game: Game = Game.objects.create(
+        twitch_id="localized-feed-game",
+        slug="localized-feed-game",
+        name="Localized Feed Game",
+        display_name="Localized Feed Game",
+    )
+    campaign: DropCampaign = DropCampaign.objects.create(
+        twitch_id="localized-feed-campaign",
+        name="Localized Feed Campaign",
+        game=game,
+        start_at=timezone.now(),
+        end_at=timezone.now() + timedelta(days=7),
+        operation_names=["DropCampaignDetails"],
+    )
+    channel: Channel = Channel.objects.create(
+        twitch_id="zousenpai",
+        name="zousenpai",
+        display_name="象先輩",
+        display_names=["象先輩", "zousenpai"],
+    )
+    campaign.allow_channels.add(channel)
+
+    response: _MonkeyPatchedWSGIResponse = client.get(reverse("core:campaign_feed"))
+
+    assert response.status_code == 200
+    content: str = response.content.decode("utf-8")
+    assert 'href="https://twitch.tv/zousenpai"' in content
+    assert "象先輩" in content
+
+
 class DiscordFeedTestCase(TestCase):
     """Test Discord feeds with relative timestamps."""
 

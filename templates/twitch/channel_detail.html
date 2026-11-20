@@ -14,6 +14,14 @@
                 <code>{{ channel.name }}</code>
             </dd>
         {% endif %}
+        {% if channel.other_display_names %}
+            <dt>Also known as</dt>
+            <dd>
+                {% for name in channel.other_display_names %}
+                    <code>{{ name }}</code>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </dd>
+        {% endif %}
         <dt>Channel ID</dt>
         <dd>
             {{ channel.twitch_id }}

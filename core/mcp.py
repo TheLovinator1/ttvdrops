@@ -197,25 +197,25 @@ class SearchDropsParams(msgspec.Struct):
     starts_after: Annotated[
         str | None,
         msgspec.Meta(
-            description=f"When the campaign starts at or after. {_ISO_DATE_HELP}"
+            description=f"When the campaign starts at or after. {_ISO_DATE_HELP}",
         ),
     ] = None
     starts_before: Annotated[
         str | None,
         msgspec.Meta(
-            description=f"When the campaign starts at or before. {_ISO_DATE_HELP}"
+            description=f"When the campaign starts at or before. {_ISO_DATE_HELP}",
         ),
     ] = None
     ends_after: Annotated[
         str | None,
         msgspec.Meta(
-            description=f"When the campaign ends at or after. {_ISO_DATE_HELP}"
+            description=f"When the campaign ends at or after. {_ISO_DATE_HELP}",
         ),
     ] = None
     ends_before: Annotated[
         str | None,
         msgspec.Meta(
-            description=f"When the campaign ends at or before. {_ISO_DATE_HELP}"
+            description=f"When the campaign ends at or before. {_ISO_DATE_HELP}",
         ),
     ] = None
     limit: Annotated[
@@ -675,7 +675,7 @@ def _chzzk_drop_summaries(
     ends_before = _parse_bound(params.ends_before, end_of_day=True)
 
     queryset = ChzzkCampaign.objects.exclude(state="TESTING").annotate(
-        reward_count=Count("rewards", distinct=True)
+        reward_count=Count("rewards", distinct=True),
     )
 
     if params.query:
@@ -956,7 +956,7 @@ def _get_chzzk_drop(campaign_id: str) -> DropDetail:
 
     try:
         campaign = ChzzkCampaign.objects.prefetch_related("rewards").get(
-            campaign_no=campaign_no
+            campaign_no=campaign_no,
         )
     except ChzzkCampaign.DoesNotExist as exc:
         msg = f"No Chzzk drop campaign with id {campaign_id!r}."
@@ -1175,7 +1175,7 @@ def _kick_organization_summaries(
             campaign_count=int(organization.campaign_count),
             active_campaign_count=int(organization.active_campaign_count),
             url=_absolute(
-                reverse("kick:organization_detail", args=[organization.kick_id])
+                reverse("kick:organization_detail", args=[organization.kick_id]),
             ),
         )
         for organization in organizations[: params.limit]

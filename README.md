@@ -339,7 +339,9 @@ History-only mode writes pghistory event rows and leaves campaigns, drops,
 benefits, games, organizations, and channels untouched. It is resumable and
 backdates events to the filename timestamps. Missing channel display names fall
 back to the lowercase login in source files; replayed events keep the existing
-capitalized display name when the incoming name is only a lowercase fallback.
+display name and accumulate every observed name in the channel's
+`display_names` list, so localized names such as `象先輩` and the login
+`zousenpai` are both retained.
 
 To delete all existing pghistory events and contexts first, then rebuild the
 timeline from the files:

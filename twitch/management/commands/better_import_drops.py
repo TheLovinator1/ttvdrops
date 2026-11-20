@@ -35,6 +35,7 @@ from twitch.schemas import GraphQLResponse
 from twitch.schemas import OrganizationSchema
 from twitch.utils import image_tasks_suppressed
 from twitch.utils import is_twitch_box_art_url
+from twitch.utils import merge_display_names
 from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
 from twitch.utils import prefer_display_name
@@ -789,6 +790,11 @@ class Command(BaseCommand):
         defaults: dict[str, object] = {
             "name": channel_info.name,
             "display_name": incoming_display_name,
+            "display_names": merge_display_names(
+                None,
+                incoming_display_name,
+                channel_info.name,
+            ),
         }
 
         cache: dict[str, Channel] = getattr(self, "_channel_cache", {})
@@ -797,13 +803,22 @@ class Command(BaseCommand):
 
         cached_channel: Channel | None = cache.get(channel_info.twitch_id)
         if cached_channel is not None:
+            preferred_display_name: str = prefer_display_name(
+                cached_channel.display_name,
+                incoming_display_name,
+                channel_info.name,
+            )
             self._save_if_changed(
                 cached_channel,
                 {
                     "name": channel_info.name,
-                    "display_name": prefer_display_name(
+                    "display_name": preferred_display_name,
+                    "display_names": merge_display_names(
+                        cached_channel.display_names,
                         cached_channel.display_name,
+                        preferred_display_name,
                         incoming_display_name,
+                        channel_info.name,
                     ),
                 },
             )
@@ -814,13 +829,22 @@ class Command(BaseCommand):
             defaults=defaults,
         )
         if not created:
+            preferred_display_name = prefer_display_name(
+                channel_obj.display_name,
+                incoming_display_name,
+                channel_info.name,
+            )
             self._save_if_changed(
                 channel_obj,
                 {
                     "name": channel_info.name,
-                    "display_name": prefer_display_name(
+                    "display_name": preferred_display_name,
+                    "display_names": merge_display_names(
+                        channel_obj.display_names,
                         channel_obj.display_name,
+                        preferred_display_name,
                         incoming_display_name,
+                        channel_info.name,
                     ),
                 },
             )

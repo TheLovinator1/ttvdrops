@@ -2576,7 +2576,9 @@ def history_view(request: HttpRequest) -> HttpResponse:
         seo_meta={
             "page_url": url,
             "schema_data": _webpage_schema(
-                "Twitch Drop Archive History", description, url
+                "Twitch Drop Archive History",
+                description,
+                url,
             ),
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),

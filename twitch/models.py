@@ -561,6 +561,13 @@ class Channel(auto_prefetch.Model):
         verbose_name="Display Name",
     )
 
+    display_names = models.JSONField(
+        help_text="All distinct names observed for this channel, including localized ones.",
+        verbose_name="Display Names",
+        default=list,
+        blank=True,
+    )
+
     added_at = models.DateTimeField(
         help_text="Timestamp when this channel record was created.",
         auto_now_add=True,
@@ -594,6 +601,21 @@ class Channel(auto_prefetch.Model):
         """Return a string representation of the channel."""
         return self.display_name or self.name or self.twitch_id
 
+    @property
+    def other_display_names(self) -> list[str]:
+        """Aliases other than the primary display name and login.
+
+        Returns:
+            Additional names observed for this channel.
+        """
+        primary: str = (self.display_name or "").casefold()
+        login: str = (self.name or "").casefold()
+        return [
+            name
+            for name in self.display_names or []
+            if name.casefold() not in {primary, login}
+        ]
+
     @classmethod
     def for_list_view(
         cls,
@@ -626,12 +648,13 @@ class Channel(auto_prefetch.Model):
         ).order_by("-campaign_count", "name")
 
     @classmethod
-    def for_detail_view(cls) -> models.QuerySet[Channel]:
+    def for_detail_view(cls) -> models.QuerySet[Self]:
         """Return channels with only fields needed by the channel detail view."""
         return cls.objects.only(
             "twitch_id",
             "name",
             "display_name",
+            "display_names",
             "added_at",
             "updated_at",
         )
@@ -1009,6 +1032,7 @@ class DropCampaign(auto_prefetch.Model):
                         "twitch_id",
                         "name",
                         "display_name",
+                        "display_names",
                     ).order_by("display_name"),
                     to_attr="channels_ordered",
                 ),
@@ -1286,6 +1310,7 @@ class DropCampaign(auto_prefetch.Model):
                         "twitch_id",
                         "name",
                         "display_name",
+                        "display_names",
                     ).order_by("display_name"),
                     to_attr="channels_ordered",
                 ),

@@ -138,6 +138,38 @@ def test_history_replay_does_not_degrade_channel_display_name() -> None:
     assert latest.display_name == "Ztockerstein"
 
 
+def test_history_replay_preserves_non_latin_display_name() -> None:
+    """Replaying a login fallback must not replace a CJK or Korean name."""
+    channel: Channel = Channel.objects.create(
+        twitch_id="zousenpai",
+        name="zousenpai",
+        display_name="象先輩",
+    )
+    replay: HistoryReplay = HistoryReplay()
+    without_display_name: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+        "id": "zousenpai",
+        "name": "zousenpai",
+        "__typename": "Channel",
+    })
+    last_id_before_replay: int = (
+        Channel.pgh_event_model.objects
+        .filter(pgh_obj=channel)
+        .order_by("-pgh_id")
+        .values_list("pgh_id", flat=True)
+        .first()
+        or 0
+    )
+
+    replay._process_channel(without_display_name)
+
+    event = Channel.pgh_event_model.objects.get(
+        pgh_obj=channel,
+        pgh_id__gt=last_id_before_replay,
+    )
+    assert event.display_name == "象先輩"
+    assert event.display_names == ["象先輩", "zousenpai"]
+
+
 def test_history_replay_channel_display_name_does_not_flap() -> None:
     """Alternating displayName presence must not flip capitalization during replay."""
     channel: Channel = Channel.objects.create(
@@ -736,14 +768,16 @@ def test_history_event_detail_query_count_is_bounded(client: Client) -> None:
     fixtures = _create_history_fixtures()
     campaign: DropCampaign = fixtures["campaign"]  # type: ignore[assignment]
     event = DropCampaign.pgh_event_model.objects.filter(
-        pgh_obj=campaign, pgh_label="updated"
+        pgh_obj=campaign,
+        pgh_label="updated",
     ).first()
     assert event is not None
 
     _assert_query_bound(
         client,
         reverse(
-            "twitch:history_event_detail", args=[f"{event._meta.label}:{event.pk}"]
+            "twitch:history_event_detail",
+            args=[f"{event._meta.label}:{event.pk}"],
         ),
         20,
     )

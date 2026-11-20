@@ -464,7 +464,7 @@ class Command(BaseCommand):
                         failure = str(exc) or exc.__class__.__name__
 
                 context: Context | None = Context.objects.filter(
-                    metadata__event_group=group
+                    metadata__event_group=group,
                 ).first()
 
                 is_success: bool = bool(result and result.get("success"))

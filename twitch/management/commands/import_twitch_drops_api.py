@@ -56,6 +56,7 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import SunkwiBotDropGroupSchema
 from twitch.schemas import SunkwiBotRewardCampaignSchema
+from twitch.utils import merge_display_names
 from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
 from twitch.utils import prefer_display_name
@@ -1516,16 +1517,30 @@ class Command(BaseCommand):
                 defaults={
                     "name": ch.name,
                     "display_name": incoming_display_name,
+                    "display_names": merge_display_names(
+                        None,
+                        incoming_display_name,
+                        ch.name,
+                    ),
                 },
             )
             if not created:
+                preferred_display_name: str = prefer_display_name(
+                    channel_obj.display_name,
+                    incoming_display_name,
+                    ch.name,
+                )
                 self._save_if_changed(
                     channel_obj,
                     {
                         "name": ch.name,
-                        "display_name": prefer_display_name(
+                        "display_name": preferred_display_name,
+                        "display_names": merge_display_names(
+                            channel_obj.display_names,
                             channel_obj.display_name,
+                            preferred_display_name,
                             incoming_display_name,
+                            ch.name,
                         ),
                     },
                 )

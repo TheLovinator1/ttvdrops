@@ -143,19 +143,59 @@ def normalize_twitch_image_url(url: str) -> str:
     return str(urlunparse(parsed._replace(path=path)))
 
 
-def prefer_display_name(existing: str, incoming: str) -> str:
-    """Keep a capitalized display name over a lowercase login-style fallback.
+def merge_display_names(
+    existing: list[str] | None,
+    *incoming: str,
+) -> list[str]:
+    """Merge observed names into a de-duplicated alias list.
+
+    Names are compared case-insensitively so a lowercase login does not add a
+    second entry beside its capitalized display name. A later capitalized
+    spelling upgrades an existing all-lowercase entry.
+
+    Args:
+        existing: Previously stored display names.
+        *incoming: Newly observed names.
+
+    Returns:
+        Display names in first-seen order.
+    """
+    merged: list[str] = []
+    index_by_key: dict[str, int] = {}
+    for name in [*(existing or []), *incoming]:
+        cleaned: str = (name or "").strip()
+        if not cleaned:
+            continue
+        key: str = cleaned.casefold()
+        if key in index_by_key:
+            index: int = index_by_key[key]
+            current: str = merged[index]
+            if current == current.lower() and cleaned != cleaned.lower():
+                merged[index] = cleaned
+            continue
+        index_by_key[key] = len(merged)
+        merged.append(cleaned)
+    return merged
+
+
+def prefer_display_name(existing: str, incoming: str, login: str) -> str:
+    """Keep a real display name instead of replacing it with the login name.
+
+    Twitch logins are lowercase ASCII, while display names can be capitalized
+    or use non-Latin scripts (for example ``象先輩``). Comparing against the
+    login avoids treating uncased scripts as lowercase logins.
 
     Args:
         existing: Current display name.
-        incoming: New display name.
+        incoming: New display name, possibly a login-name fallback.
+        login: The channel's lowercase login name.
 
     Returns:
         The preferred display name.
     """
     if not incoming:
         return existing
-    if existing and existing != existing.lower() and incoming == incoming.lower():
+    if existing and existing != login and incoming == login:
         return existing
     return incoming
 

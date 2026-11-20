@@ -87,13 +87,16 @@ class Migration(migrations.Migration):
                 (
                     "twitch_id",
                     models.TextField(
-                        editable=False, help_text="The Twitch ID for this benefit."
+                        editable=False,
+                        help_text="The Twitch ID for this benefit.",
                     ),
                 ),
                 (
                     "name",
                     models.TextField(
-                        blank=True, default="N/A", help_text="Name of the drop benefit."
+                        blank=True,
+                        default="N/A",
+                        help_text="Name of the drop benefit.",
                     ),
                 ),
                 (
@@ -191,14 +194,16 @@ class Migration(migrations.Migration):
                 (
                     "twitch_id",
                     models.TextField(
-                        editable=False, help_text="The Twitch ID for this campaign."
+                        editable=False,
+                        help_text="The Twitch ID for this campaign.",
                     ),
                 ),
                 ("name", models.TextField(help_text="Name of the drop campaign.")),
                 (
                     "description",
                     models.TextField(
-                        blank=True, help_text="Detailed description of the campaign."
+                        blank=True,
+                        help_text="Detailed description of the campaign.",
                     ),
                 ),
                 (
@@ -373,7 +378,9 @@ class Migration(migrations.Migration):
                 (
                     "display_name",
                     models.TextField(
-                        blank=True, default="", verbose_name="Display name"
+                        blank=True,
+                        default="",
+                        verbose_name="Display name",
                     ),
                 ),
                 (
@@ -642,7 +649,8 @@ class Migration(migrations.Migration):
                 (
                     "twitch_id",
                     models.TextField(
-                        editable=False, help_text="The Twitch ID for this reward."
+                        editable=False,
+                        help_text="The Twitch ID for this reward.",
                     ),
                 ),
                 ("name", models.TextField(help_text="Name of the reward.")),
@@ -924,13 +932,15 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="dropbenefit",
             index=models.Index(
-                fields=["owner_organization"], name="twitch_drop_owner_o_45b4cc_idx"
+                fields=["owner_organization"],
+                name="twitch_drop_owner_o_45b4cc_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="dropcampaign",
             index=models.Index(
-                fields=["api_status"], name="twitch_drop_api_sta_0ad8a2_idx"
+                fields=["api_status"],
+                name="twitch_drop_api_sta_0ad8a2_idx",
             ),
         ),
         migrations.AddIndex(
@@ -1759,67 +1769,78 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="channelevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_chan_pgh_cre_8f278c_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_chan_pgh_cre_8f278c_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="dropbenefitedgeevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_drop_pgh_cre_d134f5_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_drop_pgh_cre_d134f5_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="dropbenefitevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_drop_pgh_cre_c8a271_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_drop_pgh_cre_c8a271_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="dropcampaignallowedchannelevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_drop_pgh_cre_f6c607_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_drop_pgh_cre_f6c607_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="dropcampaignevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_drop_pgh_cre_2f8897_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_drop_pgh_cre_2f8897_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="gameevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_game_pgh_cre_9d3db4_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_game_pgh_cre_9d3db4_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="gameownerevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_game_pgh_cre_122915_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_game_pgh_cre_122915_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="organizationevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_orga_pgh_cre_e4d443_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_orga_pgh_cre_e4d443_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="rewardcampaignevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_rewa_pgh_cre_fba5d8_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_rewa_pgh_cre_fba5d8_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="rewardevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_rewa_pgh_cre_463d83_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_rewa_pgh_cre_463d83_idx",
             ),
         ),
         migrations.AddIndex(
             model_name="timebaseddropevent",
             index=models.Index(
-                fields=["-pgh_created_at"], name="twitch_time_pgh_cre_08ac7b_idx"
+                fields=["-pgh_created_at"],
+                name="twitch_time_pgh_cre_08ac7b_idx",
             ),
         ),
     ]

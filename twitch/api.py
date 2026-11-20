@@ -93,6 +93,7 @@ class V1ChannelSummarySchema(Schema):
     twitch_id: str
     name: str
     display_name: str
+    display_names: list[str]
 
 
 class V1ChannelSchema(V1ChannelSummarySchema):
@@ -400,6 +401,7 @@ def _channel_list_queryset(search_query: str | None) -> QuerySet[Channel, Channe
         "twitch_id",
         "name",
         "display_name",
+        "display_names",
         "allowed_campaign_count",
         "added_at",
         "updated_at",
@@ -457,6 +459,7 @@ def _serialize_channel_summary(channel: Channel) -> V1ChannelSummarySchema:
         twitch_id=channel.twitch_id,
         name=channel.name,
         display_name=channel.display_name,
+        display_names=list(channel.display_names or []),
     )
 
 
@@ -465,6 +468,7 @@ def _serialize_channel(channel: Channel) -> V1ChannelSchema:
         twitch_id=channel.twitch_id,
         name=channel.name,
         display_name=channel.display_name,
+        display_names=list(channel.display_names or []),
         allowed_campaign_count=channel.allowed_campaign_count,
         added_at=channel.added_at,
         updated_at=channel.updated_at,
@@ -789,6 +793,7 @@ def get_channel(request: HttpRequest, twitch_id: str) -> V1ChannelDetailSchema:
         twitch_id=channel.twitch_id,
         name=channel.name,
         display_name=channel.display_name,
+        display_names=list(channel.display_names or []),
         allowed_campaign_count=channel.allowed_campaign_count,
         added_at=channel.added_at,
         updated_at=channel.updated_at,

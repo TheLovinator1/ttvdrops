@@ -45,6 +45,7 @@ class TwitchApiV1TestCase(TestCase):
             twitch_id="channel123",
             name="testchannel",
             display_name="TestChannel",
+            display_names=["TestChannel", "testchannel"],
             allowed_campaign_count=1,
         )
 
@@ -670,6 +671,7 @@ class TwitchApiV1TestCase(TestCase):
         assert item["twitch_id"] == "channel123"
         assert item["name"] == "testchannel"
         assert item["display_name"] == "TestChannel"
+        assert item["display_names"] == ["TestChannel", "testchannel"]
         assert item["allowed_campaign_count"] == 1
         assert "added_at" in item
         assert "updated_at" in item
@@ -680,6 +682,8 @@ class TwitchApiV1TestCase(TestCase):
 
         assert response.status_code == 200
         data = response.json()
+        assert data["display_name"] == "TestChannel"
+        assert data["display_names"] == ["TestChannel", "testchannel"]
         assert len(data["campaigns"]) == 1
         assert data["campaigns"][0]["twitch_id"] == "campaign123"
         assert data["campaigns"][0]["game"]["twitch_id"] == "game123"

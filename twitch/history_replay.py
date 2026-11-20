@@ -26,6 +26,7 @@ from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.utils import merge_display_names
 from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
 from twitch.utils import prefer_display_name
@@ -239,6 +240,11 @@ class HistoryReplay:
             if previous is not None
             else live_channel.display_name
         )
+        existing_display_names: list[str] = (
+            [str(name) for name in previous.get("display_names") or []]
+            if previous is not None
+            else list(live_channel.display_names or [])
+        )
         self._emit(
             Channel,
             live_channel,
@@ -248,6 +254,13 @@ class HistoryReplay:
                 "display_name": prefer_display_name(
                     existing_display_name,
                     schema.display_name or schema.name,
+                    schema.name,
+                ),
+                "display_names": merge_display_names(
+                    existing_display_names,
+                    existing_display_name,
+                    schema.display_name or "",
+                    schema.name,
                 ),
             },
         )
