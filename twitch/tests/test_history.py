@@ -10,6 +10,7 @@ from django.core.management import call_command
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from pghistory.models import Context
 from pghistory.models import Events
 
 from twitch.history import HistoryResolver
@@ -19,6 +20,7 @@ from twitch.history import campaign_history_querysets
 from twitch.history import history_page
 from twitch.history import history_page_for_querysets
 from twitch.history_replay import HistoryReplay
+from twitch.management.commands.build_history import _reset_history
 from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropBenefitEdge
@@ -468,6 +470,28 @@ def test_first_observed_update_is_labeled_clearly() -> None:
     detail = build_event_detail(event)
     assert detail["before"] == []
     assert detail["after"]
+
+
+def test_reset_history_truncates_all_events_and_contexts() -> None:
+    """Reset should remove every pghistory event and context row."""
+    game: Game = Game.objects.create(
+        twitch_id="reset-history-game",
+        display_name="Reset History Game",
+    )
+    DropCampaign.objects.create(
+        twitch_id="reset-history-campaign",
+        name="Reset History Campaign",
+        game=game,
+    )
+    Context.objects.create(metadata={"mode": "history-only"})
+
+    assert DropCampaign.pgh_event_model.objects.exists()
+    assert Context.objects.exists()
+
+    _reset_history(dry_run=False)
+
+    assert not DropCampaign.pgh_event_model.objects.exists()
+    assert not Context.objects.exists()
 
 
 def test_history_page_query_count(client: Client) -> None:

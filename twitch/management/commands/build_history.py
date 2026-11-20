@@ -24,6 +24,7 @@ from colorama import init as colorama_init
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
+from django.db import connection
 from django.db import transaction
 from pghistory.models import Context
 from tqdm import tqdm
@@ -217,6 +218,25 @@ def _quarantine_file(
     return destination
 
 
+def _reset_history(*, dry_run: bool) -> None:
+    """Delete every pghistory event row and context.
+
+    Args:
+        dry_run: When True, do not execute the truncate.
+    """
+    if dry_run:
+        return
+
+    tables: list[str] = [
+        model.pgh_event_model._meta.db_table  # ruff:ignore[private-member-access]
+        for model in _TRACKED_MODELS
+    ]
+    tables.append(Context._meta.db_table)  # ruff:ignore[private-member-access]
+    quoted: str = ", ".join(connection.ops.quote_name(table) for table in tables)
+    with connection.cursor() as cursor:
+        cursor.execute(f"TRUNCATE TABLE {quoted} RESTART IDENTITY")
+
+
 def _processed_source_files(*, mode: str) -> set[str]:
     """Return source files that were already imported by a history run.
 
@@ -291,6 +311,14 @@ class Command(BaseCommand):
                 "game, organization, or channel rows"
             ),
         )
+        parser.add_argument(
+            "--reset-history",
+            action="store_true",
+            help=(
+                "Delete all pghistory events and contexts before replaying, "
+                "then rebuild the history from the response files"
+            ),
+        )
 
     def handle(  # ruff:ignore[too-many-statements, too-many-locals]
         self,
@@ -304,6 +332,7 @@ class Command(BaseCommand):
         dry_run: bool = bool(options.get("dry_run"))
         recursive: bool = bool(options.get("recursive"))
         history_only: bool = bool(options.get("history_only"))
+        reset_history: bool = bool(options.get("reset_history"))
         mode: str = "history-only" if history_only else "history"
 
         all_files: list[Path] = _collect_json_files(input_path, recursive=recursive)
@@ -339,7 +368,24 @@ class Command(BaseCommand):
             )
             return
 
-        processed: set[str] = _processed_source_files(mode=mode)
+        if reset_history:
+            if dry_run:
+                self.stdout.write(
+                    self.style.WARNING(
+                        "Would delete all pghistory events and contexts.",
+                    ),
+                )
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        "Deleting all pghistory events and contexts...",
+                    ),
+                )
+                _reset_history(dry_run=False)
+
+        processed: set[str] = (
+            set() if reset_history else _processed_source_files(mode=mode)
+        )
         pending: list[tuple[datetime, Path]] = [
             (timestamp, file_path)
             for timestamp, file_path in dated_files

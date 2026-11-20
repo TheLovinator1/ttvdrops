@@ -336,6 +336,16 @@ History-only mode writes pghistory event rows and leaves campaigns, drops,
 benefits, games, organizations, and channels untouched. It is resumable and
 backdates events to the filename timestamps.
 
+To delete all existing pghistory events and contexts first, then rebuild the
+timeline from the files:
+
+```bash
+uv run python manage.py build_history <file|dir> --recursive --history-only --reset-history
+```
+
+`--reset-history` deletes live-import history too. It does not modify the live
+campaign/drop/game rows.
+
 ## Replace cached images
 
 Re-download already-cached Twitch images from their normalized high-resolution
