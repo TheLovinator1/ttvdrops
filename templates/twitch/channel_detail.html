@@ -4,7 +4,7 @@
     <h1 style="margin-top: 0; margin-bottom: 0px;">{{ channel.display_name }}</h1>
     <!-- Add breadcrumbs -->
     <div>
-        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:channel_list' %}">Channels</a> > {{ channel.display_name }}
+        <a href="{% url 'core:dashboard' %}">Home</a> > <a href="{% url 'twitch:channel_list' %}">Channels</a> > {{ channel.display_name }}
     </div>
     <!-- Channel metadata -->
     <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">

@@ -11,6 +11,7 @@
 {# - schema_data: str - JSON-LD schema data serialized as string (optional) #}
 {# - breadcrumb_schema: str - Breadcrumb JSON-LD schema (optional) #}
 {# - pagination_info: dict - {"rel": "prev|next|first|last", "url": "..."} (optional) #}
+{# - feed_links: list of {"rel", "type", "title", "href"} for RSS/Atom discovery #}
 {# - published_date: str - ISO 8601 published date (optional) #}
 {# - modified_date: str - ISO 8601 modified date (optional) #}
 {# - robots_directive: str - robots meta content (default: "index, follow") #}
@@ -68,6 +69,13 @@
 {% if pagination_info %}
       {% for link in pagination_info %}<link rel="{{ link.rel }}" href="{{ link.url }}" />{% endfor %}
 {% endif %}
+{# RSS/Atom feed discovery #}
+{% for link in feed_links %}
+      <link rel="{{ link.rel }}"
+            type="{{ link.type }}"
+            title="{{ link.title }}"
+            href="{{ link.href }}" />
+{% endfor %}
 {# Schema.org JSON-LD structured data #}
 {% if schema_data %}<script type="application/ld+json">{{ schema_data|safe }}</script>{% endif %}
 {# Breadcrumb schema #}

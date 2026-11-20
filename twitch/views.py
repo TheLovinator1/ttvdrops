@@ -67,6 +67,12 @@ MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
 MAX_EMBED_CHANNELS = 8
 DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and more."
+MIN_META_DESCRIPTION_LENGTH = 120
+MAX_META_DESCRIPTION_LENGTH = 160
+META_DESCRIPTION_PADDING = (
+    "Explore the Twitch drops archive, follow new campaigns via RSS feeds, "
+    "and query rewards with the free JSON API on ttvdrops."
+)
 
 
 def _gallery_items(
@@ -168,6 +174,31 @@ def _truncate_description(text: str, max_length: int = 160) -> str:
     if len(text) <= max_length:
         return text
     return text[:max_length].rsplit(" ", 1)[0] + "…"
+
+
+def _meta_description(text: str | None) -> str:
+    """Return a meta description long enough to be useful in search results.
+
+    Bing flags descriptions shorter than roughly 50 characters, so every Twitch
+    page gets a description of at least ``MIN_META_DESCRIPTION_LENGTH``
+    characters. Short descriptions are extended with a site-wide explanation,
+    while longer ones are capped so search engines can show the full snippet.
+
+    Args:
+        text: Page-specific description, or None to use the site default.
+
+    Returns:
+        str: Description between the minimum and maximum supported lengths.
+    """
+    description: str = (text or DEFAULT_SITE_DESCRIPTION).strip()
+    if description and description[-1] not in ".!?…":
+        description += "."
+
+    while len(description) < MIN_META_DESCRIPTION_LENGTH:
+        separator: str = " " if description else ""
+        description = f"{description}{separator}{META_DESCRIPTION_PADDING}"
+
+    return _truncate_description(description, MAX_META_DESCRIPTION_LENGTH)
 
 
 def _discord_timestamp(value: datetime.datetime | None, style: str = "F") -> str:
@@ -353,6 +384,7 @@ def _build_seo_context(
     Args:
         page_title: Page title (shown in browser tab, og:title).
         page_description: Page description (meta description, og:description).
+            Short values are automatically extended to the minimum length.
         seo_meta: Optional typed SEO metadata with image, schema, breadcrumb,
             pagination, OpenGraph, and date fields.
 
@@ -361,7 +393,7 @@ def _build_seo_context(
     """
     context: dict[str, Any] = {
         "page_title": page_title,
-        "page_description": page_description or DEFAULT_SITE_DESCRIPTION,
+        "page_description": _meta_description(page_description),
         "og_type": "website",
         "robots_directive": "index, follow",
         "discord_embed_accent_color": TWITCH_ACCENT_COLOR,
@@ -406,6 +438,10 @@ def _build_seo_context(
         if pagination_info:
             context["pagination_info"] = pagination_info
 
+        feed_links = seo_meta.get("feed_links")
+        if feed_links:
+            context["feed_links"] = feed_links
+
         published_date = seo_meta.get("published_date")
         if published_date:
             context["published_date"] = published_date
@@ -414,6 +450,26 @@ def _build_seo_context(
         if modified_date:
             context["modified_date"] = modified_date
     return context
+
+
+def _webpage_schema(name: str, description: str, url: str) -> dict[str, str]:
+    """Build a minimal WebPage schema for pages without a richer entity type.
+
+    Args:
+        name: Page name, usually the page title without the site suffix.
+        description: Meta description used for the page.
+        url: Absolute canonical URL of the page.
+
+    Returns:
+        dict: JSON-LD WebPage schema.
+    """
+    return {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": name,
+        "description": description,
+        "url": url,
+    }
 
 
 def _build_breadcrumb_schema(items: list[dict[str, str | int]]) -> dict[str, Any]:
@@ -442,6 +498,27 @@ def _build_breadcrumb_schema(items: list[dict[str, str | int]]) -> dict[str, Any
         "@type": "BreadcrumbList",
         "itemListElement": breadcrumb_items,
     }
+
+
+def _twitch_breadcrumb(
+    items: list[tuple[str, str, list[str] | None]],
+) -> dict[str, Any]:
+    """Build a Twitch breadcrumb from human-readable names and route names.
+
+    Args:
+        items: Ordered ``(name, route_name, args)`` tuples. The last item is
+            the current page.
+
+    Returns:
+        BreadcrumbList schema with absolute URLs.
+    """
+    return _build_breadcrumb_schema([
+        {
+            "name": name,
+            "url": build_absolute_uri(reverse(route_name, args=args or None)),
+        }
+        for name, route_name, args in items
+    ])
 
 
 def _build_pagination_info(
@@ -483,6 +560,26 @@ def _build_pagination_info(
     return pagination_links or None
 
 
+def _feed_link(name: str, title: str, *args: str) -> dict[str, str]:
+    """Build a rel="alternate" link for an RSS or Atom feed.
+
+    Args:
+        name: Name of the feed URL under the ``core`` namespace.
+        title: Human-readable feed title.
+        *args: Optional arguments, such as a game Twitch ID.
+
+    Returns:
+        dict: Feed link attributes for the SEO context.
+    """
+    feed_type: str = "application/atom+xml" if "atom" in name else "application/rss+xml"
+    return {
+        "rel": "alternate",
+        "type": feed_type,
+        "title": title,
+        "href": build_absolute_uri(reverse(f"core:{name}", args=args or None)),
+    }
+
+
 def emote_gallery_view(request: HttpRequest) -> HttpResponse:
     """View to display all emote images.
 
@@ -496,9 +593,26 @@ def emote_gallery_view(request: HttpRequest) -> HttpResponse:
     """
     emotes: list[dict[str, str | DropCampaign]] = DropBenefit.emotes_for_gallery()
 
+    description: str = (
+        "Browse Twitch emotes earned as drop rewards in our archive. See which "
+        "campaigns granted each emote, follow new rewards via RSS, or query "
+        "the JSON API."
+    )
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch Emotes - Rewards from Drop Campaigns",
-        page_description="List of all Twitch emotes available as rewards.",
+        page_title="Twitch Emotes - Drop Rewards Archive",
+        page_description=description,
+        seo_meta={
+            "page_url": build_absolute_uri(reverse("twitch:emote_gallery")),
+            "schema_data": _webpage_schema(
+                "Twitch Emotes",
+                description,
+                build_absolute_uri(reverse("twitch:emote_gallery")),
+            ),
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Emotes", "twitch:emote_gallery", None),
+            ]),
+        },
     )
     context: dict[str, Any] = {"emotes": emotes, **seo_context}
     return render(request, "twitch/emote_gallery.html", context)
@@ -515,20 +629,32 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
         HttpResponse: The rendered organization list page.
     """
     orgs: QuerySet[Organization] = Organization.for_list_view()
+    description: str = (
+        "Browse the Twitch organizations behind drop campaigns in our archive. "
+        "Follow new publishers via RSS feeds or query games and rewards with "
+        "the JSON API."
+    )
 
     # CollectionPage schema for organizations list
     collection_schema: dict[str, str] = {
         "@context": "https://schema.org",
         "@type": "CollectionPage",
         "name": "Twitch Organizations",
-        "description": "List of Twitch organizations.",
-        "url": build_absolute_uri("/organizations/"),
+        "description": description,
+        "url": build_absolute_uri(reverse("twitch:org_list")),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch Organizations with Drop Campaigns",
-        page_description="List of Twitch organizations.",
-        seo_meta={"schema_data": collection_schema},
+        page_title="Twitch Organizations - Drop Campaign Archive",
+        page_description=description,
+        seo_meta={
+            "page_url": build_absolute_uri(reverse("twitch:org_list")),
+            "schema_data": collection_schema,
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Organizations", "twitch:org_list", None),
+            ]),
+        },
     )
     context: dict[str, Any] = {"orgs": orgs, **seo_context}
 
@@ -557,7 +683,11 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     org_name: str = organization.name or organization.twitch_id
     games_count: int = len(games)
     noun: str = "game" if games_count == 1 else "games"
-    org_description: str = f"{org_name} has {games_count} {noun}."
+    org_description: str = (
+        f"{org_name} is a Twitch publisher in our drop archive with "
+        f"{games_count} {noun}. Follow new drops via RSS feeds or query rewards "
+        "with the JSON API."
+    )
 
     url: str = build_absolute_uri(
         reverse("twitch:organization_detail", args=[organization.twitch_id]),
@@ -583,21 +713,21 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     }
 
     # Breadcrumb schema
-    breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": build_absolute_uri("/")},
-        {"name": "Organizations", "url": build_absolute_uri("/organizations/")},
-        {
-            "name": org_name,
-            "url": build_absolute_uri(
-                reverse("twitch:organization_detail", args=[organization.twitch_id]),
-            ),
-        },
+    breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
+        ("Home", "core:dashboard", None),
+        ("Organizations", "twitch:org_list", None),
+        (
+            org_name,
+            "twitch:organization_detail",
+            [organization.twitch_id],
+        ),
     ])
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=f"{org_name} - Twitch Drops, Games and Campaigns",
+        page_title=f"{org_name} - Twitch Drops and Games",
         page_description=org_description,
         seo_meta={
+            "page_url": url,
             "schema_data": org_schema,
             "breadcrumb_schema": breadcrumb_schema,
             "published_date": organization.added_at.isoformat(),
@@ -663,12 +793,28 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
         campaigns = paginator.page(paginator.num_pages)
 
     status_descriptions: dict[str, str] = {
-        "active": "Browse active Twitch drops.",
-        "upcoming": "View upcoming Twitch drops starting soon.",
-        "expired": "Browse expired Twitch drops.",
+        "active": (
+            "Browse active Twitch drops in our archive with rewards, watch "
+            "requirements, and channels. Follow new campaigns via RSS feeds or "
+            "query the free JSON API."
+        ),
+        "upcoming": (
+            "See upcoming Twitch drop campaigns, start dates, rewards, and watch "
+            "requirements. Track updates via RSS feeds or query our archive "
+            "through the free JSON API."
+        ),
+        "expired": (
+            "Explore expired Twitch drop campaigns in our archive with past "
+            "rewards and requirements. Subscribe to RSS feeds or query historical "
+            "drops via the JSON API."
+        ),
     }
-    title = "Twitch Drop Campaigns, Rewards and Drop Archive"
-    description = "Browse Twitch drops"
+    title = "Twitch Drop Campaigns - Active, Upcoming and Archive"
+    description = (
+        "Browse active, upcoming, and expired Twitch drop campaigns in our "
+        "archive. Check rewards and watch requirements, subscribe via RSS, or "
+        "use the JSON API."
+    )
     if status_filter:
         title += f" ({status_filter.capitalize()})"
         description = status_descriptions.get(status_filter, description)
@@ -714,6 +860,10 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
             "page_url": build_absolute_uri(base_url),
             "pagination_info": pagination_info,
             "schema_data": collection_schema,
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Campaigns", "twitch:campaign_list", None),
+            ]),
         },
     )
     context: dict[str, Any] = {
@@ -767,7 +917,11 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     campaign_description: str = (
         _truncate_description(campaign.description)
         if campaign.description
-        else f"Twitch drop campaign: {campaign_name}"
+        else (
+            f"Twitch drop campaign {campaign_name} with rewards, watch "
+            "requirements, and drop dates in our archive. Follow new drops via "
+            "RSS or query the JSON API."
+        )
     )
     campaign_embed_description: str = _campaign_embed_description(
         campaign,
@@ -848,27 +1002,18 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     game_name: str = (
         campaign.game.display_name or campaign.game.name or campaign.game.twitch_id
     )
-    breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": build_absolute_uri("/")},
-        {"name": "Games", "url": build_absolute_uri("/games/")},
-        {
-            "name": game_name,
-            "url": build_absolute_uri(
-                reverse("twitch:game_detail", args=[campaign.game.twitch_id]),
-            ),
-        },
-        {
-            "name": campaign_name,
-            "url": build_absolute_uri(
-                reverse("twitch:campaign_detail", args=[campaign.twitch_id]),
-            ),
-        },
+    breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
+        ("Home", "core:dashboard", None),
+        ("Campaigns", "twitch:campaign_list", None),
+        (game_name, "twitch:game_detail", [campaign.game.twitch_id]),
+        (campaign_name, "twitch:campaign_detail", [campaign.twitch_id]),
     ])
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=f"{campaign_name} - Twitch Drops Campaign and Rewards",
+        page_title=f"{campaign_name} - {game_name} Twitch Drops",
         page_description=campaign_description,
         seo_meta={
+            "page_url": url,
             "page_image": campaign_image,
             "page_image_width": campaign_image_width,
             "page_image_height": campaign_image_height,
@@ -944,19 +1089,36 @@ class GamesGridView(ListView):
             games,
         )
 
+        description: str = (
+            "Explore Twitch games with drops in our archive, including active and "
+            "expired campaigns. Follow new games via RSS feeds or browse all data "
+            "with the JSON API."
+        )
+
         # CollectionPage schema for games list
         collection_schema: dict[str, str] = {
             "@context": "https://schema.org",
             "@type": "CollectionPage",
             "name": "Twitch Games",
-            "description": "Twitch games that had or have Twitch drops.",
-            "url": build_absolute_uri("/games/"),
+            "description": description,
+            "url": build_absolute_uri(self.request.path),
         }
+        breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
+            {
+                "name": "Twitch",
+                "url": build_absolute_uri(reverse("core:dashboard")),
+            },
+            {"name": "Games", "url": build_absolute_uri(self.request.path)},
+        ])
 
         seo_context: dict[str, Any] = _build_seo_context(
-            page_title="Twitch Games with Drops, Rewards and Campaigns",
-            page_description="Twitch games that had or have Twitch drops.",
-            seo_meta={"schema_data": collection_schema},
+            page_title="Twitch Games with Drops - Rewards Archive",
+            page_description=description,
+            seo_meta={
+                "page_url": build_absolute_uri(self.request.path),
+                "schema_data": collection_schema,
+                "breadcrumb_schema": breadcrumb_schema,
+            },
         )
         context.update(seo_context)
 
@@ -1025,9 +1187,11 @@ class GameDetailView(DetailView):
         campaign_count: int = len(campaigns_list)
         reward_count: int = len(all_reward_campaigns)
         game_description: str = (
-            f"{active_count} active · {upcoming_count} upcoming · "
+            f"{game_name} Twitch drops: {active_count} active · "
+            f"{upcoming_count} upcoming · "
             f"{campaign_count} campaign{'' if campaign_count == 1 else 's'} · "
-            f"{reward_count} reward{'' if reward_count == 1 else 's'}"
+            f"{reward_count} reward{'' if reward_count == 1 else 's'}. "
+            "Explore our archive, follow game drops via RSS, or query the JSON API."
         )
         game_image: str | None = game.box_art_best_url
         game_image_width: int | None = game.box_art_width if game.box_art_file else None
@@ -1076,26 +1240,36 @@ class GameDetailView(DetailView):
             }
 
         # Breadcrumb schema
-        breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-            {"name": "Home", "url": build_absolute_uri("/")},
-            {"name": "Games", "url": build_absolute_uri("/games/")},
-            {
-                "name": game_name,
-                "url": build_absolute_uri(
-                    reverse("twitch:game_detail", args=[game.twitch_id]),
-                ),
-            },
+        breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
+            ("Home", "core:dashboard", None),
+            ("Games", "twitch:games_grid", None),
+            (game_name, "twitch:game_detail", [game.twitch_id]),
         ])
 
         seo_context: dict[str, Any] = _build_seo_context(
-            page_title=f"{game_name} - Twitch Drops, Rewards and Campaigns",
+            page_title=f"{game_name} - Twitch Drops and Rewards",
             page_description=game_description,
             seo_meta={
+                "page_url": build_absolute_uri(
+                    reverse("twitch:game_detail", args=[game.twitch_id]),
+                ),
                 "page_image": game_image,
                 "page_image_width": game_image_width,
                 "page_image_height": game_image_height,
                 "schema_data": game_schema,
                 "breadcrumb_schema": breadcrumb_schema,
+                "feed_links": [
+                    _feed_link(
+                        "game_campaign_feed",
+                        f"{game_name} drops (RSS)",
+                        game.twitch_id,
+                    ),
+                    _feed_link(
+                        "game_reward_feed",
+                        f"{game_name} rewards (RSS)",
+                        game.twitch_id,
+                    ),
+                ],
                 "published_date": game.added_at.isoformat() if game.added_at else None,
                 "modified_date": game.updated_at.isoformat()
                 if game.updated_at
@@ -1135,57 +1309,6 @@ class GameDetailView(DetailView):
         })
 
         return context
-
-
-# MARK: /
-def dashboard(request: HttpRequest) -> HttpResponse:
-    """Dashboard view showing active campaigns and progress.
-
-    Args:
-        request: The HTTP request.
-
-    Returns:
-        HttpResponse: The rendered dashboard template.
-    """
-    now: datetime.datetime = timezone.now()
-    dashboard_data: dict[str, Any] = DropCampaign.dashboard_context(now)
-
-    # WebSite schema with SearchAction for sitelinks search box
-    # TODO(TheLovinator): Should this be on all pages instead of just the dashboard?  # ruff:ignore[missing-todo-link]
-    website_schema: dict[str, str | dict[str, str | dict[str, str]]] = {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "ttvdrops",
-        "url": build_absolute_uri("/"),
-        "potentialAction": {
-            "@type": "SearchAction",
-            "target": {
-                "@type": "EntryPoint",
-                "urlTemplate": build_absolute_uri(
-                    "/search/?q={search_term_string}",
-                ),
-            },
-            "query-input": "required name=search_term_string",
-        },
-    }
-
-    seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch Drops, Reward Campaigns and Drop Archive",
-        page_description="Overview of active Twitch drops and rewards.",
-        seo_meta={
-            "og_type": "website",
-            "schema_data": website_schema,
-        },
-    )
-    return render(
-        request,
-        "twitch/dashboard.html",
-        {
-            "now": now,
-            **dashboard_data,
-            **seo_context,
-        },
-    )
 
 
 # MARK: /stats/
@@ -1243,12 +1366,25 @@ def stats_view(request: HttpRequest) -> HttpResponse:
         },
     ]
 
+    description: str = (
+        "Explore Twitch drops statistics in our archive: top games, longest "
+        "campaigns, and reward totals. Query the data with our free JSON API."
+    )
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch Drops Statistics, Totals and Leaderboards",
-        page_description=(
-            "Fun statistics about Twitch drops: longest drops, "
-            "busiest games, first drops, and more."
-        ),
+        page_title="Twitch Drops Stats and Leaderboards",
+        page_description=description,
+        seo_meta={
+            "page_url": build_absolute_uri(reverse("twitch:stats")),
+            "schema_data": _webpage_schema(
+                "Twitch Drops Statistics",
+                description,
+                build_absolute_uri(reverse("twitch:stats")),
+            ),
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Stats", "twitch:stats", None),
+            ]),
+        },
     )
     context: dict[str, Any] = {
         "now": now,
@@ -1303,17 +1439,33 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     except EmptyPage:
         reward_campaigns = paginator.page(paginator.num_pages)
 
-    title = "Twitch Reward Campaigns, Drops and Rewards"
+    title = "Twitch Reward Campaigns - Free Rewards Archive"
     if status_filter:
         title += f" ({status_filter.capitalize()})"
 
-    description = "Twitch rewards."
+    description = (
+        "Browse Twitch reward campaigns in our archive: free rewards, bonuses, "
+        "and site-wide drops. Follow new offers via RSS feeds or query them with "
+        "the JSON API."
+    )
     if status_filter == "active":
-        description = "Browse active Twitch rewards."
+        description = (
+            "Browse active Twitch reward campaigns in our archive with free "
+            "rewards and bonuses. Follow new offers via RSS feeds or query "
+            "current drops with the JSON API."
+        )
     elif status_filter == "upcoming":
-        description = "Browse upcoming Twitch rewards."
+        description = (
+            "See upcoming Twitch reward campaigns, free rewards, and start dates "
+            "in our archive. Follow new bonuses via RSS feeds or query offers "
+            "with the JSON API."
+        )
     elif status_filter == "expired":
-        description = "Browse expired Twitch rewards."
+        description = (
+            "Explore expired Twitch reward campaigns in our archive and the free "
+            "rewards they offered. Follow new offers via RSS feeds or query past "
+            "data with the JSON API."
+        )
 
     # Build base URL for pagination
     base_url = "/reward-campaigns/"
@@ -1346,6 +1498,10 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
             "page_url": build_absolute_uri(base_url),
             "pagination_info": pagination_info,
             "schema_data": collection_schema,
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Reward Campaigns", "twitch:reward_campaign_list", None),
+            ]),
         },
     )
     context: dict[str, Any] = {
@@ -1386,10 +1542,22 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
     now: datetime.datetime = timezone.now()
 
     campaign_name: str = reward_campaign.name or reward_campaign.twitch_id
+    reward_game_name: str = (
+        reward_campaign.game.get_game_name if reward_campaign.game else ""
+    )
+    title_suffix: str = (
+        f"{reward_game_name} Twitch Rewards"
+        if reward_game_name
+        else "Twitch Reward Campaign"
+    )
     campaign_description: str = (
         _truncate_description(reward_campaign.summary)
         if reward_campaign.summary
-        else f"{campaign_name}"
+        else (
+            f"{campaign_name} is a Twitch reward campaign with free in-game "
+            "rewards and bonuses in our archive. Follow new offers via RSS or "
+            "query the JSON API."
+        )
     )
 
     reward_url: str = build_absolute_uri(
@@ -1432,27 +1600,21 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
     }
 
     # Breadcrumb schema
-    breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": build_absolute_uri("/")},
-        {
-            "name": "Reward Campaigns",
-            "url": build_absolute_uri("/reward-campaigns/"),
-        },
-        {
-            "name": campaign_name,
-            "url": build_absolute_uri(
-                reverse(
-                    "twitch:reward_campaign_detail",
-                    args=[reward_campaign.twitch_id],
-                ),
-            ),
-        },
+    breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
+        ("Home", "core:dashboard", None),
+        ("Reward Campaigns", "twitch:reward_campaign_list", None),
+        (
+            campaign_name,
+            "twitch:reward_campaign_detail",
+            [reward_campaign.twitch_id],
+        ),
     ])
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=f"{campaign_name} - Twitch Reward Campaign and Rewards",
+        page_title=f"{campaign_name} - {title_suffix}",
         page_description=campaign_description,
         seo_meta={
+            "page_url": reward_url,
             "schema_data": campaign_schema,
             "breadcrumb_schema": breadcrumb_schema,
             "published_date": reward_campaign.added_at.isoformat(),
@@ -1529,16 +1691,24 @@ class ChannelListView(ListView):
             "@type": "CollectionPage",
             "name": "Twitch Channels",
             "description": "List of Twitch channels participating in drop campaigns.",
-            "url": build_absolute_uri("/channels/"),
+            "url": build_absolute_uri(reverse("twitch:channel_list")),
         }
 
         seo_context: dict[str, Any] = _build_seo_context(
-            page_title="Twitch Channels with Drop Campaigns and Rewards",
-            page_description="List of Twitch channels participating in drop campaigns.",
+            page_title="Twitch Channels - Drop Campaigns and Rewards",
+            page_description=(
+                "Browse Twitch channels in our drop archive with campaign history "
+                "and rewards. Follow channel activity via RSS feeds or query the "
+                "JSON API."
+            ),
             seo_meta={
                 "page_url": build_absolute_uri(base_url),
                 "pagination_info": pagination_info,
                 "schema_data": collection_schema,
+                "breadcrumb_schema": _twitch_breadcrumb([
+                    ("Home", "core:dashboard", None),
+                    ("Channels", "twitch:channel_list", None),
+                ]),
             },
         )
         context.update(seo_context)
@@ -1591,7 +1761,10 @@ class ChannelDetailView(DetailView):
 
         name: str = channel.preferred_name
         total_campaigns: int = len(campaigns_list)
-        description: str = channel.detail_description(total_campaigns)
+        description: str = (
+            f"{channel.detail_description(total_campaigns)} in our drops archive. "
+            "Follow channel drops via RSS or query the free JSON API."
+        )
 
         channel_url: str = build_absolute_uri(
             reverse("twitch:channel_detail", args=[channel.twitch_id]),
@@ -1619,21 +1792,17 @@ class ChannelDetailView(DetailView):
         }
 
         # Breadcrumb schema
-        breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-            {"name": "Home", "url": build_absolute_uri("/")},
-            {"name": "Channels", "url": build_absolute_uri("/channels/")},
-            {
-                "name": name,
-                "url": build_absolute_uri(
-                    reverse("twitch:channel_detail", args=[channel.twitch_id]),
-                ),
-            },
+        breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
+            ("Home", "core:dashboard", None),
+            ("Channels", "twitch:channel_list", None),
+            (name, "twitch:channel_detail", [channel.twitch_id]),
         ])
 
         seo_context: dict[str, Any] = _build_seo_context(
-            page_title=f"{name} - Twitch Channel Drops and Campaigns",
+            page_title=f"{name} - Twitch Drops and Rewards",
             page_description=description,
             seo_meta={
+                "page_url": channel_url,
                 "schema_data": channel_schema,
                 "breadcrumb_schema": breadcrumb_schema,
                 "published_date": channel.added_at.isoformat()
@@ -1684,13 +1853,23 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
         "@type": "CollectionPage",
         "name": "Twitch chat badges",
         "description": "List of Twitch chat badges awarded through drop campaigns.",
-        "url": build_absolute_uri("/badges/"),
+        "url": build_absolute_uri(reverse("twitch:badge_list")),
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch Chat Badges from Drop Campaigns and Rewards",
-        page_description="List of Twitch chat badges awarded through drop campaigns.",
-        seo_meta={"schema_data": collection_schema},
+        page_title="Twitch Chat Badges - Drop Rewards Archive",
+        page_description=(
+            "Browse Twitch chat badges awarded through drop campaigns in our "
+            "archive. Follow new badge rewards via RSS or query the JSON API."
+        ),
+        seo_meta={
+            "page_url": build_absolute_uri(reverse("twitch:badge_list")),
+            "schema_data": collection_schema,
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Badges", "twitch:badge_list", None),
+            ]),
+        },
     )
     context: dict[str, Any] = {
         "badge_data": badge_data,
@@ -1737,7 +1916,8 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     badge_count: int = len(badges)
     badge_set_description: str = (
         f"Twitch chat badge set {badge_set_name} with {badge_count} "
-        f"badge{'s' if badge_count != 1 else ''} awarded through drop campaigns."
+        f"badge{'s' if badge_count != 1 else ''} awarded through drops in our "
+        "archive. Follow new badges via RSS or query the JSON API."
     )
 
     badge_schema: dict[str, Any] = {
@@ -1751,9 +1931,23 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
     }
 
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=f"Badge Set: {badge_set_name} - Twitch Chat Badges",
+        page_title=f"{badge_set_name} - Twitch Chat Badge Set",
         page_description=badge_set_description,
-        seo_meta={"schema_data": badge_schema},
+        seo_meta={
+            "page_url": build_absolute_uri(
+                reverse("twitch:badge_set_detail", args=[badge_set.set_id]),
+            ),
+            "schema_data": badge_schema,
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Badges", "twitch:badge_list", None),
+                (
+                    badge_set_name,
+                    "twitch:badge_set_detail",
+                    [badge_set.set_id],
+                ),
+            ]),
+        },
     )
     context: dict[str, Any] = {
         "badge_set": badge_set,
@@ -2081,7 +2275,11 @@ def sitewide_rewards_view(request: HttpRequest) -> HttpResponse:
             expired_campaigns.append(campaign)
 
     title: str = "Twitch Site-wide Rewards and Bonuses"
-    description: str = "Twitch reward campaigns available site-wide."
+    description: str = (
+        "Explore Twitch site-wide reward campaigns in our archive, active and "
+        "expired. Follow new bonuses via RSS feeds or query every reward with "
+        "the JSON API."
+    )
 
     url: str = build_absolute_uri(reverse("twitch:sitewide_rewards"))
 
@@ -2095,10 +2293,10 @@ def sitewide_rewards_view(request: HttpRequest) -> HttpResponse:
     }
 
     # Breadcrumb schema
-    breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": build_absolute_uri("/")},
-        {"name": "Reward Campaigns", "url": build_absolute_uri("/reward-campaigns/")},
-        {"name": title, "url": url},
+    breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
+        ("Home", "core:dashboard", None),
+        ("Reward Campaigns", "twitch:reward_campaign_list", None),
+        (title, "twitch:sitewide_rewards", None),
     ])
 
     seo_context: dict[str, Any] = _build_seo_context(
@@ -2108,6 +2306,10 @@ def sitewide_rewards_view(request: HttpRequest) -> HttpResponse:
             "page_url": url,
             "schema_data": collection_schema,
             "breadcrumb_schema": breadcrumb_schema,
+            "feed_links": [
+                _feed_link("sitewide_reward_feed", "Site-wide rewards (RSS)"),
+                _feed_link("sitewide_reward_feed_atom", "Site-wide rewards (Atom)"),
+            ],
         },
     )
     context: dict[str, Any] = {
@@ -2162,7 +2364,8 @@ def game_less_rewards_view(request: HttpRequest) -> HttpResponse:
 
     title: str = "Twitch Brand Rewards and Site-wide Drops"
     description: str = (
-        "Twitch reward campaigns without a linked game (brand-specific and site-wide)."
+        "Browse Twitch brand and site-wide reward campaigns in our archive, with no "
+        "linked game. Follow new offers via RSS feeds or query the free JSON API."
     )
 
     url: str = build_absolute_uri(reverse("twitch:game_less_rewards"))
@@ -2177,10 +2380,10 @@ def game_less_rewards_view(request: HttpRequest) -> HttpResponse:
     }
 
     # Breadcrumb schema
-    breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
-        {"name": "Home", "url": build_absolute_uri("/")},
-        {"name": "Reward Campaigns", "url": build_absolute_uri("/reward-campaigns/")},
-        {"name": title, "url": url},
+    breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
+        ("Home", "core:dashboard", None),
+        ("Reward Campaigns", "twitch:reward_campaign_list", None),
+        (title, "twitch:game_less_rewards", None),
     ])
 
     seo_context: dict[str, Any] = _build_seo_context(
@@ -2190,6 +2393,10 @@ def game_less_rewards_view(request: HttpRequest) -> HttpResponse:
             "page_url": url,
             "schema_data": collection_schema,
             "breadcrumb_schema": breadcrumb_schema,
+            "feed_links": [
+                _feed_link("game_less_reward_feed", "Brand rewards (RSS)"),
+                _feed_link("game_less_reward_feed_atom", "Brand rewards (Atom)"),
+            ],
         },
     )
     context: dict[str, Any] = {
@@ -2358,10 +2565,24 @@ def history_view(request: HttpRequest) -> HttpResponse:
     ]
 
     url: str = build_absolute_uri(base_url)
+    description: str = (
+        "Browse a timestamped history of every Twitch drop change in our "
+        "archive. Follow updates via RSS feeds or query the data with the "
+        "JSON API."
+    )
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title="Twitch archive history",
-        page_description="Browse a timestamped history of Twitch drop changes.",
-        seo_meta={"page_url": url},
+        page_title="Twitch Drop Archive - Change History",
+        page_description=description,
+        seo_meta={
+            "page_url": url,
+            "schema_data": _webpage_schema(
+                "Twitch Drop Archive History", description, url
+            ),
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("History", "twitch:history", None),
+            ]),
+        },
     )
     context: dict[str, Any] = {
         "events": rows,
@@ -2417,10 +2638,23 @@ def _render_entity_history(  # ruff:ignore[too-many-arguments]
     page, rows = _paginate_history(request, querysets=querysets)
     base_url: str = request.path
     url: str = build_absolute_uri(base_url)
+    breadcrumb_items: list[dict[str, str | int]] = [
+        {"name": "Home", "url": build_absolute_uri(reverse("core:dashboard"))},
+        {"name": "History", "url": build_absolute_uri(reverse("twitch:history"))},
+    ]
+    if entity_name and entity_url:
+        breadcrumb_items.append({
+            "name": entity_name,
+            "url": build_absolute_uri(entity_url),
+        })
     seo_context: dict[str, Any] = _build_seo_context(
         page_title=title,
         page_description=description,
-        seo_meta={"page_url": url},
+        seo_meta={
+            "page_url": url,
+            "schema_data": _webpage_schema(title, description, url),
+            "breadcrumb_schema": _build_breadcrumb_schema(breadcrumb_items),
+        },
     )
     context: dict[str, Any] = {
         "events": rows,
@@ -2454,8 +2688,12 @@ def drop_campaign_history_view(request: HttpRequest, twitch_id: str) -> HttpResp
         entity=campaign,
         entity_name=campaign.name,
         entity_url=entity_url,
-        title=f"{campaign.name} history",
-        description=f"Timestamped changes for the Twitch campaign {campaign.name}.",
+        title=f"{campaign.name} - Twitch Drop History",
+        description=(
+            f"Timestamped history of {campaign.name} in the Twitch drops archive. "
+            "Follow changes via RSS feeds or query the full dataset with the "
+            "JSON API."
+        ),
         querysets=querysets,
     )
 
@@ -2478,8 +2716,12 @@ def game_history_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
         entity=game,
         entity_name=game.get_game_name,
         entity_url=entity_url,
-        title=f"{game.get_game_name} history",
-        description=f"Timestamped changes for the Twitch game {game.get_game_name}.",
+        title=f"{game.get_game_name} - Twitch Drop History",
+        description=(
+            f"Timestamped history of {game.get_game_name} in the Twitch drops "
+            "archive. Follow changes via RSS feeds or query the full dataset "
+            "with the JSON API."
+        ),
         querysets=querysets,
     )
 
@@ -2505,8 +2747,12 @@ def organization_history_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         entity=organization,
         entity_name=organization.name,
         entity_url=entity_url,
-        title=f"{organization.name} history",
-        description=f"Timestamped changes for the Twitch organization {organization.name}.",
+        title=f"{organization.name} - Twitch Drop History",
+        description=(
+            f"Timestamped history of {organization.name} in the Twitch drops "
+            "archive. Follow changes via RSS feeds or query the full dataset "
+            "with the JSON API."
+        ),
         querysets=querysets,
     )
 
@@ -2530,8 +2776,12 @@ def channel_history_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
         entity=channel,
         entity_name=display_name,
         entity_url=entity_url,
-        title=f"{display_name} history",
-        description=f"Timestamped changes for the Twitch channel {display_name}.",
+        title=f"{display_name} - Twitch Drop History",
+        description=(
+            f"Timestamped history of {display_name} in the Twitch drops archive. "
+            "Follow changes via RSS feeds or query the full dataset with the "
+            "JSON API."
+        ),
         querysets=querysets,
     )
 
@@ -2563,9 +2813,11 @@ def reward_campaign_history_view(
         entity=reward_campaign,
         entity_name=reward_campaign.name,
         entity_url=entity_url,
-        title=f"{reward_campaign.name} history",
+        title=f"{reward_campaign.name} - Twitch Drop History",
         description=(
-            f"Timestamped changes for the Twitch reward campaign {reward_campaign.name}."
+            f"Timestamped history of {reward_campaign.name} in the Twitch drops "
+            "archive. Follow changes via RSS feeds or query the full dataset "
+            "with the JSON API."
         ),
         querysets=querysets,
     )
@@ -2590,10 +2842,30 @@ def history_event_detail_view(request: HttpRequest, slug: str) -> HttpResponse:
         raise Http404(msg)
 
     detail: dict[str, Any] = build_event_detail(event)
+    title: str = f"{detail['object_name']} - {detail['label']}"
+    description: str = (
+        "A single timestamped change from the Twitch drops archive, with "
+        "before and after values, source details, and a link to the full "
+        "history."
+    )
+    url: str = build_absolute_uri(request.path)
     seo_context: dict[str, Any] = _build_seo_context(
-        page_title=f"{detail['object_name']} · {detail['label']}",
-        page_description="A single historical change from the Twitch archive.",
-        seo_meta={"robots_directive": "noindex, follow"},
+        page_title=title,
+        page_description=description,
+        seo_meta={
+            "page_url": url,
+            "robots_directive": "noindex, follow",
+            "schema_data": _webpage_schema(title, description, url),
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("History", "twitch:history", None),
+                (
+                    detail["object_name"],
+                    "twitch:history_event_detail",
+                    [slug],
+                ),
+            ]),
+        },
     )
     context: dict[str, Any] = {
         "event": detail,

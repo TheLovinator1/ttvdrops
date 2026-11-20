@@ -324,13 +324,18 @@ class Command(BaseCommand):
         item = task.item
         field = getattr(item, task.field_name)
         suffix: str = Path(urlparse(task.source_url).path).suffix or ".jpg"
-        file_name: str = f"{getattr(item, 'twitch_id', item.pk)}{suffix}"
         storage = field.storage
         old_name: str = getattr(field, "name", "")
         if old_name:
+            # Keep the existing public URL stable so external hotlinks survive.
+            # Save through storage directly: field.save() would run upload_to
+            # again and turn games/box_art/old.jpg into
+            # games/box_art/games/box_art/old.jpg.
             self._delete_file_and_variants(storage, old_name)
-
-        field.save(file_name, ContentFile(response.content), save=False)
+            field.name = storage.save(old_name, ContentFile(response.content))
+        else:
+            file_name: str = f"{getattr(item, 'twitch_id', item.pk)}{suffix}"
+            field.save(file_name, ContentFile(response.content), save=False)
 
         update_fields: list[str] = [task.field_name]
         existing_fields: set[str] = {

@@ -238,7 +238,7 @@ class SiteEndpointSmokeTest(TestCase):
             ("core:organization_feed_discord", {}, 200),
             ("core:reward_campaign_feed_discord", {}, 200),
             # Twitch endpoints
-            ("twitch:dashboard", {}, 200),
+            ("twitch:dashboard", {}, 301),
             ("twitch:badge_list", {}, 200),
             ("twitch:badge_set_detail", {"set_id": self.badge_set.set_id}, 200),
             ("twitch:campaign_list", {}, 200),

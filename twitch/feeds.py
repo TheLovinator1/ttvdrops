@@ -1432,10 +1432,10 @@ class RewardCampaignFeed(TTVDropsBaseFeed):
         return SafeText("".join(str(p) for p in parts))
 
     def item_link(self, item: RewardCampaign) -> str:
-        """Return the link to the reward campaign (external URL or dashboard)."""
+        """Return the link to the reward campaign detail or external URL."""
         if item.external_url:
             return item.external_url
-        return reverse("twitch:dashboard")
+        return reverse("twitch:reward_campaign_detail", args=[item.twitch_id])
 
     def item_pubdate(self, item: RewardCampaign) -> datetime.datetime:
         """Returns the publication date to the feed item.

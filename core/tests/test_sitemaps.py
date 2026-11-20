@@ -46,7 +46,6 @@ def test_sitemap_static_contains_expected_links(
         reverse("core:reward_campaign_feed"),
         reverse("core:campaign_feed_atom"),
         reverse("core:campaign_feed_discord"),
-        reverse("twitch:dashboard"),
         reverse("twitch:campaign_list"),
         reverse("twitch:games_grid"),
         reverse("twitch:games_list"),

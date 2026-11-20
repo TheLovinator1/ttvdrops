@@ -3,7 +3,7 @@
 {% block content %}
     <h1>{{ badge_set.set_id }}</h1>
     <div>
-        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:badge_list' %}">Badges</a> > {{ badge_set.set_id }}
+        <a href="{% url 'core:dashboard' %}">Home</a> > <a href="{% url 'twitch:badge_list' %}">Badges</a> > {{ badge_set.set_id }}
     </div>
     {% if badges %}
         <table>

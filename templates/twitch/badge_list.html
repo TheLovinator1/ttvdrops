@@ -3,7 +3,7 @@
 {% block content %}
     <h1>{{ badge_data|length }} Twitch Chat Badges</h1>
     <div>
-        <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Badges
+        <a href="{% url 'core:dashboard' %}">Home</a> > Badges
     </div>
     {% if badge_data %}
         {% for data in badge_data %}

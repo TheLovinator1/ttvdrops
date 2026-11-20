@@ -1339,7 +1339,6 @@ def test_docs_rss_queries_bounded(
 
 
 URL_NAMES: list[tuple[str, dict[str, str]]] = [
-    ("twitch:dashboard", {}),
     ("twitch:badge_list", {}),
     ("twitch:badge_set_detail", {"set_id": "test-set-123"}),
     ("twitch:campaign_list", {}),

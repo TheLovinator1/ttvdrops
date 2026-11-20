@@ -32,9 +32,12 @@ from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.views import MAX_META_DESCRIPTION_LENGTH
+from twitch.views import MIN_META_DESCRIPTION_LENGTH
 from twitch.views import _build_breadcrumb_schema
 from twitch.views import _build_pagination_info
 from twitch.views import _build_seo_context
+from twitch.views import _meta_description
 from twitch.views import _truncate_description
 
 if TYPE_CHECKING:
@@ -943,42 +946,16 @@ class TestChannelListView:
         assert channel2.allowed_campaign_count == 1
 
     @pytest.mark.django_db
-    def test_dashboard_view(self, client: Client) -> None:
-        """Test dashboard view returns 200 and has grouped campaign data in context."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
-        assert response.status_code == 200
-        assert "campaigns_by_game" in response.context
-
-    @pytest.mark.django_db
-    def test_dashboard_renders_reward_campaign_rewards(self, client: Client) -> None:
-        """Dashboard reward campaign cards should list their individual rewards."""
-        now: datetime.datetime = timezone.now()
-        reward_campaign: RewardCampaign = RewardCampaign.objects.create(
-            twitch_id="dashboard-reward-with-items",
-            name="Dashboard Reward",
-            brand="Dashboard Brand",
-            starts_at=now - timedelta(hours=1),
-            ends_at=now + timedelta(hours=1),
-            status="ACTIVE",
-        )
-        Reward.objects.create(
-            reward_campaign=reward_campaign,
-            twitch_id="dashboard-reward-item-1",
-            name="Dashboard Reward Item",
-        )
-
+    def test_dashboard_redirects_to_main_dashboard(self, client: Client) -> None:
+        """The legacy /twitch/ URL redirects to the main dashboard."""
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
 
-        assert response.status_code == 200
-        content: str = response.content.decode()
-        assert "Dashboard Reward Item" in content
+        assert response.status_code == 301
+        assert response["Location"] == reverse("core:dashboard")
 
     @pytest.mark.django_db
-    def test_dashboard_dedupes_campaigns_for_multi_owner_game(
-        self,
-        client: Client,
-    ) -> None:
-        """Dashboard should not render duplicate campaign cards when a game has multiple owners."""
+    def test_dashboard_context_dedupes_campaigns_for_multi_owner_game(self) -> None:
+        """Dashboard context should dedupe campaigns when a game has multiple owners."""
         now = timezone.now()
         org1: Organization = Organization.objects.create(
             twitch_id="org_a",
@@ -1004,20 +981,17 @@ class TestChannelListView:
             end_at=now + datetime.timedelta(hours=1),
         )
 
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
-        assert response.status_code == 200
-
-        context: ContextList | dict[str, Any] = response.context
-        if isinstance(context, list):
-            context = context[-1]
+        dashboard_data: dict[str, Any] = DropCampaign.dashboard_context(now)
 
         # campaigns_by_game should include one deduplicated campaign entry for the game.
-        assert "campaigns_by_game" in context
-        assert game.twitch_id in context["campaigns_by_game"]
-        assert len(context["campaigns_by_game"][game.twitch_id]["campaigns"]) == 1
+        assert "campaigns_by_game" in dashboard_data
+        assert game.twitch_id in dashboard_data["campaigns_by_game"]
+        assert (
+            len(dashboard_data["campaigns_by_game"][game.twitch_id]["campaigns"]) == 1
+        )
 
     @pytest.mark.django_db
-    def test_dashboard_queries_use_indexes(self, client: Client) -> None:
+    def test_dashboard_queries_use_indexes(self) -> None:
         """Dashboard source queries should use indexes for active-window filtering."""
         now: datetime.datetime = timezone.now()
 
@@ -1100,9 +1074,6 @@ class TestChannelListView:
         active_reward_campaigns_qs: QuerySet[RewardCampaign] = (
             RewardCampaign.active_for_dashboard(now)
         )
-
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
-        assert response.status_code == 200
 
         _force_index_plans()
         campaigns_plan: str = active_campaigns_qs.explain()
@@ -1356,10 +1327,7 @@ class TestChannelListView:
         assert ("starts_at", "ends_at") in reward_index_columns
 
     @pytest.mark.django_db
-    def test_dashboard_query_count_stays_flat_with_more_data(
-        self,
-        client: Client,
-    ) -> None:
+    def test_dashboard_query_count_stays_flat_with_more_data(self) -> None:
         """Dashboard should avoid N+1 queries as campaign volume grows."""
         now: datetime.datetime = timezone.now()
 
@@ -1376,10 +1344,7 @@ class TestChannelListView:
 
         def _capture_dashboard_select_count() -> int:
             with CaptureQueriesContext(connection) as queries:
-                response: _MonkeyPatchedWSGIResponse = client.get(
-                    reverse("twitch:dashboard"),
-                )
-                assert response.status_code == 200
+                DropCampaign.dashboard_context(now)
 
             select_queries: list[str] = [
                 query_info["sql"]
@@ -1599,11 +1564,8 @@ class TestChannelListView:
         )
 
     @pytest.mark.django_db
-    def test_dashboard_avoids_n_plus_one_game_queries_in_drop_loop(
-        self,
-        client: Client,
-    ) -> None:
-        """Dashboard should not issue per-campaign Game SELECTs while rendering drops."""
+    def test_dashboard_context_avoids_n_plus_one_game_queries(self) -> None:
+        """Dashboard context should not issue per-campaign Game SELECTs."""
         now: datetime.datetime = timezone.now()
 
         org: Organization = Organization.objects.create(
@@ -1631,16 +1593,9 @@ class TestChannelListView:
         DropCampaign.objects.bulk_create(campaigns)
 
         with CaptureQueriesContext(connection) as queries:
-            response: _MonkeyPatchedWSGIResponse = client.get(
-                reverse("twitch:dashboard"),
-            )
-            assert response.status_code == 200
+            dashboard_data: dict[str, Any] = DropCampaign.dashboard_context(now)
 
-        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
-        if isinstance(context, list):
-            context = context[-1]
-
-        grouped_campaigns: list[dict[str, Any]] = context["campaigns_by_game"][
+        grouped_campaigns: list[dict[str, Any]] = dashboard_data["campaigns_by_game"][
             game.twitch_id
         ]["campaigns"]
         assert grouped_campaigns
@@ -1666,11 +1621,10 @@ class TestChannelListView:
         )
 
     @pytest.mark.django_db
-    def test_dashboard_avoids_n_plus_one_game_queries_with_multiple_games(
+    def test_dashboard_context_avoids_n_plus_one_game_queries_with_multiple_games(
         self,
-        client: Client,
     ) -> None:
-        """Dashboard should keep standalone Game SELECTs bounded with many campaigns and games."""
+        """Dashboard context should keep standalone Game SELECTs bounded with many games."""
         now: datetime.datetime = timezone.now()
 
         game_ids: list[str] = []
@@ -1701,16 +1655,9 @@ class TestChannelListView:
             DropCampaign.objects.bulk_create(campaigns)
 
         with CaptureQueriesContext(connection) as queries:
-            response: _MonkeyPatchedWSGIResponse = client.get(
-                reverse("twitch:dashboard"),
-            )
-            assert response.status_code == 200
+            dashboard_data: dict[str, Any] = DropCampaign.dashboard_context(now)
 
-        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
-        if isinstance(context, list):
-            context = context[-1]
-
-        campaigns_by_game: dict[str, Any] = context["campaigns_by_game"]
+        campaigns_by_game: dict[str, Any] = dashboard_data["campaigns_by_game"]
         for game_id in game_ids:
             assert game_id in campaigns_by_game
             grouped_campaigns: list[dict[str, Any]] = campaigns_by_game[game_id][
@@ -1737,150 +1684,6 @@ class TestChannelListView:
         assert len(game_select_queries) <= 1, (
             "Expected a bounded number of standalone Game SELECTs for dashboard grouping; "
             f"got {len(game_select_queries)}. Queries: {game_select_queries}"
-        )
-
-    @pytest.mark.django_db
-    def test_dashboard_does_not_refresh_dropcampaign_rows_for_image_dimensions(
-        self,
-        client: Client,
-    ) -> None:
-        """Dashboard should not issue per-row DropCampaign refreshes for image dimensions."""
-        now: datetime.datetime = timezone.now()
-
-        org: Organization = Organization.objects.create(
-            twitch_id="org_image_dimensions",
-            name="Org Image Dimensions",
-        )
-        game: Game = Game.objects.create(
-            twitch_id="game_image_dimensions",
-            name="game_image_dimensions",
-            display_name="Game Image Dimensions",
-        )
-        game.owners.add(org)
-
-        # 1x1 transparent PNG
-        png_1x1: bytes = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-            b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
-            b"\x00\x00\x00\x0bIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
-            b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
-
-        campaigns: list[DropCampaign] = []
-        for i in range(3):
-            campaign: DropCampaign = DropCampaign.objects.create(
-                twitch_id=f"image_dim_campaign_{i}",
-                name=f"Image dim campaign {i}",
-                game=game,
-                operation_names=["DropCampaignDetails"],
-                start_at=now - timedelta(hours=2),
-                end_at=now + timedelta(hours=2),
-            )
-            assert campaign.image_file is not None
-            campaign.image_file.save(
-                f"image_dim_campaign_{i}.png",
-                ContentFile(png_1x1),
-                save=True,
-            )
-            campaigns.append(campaign)
-
-        with CaptureQueriesContext(connection) as queries:
-            response: _MonkeyPatchedWSGIResponse = client.get(
-                reverse("twitch:dashboard"),
-            )
-            assert response.status_code == 200
-
-        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
-        if isinstance(context, list):
-            context = context[-1]
-
-        grouped_campaigns: list[dict[str, Any]] = context["campaigns_by_game"][
-            game.twitch_id
-        ]["campaigns"]
-        assert len(grouped_campaigns) == len(campaigns)
-
-        per_row_refresh_queries: list[str] = [
-            query_info["sql"]
-            for query_info in queries.captured_queries
-            if query_info["sql"].lstrip().upper().startswith("SELECT")
-            and 'from "twitch_dropcampaign"' in query_info["sql"].lower()
-            and 'where "twitch_dropcampaign"."id" =' in query_info["sql"].lower()
-        ]
-
-        assert not per_row_refresh_queries, (
-            "Dashboard unexpectedly refreshed DropCampaign rows one-by-one while "
-            "resolving image dimensions. Queries: "
-            f"{per_row_refresh_queries}"
-        )
-
-    @pytest.mark.django_db
-    def test_dashboard_does_not_refresh_game_rows_for_box_art_dimensions(
-        self,
-        client: Client,
-    ) -> None:
-        """Dashboard should not issue per-row Game refreshes for box art dimensions."""
-        now: datetime.datetime = timezone.now()
-
-        org: Organization = Organization.objects.create(
-            twitch_id="org_box_art_dimensions",
-            name="Org Box Art Dimensions",
-        )
-        game: Game = Game.objects.create(
-            twitch_id="game_box_art_dimensions",
-            name="game_box_art_dimensions",
-            display_name="Game Box Art Dimensions",
-        )
-        game.owners.add(org)
-
-        # 1x1 transparent PNG
-        png_1x1: bytes = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
-            b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
-            b"\x00\x00\x00\x0bIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01"
-            b"\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
-
-        assert game.box_art_file is not None
-        game.box_art_file.save(
-            "game_box_art_dimensions.png",
-            ContentFile(png_1x1),
-            save=True,
-        )
-
-        DropCampaign.objects.create(
-            twitch_id="game_box_art_campaign",
-            name="Game box art campaign",
-            game=game,
-            operation_names=["DropCampaignDetails"],
-            start_at=now - timedelta(hours=2),
-            end_at=now + timedelta(hours=2),
-        )
-
-        with CaptureQueriesContext(connection) as queries:
-            response: _MonkeyPatchedWSGIResponse = client.get(
-                reverse("twitch:dashboard"),
-            )
-            assert response.status_code == 200
-
-        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
-        if isinstance(context, list):
-            context = context[-1]
-
-        campaigns_by_game: dict[str, Any] = context["campaigns_by_game"]
-        assert game.twitch_id in campaigns_by_game
-
-        per_row_refresh_queries: list[str] = [
-            query_info["sql"]
-            for query_info in queries.captured_queries
-            if query_info["sql"].lstrip().upper().startswith("SELECT")
-            and 'from "twitch_game"' in query_info["sql"].lower()
-            and 'where "twitch_game"."id" =' in query_info["sql"].lower()
-        ]
-
-        assert not per_row_refresh_queries, (
-            "Dashboard unexpectedly refreshed Game rows one-by-one while resolving "
-            "box art dimensions. Queries: "
-            f"{per_row_refresh_queries}"
         )
 
     @pytest.mark.django_db
@@ -3354,11 +3157,31 @@ class TestSEOHelperFunctions:
         result: str = _truncate_description(text, max_length=30)
         assert result.endswith("…")  # Uses en-dash, not three dots
 
+    def test_meta_description_extends_short_text(self) -> None:
+        """Short descriptions are padded so Bing does not flag them."""
+        result: str = _meta_description("Twitch rewards.")
+        assert result.startswith("Twitch rewards.")
+        assert MIN_META_DESCRIPTION_LENGTH <= len(result) <= MAX_META_DESCRIPTION_LENGTH
+
+    def test_meta_description_keeps_descriptive_text(self) -> None:
+        """Already-long descriptions are not padded or truncated."""
+        text: str = (
+            "Browse Twitch drop campaigns, active, upcoming, and expired. Find "
+            "rewards, watch requirements, and eligible channels for every drop "
+            "in the archive."
+        )
+        assert _meta_description(text) == text
+
     def test_build_seo_context_required_fields(self) -> None:
         """Test that _build_seo_context returns all required fields."""
+        description: str = (
+            "Browse Twitch drop campaigns, active, upcoming, and expired. Find "
+            "rewards, watch requirements, and eligible channels for every drop "
+            "in the archive."
+        )
         context: dict[str, Any] = _build_seo_context(
             page_title="Test Title",
-            page_description="Test Description",
+            page_description=description,
             seo_meta={
                 "page_image": "https://example.com/image.jpg",
                 "og_type": "article",
@@ -3367,7 +3190,7 @@ class TestSEOHelperFunctions:
         )
 
         assert context["page_title"] == "Test Title"
-        assert context["page_description"] == "Test Description"
+        assert context["page_description"] == description
         assert context["page_image"] == "https://example.com/image.jpg"
         assert context["og_type"] == "article"
         assert context["robots_directive"] == "index, follow"  # default
@@ -3411,6 +3234,27 @@ class TestSEOHelperFunctions:
         assert context["published_date"] == now.isoformat()
         assert context["modified_date"] == now.isoformat()
         assert context["robots_directive"] == "noindex, follow"
+
+    def test_build_seo_context_passes_feed_links(self) -> None:
+        """Feed links from seo_meta reach the template context."""
+        links: list[dict[str, str]] = [
+            {
+                "rel": "alternate",
+                "type": "application/rss+xml",
+                "title": "Latest Twitch drops (RSS)",
+                "href": "https://ttvdrops.lovinator.space/rss/campaigns/",
+            },
+        ]
+        context: dict[str, Any] = _build_seo_context(
+            page_description=(
+                "Browse active, upcoming, and expired Twitch drop campaigns in "
+                "our archive. Check rewards and watch requirements, subscribe "
+                "via RSS, or use the JSON API."
+            ),
+            seo_meta={"feed_links": links},
+        )
+
+        assert context["feed_links"] == links
 
     def test_build_breadcrumb_schema_structure(self) -> None:
         """Test that _build_breadcrumb_schema creates proper BreadcrumbList structure."""
@@ -3512,6 +3356,22 @@ class TestSEOMetaTags:
         assert response.status_code == 200
         assert "page_title" in response.context
         assert "page_description" in response.context
+
+    def test_campaign_detail_title_includes_game_name(
+        self,
+        client: Client,
+        game_with_campaign: dict[str, Any],
+    ) -> None:
+        """The game name is the main search term for a campaign page."""
+        campaign: DropCampaign = game_with_campaign["campaign"]
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_detail", args=[campaign.twitch_id]),
+        )
+
+        assert response.status_code == 200
+        assert (
+            response.context["page_title"] == "Test Campaign - Test Game Twitch Drops"
+        )
 
     def test_campaign_detail_embed_description_lists_all_drops_and_dates(
         self,
@@ -3739,10 +3599,10 @@ class TestSEOMetaTags:
         url: str = reverse("twitch:game_detail", args=[game.twitch_id])
         response: _MonkeyPatchedWSGIResponse = client.get(url)
 
-        assert (
-            response.context["page_description"]
-            == "1 active · 1 upcoming · 3 campaigns · 0 rewards"
-        )
+        description: str = response.context["page_description"]
+        assert description.startswith("Test Game")
+        assert "1 active · 1 upcoming · 3 campaigns · 0 rewards" in description
+        assert len(description) >= MIN_META_DESCRIPTION_LENGTH
 
     def test_game_detail_embed_buttons_are_game_specific(
         self,
@@ -4050,7 +3910,7 @@ class TestSitemapView:
             "<loc>https://ttvdrops.lovinator.space/</loc>" in content
             or "<loc>http://localhost:8000/</loc>" in content
         )
-        assert "https://ttvdrops.lovinator.space/twitch/" in content
+        assert "<loc>https://ttvdrops.lovinator.space/twitch/</loc>" not in content
         assert "https://ttvdrops.lovinator.space/kick/" in content
         assert "https://ttvdrops.lovinator.space/youtube/" in content
         assert "https://ttvdrops.lovinator.space/twitch/campaigns/" in content
@@ -5554,3 +5414,130 @@ class TestDropCampaignListView:
             f"Campaign list SELECT count grew; possible N+1. "
             f"baseline={baseline}, scaled={scaled}"
         )
+
+
+@pytest.mark.django_db
+class TestTwitchEndpointSEO:
+    """Every Twitch HTML endpoint should expose complete SEO metadata."""
+
+    @pytest.fixture
+    def seo_objects(self) -> dict[str, Any]:
+        """Create one of each object needed by the Twitch detail pages.
+
+        Returns:
+            dict[str, Any]: Created objects keyed by their URL argument name.
+        """
+        org: Organization = Organization.objects.create(
+            twitch_id="seo-org",
+            name="SEO Org",
+        )
+        game: Game = Game.objects.create(
+            twitch_id="seo-game",
+            name="seo_game",
+            display_name="SEO Game",
+        )
+        game.owners.add(org)
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="seo-campaign",
+            name="SEO Campaign",
+            game=game,
+        )
+        reward: RewardCampaign = RewardCampaign.objects.create(
+            twitch_id="seo-reward",
+            name="SEO Reward",
+            game=game,
+        )
+        channel: Channel = Channel.objects.create(
+            twitch_id="seo-channel",
+            name="seo_channel",
+            display_name="SEO Channel",
+        )
+        badge_set: ChatBadgeSet = ChatBadgeSet.objects.create(set_id="seo-badges")
+        return {
+            "org": org,
+            "game": game,
+            "campaign": campaign,
+            "reward": reward,
+            "channel": channel,
+            "badge_set": badge_set,
+        }
+
+    @pytest.mark.parametrize(
+        ("name", "object_key"),
+        [
+            ("campaign_list", None),
+            ("campaign_detail", "campaign"),
+            ("games_grid", None),
+            ("games_list", None),
+            ("game_detail", "game"),
+            ("org_list", None),
+            ("organization_detail", "org"),
+            ("reward_campaign_list", None),
+            ("reward_campaign_detail", "reward"),
+            ("channel_list", None),
+            ("channel_detail", "channel"),
+            ("emote_gallery", None),
+            ("badge_list", None),
+            ("badge_set_detail", "badge_set"),
+            ("sitewide_rewards", None),
+            ("game_less_rewards", None),
+            ("stats", None),
+            ("history", None),
+            ("campaign_history", "campaign"),
+            ("game_history", "game"),
+            ("organization_history", "org"),
+            ("channel_history", "channel"),
+            ("reward_campaign_history", "reward"),
+        ],
+    )
+    def test_endpoint_has_seo_basics(
+        self,
+        client: Client,
+        seo_objects: dict[str, Any],
+        name: str,
+        object_key: str | None,
+    ) -> None:
+        """Titles, descriptions, canonicals and structured data are present."""
+        obj = seo_objects[object_key] if object_key else None
+        identifier: str = (
+            obj.set_id if name == "badge_set_detail" else getattr(obj, "twitch_id", "")
+        )
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse(f"twitch:{name}", args=[identifier] if identifier else []),
+        )
+
+        assert response.status_code == 200
+        assert response.context["page_title"]
+        description: str = response.context["page_description"]
+        assert 120 <= len(description) <= 160
+        assert response.context["page_url"].startswith(
+            "https://ttvdrops.lovinator.space/",
+        )
+        assert json.loads(response.context["schema_data"])
+
+        breadcrumb: str | None = response.context.get("breadcrumb_schema")
+        if breadcrumb:
+            crumbs: dict[str, Any] = json.loads(breadcrumb)
+            assert crumbs["@type"] == "BreadcrumbList"
+            urls: list[str] = [item["item"] for item in crumbs["itemListElement"]]
+            assert urls[0] == "https://ttvdrops.lovinator.space/"
+            assert all("/twitch/" in url for url in urls[1:])
+
+    def test_organization_breadcrumb_uses_twitch_urls(
+        self,
+        client: Client,
+        seo_objects: dict[str, Any],
+    ) -> None:
+        """Organization breadcrumbs point to Twitch routes, not legacy paths."""
+        org: Organization = seo_objects["org"]
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:organization_detail", args=[org.twitch_id]),
+        )
+
+        crumbs: dict[str, Any] = json.loads(response.context["breadcrumb_schema"])
+        urls: list[str] = [item["item"] for item in crumbs["itemListElement"]]
+        assert urls == [
+            "https://ttvdrops.lovinator.space/",
+            "https://ttvdrops.lovinator.space/twitch/organizations/",
+            f"https://ttvdrops.lovinator.space/twitch/organizations/{org.twitch_id}/",
+        ]

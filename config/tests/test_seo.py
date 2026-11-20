@@ -120,6 +120,25 @@ def test_meta_tags_twitter_card_is_summary_large_image_with_page_image() -> None
     assert _extract_meta_content(content, "og:image:height") == "630"
 
 
+def test_meta_tags_render_feed_discovery_links() -> None:
+    """RSS/Atom links from SEO context are emitted for crawlers."""
+    content: str = _render_meta_tags({
+        "feed_links": [
+            {
+                "rel": "alternate",
+                "type": "application/rss+xml",
+                "title": "Latest Twitch drops (RSS)",
+                "href": "https://ttvdrops.lovinator.space/rss/campaigns/",
+            },
+        ],
+    })
+
+    assert 'rel="alternate"' in content
+    assert 'type="application/rss+xml"' in content
+    assert 'title="Latest Twitch drops (RSS)"' in content
+    assert 'href="https://ttvdrops.lovinator.space/rss/campaigns/"' in content
+
+
 def test_meta_tags_render_pagination_links() -> None:
     """Test that pagination_info in context results in correct prev/next link tags in output."""
     content: str = _render_meta_tags({

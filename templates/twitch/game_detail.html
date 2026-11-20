@@ -41,7 +41,7 @@
                 {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
             </h1>
             <nav aria-label="Breadcrumb">
-                <a href="{% url 'twitch:dashboard' %}">Twitch</a> &gt; <a href="{% url 'twitch:games_grid' %}">Games</a> &gt; {{ game.display_name }}
+                <a href="{% url 'core:dashboard' %}">Home</a> &gt; <a href="{% url 'twitch:games_grid' %}">Games</a> &gt; {{ game.display_name }}
             </nav>
             <div style="font-size: 0.9rem;
                         color: color-mix(in srgb, CanvasText 60%, transparent 40%);

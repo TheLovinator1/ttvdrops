@@ -4,7 +4,7 @@
   <h1>Emotes</h1>
   <!-- Add breadcrumbs -->
   <div>
-    <a href="{% url 'twitch:dashboard' %}">Twitch</a> > Emotes
+    <a href="{% url 'core:dashboard' %}">Home</a> > Emotes
   </div>
   {% for emote in emotes %}
     <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"

@@ -496,12 +496,6 @@ class TwitchApiV1TestCase(TestCase):
                 reverse("api-v1:openapi-view"),
             ),
             (
-                reverse("twitch:dashboard"),
-                "API Docs",
-                "[api]",
-                reverse("api-v1:twitch-api-v1_list_campaigns"),
-            ),
-            (
                 reverse("twitch:campaign_list"),
                 "API Docs",
                 "[api]",

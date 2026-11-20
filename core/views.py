@@ -284,7 +284,6 @@ def sitemap_static_view(request: HttpRequest) -> HttpResponse:
         {"loc": f"{base_url}{reverse('core:organization_feed_discord')}"},
         {"loc": f"{base_url}{reverse('core:reward_campaign_feed_discord')}"},
         # Twitch app pages
-        {"loc": f"{base_url}{reverse('twitch:dashboard')}"},
         {"loc": f"{base_url}{reverse('twitch:campaign_list')}"},
         {"loc": f"{base_url}{reverse('twitch:games_grid')}"},
         {"loc": f"{base_url}{reverse('twitch:games_list')}"},

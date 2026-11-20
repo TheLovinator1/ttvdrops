@@ -22,7 +22,7 @@
     <header style="display: flex; flex-direction: column;">
         <h1 style="margin: 0;">{{ organization.name }}</h1>
         <nav aria-label="Breadcrumb">
-            <a href="{% url 'core:dashboard' %}">Dashboard</a> &gt; <a href="{% url 'twitch:org_list' %}">Organizations</a> &gt; {{ organization.name }}
+            <a href="{% url 'core:dashboard' %}">Home</a> &gt; <a href="{% url 'twitch:org_list' %}">Organizations</a> &gt; {{ organization.name }}
         </nav>
         <div style="font-size: 0.9rem;
                     color: color-mix(in srgb, CanvasText 60%, transparent 40%);

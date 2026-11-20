@@ -13,6 +13,7 @@ class SeoMeta(TypedDict, total=False):
     schema_data: dict[str, Any] | None
     breadcrumb_schema: dict[str, Any] | None
     pagination_info: list[dict[str, str]] | None
+    feed_links: list[dict[str, str]] | None
     published_date: str | None
     modified_date: str | None
     robots_directive: str

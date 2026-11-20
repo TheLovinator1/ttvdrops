@@ -8,7 +8,7 @@
         <header>
             <h1>{{ history_title }}</h1>
             <nav aria-label="Breadcrumb">
-                <a href="{% url 'twitch:dashboard' %}">Twitch</a>
+                <a href="{% url 'core:dashboard' %}">Home</a>
                 &gt; <a href="{% url 'twitch:history' %}">History</a>
                 {% if entity_name %}
                     &gt; <a href="{{ entity_url }}">{{ entity_name }}</a>

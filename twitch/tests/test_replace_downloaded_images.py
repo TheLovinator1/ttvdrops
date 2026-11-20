@@ -78,9 +78,9 @@ def test_replace_group_replaces_file_and_normalizes_url(
         "https://static-cdn.jtvnw.net/ttv-boxart/123_IGDB.jpg",
     )
     game.refresh_from_db()
-    assert game.box_art_file.name
-    assert not old_path.exists()
-    assert (tmp_path / game.box_art_file.name).read_bytes() == new_bytes
+    assert game.box_art_file.name == old_name
+    assert old_path.exists()
+    assert old_path.read_bytes() == new_bytes
     assert game.box_art_size_bytes == len(new_bytes)
     assert game.box_art_mime_type == "image/png"
     assert stats == {"replaced": 1, "skipped": 0, "failed": 0}

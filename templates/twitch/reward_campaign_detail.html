@@ -43,7 +43,7 @@
             </div>
             <!-- Add breadcrumbs -->
             <div>
-                <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> > {{ reward_campaign.name }}
+                <a href="{% url 'core:dashboard' %}">Home</a> > <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> > {{ reward_campaign.name }}
             </div>
             <!-- Campaign Summary -->
             {% if reward_campaign.summary %}<p id="campaign-summary">{{ reward_campaign.summary|linebreaksbr }}</p>{% endif %}

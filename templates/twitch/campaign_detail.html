@@ -30,7 +30,7 @@
             <h1 style="margin-top: 0; margin-bottom: 0px;">{{ campaign.clean_name }}</h1>
             <!-- Add breadcrumbs -->
             <div>
-                <a href="{% url 'twitch:dashboard' %}">Twitch</a> > <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> > <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a> > {{ campaign.clean_name }}
+                <a href="{% url 'core:dashboard' %}">Home</a> > <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> > <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a> > {{ campaign.clean_name }}
             </div>
             <!-- Game owner -->
             {% if owners %}

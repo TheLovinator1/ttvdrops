@@ -8,7 +8,7 @@
         <header>
             <h1>{{ event.object_name }} · {{ event.label }}</h1>
             <nav aria-label="Breadcrumb">
-                <a href="{% url 'twitch:dashboard' %}">Twitch</a>
+                <a href="{% url 'core:dashboard' %}">Home</a>
                 &gt; <a href="{% url 'twitch:history' %}">History</a>
                 {% if event.object_url %}
                     &gt; <a href="{{ event.object_url }}">{{ event.object_name }}</a>
