@@ -104,6 +104,27 @@ class TestCoreDashboardKickSection(TestCase):
         # Game name should appear
         assert "Test Game" in content
 
+    def test_table_of_contents_links_to_campaign_card(self) -> None:
+        """The dashboard table of contents should link to each campaign card."""
+        org: KickOrganization = self._make_org("org-toc-1", "TOC Studio")
+        cat: KickCategory = self._make_category(998, "TOC Game")
+        campaign: KickDropCampaign = self._make_campaign(
+            "camp-toc-1",
+            "TOC Campaign",
+            cat,
+            org,
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("core:dashboard"),
+        )
+        content: str = response.content.decode()
+
+        assert response.status_code == 200
+        assert 'aria-label="Drops table of contents"' in content
+        assert f'href="#kick-campaign-{campaign.kick_id}"' in content
+        assert f'id="kick-campaign-{campaign.kick_id}"' in content
+
     def test_unknown_category_shows_org_link_in_heading(self) -> None:
         """Campaigns without a category should show org name as the heading."""
         org: KickOrganization = self._make_org("org-uncat-1", "Uncategorized Org")
