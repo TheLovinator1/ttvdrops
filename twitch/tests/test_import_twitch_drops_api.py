@@ -15,6 +15,7 @@ from django.core.management.base import CommandError
 from django.test import TestCase
 
 from twitch.management.commands.import_twitch_drops_api import Command
+from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
@@ -23,6 +24,7 @@ from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.schemas import SunkwiBotDropCampaignACLSchema
 
 # ---------------------------------------------------------------------------
 # Sample data matching the SunkwiBOT/twitch-drops-api JSON formats
@@ -846,6 +848,78 @@ class StripTypenameTests(TestCase):
         # Should have no __typename anywhere
         raw = str(result)
         assert "__typename" not in raw
+
+
+# ---------------------------------------------------------------------------
+# Channel display name tests
+# ---------------------------------------------------------------------------
+
+
+class ChannelDisplayNameTests(TestCase):
+    """Display names must not degrade to lowercase logins."""
+
+    def _campaign(self) -> DropCampaign:
+        game: Game = Game.objects.create(
+            twitch_id="display-name-game",
+            display_name="Display Name Game",
+        )
+        return DropCampaign.objects.create(
+            twitch_id="display-name-campaign",
+            name="Display Name Campaign",
+            game=game,
+        )
+
+    def test_lowercase_login_does_not_replace_capitalized_display_name(self) -> None:
+        """A missing displayName fallback must not overwrite capitalization."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="volcatwitch",
+            name="volcatwitch",
+            display_name="VolcaTwitch",
+        )
+        allow_schema: SunkwiBotDropCampaignACLSchema = (
+            SunkwiBotDropCampaignACLSchema.model_validate({
+                "isEnabled": True,
+                "channels": [{"id": "volcatwitch", "name": "volcatwitch"}],
+            })
+        )
+
+        Command()._process_allow_channels(
+            allow_schema=allow_schema,
+            campaign_obj=self._campaign(),
+            verbose=False,
+        )
+
+        channel.refresh_from_db()
+        assert channel.display_name == "VolcaTwitch"
+
+    def test_capitalized_display_name_replaces_lowercase_fallback(self) -> None:
+        """An explicit capitalized displayName should upgrade a lowercase row."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="twynetv",
+            name="twynetv",
+            display_name="twynetv",
+        )
+        allow_schema: SunkwiBotDropCampaignACLSchema = (
+            SunkwiBotDropCampaignACLSchema.model_validate({
+                "isEnabled": True,
+                "channels": [
+                    {
+                        "id": "twynetv",
+                        "name": "twynetv",
+                        "displayName": "TwyneTV",
+                    },
+                ],
+            })
+        )
+
+        Command()._process_allow_channels(
+            allow_schema=allow_schema,
+            campaign_obj=self._campaign(),
+            verbose=False,
+        )
+
+        channel.refresh_from_db()
+        assert channel.display_name == "TwyneTV"
 
 
 # ---------------------------------------------------------------------------

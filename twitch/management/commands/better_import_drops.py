@@ -37,6 +37,7 @@ from twitch.utils import image_tasks_suppressed
 from twitch.utils import is_twitch_box_art_url
 from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
+from twitch.utils import prefer_display_name
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -783,11 +784,11 @@ class Command(BaseCommand):
             Channel instance.
         """
         # Use name as display_name fallback if displayName is None
-        display_name: str = channel_info.display_name or channel_info.name
+        incoming_display_name: str = channel_info.display_name or channel_info.name
 
         defaults: dict[str, object] = {
             "name": channel_info.name,
-            "display_name": display_name,
+            "display_name": incoming_display_name,
         }
 
         cache: dict[str, Channel] = getattr(self, "_channel_cache", {})
@@ -796,7 +797,16 @@ class Command(BaseCommand):
 
         cached_channel: Channel | None = cache.get(channel_info.twitch_id)
         if cached_channel is not None:
-            self._save_if_changed(cached_channel, defaults)
+            self._save_if_changed(
+                cached_channel,
+                {
+                    "name": channel_info.name,
+                    "display_name": prefer_display_name(
+                        cached_channel.display_name,
+                        incoming_display_name,
+                    ),
+                },
+            )
             return cached_channel
 
         channel_obj, created = Channel.objects.get_or_create(
@@ -804,10 +814,19 @@ class Command(BaseCommand):
             defaults=defaults,
         )
         if not created:
-            self._save_if_changed(channel_obj, defaults)
+            self._save_if_changed(
+                channel_obj,
+                {
+                    "name": channel_info.name,
+                    "display_name": prefer_display_name(
+                        channel_obj.display_name,
+                        incoming_display_name,
+                    ),
+                },
+            )
         else:
             tqdm.write(
-                f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {display_name}",
+                f"{Fore.GREEN}✓{Style.RESET_ALL} Created new channel: {incoming_display_name}",
             )
 
         cache[channel_info.twitch_id] = channel_obj

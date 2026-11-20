@@ -28,6 +28,7 @@ from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
+from twitch.utils import prefer_display_name
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -230,13 +231,24 @@ class HistoryReplay:
         live_channel = self._live(Channel, schema.twitch_id)
         if live_channel is None:
             return None
+        previous: dict[str, Any] | None = self._snapshots.get(
+            (Channel, int(live_channel.pk)),
+        )
+        existing_display_name: str = (
+            str(previous.get("display_name") or "")
+            if previous is not None
+            else live_channel.display_name
+        )
         self._emit(
             Channel,
             live_channel,
             {
                 "twitch_id": schema.twitch_id,
                 "name": schema.name,
-                "display_name": schema.display_name or schema.name,
+                "display_name": prefer_display_name(
+                    existing_display_name,
+                    schema.display_name or schema.name,
+                ),
             },
         )
         return live_channel

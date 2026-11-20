@@ -31,6 +31,7 @@ from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.schemas import ChannelInfoSchema
 from twitch.schemas import GameSchema
 
 if TYPE_CHECKING:
@@ -101,6 +102,81 @@ def test_history_replay_game_name_does_not_flap() -> None:
     replay._process_game(without_name)
 
     assert Game.pgh_event_model.objects.filter(pgh_obj=game).count() == count_after_name
+
+
+def test_history_replay_does_not_degrade_channel_display_name() -> None:
+    """Replaying lowercase login names must not overwrite capitalization."""
+    channel: Channel = Channel.objects.create(
+        twitch_id="ztockerstein",
+        name="ztockerstein",
+        display_name="Ztockerstein",
+    )
+    replay: HistoryReplay = HistoryReplay()
+    without_display_name: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+        "id": "ztockerstein",
+        "name": "ztockerstein",
+        "__typename": "Channel",
+    })
+    with_lowercase_display_name: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+        "id": "ztockerstein",
+        "name": "ztockerstein",
+        "displayName": "ztockerstein",
+        "__typename": "Channel",
+    })
+
+    events = Channel.pgh_event_model.objects.filter(pgh_obj=channel)
+    count_before_replay: int = events.count()
+
+    replay._process_channel(without_display_name)
+    count_after_first_replay: int = events.count()
+    replay._process_channel(with_lowercase_display_name)
+
+    assert count_after_first_replay == count_before_replay + 1
+    assert events.count() == count_after_first_replay
+    latest = events.order_by("-pgh_id").first()
+    assert latest is not None
+    assert latest.display_name == "Ztockerstein"
+
+
+def test_history_replay_channel_display_name_does_not_flap() -> None:
+    """Alternating displayName presence must not flip capitalization during replay."""
+    channel: Channel = Channel.objects.create(
+        twitch_id="walkyrip",
+        name="walkyrip",
+        display_name="walkyrip",
+    )
+    replay: HistoryReplay = HistoryReplay()
+    with_display_name: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+        "id": "walkyrip",
+        "name": "walkyrip",
+        "displayName": "Walkyrip",
+        "__typename": "Channel",
+    })
+    without_display_name: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+        "id": "walkyrip",
+        "name": "walkyrip",
+        "__typename": "Channel",
+    })
+    last_id_before_replay: int = (
+        Channel.pgh_event_model.objects
+        .filter(pgh_obj=channel)
+        .order_by("-pgh_id")
+        .values_list("pgh_id", flat=True)
+        .first()
+        or 0
+    )
+
+    replay._process_channel(with_display_name)
+    replay._process_channel(without_display_name)
+    replay._process_channel(with_display_name)
+
+    replayed = Channel.pgh_event_model.objects.filter(
+        pgh_obj=channel,
+        pgh_id__gt=last_id_before_replay,
+    )
+    assert replayed.count() == 1
+    event = replayed.get()
+    assert event.display_name == "Walkyrip"
 
 
 def test_history_replay_owner_membership_is_additive() -> None:

@@ -143,6 +143,23 @@ def normalize_twitch_image_url(url: str) -> str:
     return str(urlunparse(parsed._replace(path=path)))
 
 
+def prefer_display_name(existing: str, incoming: str) -> str:
+    """Keep a capitalized display name over a lowercase login-style fallback.
+
+    Args:
+        existing: Current display name.
+        incoming: New display name.
+
+    Returns:
+        The preferred display name.
+    """
+    if not incoming:
+        return existing
+    if existing and existing != existing.lower() and incoming == incoming.lower():
+        return existing
+    return incoming
+
+
 @lru_cache(maxsize=40 * 40 * 1024)
 def parse_date(value: str) -> datetime | None:
     """Parse a datetime string into a timezone-aware datetime using dateparser.

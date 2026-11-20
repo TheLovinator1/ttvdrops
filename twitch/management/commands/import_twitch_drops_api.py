@@ -58,6 +58,7 @@ from twitch.schemas import SunkwiBotDropGroupSchema
 from twitch.schemas import SunkwiBotRewardCampaignSchema
 from twitch.utils import normalize_twitch_image_url
 from twitch.utils import parse_date
+from twitch.utils import prefer_display_name
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -1509,22 +1510,28 @@ class Command(BaseCommand):
 
         channel_objects: list[Channel] = []
         for ch in allow_schema.channels:
-            display_name: str = ch.display_name or ch.name
+            incoming_display_name: str = ch.display_name or ch.name
             channel_obj, created = Channel.objects.get_or_create(
                 twitch_id=ch.twitch_id,
                 defaults={
                     "name": ch.name,
-                    "display_name": display_name,
+                    "display_name": incoming_display_name,
                 },
             )
             if not created:
                 self._save_if_changed(
                     channel_obj,
-                    {"name": ch.name, "display_name": display_name},
+                    {
+                        "name": ch.name,
+                        "display_name": prefer_display_name(
+                            channel_obj.display_name,
+                            incoming_display_name,
+                        ),
+                    },
                 )
             if verbose and created:
                 self.stdout.write(
-                    f"{Fore.GREEN}✓{Style.RESET_ALL} Created channel: {display_name}",
+                    f"{Fore.GREEN}✓{Style.RESET_ALL} Created channel: {incoming_display_name}",
                 )
             channel_objects.append(channel_obj)
 

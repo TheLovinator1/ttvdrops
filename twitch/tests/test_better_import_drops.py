@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -15,6 +14,7 @@ from twitch.management.commands.better_import_drops import (
 from twitch.management.commands.better_import_drops import move_completed_file
 from twitch.management.commands.better_import_drops import move_file_to_broken_subdir
 from twitch.management.commands.better_import_drops import repair_partially_broken_json
+from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
@@ -22,12 +22,51 @@ from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
+from twitch.schemas import ChannelInfoSchema
 from twitch.schemas import DropBenefitSchema
 from twitch.schemas import DropCampaignACLSchema
 from twitch.schemas import GameSchema
 
-if TYPE_CHECKING:
-    from twitch.models import Channel
+
+class ChannelDisplayNameTests(TestCase):
+    """Display names must not degrade to lowercase logins."""
+
+    def test_lowercase_login_does_not_replace_capitalized_display_name(self) -> None:
+        """A missing displayName fallback must not overwrite capitalization."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="ztockerstein",
+            name="ztockerstein",
+            display_name="Ztockerstein",
+        )
+        schema: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+            "id": "ztockerstein",
+            "name": "ztockerstein",
+            "__typename": "Channel",
+        })
+
+        Command()._get_or_create_channel(schema)
+
+        channel.refresh_from_db()
+        assert channel.display_name == "Ztockerstein"
+
+    def test_capitalized_display_name_replaces_lowercase_fallback(self) -> None:
+        """An explicit capitalized displayName should upgrade a lowercase row."""
+        channel: Channel = Channel.objects.create(
+            twitch_id="xandersilver",
+            name="xandersilver",
+            display_name="xandersilver",
+        )
+        schema: ChannelInfoSchema = ChannelInfoSchema.model_validate({
+            "id": "xandersilver",
+            "name": "xandersilver",
+            "displayName": "XanderSilver",
+            "__typename": "Channel",
+        })
+
+        Command()._get_or_create_channel(schema)
+
+        channel.refresh_from_db()
+        assert channel.display_name == "XanderSilver"
 
 
 class CampaignPartialUpdateTests(TestCase):
