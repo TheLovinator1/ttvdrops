@@ -67,7 +67,7 @@ Other sites that track Twitch drops:
 - [twitchdrops.app](https://twitchdrops.app/)
 - [Fenrisapps Twitch Drops](https://twitch-drops.fenrisapps.com/)
 - [twitch-drops-api](https://github.com/SunkwiBOT/twitch-drops-api) (the API that powers some of these tools)
-- [Drop Hunter](https://drophunter.app/) (paid, $3/mo)
+- [Drop Hunter](https://drophunter.app/?src=ttvdrops.lovinator.space) (paid, $3/mo)
 
 ## Bug reports & feature requests
 
