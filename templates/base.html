@@ -284,6 +284,14 @@
                 font-size: 0.9em;
             }
 
+            .external-link-icon {
+                display: inline-block;
+                width: 0.8em;
+                height: 0.8em;
+                margin-left: 0.15em;
+                vertical-align: -0.05em;
+            }
+
             @media (max-width: 1000px) {
                 .dashboard-layout {
                     grid-template-columns: minmax(0, 1fr);
@@ -325,7 +333,22 @@
             <a href="{% url 'twitch:emote_gallery' %}">Emotes</a> |
             <a href="{% url 'twitch:stats' %}">Stats</a> |
             <a href="{% url 'twitch:history' %}">History</a> |
-            <a href="https://www.twitch.tv/drops/inventory">Inventory</a>
+            <a href="https://www.twitch.tv/drops/inventory"
+               title="Open the Twitch Drops Inventory on an external site">
+                Inventory
+                <svg class="external-link-icon"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     aria-hidden="true">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+            </a>
             <br />
             <strong>Kick</strong>
             <a href="{% url 'kick:dashboard' %}">Dashboard</a> |
