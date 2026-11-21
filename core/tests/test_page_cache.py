@@ -326,8 +326,14 @@ class TestPageKey:
 class TestShouldStore:
     """Response eligibility tests."""
 
-    def _response(self, *args: object, **kwargs: object) -> HttpResponse:
-        return HttpResponse(*args, **kwargs)
+    def _response(
+        self,
+        content: bytes = b"",
+        *,
+        status: int = 200,
+        content_type: str | None = None,
+    ) -> HttpResponse:
+        return HttpResponse(content, status=status, content_type=content_type)
 
     def test_normal_response(self) -> None:
         """A plain 200 response is cacheable."""

@@ -94,6 +94,8 @@ lint.ignore = [
     "mutable-class-default",            # Checks for mutable default values in class attributes.
     "unused-function-argument",         # Checks for the presence of unused arguments in function definitions.
     "unconventional-import-alias",      # Checks for imports that are typically imported using a common convention, like import pandas as pd, and enforces that convention.
+    "undocumented-public-init",         # Checks for public __init__ method definitions that are missing docstrings.
+    "too-many-arguments",               # Checks for function definitions that include too many arguments.
 
     # Conflicting lint rules when using Ruff's formatter
     # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
@@ -127,6 +129,8 @@ lint.ignore = [
     "hardcoded-password-func-arg",
     "suspicious-non-cryptographic-random-usage",
     "private-member-access",
+    "undocumented-public-function",
+    "undocumented-public-class",
 ]
 "**/migrations/**" = ["mutable-class-default"]
 "**/api.py" = [

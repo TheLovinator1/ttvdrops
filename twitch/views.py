@@ -63,6 +63,8 @@ if TYPE_CHECKING:
 
 logger: logging.Logger = logging.getLogger("ttvdrops.views")
 
+type HistoryEntity = DropCampaign | Game | Organization | Channel | RewardCampaign
+
 MIN_QUERY_LENGTH_FOR_FTS = 3
 MIN_SEARCH_RANK = 0.05
 MAX_EMBED_CHANNELS = 8
@@ -2439,7 +2441,7 @@ def _history_cursor(request: HttpRequest) -> tuple[str | None, str]:
     return None, "older"
 
 
-def _paginate_history(  # ruff:ignore[too-many-arguments]
+def _paginate_history(
     request: HttpRequest,
     *,
     model_filter: str = "",
@@ -2613,10 +2615,10 @@ def history_view(request: HttpRequest) -> HttpResponse:
     return render(request, "twitch/history.html", context)
 
 
-def _render_entity_history(  # ruff:ignore[too-many-arguments]
+def _render_entity_history(
     request: HttpRequest,
     *,
-    entity: object,
+    entity: HistoryEntity,
     entity_name: str,
     entity_url: str,
     title: str,
@@ -2627,7 +2629,7 @@ def _render_entity_history(  # ruff:ignore[too-many-arguments]
 
     Args:
         request: The HTTP request.
-        entity: The object the history belongs to.
+        entity: The campaign, game, organization, channel, or reward campaign.
         entity_name: Human-readable object name.
         entity_url: Canonical object URL.
         title: Page title.

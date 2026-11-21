@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -26,6 +27,9 @@ from twitch.schemas import ChannelInfoSchema
 from twitch.schemas import DropBenefitSchema
 from twitch.schemas import DropCampaignACLSchema
 from twitch.schemas import GameSchema
+
+if TYPE_CHECKING:
+    from core.types import JsonObject
 
 
 class ChannelDisplayNameTests(TestCase):
@@ -224,7 +228,7 @@ class ExtractCampaignsTests(TestCase):
         """Ensure validation handles full responses correctly."""
         command = Command()
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "user": {
                     "id": "123",
@@ -278,7 +282,7 @@ class ExtractCampaignsTests(TestCase):
         command = Command()
 
         # Inventory response with dropCampaignsInProgress
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "17658559",
@@ -346,7 +350,7 @@ class ExtractCampaignsTests(TestCase):
         """Ensure repeated imports do not modify the campaign updated_at."""
         command = Command()
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "17658559",
@@ -422,7 +426,7 @@ class ExtractCampaignsTests(TestCase):
         command = Command()
 
         # Inventory response with null dropCampaignsInProgress
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "17658559",
@@ -454,7 +458,7 @@ class ExtractCampaignsTests(TestCase):
         command = Command()
 
         # Inventory response with allow ACL containing url field and no isEnabled
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "17658559",
@@ -545,7 +549,7 @@ class RewardCampaignImportTests(TestCase):
         """Verify reward campaigns and their rewards import correctly."""
         command = Command()
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -620,7 +624,7 @@ class RewardCampaignImportTests(TestCase):
         """Verify reward campaigns import even when no drop campaigns exist."""
         command = Command()
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -670,7 +674,7 @@ class CampaignStructureDetectionTests(TestCase):
         command = Command()
 
         # Inventory format with dropCampaignsInProgress
-        response: dict[str, object] = {
+        response: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -714,7 +718,7 @@ class CampaignStructureDetectionTests(TestCase):
         """Ensure currentUser.dropCampaigns structure is correctly detected."""
         command = Command()
 
-        response: dict[str, object] = {
+        response: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -731,7 +735,7 @@ class CampaignStructureDetectionTests(TestCase):
         """Ensure user.dropCampaign structure is correctly detected."""
         command = Command()
 
-        response: dict[str, object] = {
+        response: JsonObject = {
             "data": {
                 "user": {
                     "id": "123",
@@ -748,7 +752,7 @@ class CampaignStructureDetectionTests(TestCase):
         """Ensure channel.viewerDropCampaigns structure is correctly detected."""
         command = Command()
 
-        response: dict[str, object] = {
+        response: JsonObject = {
             "data": {
                 "channel": {
                     "id": "123",
@@ -863,7 +867,7 @@ class OperationNameFilteringTests(TestCase):
         }
 
         # Import an Inventory campaign
-        inventory_payload: dict[str, object] = {
+        inventory_payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "123",
@@ -942,7 +946,7 @@ class GameImportTests(TestCase):
         """Ensure Game.slug is imported from DropCampaign game data when provided."""
         command = Command()
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "user": {
                     "id": "17658559",
@@ -1100,7 +1104,7 @@ class ImporterRobustnessTests(TestCase):
         """Ensure null imageURL doesn't fail validation and results in empty string in DB."""
         command = Command()
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "user": {
                     "id": "123",
@@ -1158,7 +1162,7 @@ class ImporterRobustnessTests(TestCase):
         assert DropCampaign._meta.get_field("details_url").max_length == 2000  # pyright: ignore[reportAttributeAccessIssue]
         assert DropCampaign._meta.get_field("image_url").max_length == 2000  # pyright: ignore[reportAttributeAccessIssue]
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "user": {
                     "id": "123",
@@ -1462,7 +1466,7 @@ class NormalizeResponsesTests(TestCase):
         """Ensure batched payloads under responses key are unwrapped and filtered."""
         command = Command()
 
-        parsed_json: dict[str, object] = {
+        parsed_json: JsonObject = {
             "responses": [
                 {"data": {"currentUser": {"id": "1"}}},
                 "invalid-item",

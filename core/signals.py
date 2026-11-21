@@ -1,5 +1,6 @@
 import logging
 from typing import TYPE_CHECKING
+from typing import Unpack
 
 from django.db import transaction
 from django.db.models.signals import m2m_changed
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from django.db.models import Model
+
+    from core.types import M2MChangedKwargs
+    from core.types import ModelSignalKwargs
 
 logger: logging.Logger = logging.getLogger("ttvdrops.cache")
 
@@ -69,7 +73,7 @@ def _related_value(model: type[Model], pk: int | None, field: str) -> str | None
 def _twitch_campaign_changed(
     sender: type[Model],
     instance: DropCampaign,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate a Twitch campaign and every Twitch list page."""
     if kwargs.get("raw"):
@@ -80,7 +84,7 @@ def _twitch_campaign_changed(
 def _twitch_drop_changed(
     sender: type[Model],
     instance: TimeBasedDrop,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate the campaign that owns a time-based drop."""
     if kwargs.get("raw"):
@@ -99,7 +103,7 @@ def _twitch_drop_changed(
 def _twitch_reward_campaign_changed(
     sender: type[Model],
     instance: RewardCampaign,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate a Twitch reward campaign and every Twitch list page."""
     if kwargs.get("raw"):
@@ -110,7 +114,7 @@ def _twitch_reward_campaign_changed(
 def _twitch_reward_changed(
     sender: type[Model],
     instance: Reward,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate the reward campaign that owns a reward."""
     if kwargs.get("raw"):
@@ -129,7 +133,7 @@ def _twitch_reward_changed(
 def _twitch_shared_changed(
     sender: type[Model],
     instance: Model,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate Twitch pages that aggregate shared data."""
     if kwargs.get("raw"):
@@ -142,7 +146,7 @@ def _twitch_campaign_m2m_changed(
     instance: Model,
     *,
     reverse: bool,
-    **kwargs: object,
+    **kwargs: Unpack[M2MChangedKwargs],
 ) -> None:
     """Invalidate a campaign after its channel allowlist changes."""
     if reverse or not isinstance(instance, DropCampaign):
@@ -154,7 +158,7 @@ def _twitch_campaign_m2m_changed(
 def _twitch_shared_m2m_changed(
     sender: type[Model],
     instance: Model,
-    **kwargs: object,
+    **kwargs: Unpack[M2MChangedKwargs],
 ) -> None:
     """Invalidate aggregated Twitch pages after a shared M2M change."""
     _bump_after_commit("twitch", "twitch:shared")
@@ -164,7 +168,7 @@ def _twitch_shared_m2m_changed(
 def _kick_campaign_changed(
     sender: type[Model],
     instance: KickDropCampaign,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate a Kick campaign and every Kick list page."""
     if kwargs.get("raw"):
@@ -175,7 +179,7 @@ def _kick_campaign_changed(
 def _kick_reward_changed(
     sender: type[Model],
     instance: KickReward,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate the Kick campaign that owns a reward."""
     if kwargs.get("raw"):
@@ -191,7 +195,7 @@ def _kick_reward_changed(
 def _kick_shared_changed(
     sender: type[Model],
     instance: Model,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate Kick pages that aggregate shared data."""
     if kwargs.get("raw"):
@@ -204,7 +208,7 @@ def _kick_campaign_m2m_changed(
     instance: Model,
     *,
     reverse: bool,
-    **kwargs: object,
+    **kwargs: Unpack[M2MChangedKwargs],
 ) -> None:
     """Invalidate a Kick campaign after its channel list changes."""
     if reverse or not isinstance(instance, KickDropCampaign):
@@ -217,7 +221,7 @@ def _kick_campaign_m2m_changed(
 def _chzzk_campaign_changed(
     sender: type[Model],
     instance: ChzzkCampaign,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate a Chzzk campaign and every Chzzk list page."""
     if kwargs.get("raw"):
@@ -228,7 +232,7 @@ def _chzzk_campaign_changed(
 def _chzzk_reward_changed(
     sender: type[Model],
     instance: ChzzkReward,
-    **kwargs: object,
+    **kwargs: Unpack[ModelSignalKwargs],
 ) -> None:
     """Invalidate the Chzzk campaign that owns a reward."""
     if kwargs.get("raw"):

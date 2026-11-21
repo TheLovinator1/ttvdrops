@@ -6,6 +6,7 @@ from twitch.schemas import GameSchema
 from twitch.schemas import GraphQLResponse
 
 if TYPE_CHECKING:
+    from core.types import JsonObject
     from twitch.schemas import DropBenefitSchema
     from twitch.schemas import DropCampaignSchema
     from twitch.schemas import TimeBasedDropSchema
@@ -23,7 +24,7 @@ def test_inventory_operation_validation() -> None:
     - Benefits have 'DropBenefit' as __typename instead of 'Benefit'
     """
     # Minimal valid Inventory operation structure
-    payload: dict[str, object] = {
+    payload: JsonObject = {
         "data": {
             "currentUser": {
                 "id": "17658559",
@@ -139,7 +140,7 @@ def test_viewer_drops_dashboard_operation_still_works() -> None:
     This ensures backward compatibility with the existing import data.
     """
     # Minimal valid ViewerDropsDashboard structure
-    payload: dict[str, object] = {
+    payload: JsonObject = {
         "data": {
             "currentUser": {
                 "id": "12345",
@@ -195,7 +196,7 @@ def test_graphql_response_with_errors() -> None:
     The schema should accept these responses so they can be processed.
     """
     # Real-world example: Inventory operation with service timeout errors
-    payload: dict[str, object] = {
+    payload: JsonObject = {
         "errors": [
             {
                 "message": "service timeout",
@@ -291,7 +292,7 @@ def test_drop_campaign_details_missing_distribution_type() -> None:
 
     This is based on a real-world validation error from file 7720168310842708008.json.
     """
-    payload: dict[str, object] = {
+    payload: JsonObject = {
         "data": {
             "user": {
                 "id": "58162970",
@@ -419,7 +420,7 @@ def test_reward_campaigns_available_to_user() -> None:
     alongside drop campaigns. This test verifies that the schema properly handles
     this additional data.
     """
-    payload: dict[str, object] = {
+    payload: JsonObject = {
         "data": {
             "currentUser": {
                 "id": "58162970",

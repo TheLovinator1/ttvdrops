@@ -67,6 +67,7 @@ if TYPE_CHECKING:
     from django.core.management.base import CommandParser
     from django.db.models import Model
 
+    from core.types import ModelFieldValue
     from twitch.schemas import SunkwiBotBenefitEdgeSchema
     from twitch.schemas import SunkwiBotBenefitSchema
     from twitch.schemas import SunkwiBotDropCampaignACLSchema
@@ -380,7 +381,7 @@ class Command(BaseCommand):
     # Historical import via git clone
     # ------------------------------------------------------------------
 
-    def _process_historical(  # ruff:ignore[too-many-arguments]
+    def _process_historical(
         self,
         source: str,
         *,
@@ -463,7 +464,7 @@ class Command(BaseCommand):
 
         return drops_count, rewards_count, errors
 
-    def _import_historical_file(  # ruff:ignore[too-many-arguments]
+    def _import_historical_file(
         self,
         git_dir: str,
         file_path: str,
@@ -1047,7 +1048,7 @@ class Command(BaseCommand):
 
         self.stdout.write("\n" + "=" * 60)
 
-    def _parse_and_import_drops(  # ruff:ignore[too-many-arguments]
+    def _parse_and_import_drops(
         self,
         raw_data: list[dict[str, Any]],
         source: str,
@@ -1190,7 +1191,7 @@ class Command(BaseCommand):
         # Merge mode: fill empty fields, never overwrite populated ones
         if existing is not None and getattr(self, "_merge_mode", False):
             changed = False
-            merge_fields: dict[str, str | object | None] = {
+            merge_fields: dict[str, ModelFieldValue] = {
                 "description": reward.description,
                 "image_url": normalize_twitch_image_url(reward.image_url),
                 "details_url": reward.details_url,
@@ -1494,7 +1495,12 @@ class Command(BaseCommand):
         *,
         verbose: bool,
     ) -> None:
-        """Process the allow.channels list and set on the campaign.
+        """Add allow.channels to the campaign without removing existing ones.
+
+        SunkwiBOT's channel lists are incomplete. TwitchDropsMiner is the
+        authoritative source and writes the full list, so this importer must be
+        additive-only; otherwise every SunkwiBOT refresh removes channels that
+        TwitchDropsMiner added and the history flaps.
 
         Args:
             allow_schema: A SunkwiBotDropCampaignACLSchema instance.
@@ -1506,7 +1512,7 @@ class Command(BaseCommand):
             campaign_obj.allow_is_enabled = allow_schema.is_enabled
             campaign_obj.save(update_fields=["allow_is_enabled"])
 
-        if allow_schema.channels is None:
+        if not allow_schema.channels:
             return
 
         channel_objects: list[Channel] = []
@@ -1550,7 +1556,7 @@ class Command(BaseCommand):
                 )
             channel_objects.append(channel_obj)
 
-        campaign_obj.allow_channels.set(channel_objects)
+        campaign_obj.allow_channels.add(*channel_objects)
 
     # ------------------------------------------------------------------
     # rewards.json import
@@ -1592,7 +1598,7 @@ class Command(BaseCommand):
                 skip_existing=skip_existing,
             )
 
-    def _parse_and_import_rewards(  # ruff:ignore[too-many-arguments]
+    def _parse_and_import_rewards(
         self,
         raw_data: list[dict[str, Any]],
         source: str,
@@ -1989,7 +1995,7 @@ class Command(BaseCommand):
         self._org_cache[twitch_id] = org_obj
         return org_obj
 
-    def _get_or_create_game(  # ruff:ignore[too-many-arguments]
+    def _get_or_create_game(
         self,
         twitch_id: str,
         display_name: str,

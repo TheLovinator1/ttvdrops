@@ -343,7 +343,7 @@ def load_page(key: str) -> CachedPage | None:
         The cached page, or ``None`` on a miss or a cache error.
     """
     try:
-        page: object = _cache().get(key)
+        page: CachedPage | None = _cache().get(key)
     except Exception as exc:  # ruff: ignore[blind-except]
         log_cache_error("get", exc)
         return None
@@ -379,7 +379,7 @@ def should_store(response: HttpResponseBase) -> bool:
 
     # Streaming responses have no ``content`` attribute, but they were already
     # rejected above, so only a non-streaming response can reach this point.
-    content: object = getattr(response, "content", None)
+    content: bytes | None = getattr(response, "content", None)
     if not isinstance(content, bytes):
         return False
     return len(content) <= settings.PAGE_CACHE_MAX_BODY

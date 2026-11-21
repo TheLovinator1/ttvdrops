@@ -44,7 +44,7 @@ def get_format_url(image_url: str, fmt: str) -> str:
 
 
 @register.simple_tag
-def picture(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
+def picture(  # ruff:ignore[too-many-positional-arguments]
     src: str,
     alt: str = "",
     width: int | None = None,

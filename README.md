@@ -299,11 +299,58 @@ uv run celery -A config flower
 Image downloads also run **immediately** on record creation via `post_save` signals
 (`Game`, `DropCampaign`, `DropBenefit`, `RewardCampaign`).
 
+When `BLUESKY_ENABLED=true`, new Twitch and Kick campaigns also enqueue a
+`core.tasks.publish_bluesky_post` job on the `default` queue. Chzzk drops are not
+posted. Historical replay via `build_history` suppresses these jobs automatically.
+
 ## Import Drops
 
 ```bash
 uv run python manage.py better_import_drops <file|dir> [--recursive] [--verbose] [--crash-on-error] [--skip-broken-moves] [--keep-files]
 ```
+
+## Post drops to Bluesky
+
+Create an **app password** in Bluesky under *Settings → Privacy and Security →
+App Passwords*, then add this to `.env`:
+
+```env
+BLUESKY_ENABLED=true
+BLUESKY_HANDLE=your-handle.bsky.social
+BLUESKY_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+BLUESKY_SERVICE_URL=https://bsky.social
+```
+
+With that enabled, every newly imported campaign is posted to Bluesky once. A
+`BlueskyPost` row records the platform/drop pair so retries and imports cannot
+create duplicate posts.
+
+Bluesky lets clients supply `createdAt`, so older drops can be backdated. Use
+`backfill_bluesky` to fill the feed backwards; timestamped posts appear at their
+original position in chronological feeds:
+
+```bash
+# Preview everything that would be posted
+uv run python manage.py backfill_bluesky --dry-run
+
+# Post all unposted drops as fast as Bluesky accepts them, oldest discovery first
+uv run python manage.py backfill_bluesky
+
+# One platform, only the last 30 days, newest first, at most 50 posts
+uv run python manage.py backfill_bluesky --platform twitch --days 30 --order newest --limit 50
+
+# Use campaign start dates instead of discovery dates
+uv run python manage.py backfill_bluesky --timestamp start --since 2025-01-01 --until 2025-12-31
+```
+
+Useful options: `--platform {all,twitch,kick}`,
+`--timestamp {discovered,start}`, `--order {oldest,newest}`, `--limit N`,
+`--days N`, `--since ISO`, `--until ISO`, and `--dry-run`.
+
+Posts are sent back-to-back. Bluesky's documented write limit is 5,000
+points/hour, with each record create costing 3 points (~1,666/hour); if you hit
+it, the client honors `Retry-After`/backoff on HTTP 429 instead of giving up. A
+session is reused for the whole backfill run and refreshed automatically.
 
 ## Build history from old response files
 

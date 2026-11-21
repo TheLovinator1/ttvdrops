@@ -18,6 +18,8 @@ from core.base_url import build_absolute_uri
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from core.types import JsonObject
+
 MAX_EMBED_BYTES = 3000
 MAX_BUTTONS = 5
 MAX_BUTTON_LABEL_LENGTH = 80
@@ -256,7 +258,7 @@ def _normalize_gallery(
     return gallery
 
 
-def _serialize(payload: dict[str, object]) -> str:
+def _serialize(payload: JsonObject) -> str:
     """Serialize the payload compactly, escaping characters that could break HTML.
 
     Args:
@@ -281,7 +283,7 @@ def _markdown_url(url: str) -> str:
     return url.replace("(", "%28").replace(")", "%29").replace(" ", "%20")
 
 
-def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
+def _make_payload(  # ruff:ignore[too-many-positional-arguments]
     title: str,
     description: str,
     image_url: str,
@@ -289,7 +291,7 @@ def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     buttons: list[dict[str, str]],
     accent_color: int,
     page_url: str = "",
-) -> dict[str, object]:
+) -> JsonObject:
     """Assemble the Container component for the embed.
 
     Args:
@@ -302,7 +304,7 @@ def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-argume
         page_url: Absolute URL the title should link to, may be empty.
 
     Returns:
-        dict[str, object]: Component embed payload.
+        JsonObject: Component embed payload.
     """
     title_content: str = title
     if page_url:
@@ -311,8 +313,8 @@ def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     if description:
         content += f"\n{description}"
 
-    text_display: dict[str, object] = {"type": 10, "content": content}
-    components: list[dict[str, object]] = []
+    text_display: JsonObject = {"type": 10, "content": content}
+    components: list[JsonObject] = []
     if image_url:
         components.append({
             "type": 9,
@@ -367,7 +369,7 @@ def _make_payload(  # ruff:ignore[too-many-arguments, too-many-positional-argume
     }
 
 
-def build_component_embed(  # ruff:ignore[too-many-arguments]
+def build_component_embed(
     *,
     title: str,
     description: str = "",
@@ -446,7 +448,7 @@ def build_component_embed(  # ruff:ignore[too-many-arguments]
         button_count,
         gallery_count,
     ) in candidates:
-        payload: dict[str, object] = _make_payload(
+        payload: JsonObject = _make_payload(
             title_text,
             description_text,
             image if keep_image else "",

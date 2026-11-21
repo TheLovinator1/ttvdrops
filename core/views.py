@@ -54,7 +54,7 @@ MIN_SEARCH_RANK = 0.05
 DEFAULT_SITE_DESCRIPTION = "Archive of Twitch drops, campaigns, rewards, and more."
 
 
-def _build_seo_context(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
+def _build_seo_context(  # ruff:ignore[too-many-positional-arguments]
     page_title: str = "ttvdrops",
     page_description: str | None = None,
     page_url: str | None = None,

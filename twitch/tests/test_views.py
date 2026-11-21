@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
     from django.test.utils import ContextList
 
+    from core.types import JsonObject
     from twitch.views import Page
 
 
@@ -2495,10 +2496,10 @@ class TestRewardCampaignViews:
             twitch_id=f"{twitch_id}-org",
             name=f"{display_name} Org",
         )
-        game.owners.add(org)
+        game.owners.add(org)  # pyright: ignore[reportAttributeAccessIssue]
         return game
 
-    def _create_reward_campaign(  # ruff:ignore[too-many-arguments]
+    def _create_reward_campaign(
         self,
         twitch_id: str,
         *,
@@ -3797,7 +3798,7 @@ class TestSitemapView:
         """Ensure repeated imports do not change sitemap lastmod timestamps."""
         command = Command()
 
-        payload: dict[str, object] = {
+        payload: JsonObject = {
             "data": {
                 "currentUser": {
                     "id": "17658559",

@@ -16,6 +16,8 @@ from twitch.models import Game
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from pytest_django.fixtures import Settings
+
 
 def _png_bytes(color: str) -> bytes:
     """Return a tiny valid PNG image.
@@ -35,10 +37,10 @@ def _png_bytes(color: str) -> bytes:
 @pytest.mark.no_zeal
 def test_replace_group_replaces_file_and_normalizes_url(
     tmp_path: Path,
-    settings: object,
+    settings: Settings,
 ) -> None:
     """Replace a cached file with the normalized image and remove the old file."""
-    settings.MEDIA_ROOT = tmp_path  # type: ignore[attr-defined]
+    settings.MEDIA_ROOT = tmp_path
     old_name: str = "games/box_art/old.jpg"
     old_path: Path = tmp_path / old_name
     old_path.parent.mkdir(parents=True)
@@ -88,7 +90,7 @@ def test_replace_group_replaces_file_and_normalizes_url(
 
 @pytest.mark.django_db
 @pytest.mark.no_zeal
-def test_dry_run_does_not_download(settings: object) -> None:
+def test_dry_run_does_not_download(settings: Settings) -> None:
     """Dry runs should report without downloading or touching files."""
     game: Game = Game.objects.create(
         twitch_id="dry-run-game",

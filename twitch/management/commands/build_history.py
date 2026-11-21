@@ -29,6 +29,7 @@ from django.db import transaction
 from pghistory.models import Context
 from tqdm import tqdm
 
+from core.bluesky import suppress_bluesky_posts
 from twitch.history_replay import HistoryReplay
 from twitch.management.commands.better_import_drops import Command as Importer
 from twitch.models import Channel
@@ -322,7 +323,7 @@ class Command(BaseCommand):
 
     def handle(  # ruff:ignore[too-many-statements, too-many-locals]
         self,
-        *args: object,  # ruff:ignore[unused-method-argument]
+        *_args: str,
         **options: Any,  # ruff:ignore[any-type]
     ) -> None:
         """Run the historical replay."""
@@ -446,6 +447,7 @@ class Command(BaseCommand):
                         source_timestamp=timestamp.isoformat(),
                     ),
                     suppress_image_tasks(),
+                    suppress_bluesky_posts(),
                 ):
                     try:  # ruff: ignore[too-many-statements-in-try-clause]
                         with transaction.atomic():

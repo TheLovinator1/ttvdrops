@@ -7,6 +7,8 @@ from concurrent.futures import wait
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import TypedDict
+from typing import Unpack
 from urllib.parse import urlparse
 
 import httpx
@@ -32,6 +34,16 @@ if TYPE_CHECKING:
 
 
 _MODEL_CHOICES = ("games", "campaigns", "benefits", "rewards", "all")
+
+
+class ReplaceDownloadedImagesOptions(TypedDict, total=False):
+    """Options accepted by the replace_downloaded_images command."""
+
+    model: str
+    limit: int | None
+    dry_run: bool
+    include_missing: bool
+    workers: int
 
 
 @dataclass(frozen=True)
@@ -82,23 +94,22 @@ class Command(BaseCommand):
 
     def handle(
         self,
-        *args: object,  # ruff:ignore[unused-method-argument]
-        **options: object,
+        *_args: str,
+        **options: Unpack[ReplaceDownloadedImagesOptions],
     ) -> None:
         """Run the image replacement.
 
         Args:
-            *args: Unused positional arguments.
+            *_args: Unused positional arguments.
             **options: Command options.
         """
-        model_choice: str = str(options.get("model") or "all")
-        limit_value: object = options.get("limit")
-        limit: int | None = limit_value if isinstance(limit_value, int) else None
-        dry_run: bool = bool(options.get("dry_run"))
-        include_missing: bool = bool(options.get("include_missing"))
-        workers_value: object = options.get("workers")
+        model_choice: str = options.get("model") or "all"
+        limit: int | None = options.get("limit")
+        dry_run: bool = options.get("dry_run", False)
+        include_missing: bool = options.get("include_missing", False)
+        workers_value: int | None = options.get("workers")
         workers: int = (
-            workers_value if isinstance(workers_value, int) and workers_value > 0 else 8
+            workers_value if workers_value is not None and workers_value > 0 else 8
         )
 
         stats: dict[str, int] = {
@@ -190,7 +201,7 @@ class Command(BaseCommand):
                 ),
             )
 
-    def _replace_group(  # ruff:ignore[too-many-arguments]
+    def _replace_group(
         self,
         *,
         client: httpx.Client,

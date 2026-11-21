@@ -3,6 +3,7 @@ from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import TypedDict
 from urllib.parse import quote
 
 import pytest
@@ -38,6 +39,20 @@ if TYPE_CHECKING:
     from django.test import Client
 
 pytestmark = pytest.mark.django_db
+
+type HistoryEventData = dict[str, str | int | datetime | dict[str, str] | None]
+
+
+class HistoryFixtures(TypedDict):
+    """Archive records created for query-budget tests."""
+
+    org: Organization
+    game: Game
+    channel: Channel
+    campaign: DropCampaign
+    drop: TimeBasedDrop
+    benefit: DropBenefit
+    reward_campaign: RewardCampaign
 
 
 def _example_payload() -> list[dict]:
@@ -462,7 +477,7 @@ def test_history_for_objects_groups_model_types() -> None:
 
 def test_source_labels_come_from_data_source() -> None:
     """History rows should show the importer source, not just replay/live."""
-    event: dict[str, object] = {
+    event: HistoryEventData = {
         "pgh_slug": "twitch.DropCampaignEvent:1",
         "pgh_model": "twitch.DropCampaignEvent",
         "pgh_id": 1,
@@ -556,7 +571,7 @@ def test_image_fields_get_preview_urls() -> None:
 
 def test_first_observed_update_is_labeled_clearly() -> None:
     """An update without a previous snapshot should not say 0 fields changed."""
-    event: dict[str, object] = {
+    event: HistoryEventData = {
         "pgh_slug": "twitch.DropCampaignEvent:1",
         "pgh_model": "twitch.DropCampaignEvent",
         "pgh_id": 1,
@@ -624,7 +639,7 @@ def test_history_page_query_count(client: Client) -> None:
     assert len(queries) < 40
 
 
-def _create_history_fixtures() -> dict[str, object]:
+def _create_history_fixtures() -> HistoryFixtures:
     """Create a compact set of archive records with history events.
 
     Returns:

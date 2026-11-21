@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess  # ruff:ignore[suspicious-subprocess-import]
+from typing import TYPE_CHECKING
 from typing import LiteralString
 from typing import Self
 from unittest.mock import MagicMock
@@ -19,12 +20,16 @@ from twitch.models import Channel
 from twitch.models import DropBenefit
 from twitch.models import DropBenefitEdge
 from twitch.models import DropCampaign
+from twitch.models import DropCampaignAllowedChannel
 from twitch.models import Game
 from twitch.models import Organization
 from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 from twitch.schemas import SunkwiBotDropCampaignACLSchema
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 # ---------------------------------------------------------------------------
 # Sample data matching the SunkwiBOT/twitch-drops-api JSON formats
@@ -207,12 +212,11 @@ class MockHttpxClient:
         self.drops_data = drops_data
         self.rewards_data = rewards_data
 
-    def get(self, url: str, **kwargs: object) -> MockResponse:
+    def get(self, url: str) -> MockResponse:
         """Return canned data based on the URL.
 
         Args:
             url: The request URL.
-            **kwargs: Ignored.
 
         Returns:
             A MockResponse with the appropriate data.
@@ -235,7 +239,12 @@ class MockHttpxClient:
         """
         return self
 
-    def __exit__(self, *args: object) -> None:
+    def __exit__(
+        self,
+        _exc_type: type[BaseException] | None,
+        _exc_value: BaseException | None,
+        _traceback: TracebackType | None,
+    ) -> None:
         """No-op for context manager."""
 
 
@@ -949,6 +958,80 @@ class ChannelDisplayNameTests(TestCase):
 # ---------------------------------------------------------------------------
 # Historical import tests
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.no_zeal
+class AllowChannelAdditiveTests(TestCase):
+    """SunkwiBOT channel imports must never remove existing channels."""
+
+    def _campaign(self) -> DropCampaign:
+        game: Game = Game.objects.create(
+            twitch_id="additive-game",
+            display_name="Additive Game",
+        )
+        return DropCampaign.objects.create(
+            twitch_id="additive-campaign",
+            name="Additive Campaign",
+            game=game,
+        )
+
+    def test_missing_channel_is_not_removed(self) -> None:
+        """A SunkwiBOT response that omits a channel must leave it in place."""
+        campaign: DropCampaign = self._campaign()
+        dakillzor: Channel = Channel.objects.create(
+            twitch_id="dakillzor",
+            name="dakillzor",
+            display_name="Dakillzor",
+        )
+        campaign.allow_channels.add(dakillzor)
+        assert not DropCampaignAllowedChannel.pgh_event_model.objects.filter(
+            pgh_label="channel_removed",
+        ).exists()
+
+        allow_schema: SunkwiBotDropCampaignACLSchema = (
+            SunkwiBotDropCampaignACLSchema.model_validate({
+                "isEnabled": True,
+                "channels": [{"id": "someoneelse", "name": "someoneelse"}],
+            })
+        )
+        Command()._process_allow_channels(
+            allow_schema=allow_schema,
+            campaign_obj=campaign,
+            verbose=False,
+        )
+
+        assert campaign.allow_channels.filter(pk=dakillzor.pk).exists()
+        assert campaign.allow_channels.count() == 2
+        assert not DropCampaignAllowedChannel.pgh_event_model.objects.filter(
+            pgh_label="channel_removed",
+        ).exists()
+
+    def test_empty_channel_list_does_not_clear(self) -> None:
+        """An empty SunkwiBOT channel list must not clear the campaign ACL."""
+        campaign: DropCampaign = self._campaign()
+        channel: Channel = Channel.objects.create(
+            twitch_id="kept-channel",
+            name="kept_channel",
+            display_name="KeptChannel",
+        )
+        campaign.allow_channels.add(channel)
+
+        allow_schema: SunkwiBotDropCampaignACLSchema = (
+            SunkwiBotDropCampaignACLSchema.model_validate({
+                "isEnabled": True,
+                "channels": [],
+            })
+        )
+        Command()._process_allow_channels(
+            allow_schema=allow_schema,
+            campaign_obj=campaign,
+            verbose=False,
+        )
+
+        assert campaign.allow_channels.filter(pk=channel.pk).exists()
+        assert not DropCampaignAllowedChannel.pgh_event_model.objects.filter(
+            pgh_label="channel_removed",
+        ).exists()
 
 
 @pytest.mark.no_zeal

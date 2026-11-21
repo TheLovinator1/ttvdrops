@@ -100,7 +100,7 @@ def _refresh_allowed_campaign_counts(channel_ids: set[int]) -> None:
         Channel.objects.bulk_update(channels, ["allowed_campaign_count"])
 
 
-def on_drop_campaign_allow_channels_changed(  # ruff:ignore[too-many-arguments, too-many-positional-arguments]
+def on_drop_campaign_allow_channels_changed(  # ruff:ignore[too-many-positional-arguments]
     sender: Any,  # ruff:ignore[any-type]
     instance: Any,  # ruff:ignore[any-type]
     action: str,

@@ -5,6 +5,7 @@ from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
+from core.types import JsonObject  # ruff: ignore[typing-only-first-party-import]
 from twitch.utils import normalize_twitch_image_url
 
 
@@ -77,16 +78,19 @@ class GameSchema(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def normalize_display_name(cls, data: dict | object) -> dict | object:
+    def normalize_display_name(
+        cls,
+        data: JsonObject | GameSchema,
+    ) -> JsonObject | GameSchema:
         """Normalize display_name from 'name' field if needed.
 
         Inventory format uses 'name' instead of 'displayName'.
 
         Args:
-            data: The raw input data dictionary.
+            data: The raw payload dict or an existing GameSchema.
 
         Returns:
-            Normalized data dictionary.
+            The normalized payload.
         """
         if isinstance(data, dict) and "displayName" not in data and "name" in data:
             data["displayName"] = data["name"]

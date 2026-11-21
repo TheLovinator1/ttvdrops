@@ -47,6 +47,7 @@ if TYPE_CHECKING:
     from django.db.models import Model
     from json_repair import JSONReturnType
 
+    from core.types import ModelFieldValue
     from twitch.schemas import ChannelInfoSchema
     from twitch.schemas import CurrentUserSchema
     from twitch.schemas import DropBenefitEdgeSchema
@@ -577,7 +578,11 @@ class Command(BaseCommand):
 
         return valid_responses, broken_dir
 
-    def _save_if_changed(self, obj: Model, defaults: Mapping[str, object]) -> bool:
+    def _save_if_changed(
+        self,
+        obj: Model,
+        defaults: Mapping[str, ModelFieldValue],
+    ) -> bool:
         """Save the model instance only when data actually changed.
 
         This prevents unnecessary updates and avoids touching fields like
@@ -606,7 +611,7 @@ class Command(BaseCommand):
     def _save_campaign_if_changed(
         self,
         campaign_obj: DropCampaign,
-        defaults: Mapping[str, object],
+        defaults: Mapping[str, ModelFieldValue],
     ) -> bool:
         """Save a campaign without replacing populated fields with empty values.
 
@@ -621,7 +626,7 @@ class Command(BaseCommand):
         Returns:
             True if the object was saved, False if no changes were detected.
         """
-        filtered: dict[str, object] = dict(defaults)
+        filtered: dict[str, ModelFieldValue] = dict(defaults)
         for field_name in (
             "account_link_url",
             "description",
@@ -698,7 +703,7 @@ class Command(BaseCommand):
         if not hasattr(self, "_game_cache"):
             self._game_cache = cache
 
-        defaults: dict[str, object] = {
+        defaults: dict[str, ModelFieldValue] = {
             "display_name": game_data.display_name or (game_data.name or ""),
             "name": game_data.name or "",
             "slug": game_data.slug or "",
@@ -706,7 +711,7 @@ class Command(BaseCommand):
         }
         # Dashboard/inventory responses can omit slug and box art entirely.
         # Never replace populated values with those missing fields.
-        partial_defaults: dict[str, object] = {}
+        partial_defaults: dict[str, ModelFieldValue] = {}
         if game_data.display_name:
             partial_defaults["display_name"] = game_data.display_name
         if game_data.name:
@@ -787,7 +792,7 @@ class Command(BaseCommand):
         # Use name as display_name fallback if displayName is None
         incoming_display_name: str = channel_info.display_name or channel_info.name
 
-        defaults: dict[str, object] = {
+        defaults: dict[str, ModelFieldValue] = {
             "name": channel_info.name,
             "display_name": incoming_display_name,
             "display_names": merge_display_names(
@@ -975,7 +980,7 @@ class Command(BaseCommand):
                         raise ValueError(msg)
                     continue
 
-                defaults: dict[str, object] = {
+                defaults: dict[str, ModelFieldValue] = {
                     "name": drop_campaign.name,
                     "description": drop_campaign.description,
                     "image_url": normalize_twitch_image_url(drop_campaign.image_url),
@@ -1064,7 +1069,7 @@ class Command(BaseCommand):
             start_at_dt: datetime | None = parse_date(drop_schema.start_at)
             end_at_dt: datetime | None = parse_date(drop_schema.end_at)
 
-            drop_defaults: dict[str, object] = {
+            drop_defaults: dict[str, ModelFieldValue] = {
                 "campaign": campaign_obj,
                 "name": drop_schema.name,
                 "required_subs": drop_schema.required_subs,
@@ -1123,7 +1128,7 @@ class Command(BaseCommand):
             self._benefit_cache = cache
 
         distribution_type: str | None = benefit_schema.distribution_type
-        benefit_defaults: dict[str, object] = {
+        benefit_defaults: dict[str, ModelFieldValue] = {
             "name": benefit_schema.name,
             "image_asset_url": normalize_twitch_image_url(
                 benefit_schema.image_asset_url,
@@ -1142,7 +1147,7 @@ class Command(BaseCommand):
                 benefit_defaults["created_at"] = created_at_dt
 
         if benefit_schema.game:
-            game_id: object = benefit_schema.game.get("id")
+            game_id: str | None = benefit_schema.game.get("id")
             if isinstance(game_id, str) and game_id:
                 game_obj: Game | None = getattr(self, "_game_cache", {}).get(game_id)
                 if game_obj is None:
@@ -1186,7 +1191,7 @@ class Command(BaseCommand):
     def _save_benefit_if_changed(
         self,
         benefit_obj: DropBenefit,
-        defaults: Mapping[str, object],
+        defaults: Mapping[str, ModelFieldValue],
     ) -> bool:
         """Save a benefit without replacing populated fields with empty values.
 
@@ -1197,7 +1202,7 @@ class Command(BaseCommand):
         Returns:
             True if the object was saved, False otherwise.
         """
-        filtered: dict[str, object] = dict(defaults)
+        filtered: dict[str, ModelFieldValue] = dict(defaults)
         if not filtered.get("image_asset_url") and benefit_obj.image_asset_url:
             filtered.pop("image_asset_url", None)
         return self._save_if_changed(benefit_obj, filtered)
@@ -1220,7 +1225,7 @@ class Command(BaseCommand):
                 benefit_schema=benefit_schema,
             )
 
-            defaults: dict[str, object] = {
+            defaults: dict[str, ModelFieldValue] = {
                 "entitlement_limit": edge_schema.entitlement_limit,
             }
             if edge_schema.claim_count is not None:
@@ -1368,7 +1373,7 @@ class Command(BaseCommand):
                                 f"{Fore.YELLOW}→{Style.RESET_ALL} Game not found for reward campaign: {game_id}",
                             )
 
-            defaults: dict[str, object] = {
+            defaults: dict[str, ModelFieldValue] = {
                 "name": reward_campaign.name,
                 "brand": reward_campaign.brand,
                 "starts_at": starts_at_dt,

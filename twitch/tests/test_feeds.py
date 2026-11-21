@@ -3,8 +3,6 @@
 import datetime
 import logging
 import re
-from collections.abc import Callable
-from contextlib import AbstractContextManager
 from datetime import UTC
 from datetime import timedelta
 from pathlib import Path
@@ -44,6 +42,7 @@ STYLESHEET_PATH: Path = (
 if TYPE_CHECKING:
     from django.test.client import _MonkeyPatchedWSGIResponse
     from django.utils.feedgenerator import Enclosure
+    from pytest_django.fixtures import DjangoAssertNumQueries
 
     from twitch.tests.test_badge_views import Client
 
@@ -993,9 +992,6 @@ class RSSFeedTestCase(TestCase):
         assert game2.box_art_mime_type == "image/png"
 
 
-QueryAsserter = Callable[..., AbstractContextManager[object]]
-
-
 def _build_campaign(game: Game, idx: int) -> DropCampaign:
     """Create a campaign with a channel, drop, and benefit for query counting.
 
@@ -1061,7 +1057,7 @@ def _build_reward_campaign(game: Game, idx: int) -> RewardCampaign:
 @pytest.mark.django_db
 def test_campaign_feed_queries_bounded(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Campaign feed should stay within a small, fixed query budget."""
     org: Organization = Organization.objects.create(
@@ -1090,7 +1086,7 @@ def test_campaign_feed_queries_bounded(
 @pytest.mark.django_db
 def test_campaign_feed_queries_do_not_scale_with_items(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Campaign RSS feed query count should stay roughly constant as item count grows."""
     org: Organization = Organization.objects.create(
@@ -1147,7 +1143,7 @@ def test_campaign_feed_queries_do_not_scale_with_items(
 @pytest.mark.django_db
 def test_game_campaign_feed_queries_bounded(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Game campaign feed should not issue excess queries when rendering multiple campaigns."""
     org: Organization = Organization.objects.create(
@@ -1176,7 +1172,7 @@ def test_game_campaign_feed_queries_bounded(
 @pytest.mark.django_db
 def test_game_campaign_feed_queries_do_not_scale_with_items(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Game campaign RSS feed query count should remain bounded as item count grows."""
     org: Organization = Organization.objects.create(
@@ -1205,7 +1201,7 @@ def test_game_campaign_feed_queries_do_not_scale_with_items(
 @pytest.mark.django_db
 def test_game_reward_campaign_feed_queries_bounded(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Game reward campaign feed should stay within a modest query budget."""
     org: Organization = Organization.objects.create(
@@ -1234,7 +1230,7 @@ def test_game_reward_campaign_feed_queries_bounded(
 @pytest.mark.django_db
 def test_organization_feed_queries_bounded(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Organization RSS feed should stay within a modest query budget."""
     for i in range(5):
@@ -1250,7 +1246,7 @@ def test_organization_feed_queries_bounded(
 @pytest.mark.django_db
 def test_game_feed_queries_bounded(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Game RSS feed should stay within a modest query budget with multiple games."""
     org: Organization = Organization.objects.create(
@@ -1278,7 +1274,7 @@ def test_game_feed_queries_bounded(
 @pytest.mark.django_db
 def test_reward_campaign_feed_queries_bounded(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Reward campaign feed should stay within a modest query budget."""
     org: Organization = Organization.objects.create(
@@ -1306,7 +1302,7 @@ def test_reward_campaign_feed_queries_bounded(
 @pytest.mark.django_db
 def test_docs_rss_queries_bounded(
     client: Client,
-    django_assert_num_queries: QueryAsserter,
+    django_assert_num_queries: DjangoAssertNumQueries,
 ) -> None:
     """Docs RSS page should stay within a reasonable query budget.
 

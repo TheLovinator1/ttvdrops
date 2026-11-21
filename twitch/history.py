@@ -482,7 +482,7 @@ def history_page_for_querysets(
     )
 
 
-def history_page(  # ruff:ignore[too-many-arguments]
+def history_page(
     *,
     model_filter: str = "",
     action_filter: str = "",

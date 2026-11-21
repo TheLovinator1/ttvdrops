@@ -19,11 +19,13 @@ from twitch.models import TimeBasedDrop
 if TYPE_CHECKING:
     from django.http import HttpResponse
 
+    from core.types import JsonObject
+
 
 def _rpc(
     client: Client,
     method: str,
-    params: dict[str, object] | None = None,
+    params: JsonObject | None = None,
     *,
     request_id: int = 1,
 ) -> HttpResponse:
@@ -48,8 +50,8 @@ def _rpc(
 def _call_tool(
     client: Client,
     name: str,
-    arguments: dict[str, object],
-) -> dict[str, object]:
+    arguments: JsonObject,
+) -> JsonObject:
     """Call an MCP tool and return its structured result.
 
     Returns:

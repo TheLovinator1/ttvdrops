@@ -293,6 +293,7 @@ CELERY_TASK_ROUTES: dict[str, dict[str, str]] = {
     "chzzk.tasks.discover_chzzk_campaigns": {"queue": "api-fetches"},
     "chzzk.tasks.import_chzzk_campaign_task": {"queue": "imports"},
     "core.tasks.submit_indexnow_task": {"queue": "default"},
+    "core.tasks.publish_bluesky_post": {"queue": "default"},
 }
 
 CELERY_BEAT_SCHEDULE: dict[str, Any] = {
@@ -338,3 +339,12 @@ CELERY_BEAT_SCHEDULE: dict[str, Any] = {
 BASE_URL: str = "https://ttvdrops.lovinator.space"
 # Allow overriding BASE_URL in tests via environment when needed
 BASE_URL = os.getenv("BASE_URL", BASE_URL)
+
+# Bluesky / AT Protocol posting
+BLUESKY_ENABLED: bool = env_bool(key="BLUESKY_ENABLED", default=False)
+BLUESKY_HANDLE: str = os.getenv("BLUESKY_HANDLE", "")
+BLUESKY_APP_PASSWORD: str = os.getenv("BLUESKY_APP_PASSWORD", "")
+BLUESKY_SERVICE_URL: str = os.getenv(
+    "BLUESKY_SERVICE_URL",
+    "https://bsky.social",
+).rstrip("/")
