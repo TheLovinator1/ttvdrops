@@ -224,8 +224,6 @@ if not TESTING:
     if not DEBUG:
         sentry_sdk.init(
             dsn="https://1aa1ac672090fb795783de0e90a2b19f@o4505228040339456.ingest.us.sentry.io/4511055670738944",
-            send_default_pii=True,
-            enable_logs=True,
             traces_sample_rate=1.0,
             profile_session_sample_rate=1.0,
             profile_lifecycle="trace",
