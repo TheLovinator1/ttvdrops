@@ -19,9 +19,25 @@
         <header>
             <h1>Brand & Site-wide Rewards</h1>
             <!-- Breadcrumbs -->
-            <div>
-                <a href="{% url 'core:dashboard' %}">Home</a> &gt; <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> &gt; Brand &amp; Site-wide
-            </div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">Brand &amp; Site-wide</span>
+                    </li>
+                </ol>
+            </nav>
             <p>Reward campaigns not tied to a specific Twitch game.</p>
             <!-- Feeds and links -->
             <div class="d-flex justify-content-end mb-3">

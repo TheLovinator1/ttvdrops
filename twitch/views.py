@@ -698,6 +698,7 @@ def emote_gallery_view(request: HttpRequest) -> HttpResponse:
             ),
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("Emotes", "twitch:emote_gallery", None),
             ]),
         },
@@ -740,6 +741,7 @@ def org_list_view(request: HttpRequest) -> HttpResponse:
             "schema_data": collection_schema,
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("Organizations", "twitch:org_list", None),
             ]),
         },
@@ -803,6 +805,7 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
         ("Home", "core:dashboard", None),
+        ("Twitch", "twitch:dashboard", None),
         ("Organizations", "twitch:org_list", None),
         (
             org_name,
@@ -827,6 +830,12 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     )
     total_campaigns: int = sum(getattr(g, "campaign_count", 0) or 0 for g in games)
 
+    history_querysets: list[QuerySet] = organization_history_querysets(organization)
+    history_events: list[dict[str, Any]] = build_event_rows(
+        history_page_for_querysets(history_querysets, per_page=20).rows,
+    )
+    history_event_count: int = sum(queryset.count() for queryset in history_querysets)
+
     now: datetime.datetime = timezone.now()
     campaign_stats: dict[str, Any] = DropCampaign.objects.filter(
         game__owners=organization,
@@ -844,6 +853,8 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
         "games_count": games_count,
         "total_campaigns": total_campaigns,
         "campaign_stats": campaign_stats,
+        "history_events": history_events,
+        "history_event_count": history_event_count,
         **seo_context,
     }
 
@@ -950,6 +961,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
             "schema_data": collection_schema,
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("Campaigns", "twitch:campaign_list", None),
             ]),
         },
@@ -970,7 +982,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
 
 
 # MARK: /campaigns/<twitch_id>/
-def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # ruff:ignore[too-many-locals]
+def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # ruff:ignore[too-many-locals, too-many-statements]
     """Function-based view for a drop campaign detail.
 
     Args:
@@ -993,12 +1005,20 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     owners: list[Organization] = list(getattr(campaign.game, "owners_for_detail", []))
     enhanced_drops: list[dict[str, Any]] = campaign.enhanced_drops_for_detail(now)
 
+    history_querysets: list[QuerySet] = campaign_history_querysets(campaign)
+    history_events: list[dict[str, Any]] = build_event_rows(
+        history_page_for_querysets(history_querysets, per_page=20).rows,
+    )
+    history_event_count: int = sum(queryset.count() for queryset in history_querysets)
+
     context: dict[str, Any] = {
         "campaign": campaign,
         "now": now,
         "drops": enhanced_drops,
         "owners": owners,
         "allowed_channels": getattr(campaign, "channels_ordered", []),
+        "history_events": history_events,
+        "history_event_count": history_event_count,
     }
 
     campaign_name: str = campaign.name or campaign.clean_name or campaign.twitch_id
@@ -1092,6 +1112,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     )
     breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
         ("Home", "core:dashboard", None),
+        ("Twitch", "twitch:dashboard", None),
         ("Campaigns", "twitch:campaign_list", None),
         (game_name, "twitch:game_detail", [campaign.game.twitch_id]),
         (campaign_name, "twitch:campaign_detail", [campaign.twitch_id]),
@@ -1193,8 +1214,12 @@ class GamesGridView(ListView):
         }
         breadcrumb_schema: dict[str, Any] = _build_breadcrumb_schema([
             {
-                "name": "Twitch",
+                "name": "Home",
                 "url": build_absolute_uri(reverse("core:dashboard")),
+            },
+            {
+                "name": "Twitch",
+                "url": build_absolute_uri(reverse("twitch:dashboard")),
             },
             {"name": "Games", "url": build_absolute_uri(self.request.path)},
         ])
@@ -1269,6 +1294,14 @@ class GameDetailView(DetailView):
 
         owners: list[Organization] = list(getattr(game, "owners_for_detail", []))
 
+        history_querysets: list[QuerySet] = game_history_querysets(game)
+        history_events: list[dict[str, Any]] = build_event_rows(
+            history_page_for_querysets(history_querysets, per_page=20).rows,
+        )
+        history_event_count: int = sum(
+            queryset.count() for queryset in history_querysets
+        )
+
         game_name: str = game.get_game_name
         active_count: int = len(active_campaigns)
         upcoming_count: int = len(upcoming_campaigns)
@@ -1330,6 +1363,7 @@ class GameDetailView(DetailView):
         # Breadcrumb schema
         breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
             ("Home", "core:dashboard", None),
+            ("Twitch", "twitch:dashboard", None),
             ("Games", "twitch:games_grid", None),
             (game_name, "twitch:game_detail", [game.twitch_id]),
         ])
@@ -1393,6 +1427,8 @@ class GameDetailView(DetailView):
             "owner": owners[0] if owners else None,
             "owners": owners,
             "now": now,
+            "history_events": history_events,
+            "history_event_count": history_event_count,
             **seo_context,
         })
 
@@ -1470,6 +1506,7 @@ def stats_view(request: HttpRequest) -> HttpResponse:
             ),
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("Stats", "twitch:stats", None),
             ]),
         },
@@ -1485,7 +1522,7 @@ def stats_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /reward-campaigns/
-def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
+def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-locals]
     """Function-based view for reward campaigns list.
 
     Args:
@@ -1527,6 +1564,35 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
     except EmptyPage:
         reward_campaigns = paginator.page(paginator.num_pages)
 
+    page_campaigns: list[RewardCampaign] = list(reward_campaigns)
+    active_campaigns: list[RewardCampaign] = sorted(
+        (
+            campaign
+            for campaign in page_campaigns
+            if campaign.starts_at
+            and campaign.ends_at
+            and campaign.starts_at <= now <= campaign.ends_at
+        ),
+        key=lambda campaign: campaign.ends_at or now,
+    )
+    upcoming_campaigns: list[RewardCampaign] = sorted(
+        (
+            campaign
+            for campaign in page_campaigns
+            if campaign.starts_at and campaign.starts_at > now
+        ),
+        key=lambda campaign: campaign.starts_at or now,
+    )
+    expired_campaigns: list[RewardCampaign] = sorted(
+        (
+            campaign
+            for campaign in page_campaigns
+            if campaign.ends_at and campaign.ends_at < now
+        ),
+        key=lambda campaign: campaign.ends_at or now,
+        reverse=True,
+    )
+
     title = "Twitch Reward Campaigns - Free Rewards Archive"
     if status_filter:
         title += f" ({status_filter.capitalize()})"
@@ -1556,13 +1622,17 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
         )
 
     # Build base URL for pagination
-    base_url = "/reward-campaigns/"
-    if status_filter:
-        base_url += f"?status={status_filter}"
-        if game_filter:
-            base_url += f"&game={game_filter}"
-    elif game_filter:
-        base_url += f"?game={game_filter}"
+    base_url: str = reverse("twitch:reward_campaign_list")
+    query_params: dict[str, str] = {
+        key: value
+        for key, value in (
+            ("status", status_filter),
+            ("game", game_filter),
+        )
+        if value
+    }
+    if query_params:
+        base_url += "?" + urlencode(query_params)
 
     pagination_info: list[dict[str, str]] | None = _build_pagination_info(
         request,
@@ -1588,13 +1658,22 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
             "schema_data": collection_schema,
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("Reward Campaigns", "twitch:reward_campaign_list", None),
             ]),
         },
     )
     context: dict[str, Any] = {
         "reward_campaigns": reward_campaigns,
-        "games": Game.objects.all().order_by("display_name"),
+        "active_campaigns": active_campaigns,
+        "upcoming_campaigns": upcoming_campaigns,
+        "expired_campaigns": expired_campaigns,
+        "games": (
+            Game.objects
+            .filter(reward_campaigns__isnull=False)
+            .distinct()
+            .order_by("display_name")
+        ),
         "status_options": ["active", "upcoming", "expired"],
         "now": now,
         "selected_game": game_filter or "",
@@ -1606,7 +1685,7 @@ def reward_campaign_list_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /reward-campaigns/<twitch_id>/
-def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:
+def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpResponse:  # ruff:ignore[too-many-locals]
     """Function-based view for a reward campaign detail.
 
     Args:
@@ -1628,6 +1707,14 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         raise Http404(msg) from exc
 
     now: datetime.datetime = timezone.now()
+
+    history_querysets: list[QuerySet] = reward_campaign_history_querysets(
+        reward_campaign,
+    )
+    history_events: list[dict[str, Any]] = build_event_rows(
+        history_page_for_querysets(history_querysets, per_page=20).rows,
+    )
+    history_event_count: int = sum(queryset.count() for queryset in history_querysets)
 
     campaign_name: str = reward_campaign.name or reward_campaign.twitch_id
     reward_game_name: str = (
@@ -1690,6 +1777,7 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
         ("Home", "core:dashboard", None),
+        ("Twitch", "twitch:dashboard", None),
         ("Reward Campaigns", "twitch:reward_campaign_list", None),
         (
             campaign_name,
@@ -1719,6 +1807,8 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         "reward_campaign": reward_campaign,
         "now": now,
         "is_active": reward_campaign.is_active,
+        "history_events": history_events,
+        "history_event_count": history_event_count,
         **seo_context,
     }
 
@@ -1797,6 +1887,7 @@ class ChannelListView(ListView):
                 "schema_data": collection_schema,
                 "breadcrumb_schema": _twitch_breadcrumb([
                     ("Home", "core:dashboard", None),
+                    ("Twitch", "twitch:dashboard", None),
                     ("Channels", "twitch:channel_list", None),
                 ]),
             },
@@ -1849,6 +1940,14 @@ class ChannelDetailView(DetailView):
             DropCampaign.split_for_channel_detail(campaigns_list, now)
         )
 
+        history_querysets: list[QuerySet] = channel_history_querysets(channel)
+        history_events: list[dict[str, Any]] = build_event_rows(
+            history_page_for_querysets(history_querysets, per_page=20).rows,
+        )
+        history_event_count: int = sum(
+            queryset.count() for queryset in history_querysets
+        )
+
         name: str = channel.preferred_name
         total_campaigns: int = len(campaigns_list)
         description: str = (
@@ -1884,6 +1983,7 @@ class ChannelDetailView(DetailView):
         # Breadcrumb schema
         breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
             ("Home", "core:dashboard", None),
+            ("Twitch", "twitch:dashboard", None),
             ("Channels", "twitch:channel_list", None),
             (name, "twitch:channel_detail", [channel.twitch_id]),
         ])
@@ -1913,6 +2013,8 @@ class ChannelDetailView(DetailView):
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
             "now": now,
+            "history_events": history_events,
+            "history_event_count": history_event_count,
             **seo_context,
         })
 
@@ -1957,12 +2059,14 @@ def badge_list_view(request: HttpRequest) -> HttpResponse:
             "schema_data": collection_schema,
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("Badges", "twitch:badge_list", None),
             ]),
         },
     )
     context: dict[str, Any] = {
         "badge_data": badge_data,
+        "total_badges": sum(len(item["badges"]) for item in badge_data),
         **seo_context,
     }
 
@@ -2030,6 +2134,7 @@ def badge_set_detail_view(request: HttpRequest, set_id: str) -> HttpResponse:
             "schema_data": badge_schema,
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("Badges", "twitch:badge_list", None),
                 (
                     badge_set_name,
@@ -2385,6 +2490,7 @@ def sitewide_rewards_view(request: HttpRequest) -> HttpResponse:
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
         ("Home", "core:dashboard", None),
+        ("Twitch", "twitch:dashboard", None),
         ("Reward Campaigns", "twitch:reward_campaign_list", None),
         (title, "twitch:sitewide_rewards", None),
     ])
@@ -2472,6 +2578,7 @@ def game_less_rewards_view(request: HttpRequest) -> HttpResponse:
     # Breadcrumb schema
     breadcrumb_schema: dict[str, Any] = _twitch_breadcrumb([
         ("Home", "core:dashboard", None),
+        ("Twitch", "twitch:dashboard", None),
         ("Reward Campaigns", "twitch:reward_campaign_list", None),
         (title, "twitch:game_less_rewards", None),
     ])
@@ -2672,6 +2779,7 @@ def history_view(request: HttpRequest) -> HttpResponse:
             ),
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("History", "twitch:history", None),
             ]),
         },
@@ -2732,6 +2840,7 @@ def _render_entity_history(
     url: str = build_absolute_uri(base_url)
     breadcrumb_items: list[dict[str, str | int]] = [
         {"name": "Home", "url": build_absolute_uri(reverse("core:dashboard"))},
+        {"name": "Twitch", "url": build_absolute_uri(reverse("twitch:dashboard"))},
         {"name": "History", "url": build_absolute_uri(reverse("twitch:history"))},
     ]
     if entity_name and entity_url:
@@ -2950,6 +3059,7 @@ def history_event_detail_view(request: HttpRequest, slug: str) -> HttpResponse:
             "schema_data": _webpage_schema(title, description, url),
             "breadcrumb_schema": _twitch_breadcrumb([
                 ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
                 ("History", "twitch:history", None),
                 (
                     detail["object_name"],

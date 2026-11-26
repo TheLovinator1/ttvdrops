@@ -1,5 +1,6 @@
 import datetime
 import logging
+import re
 from collections import OrderedDict
 from typing import TYPE_CHECKING
 from typing import Any
@@ -22,6 +23,7 @@ from django.db.models.functions import Length
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.text import slugify
 from django.utils.timesince import timesince
 
 from twitch.utils import normalize_twitch_image_url
@@ -32,6 +34,55 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
+
+
+def _external_slug(value: str) -> str:
+    """Build a URL slug the way external Twitch drops sites do.
+
+    Args:
+        value: Campaign or game name.
+
+    Returns:
+        Lowercase, hyphen-separated slug.
+    """
+    normalized: str = re.sub(r"[^\w]+", "-", value)
+    return slugify(normalized).strip("-")
+
+
+def _external_tracker_links(
+    *,
+    game_slug: str,
+    dropscope_url: str,
+    fenris_url: str,
+) -> list[dict[str, str]]:
+    """Build links to external Twitch drops trackers.
+
+    Args:
+        game_slug: Twitch game slug.
+        dropscope_url: DropScope URL for the game or campaign.
+        fenris_url: Fenris Apps URL for the game or campaign.
+
+    Returns:
+        Tracker names and URLs.
+    """
+    return [
+        {"name": "DropScope", "url": dropscope_url},
+        {
+            "name": "Drop Lookout",
+            "url": (
+                "https://www.botscabin.com/drop-lookout/drops/"
+                f"{game_slug.replace('-', '')}"
+            ),
+        },
+        {
+            "name": "DropHunter",
+            "url": (
+                f"https://drophunter.app/drops/{game_slug}?src=ttvdrops.lovinator.space"
+            ),
+        },
+        {"name": "twitchdrops.app", "url": f"https://twitchdrops.app/game/{game_slug}"},
+        {"name": "Fenris Apps", "url": fenris_url},
+    ]
 
 
 def _track_history(
@@ -119,6 +170,19 @@ class Organization(auto_prefetch.Model):
     def __str__(self) -> str:
         """Return a string representation of the organization."""
         return self.name or self.twitch_id
+
+    @property
+    def external_site_links(self) -> list[dict[str, str]]:
+        """Links to external Twitch drops trackers for this organization."""
+        slug: str = slugify(self.name).replace("_", "-")
+        if not slug:
+            return []
+        return [
+            {
+                "name": "twitchdrops.app",
+                "url": f"https://twitchdrops.app/publisher/{slug}",
+            },
+        ]
 
     @classmethod
     def for_list_view(cls) -> models.QuerySet[Organization]:
@@ -320,6 +384,17 @@ class Game(auto_prefetch.Model):
         if self.slug:
             return f"https://www.twitch.tv/directory/category/{self.slug}?filter=drops"
         return ""
+
+    @property
+    def external_site_links(self) -> list[dict[str, str]]:
+        """Links to external Twitch drops trackers for this game."""
+        if not self.slug:
+            return []
+        return _external_tracker_links(
+            game_slug=self.slug,
+            dropscope_url=f"https://dropscope.games/games/{self.slug}",
+            fenris_url=f"https://twitch-drops.fenrisapps.com/games/{self.slug}",
+        )
 
     @property
     def box_art_best_url(self) -> str:
@@ -1901,6 +1976,38 @@ class DropCampaign(auto_prefetch.Model):
                     return name.removeprefix(prefix_to_check).strip()
 
         return self.name
+
+    @property
+    def dropscope_url(self) -> str:
+        """DropScope URL for this campaign."""
+        if not self.game or not self.game.slug:
+            return ""
+        campaign_slug: str = _external_slug(self.name)
+        campaign_suffix: str = self.twitch_id.replace("-", "")[-10:]
+        if not campaign_slug or not campaign_suffix:
+            return f"https://dropscope.games/games/{self.game.slug}"
+        return (
+            "https://dropscope.games/campaigns/"
+            f"{self.game.slug}/{campaign_slug}-{campaign_suffix}"
+        )
+
+    @property
+    def external_site_links(self) -> list[dict[str, str]]:
+        """Links to external Twitch drops trackers for this campaign."""
+        if not self.game or not self.game.slug:
+            return []
+        dropscope_url: str = (
+            self.dropscope_url
+            if self.is_active
+            else f"https://dropscope.games/games/{self.game.slug}"
+        )
+        return _external_tracker_links(
+            game_slug=self.game.slug,
+            dropscope_url=dropscope_url,
+            fenris_url=(
+                f"https://twitch-drops.fenrisapps.com/campaigns/{self.twitch_id}/"
+            ),
+        )
 
     @property
     def single_reward_benefit(self) -> DropBenefit | None:

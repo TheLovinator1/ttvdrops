@@ -3,9 +3,21 @@
 {% block content %}
   <h1>Emotes</h1>
   <!-- Add breadcrumbs -->
-  <div>
-    <a href="{% url 'core:dashboard' %}">Home</a> > Emotes
-  </div>
+  <nav aria-label="breadcrumb" class="mb-2">
+    <ol class="breadcrumb mb-0">
+      <li class="breadcrumb-item">
+        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+      </li>
+      <li class="breadcrumb-divider"></li>
+      <li class="breadcrumb-item">
+        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+      </li>
+      <li class="breadcrumb-divider"></li>
+      <li class="breadcrumb-item" aria-current="page">
+        <span class="breadcrumb-link active">Emotes</span>
+      </li>
+    </ol>
+  </nav>
   {% for emote in emotes %}
     <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"
        title="{{ emote.campaign.name }}"

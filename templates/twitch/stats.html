@@ -3,10 +3,21 @@
     <main>
         <header>
             <h1>Twitch Drops statistics</h1>
-            <div>
-                <a href="{% url 'core:dashboard' %}">Dashboard</a> >
-                <a href="{% url 'core:dashboard' %}">Home</a> > Stats
-            </div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">Stats</span>
+                    </li>
+                </ol>
+            </nav>
         </header>
         {% if not stats.counters.campaigns %}
             <section style="text-align: center; padding: 3rem 1rem;">

@@ -16,9 +16,21 @@
 {% block content %}
     <main>
         <h1>Kick Organizations</h1>
-        <div>
-            <a href="{% url 'kick:dashboard' %}">Kick</a> > Organizations
-        </div>
+        <nav aria-label="breadcrumb" class="mb-2">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item" aria-current="page">
+                    <span class="breadcrumb-link active">Organizations</span>
+                </li>
+            </ol>
+        </nav>
         <div class="d-flex justify-content-end mb-3">
             <div>
                 <button class="btn-outline theme-secondary btn-sm"

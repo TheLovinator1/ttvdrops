@@ -303,7 +303,11 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
     breadcrumb_schema: str = _build_breadcrumb_schema([
         {"name": "Home", "url": build_absolute_uri("/")},
         {
-            "name": "Kick Campaigns",
+            "name": "Kick",
+            "url": build_absolute_uri(reverse("kick:dashboard")),
+        },
+        {
+            "name": "Campaigns",
             "url": build_absolute_uri(reverse("kick:campaign_list")),
         },
         {
@@ -452,7 +456,11 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
     breadcrumb_schema: str = _build_breadcrumb_schema([
         {"name": "Home", "url": build_absolute_uri("/")},
         {
-            "name": "Kick Games",
+            "name": "Kick",
+            "url": build_absolute_uri(reverse("kick:dashboard")),
+        },
+        {
+            "name": "Games",
             "url": build_absolute_uri(reverse("kick:game_list")),
         },
         {
@@ -562,7 +570,11 @@ def organization_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse
     breadcrumb_schema: str = _build_breadcrumb_schema([
         {"name": "Home", "url": build_absolute_uri("/")},
         {
-            "name": "Kick Organizations",
+            "name": "Kick",
+            "url": build_absolute_uri(reverse("kick:dashboard")),
+        },
+        {
+            "name": "Organizations",
             "url": build_absolute_uri(reverse("kick:organization_list")),
         },
         {

@@ -1,6 +1,8 @@
 {% extends "base.html" %}
+{% load static %}
 {% load image_tags %}
 {% block extra_head %}
+    <link rel="stylesheet" href="{% static 'history.css' %}" />
     {% if game %}
         <link rel="alternate"
               type="application/rss+xml"
@@ -29,19 +31,71 @@
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
-    <header style="display: flex; align-items: flex-start; gap: 16px;">
+    <main>
+        <ul class="nav nav-tabs mb-4"
+            role="tablist"
+            aria-label="Game sections">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active"
+                        id="overview-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#overview-pane"
+                        type="button"
+                        role="tab"
+                        aria-controls="overview-pane"
+                        aria-selected="true">Overview</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        id="history-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#history-pane"
+                        type="button"
+                        role="tab"
+                        aria-controls="history-pane"
+                        aria-selected="false">
+                    History
+                    {% if history_event_count %}
+                        <span class="badge badge-subtle theme-secondary ms-1">{{ history_event_count }}</span>
+                    {% endif %}
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane fade show active"
+                 id="overview-pane"
+                 role="tabpanel"
+                 aria-labelledby="overview-tab"
+                 tabindex="0">
+                <header style="display: flex; align-items: flex-start; gap: 16px;">
         <!-- Game image -->
         {% if game.box_art_best_url %}
             {% picture game.box_art_best_url alt="Box art for "|add:game.get_game_name width=160 %}
         {% endif %}
         <!-- Game details -->
-        <div>
+        <div class="flex-grow-1">
             <h1 style="margin: 0;">
                 {{ game.display_name }}
                 {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
             </h1>
-            <nav aria-label="Breadcrumb">
-                <a href="{% url 'core:dashboard' %}">Home</a> &gt; <a href="{% url 'twitch:games_grid' %}">Games</a> &gt; {{ game.display_name }}
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:games_grid' %}">Games</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">{{ game.display_name }}</span>
+                    </li>
+                </ol>
             </nav>
             <div style="font-size: 0.9rem;
                         color: color-mix(in srgb, CanvasText 60%, transparent 40%);
@@ -88,19 +142,14 @@
                 </dd>
             </dl>
             <!-- Feeds -->
-            <div class="d-flex justify-content-end mb-3">
+            <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
                 <div>
                     <button class="btn-outline theme-secondary btn-sm"
                             type="button"
                             data-bs-toggle="menu"
                             data-bs-placement="bottom-end"
-                            aria-expanded="false">Links ▾</button>
+                            aria-expanded="false">Subscribe ▾</button>
                     <div class="menu">
-                        <h6 class="menu-header">External</h6>
-                        <a class="menu-item"
-                           href="https://twitch-drops.fenrisapps.com/games/{{ game.twitch_id }}/"
-                           title="View this game on Fenris Apps">Fenris Apps</a>
-                        <hr class="menu-divider" />
                         <h6 class="menu-header">Subscribe</h6>
                         <a class="menu-item"
                            href="{% url 'core:game_campaign_feed' game.twitch_id %}"
@@ -125,13 +174,11 @@
                         <a class="menu-item"
                            href="{% url 'api-v1:twitch-api-v1_get_game' game.twitch_id %}"
                            title="Twitch game API">API</a>
-                        <a class="menu-item"
-                           href="{% url 'twitch:game_history' game.twitch_id %}"
-                           title="Game history">History</a>
                         <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                     </div>
                 </div>
             </div>
+            {% include "twitch/includes/external_site_links.html" with external_site_links=game.external_site_links %}
         </div>
     </header>
     {% if active_campaigns %}
@@ -348,4 +395,31 @@
             </tbody>
         </table>
     {% endif %}
+            </div>
+            <div class="tab-pane fade"
+                 id="history-pane"
+                 role="tabpanel"
+                 aria-labelledby="history-tab"
+                 tabindex="0">
+                <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">Change log</h2>
+                        <p class="fs-sm fg-3 mb-0">Tracked changes for {{ game.display_name }}, newest first.</p>
+                    </div>
+                    <a class="btn-outline theme-secondary btn-sm"
+                       href="{% url 'twitch:game_history' game.twitch_id %}">View full history →</a>
+                </div>
+                {% if history_events %}
+                    {% include "twitch/includes/history_table.html" with events=history_events %}
+                {% else %}
+                    <div class="card bg-1 text-center py-5 px-3">
+                        <div class="card-body">
+                            <h2 class="h4 mb-2">No history events</h2>
+                            <p class="fg-2 mb-0">No changes have been recorded for this game yet.</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
 {% endblock content %}

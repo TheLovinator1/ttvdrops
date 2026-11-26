@@ -2,6 +2,7 @@
 {% load static %}
 {% load image_tags %}
 {% block extra_head %}
+    <link rel="stylesheet" href="{% static 'history.css' %}" />
     <link rel="alternate"
           type="application/rss+xml"
           title="Reward campaigns (RSS)"
@@ -16,187 +17,261 @@
           href="{% url 'core:reward_campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
-    <div style="display: flex; align-items: flex-start;">
-        <!-- Campaign image -->
-        <div style="margin-right: 16px;">
-            {% if reward_campaign.image_best_url %}
-                {% picture reward_campaign.image_best_url alt=reward_campaign.name width=160 %}
-            {% endif %}
-        </div>
-        <div style="display: flex; flex-direction: column;">
-            <!-- Campaign Title -->
-            {% if reward_campaign.brand %}
-                <h1 id="campaign-title" style="margin-top: 0; margin-bottom: 0px;">{{ reward_campaign.brand }}: {{ reward_campaign.name }}</h1>
-            {% else %}
-                <h1 id="campaign-title" style="margin-top: 0; margin-bottom: 0px;">{{ reward_campaign.name }}</h1>
-            {% endif %}
-            <!-- Game eligibility -->
-            <div>
-                Game eligibility:
-                {% if reward_campaign.game %}
-                    <a href="{% url 'twitch:game_detail' reward_campaign.game.twitch_id %}">{{ reward_campaign.game.display_name }}</a>
-                {% elif reward_campaign.is_sitewide %}
-                    Site-wide
-                {% else %}
-                    None
-                {% endif %}
-            </div>
-            <!-- Add breadcrumbs -->
-            <div>
-                <a href="{% url 'core:dashboard' %}">Home</a> > <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> > {{ reward_campaign.name }}
-            </div>
-            <!-- Campaign Summary -->
-            {% if reward_campaign.summary %}<p id="campaign-summary">{{ reward_campaign.summary|linebreaksbr }}</p>{% endif %}
-            <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
-                <!-- Campaign Status -->
-                <dt>Status</dt>
-                <dd>
-                    {% if is_active %}
-                        Active
-                    {% elif reward_campaign.starts_at > now %}
-                        Upcoming
-                    {% else %}
-                        Expired
+    <main>
+        <ul class="nav nav-tabs mb-4"
+            role="tablist"
+            aria-label="Reward campaign sections">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active"
+                        id="overview-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#overview-pane"
+                        type="button"
+                        role="tab"
+                        aria-controls="overview-pane"
+                        aria-selected="true">Overview</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link"
+                        id="history-tab"
+                        data-bs-toggle="tab"
+                        data-bs-target="#history-pane"
+                        type="button"
+                        role="tab"
+                        aria-controls="history-pane"
+                        aria-selected="false">
+                    History
+                    {% if history_event_count %}
+                        <span class="badge badge-subtle theme-secondary ms-1">{{ history_event_count }}</span>
                     {% endif %}
-                </dd>
-                <dt>Added</dt>
-                <dd>
-                    <time datetime="{{ reward_campaign.added_at|date:'c' }}"
-                          title="{{ reward_campaign.added_at|date:'DATETIME_FORMAT' }}">{{ reward_campaign.added_at|date:"M d, Y H:i" }}</time> ({{ reward_campaign.added_at|timesince }} ago)
-                </dd>
-                <dt>Last updated</dt>
-                <dd>
-                    <time datetime="{{ reward_campaign.updated_at|date:'c' }}"
-                          title="{{ reward_campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ reward_campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ reward_campaign.updated_at|timesince }} ago)
-                </dd>
-                <!-- Reward Start Time -->
-                <dt>
-                    {% if reward_campaign.starts_at > now %}
-                        Starts
-                    {% else %}
-                        Started at
-                    {% endif %}
-                </dt>
-                <dd>
-                    <time datetime="{{ reward_campaign.starts_at|date:'c' }}"
-                          title="{{ reward_campaign.starts_at|date:'DATETIME_FORMAT' }}">
-                        {{ reward_campaign.starts_at|date:"M d, Y H:i" }}
-                    </time>
-                    {% if reward_campaign.starts_at > now %}
-                        (in {{ reward_campaign.starts_at|timeuntil }})
-                    {% else %}
-                        ({{ reward_campaign.starts_at|timesince }} ago)
-                    {% endif %}
-                </dd>
-                <!-- Reward End Time -->
-                <dt>
-                    {% if reward_campaign.ends_at > now %}
-                        Ends
-                    {% else %}
-                        Ended at
-                    {% endif %}
-                </dt>
-                <dd>
-                    <time datetime="{{ reward_campaign.ends_at|date:'c' }}"
-                          title="{{ reward_campaign.ends_at|date:'DATETIME_FORMAT' }}">
-                        {{ reward_campaign.ends_at|date:"M d, Y H:i" }}
-                    </time>
-                    {% if reward_campaign.ends_at > now %}
-                        (in {{ reward_campaign.ends_at|timeuntil }})
-                    {% else %}
-                        ({{ reward_campaign.ends_at|timesince }} ago)
-                    {% endif %}
-                </dd>
-                <!-- Data source -->
-                <dt>Data source</dt>
-                <dd>
-                    {{ reward_campaign.data_source }}
-                </dd>
-            </dl>
-            <div>{% if reward_campaign.instructions %}{{ reward_campaign.instructions|linebreaksbr }}{% endif %}</div>
-            <div class="d-flex justify-content-end mb-3">
-                <div>
-                    <button class="btn-outline theme-secondary btn-sm"
-                            type="button"
-                            data-bs-toggle="menu"
-                            data-bs-placement="bottom-end"
-                            aria-expanded="false">Links ▾</button>
-                    <div class="menu">
-                        <h6 class="menu-header">External</h6>
-                        {% if reward_campaign.external_url %}
-                            <a class="menu-item"
-                               href="{{ reward_campaign.external_url }}"
-                               title="External URL for {{ reward_campaign.name }}">External</a>
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content">
+            <div class="tab-pane fade show active"
+                 id="overview-pane"
+                 role="tabpanel"
+                 aria-labelledby="overview-tab"
+                 tabindex="0">
+                <div style="display: flex; align-items: flex-start;">
+                    <!-- Campaign image -->
+                    <div style="margin-right: 16px;">
+                        {% if reward_campaign.image_best_url %}
+                            {% picture reward_campaign.image_best_url alt=reward_campaign.name width=160 %}
                         {% endif %}
-                        {% if reward_campaign.about_url %}
-                            <a class="menu-item"
-                               href="{{ reward_campaign.about_url }}"
-                               title="About URL for {{ reward_campaign.name }}">About</a>
+                    </div>
+                    <div style="display: flex; flex-direction: column;">
+                        <!-- Campaign Title -->
+                        {% if reward_campaign.brand %}
+                            <h1 id="campaign-title" style="margin-top: 0; margin-bottom: 0px;">{{ reward_campaign.brand }}: {{ reward_campaign.name }}</h1>
+                        {% else %}
+                            <h1 id="campaign-title" style="margin-top: 0; margin-bottom: 0px;">{{ reward_campaign.name }}</h1>
                         {% endif %}
-                        <hr class="menu-divider" />
-                        <h6 class="menu-header">Subscribe</h6>
-                        <a class="menu-item"
-                           href="{% url 'core:reward_campaign_feed' %}"
-                           title="RSS feed for all reward campaigns">RSS</a>
-                        <a class="menu-item"
-                           href="{% url 'core:reward_campaign_feed_atom' %}"
-                           title="Atom feed for all reward campaigns">Atom</a>
-                        <a class="menu-item"
-                           href="{% url 'core:reward_campaign_feed_discord' %}"
-                           title="Discord-flavored feed for all reward campaigns">Discord-flavored</a>
-                        <hr class="menu-divider" />
-                        <h6 class="menu-header">Developer &amp; Help</h6>
-                        <a class="menu-item"
-                           href="{% url 'api-v1:twitch-api-v1_get_reward_campaign' reward_campaign.twitch_id %}"
-                           title="Twitch reward campaign API">API</a>
-                        <a class="menu-item"
-                           href="{% url 'twitch:reward_campaign_history' reward_campaign.twitch_id %}"
-                           title="Reward campaign history">History</a>
-                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                        <!-- Game eligibility -->
+                        <div>
+                            Game eligibility:
+                            {% if reward_campaign.game %}
+                                <a href="{% url 'twitch:game_detail' reward_campaign.game.twitch_id %}">{{ reward_campaign.game.display_name }}</a>
+                            {% elif reward_campaign.is_sitewide %}
+                                Site-wide
+                            {% else %}
+                                None
+                            {% endif %}
+                        </div>
+                        <!-- Add breadcrumbs -->
+                        <nav aria-label="breadcrumb" class="mb-2">
+                            <ol class="breadcrumb mb-0">
+                                <li class="breadcrumb-item">
+                                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                                </li>
+                                <li class="breadcrumb-divider"></li>
+                                <li class="breadcrumb-item">
+                                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                                </li>
+                                <li class="breadcrumb-divider"></li>
+                                <li class="breadcrumb-item">
+                                    <a class="breadcrumb-link" href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a>
+                                </li>
+                                <li class="breadcrumb-divider"></li>
+                                <li class="breadcrumb-item" aria-current="page">
+                                    <span class="breadcrumb-link active">{{ reward_campaign.name }}</span>
+                                </li>
+                            </ol>
+                        </nav>
+                        <!-- Campaign Summary -->
+                        {% if reward_campaign.summary %}<p id="campaign-summary">{{ reward_campaign.summary|linebreaksbr }}</p>{% endif %}
+                        <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
+                            <!-- Campaign Status -->
+                            <dt>Status</dt>
+                            <dd>
+                                {% if is_active %}
+                                    Active
+                                {% elif reward_campaign.starts_at > now %}
+                                    Upcoming
+                                {% else %}
+                                    Expired
+                                {% endif %}
+                            </dd>
+                            <dt>Added</dt>
+                            <dd>
+                                <time datetime="{{ reward_campaign.added_at|date:'c' }}"
+                                      title="{{ reward_campaign.added_at|date:'DATETIME_FORMAT' }}">{{ reward_campaign.added_at|date:"M d, Y H:i" }}</time> ({{ reward_campaign.added_at|timesince }} ago)
+                            </dd>
+                            <dt>Last updated</dt>
+                            <dd>
+                                <time datetime="{{ reward_campaign.updated_at|date:'c' }}"
+                                      title="{{ reward_campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ reward_campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ reward_campaign.updated_at|timesince }} ago)
+                            </dd>
+                            <!-- Reward Start Time -->
+                            <dt>
+                                {% if reward_campaign.starts_at > now %}
+                                    Starts
+                                {% else %}
+                                    Started at
+                                {% endif %}
+                            </dt>
+                            <dd>
+                                <time datetime="{{ reward_campaign.starts_at|date:'c' }}"
+                                      title="{{ reward_campaign.starts_at|date:'DATETIME_FORMAT' }}">
+                                    {{ reward_campaign.starts_at|date:"M d, Y H:i" }}
+                                </time>
+                                {% if reward_campaign.starts_at > now %}
+                                    (in {{ reward_campaign.starts_at|timeuntil }})
+                                {% else %}
+                                    ({{ reward_campaign.starts_at|timesince }} ago)
+                                {% endif %}
+                            </dd>
+                            <!-- Reward End Time -->
+                            <dt>
+                                {% if reward_campaign.ends_at > now %}
+                                    Ends
+                                {% else %}
+                                    Ended at
+                                {% endif %}
+                            </dt>
+                            <dd>
+                                <time datetime="{{ reward_campaign.ends_at|date:'c' }}"
+                                      title="{{ reward_campaign.ends_at|date:'DATETIME_FORMAT' }}">
+                                    {{ reward_campaign.ends_at|date:"M d, Y H:i" }}
+                                </time>
+                                {% if reward_campaign.ends_at > now %}
+                                    (in {{ reward_campaign.ends_at|timeuntil }})
+                                {% else %}
+                                    ({{ reward_campaign.ends_at|timesince }} ago)
+                                {% endif %}
+                            </dd>
+                            <!-- Data source -->
+                            <dt>Data source</dt>
+                            <dd>
+                                {{ reward_campaign.data_source }}
+                            </dd>
+                        </dl>
+                        <div>{% if reward_campaign.instructions %}{{ reward_campaign.instructions|linebreaksbr }}{% endif %}</div>
+                        <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
+                            {% if reward_campaign.about_url %}
+                                <a class="btn-outline theme-secondary btn-sm"
+                                   href="{{ reward_campaign.about_url }}"
+                                   title="About URL for {{ reward_campaign.name }}">About</a>
+                            {% endif %}
+                            {% if reward_campaign.external_url %}
+                                <a class="btn-solid theme-primary btn-sm"
+                                   href="{{ reward_campaign.external_url }}"
+                                   title="External URL for {{ reward_campaign.name }}">External</a>
+                            {% endif %}
+                            <div>
+                                <button class="btn-outline theme-secondary btn-sm"
+                                        type="button"
+                                        data-bs-toggle="menu"
+                                        data-bs-placement="bottom-end"
+                                        aria-expanded="false">Subscribe ▾</button>
+                                <div class="menu">
+                                    <h6 class="menu-header">Subscribe</h6>
+                                    <a class="menu-item"
+                                       href="{% url 'core:reward_campaign_feed' %}"
+                                       title="RSS feed for all reward campaigns">RSS</a>
+                                    <a class="menu-item"
+                                       href="{% url 'core:reward_campaign_feed_atom' %}"
+                                       title="Atom feed for all reward campaigns">Atom</a>
+                                    <a class="menu-item"
+                                       href="{% url 'core:reward_campaign_feed_discord' %}"
+                                       title="Discord-flavored feed for all reward campaigns">Discord-flavored</a>
+                                    <hr class="menu-divider" />
+                                    <h6 class="menu-header">Developer &amp; Help</h6>
+                                    <a class="menu-item"
+                                       href="{% url 'api-v1:twitch-api-v1_get_reward_campaign' reward_campaign.twitch_id %}"
+                                       title="Twitch reward campaign API">API</a>
+                                    <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% if reward_campaign.rewards.all %}
+                            <h2 id="rewards-title" style="margin-bottom: 0.25rem;">Rewards</h2>
+                            <ul style="list-style: none;
+                                       padding: 0;
+                                       margin: 0;
+                                       display: grid;
+                                       gap: 1rem">
+                                {% for reward in reward_campaign.rewards.all %}
+                                    <li style="display: flex;
+                                               align-items: flex-start;
+                                               gap: 0.75rem;
+                                               border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
+                                               padding-top: 0.75rem">
+                                        {% if reward.thumbnail_image_url or reward.banner_image_url %}
+                                            <div style="flex-shrink: 0; line-height: 0;">{% picture reward.image_best_url alt=reward.name width=96 %}</div>
+                                        {% endif %}
+                                        <div>
+                                            <div style="font-weight: 600;">{{ reward.name }}</div>
+                                            {% if reward.earnable_until %}
+                                                <div>
+                                                    Earnable until
+                                                    <time datetime="{{ reward.earnable_until|date:'c' }}"
+                                                          title="{{ reward.earnable_until|date:'DATETIME_FORMAT' }}">{{ reward.earnable_until|date:"M d, Y H:i" }}</time>
+                                                    {% if reward.earnable_until > now %}
+                                                        (in {{ reward.earnable_until|timeuntil }})
+                                                    {% else %}
+                                                        ({{ reward.earnable_until|timesince }} ago)
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                            {% if reward.redemption_instructions %}<div>{{ reward.redemption_instructions|linebreaksbr }}</div>{% endif %}
+                                            {% if reward.redemption_url %}
+                                                <div>
+                                                    <a href="{{ reward.redemption_url }}" title="Redeem {{ reward.name }}">[redeem]</a>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% if reward_campaign.rewards.all %}
-                <h2 id="rewards-title" style="margin-bottom: 0.25rem;">Rewards</h2>
-                <ul style="list-style: none;
-                           padding: 0;
-                           margin: 0;
-                           display: grid;
-                           gap: 1rem">
-                    {% for reward in reward_campaign.rewards.all %}
-                        <li style="display: flex;
-                                   align-items: flex-start;
-                                   gap: 0.75rem;
-                                   border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                                   padding-top: 0.75rem">
-                            {% if reward.thumbnail_image_url or reward.banner_image_url %}
-                                <div style="flex-shrink: 0; line-height: 0;">{% picture reward.image_best_url alt=reward.name width=96 %}</div>
-                            {% endif %}
-                            <div>
-                                <div style="font-weight: 600;">{{ reward.name }}</div>
-                                {% if reward.earnable_until %}
-                                    <div>
-                                        Earnable until
-                                        <time datetime="{{ reward.earnable_until|date:'c' }}"
-                                              title="{{ reward.earnable_until|date:'DATETIME_FORMAT' }}">{{ reward.earnable_until|date:"M d, Y H:i" }}</time>
-                                        {% if reward.earnable_until > now %}
-                                            (in {{ reward.earnable_until|timeuntil }})
-                                        {% else %}
-                                            ({{ reward.earnable_until|timesince }} ago)
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                                {% if reward.redemption_instructions %}<div>{{ reward.redemption_instructions|linebreaksbr }}</div>{% endif %}
-                                {% if reward.redemption_url %}
-                                    <div>
-                                        <a href="{{ reward.redemption_url }}" title="Redeem {{ reward.name }}">[redeem]</a>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
+            <div class="tab-pane fade"
+                 id="history-pane"
+                 role="tabpanel"
+                 aria-labelledby="history-tab"
+                 tabindex="0">
+                <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">Change log</h2>
+                        <p class="fs-sm fg-3 mb-0">Tracked changes for {{ reward_campaign.name }}, newest first.</p>
+                    </div>
+                    <a class="btn-outline theme-secondary btn-sm"
+                       href="{% url 'twitch:reward_campaign_history' reward_campaign.twitch_id %}">View full history →</a>
+                </div>
+                {% if history_events %}
+                    {% include "twitch/includes/history_table.html" with events=history_events %}
+                {% else %}
+                    <div class="card bg-1 text-center py-5 px-3">
+                        <div class="card-body">
+                            <h2 class="h4 mb-2">No history events</h2>
+                            <p class="fg-2 mb-0">No changes have been recorded for this reward campaign yet.</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-    </div>
+    </main>
 {% endblock content %}

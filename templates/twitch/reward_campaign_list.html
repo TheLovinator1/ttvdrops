@@ -13,79 +13,212 @@
           type="application/atom+xml"
           title="Reward campaigns (Discord-flavored)"
           href="{% url 'core:reward_campaign_feed_discord' %}" />
+    <style>
+        .reward-campaign-media picture,
+        .reward-campaign-media img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+    </style>
 {% endblock extra_head %}
 {% block content %}
-    <header class="mb-4">
-        <nav aria-label="breadcrumb" class="mb-2">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item" aria-current="page">
-                    <span class="breadcrumb-link active">Reward Campaigns</span>
-                </li>
-            </ol>
-        </nav>
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <h1 class="h2 mb-0">Twitch Reward Campaigns</h1>
-            <div>
-                <button class="btn-outline theme-secondary btn-sm"
-                        type="button"
-                        data-bs-toggle="menu"
-                        data-bs-placement="bottom-end"
-                        aria-expanded="false">Subscribe ▾</button>
-                <div class="menu">
-                    <h6 class="menu-header">Subscribe</h6>
-                    <a class="menu-item"
-                       href="{% url 'core:reward_campaign_feed' %}"
-                       title="RSS feed for all reward campaigns">RSS</a>
-                    <a class="menu-item"
-                       href="{% url 'core:reward_campaign_feed_atom' %}"
-                       title="Atom feed for all reward campaigns">Atom</a>
-                    <a class="menu-item"
-                       href="{% url 'core:reward_campaign_feed_discord' %}"
-                       title="Discord-flavored feed for all reward campaigns">Discord-flavored</a>
-                    <hr class="menu-divider" />
-                    <h6 class="menu-header">Developer &amp; Help</h6>
-                    <a class="menu-item"
-                       href="{% url 'api-v1:twitch-api-v1_list_reward_campaigns' %}"
-                       title="Twitch reward campaigns API">API</a>
-                    <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+    <main>
+        <header class="mb-4">
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">Reward Campaigns</span>
+                    </li>
+                </ol>
+            </nav>
+            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <h1 class="h2 mb-0">Twitch Reward Campaigns</h1>
+                        <span class="badge badge-subtle theme-secondary">
+                            {{ reward_campaigns.paginator.count }} campaign{{ reward_campaigns.paginator.count|pluralize }}
+                        </span>
+                    </div>
+                    <p class="fg-2 mb-0 text-pretty" style="max-width: 80ch;">
+                        Limited-time offers from brands and games that you can unlock by supporting creators.
+                    </p>
+                    <p class="fs-xs fg-3 mt-2 mb-0">
+                        Data is scraped from
+                        <a href="https://github.com/SunkwiBOT/twitch-drops-api"
+                           target="_blank"
+                           rel="noopener">SunkwiBOT/twitch-drops-api</a>.
+                    </p>
+                </div>
+                <div class="align-self-start md:align-self-auto">
+                    <button class="btn-outline theme-secondary btn-sm"
+                            type="button"
+                            data-bs-toggle="menu"
+                            data-bs-placement="bottom-end"
+                            aria-expanded="false">Subscribe ▾</button>
+                    <div class="menu">
+                        <h6 class="menu-header">Subscribe</h6>
+                        <a class="menu-item"
+                           href="{% url 'core:reward_campaign_feed' %}"
+                           title="RSS feed for all reward campaigns">RSS</a>
+                        <a class="menu-item"
+                           href="{% url 'core:reward_campaign_feed_atom' %}"
+                           title="Atom feed for all reward campaigns">Atom</a>
+                        <a class="menu-item"
+                           href="{% url 'core:reward_campaign_feed_discord' %}"
+                           title="Discord-flavored feed for all reward campaigns">Discord-flavored</a>
+                        <hr class="menu-divider" />
+                        <h6 class="menu-header">Developer &amp; Help</h6>
+                        <a class="menu-item"
+                           href="{% url 'api-v1:twitch-api-v1_list_reward_campaigns' %}"
+                           title="Twitch reward campaigns API">API</a>
+                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                    </div>
                 </div>
             </div>
-        </div>
-        <p class="mt-3 mb-0">
-            Data is scraped from <a href="https://github.com/SunkwiBOT/twitch-drops-api"
-                                    target="_blank"
-                                    rel="noopener">SunkwiBOT/twitch-drops-api</a>.
-        </p>
-    </header>
-    {% if reward_campaigns %}
-        {% with sorted_campaigns=reward_campaigns|dictsortreversed:"ends_at" %}
-            {# Active campaigns #}
-            <h2>Active Reward Campaigns</h2>
-            {% for campaign in sorted_campaigns %}
-                {% if campaign.starts_at <= now and campaign.ends_at >= now %}
-                    {% include "twitch/includes/reward_campaign_card.html" with campaign=campaign %}
-                {% endif %}
-            {% endfor %}
-            {# Upcoming campaigns #}
-            <h2>Upcoming Reward Campaigns</h2>
-            {% for campaign in sorted_campaigns %}
-                {% if campaign.starts_at > now %}
-                    {% include "twitch/includes/reward_campaign_card.html" with campaign=campaign %}
-                {% endif %}
-            {% endfor %}
-            {# Past campaigns #}
-            <h2>Past Reward Campaigns</h2>
-            {% for campaign in sorted_campaigns %}
-                {% if campaign.ends_at < now %}
-                    {% include "twitch/includes/reward_campaign_card.html" with campaign=campaign %}
-                {% endif %}
-            {% endfor %}
-        {% endwith %}
-    {% else %}
-        <p>No reward campaigns found.</p>
-    {% endif %}
+        </header>
+        <form method="get"
+              action="{% url 'twitch:reward_campaign_list' %}"
+              class="card bg-1 p-4 mb-4"
+              aria-label="Reward campaign filters">
+            <div class="row g-3 align-items-end">
+                <div class="col-12 sm:col-6 lg:col-3">
+                    <label class="form-label fs-xs fw-semibold fg-3 text-uppercase"
+                           for="reward-status">Status</label>
+                    <select class="form-control"
+                            id="reward-status"
+                            name="status"
+                            onchange="this.form.submit()">
+                        <option value="">All statuses</option>
+                        {% for status in status_options %}
+                            <option value="{{ status }}"
+                                    {% if selected_status == status %}selected{% endif %}>
+                                {% if status == "expired" %}Ended{% else %}{{ status|title }}{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-5">
+                    <label class="form-label fs-xs fw-semibold fg-3 text-uppercase"
+                           for="reward-game">Game</label>
+                    <select class="form-control"
+                            id="reward-game"
+                            name="game"
+                            onchange="this.form.submit()">
+                        <option value="">All games</option>
+                        {% for game in games %}
+                            <option value="{{ game.twitch_id }}"
+                                    {% if selected_game == game.twitch_id %}selected{% endif %}>
+                                {{ game.get_game_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 lg:col-4 d-flex gap-2">
+                    <button class="btn-solid theme-primary flex-grow-1" type="submit">Apply</button>
+                    <a href="{% url 'twitch:reward_campaign_list' %}"
+                       class="btn-outline theme-secondary">Reset</a>
+                </div>
+            </div>
+        </form>
+        {% if active_campaigns %}
+            <section aria-labelledby="active-reward-campaigns-heading" class="mb-9">
+                <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+                    <div>
+                        <h2 id="active-reward-campaigns-heading" class="h4 mb-1">Active reward campaigns</h2>
+                        <p class="fs-sm fg-3 mb-0">Offers you can claim right now.</p>
+                    </div>
+                    <span class="badge badge-subtle theme-success">{{ active_campaigns|length }} active</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for campaign in active_campaigns %}
+                        {% include "twitch/includes/reward_campaign_card.html" with campaign=campaign card_status="active" %}
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+        {% if upcoming_campaigns %}
+            <section aria-labelledby="upcoming-reward-campaigns-heading" class="mb-9">
+                <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+                    <div>
+                        <h2 id="upcoming-reward-campaigns-heading" class="h4 mb-1">Upcoming reward campaigns</h2>
+                        <p class="fs-sm fg-3 mb-0">Offers that are about to open.</p>
+                    </div>
+                    <span class="badge badge-subtle theme-info">{{ upcoming_campaigns|length }} upcoming</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for campaign in upcoming_campaigns %}
+                        {% include "twitch/includes/reward_campaign_card.html" with campaign=campaign card_status="upcoming" %}
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+        {% if expired_campaigns %}
+            <section aria-labelledby="expired-reward-campaigns-heading" class="mb-9">
+                <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+                    <div>
+                        <h2 id="expired-reward-campaigns-heading" class="h4 mb-1">Past reward campaigns</h2>
+                        <p class="fs-sm fg-3 mb-0">Offers that have ended, kept for the archive.</p>
+                    </div>
+                    <span class="badge badge-subtle theme-secondary">{{ expired_campaigns|length }} ended</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {% for campaign in expired_campaigns %}
+                        {% include "twitch/includes/reward_campaign_card.html" with campaign=campaign card_status="expired" %}
+                    {% endfor %}
+                </div>
+            </section>
+        {% endif %}
+        {% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
+            <div class="card bg-1 text-center py-5 px-3">
+                <div class="card-body">
+                    <h2 class="h4 mb-2">No reward campaigns found</h2>
+                    <p class="fg-2 mb-3">No offers matched the selected filters.</p>
+                    {% if selected_status or selected_game %}
+                        <a href="{% url 'twitch:reward_campaign_list' %}"
+                           class="btn-outline theme-primary">Clear filters</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        {% if reward_campaigns.paginator.num_pages > 1 %}
+            <nav aria-label="Reward campaign pages"
+                 class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-4">
+                <span class="fs-xs fg-3">
+                    Showing {{ reward_campaigns.start_index }}–{{ reward_campaigns.end_index }} of
+                    {{ reward_campaigns.paginator.count }} campaigns
+                </span>
+                <ul class="pagination theme-primary mb-0">
+                    <li class="page-item {% if not reward_campaigns.has_previous %}disabled{% endif %}">
+                        {% if reward_campaigns.has_previous %}
+                            <a class="page-link"
+                               href="?{% if selected_status %}status={{ selected_status|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game|urlencode }}&{% endif %}page={{ reward_campaigns.previous_page_number }}">← Previous</a>
+                        {% else %}
+                            <span class="page-link">← Previous</span>
+                        {% endif %}
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Page {{ reward_campaigns.number }} of {{ reward_campaigns.paginator.num_pages }}</span>
+                    </li>
+                    <li class="page-item {% if not reward_campaigns.has_next %}disabled{% endif %}">
+                        {% if reward_campaigns.has_next %}
+                            <a class="page-link"
+                               href="?{% if selected_status %}status={{ selected_status|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game|urlencode }}&{% endif %}page={{ reward_campaigns.next_page_number }}">Next →</a>
+                        {% else %}
+                            <span class="page-link">Next →</span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
+    </main>
 {% endblock content %}

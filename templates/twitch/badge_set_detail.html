@@ -2,9 +2,25 @@
 {% load image_tags %}
 {% block content %}
     <h1>{{ badge_set.set_id }}</h1>
-    <div>
-        <a href="{% url 'core:dashboard' %}">Home</a> > <a href="{% url 'twitch:badge_list' %}">Badges</a> > {{ badge_set.set_id }}
-    </div>
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item">
+                <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+            </li>
+            <li class="breadcrumb-divider"></li>
+            <li class="breadcrumb-item">
+                <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+            </li>
+            <li class="breadcrumb-divider"></li>
+            <li class="breadcrumb-item">
+                <a class="breadcrumb-link" href="{% url 'twitch:badge_list' %}">Badges</a>
+            </li>
+            <li class="breadcrumb-divider"></li>
+            <li class="breadcrumb-item" aria-current="page">
+                <span class="breadcrumb-link active">{{ badge_set.set_id }}</span>
+            </li>
+        </ol>
+    </nav>
     {% if badges %}
         <table class="table table-striped table-hover">
             <tbody>

@@ -8,8 +8,20 @@
 {% block content %}
     <main>
         <h1>chzzk campaigns</h1>
-        <nav>
-            <a href="{% url 'chzzk:dashboard' %}">chzzk</a> > Campaigns
+        <nav aria-label="breadcrumb" class="mb-2">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'chzzk:dashboard' %}">Chzzk</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item" aria-current="page">
+                    <span class="breadcrumb-link active">Campaigns</span>
+                </li>
+            </ol>
         </nav>
         <!-- <div class="feeds">
             <a href="{% url 'chzzk:campaign_feed' %}" title="RSS feed for all campaigns">[rss]</a>

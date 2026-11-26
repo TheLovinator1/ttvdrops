@@ -30,9 +30,25 @@
         <div style="display: flex; flex-direction: column;">
             <h1 style="margin-top: 0; margin-bottom: 0px;">{{ campaign.title }}</h1>
             <!-- Add breadcrumbs -->
-            <div>
-                <a href="{% url 'chzzk:dashboard' %}">chzzk</a> > <a href="{% url 'chzzk:campaign_list' %}">Campaigns</a> > {{ campaign.title }}
-            </div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'chzzk:dashboard' %}">Chzzk</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'chzzk:campaign_list' %}">Campaigns</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">{{ campaign.title }}</span>
+                    </li>
+                </ol>
+            </nav>
             <!-- Campaign description -->
             <p>{{ campaign.description|linebreaksbr }}</p>
             <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">

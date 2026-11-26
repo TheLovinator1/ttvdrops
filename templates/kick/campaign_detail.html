@@ -43,11 +43,25 @@
             </div>
             <div>
                 <h1 style="margin: 0 0 0.25rem 0;">{{ campaign.name }}</h1>
-                <div>
-                    <a href="{% url 'kick:dashboard' %}">Kick</a> >
-                    <a href="{% url 'kick:campaign_list' %}">Campaigns</a> >
-                    {{ campaign.name }}
-                </div>
+                <nav aria-label="breadcrumb" class="mb-2">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item">
+                            <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                        </li>
+                        <li class="breadcrumb-divider"></li>
+                        <li class="breadcrumb-item">
+                            <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
+                        </li>
+                        <li class="breadcrumb-divider"></li>
+                        <li class="breadcrumb-item">
+                            <a class="breadcrumb-link" href="{% url 'kick:campaign_list' %}">Campaigns</a>
+                        </li>
+                        <li class="breadcrumb-divider"></li>
+                        <li class="breadcrumb-item" aria-current="page">
+                            <span class="breadcrumb-link active">{{ campaign.name }}</span>
+                        </li>
+                    </ol>
+                </nav>
                 <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
                     {% if campaign.category %}
                         <dt>Category</dt>

@@ -12,9 +12,14 @@
                         <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
                     </li>
                     <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
                     <li class="breadcrumb-item"
                         {% if not entity_name %}aria-current="page"{% endif %}>
-                        <a class="breadcrumb-link" href="{% url 'twitch:history' %}">History</a>
+                        <a class="breadcrumb-link{% if not entity_name %} active{% endif %}"
+                           href="{% url 'twitch:history' %}">History</a>
                     </li>
                     {% if entity_name %}
                         <li class="breadcrumb-divider"></li>

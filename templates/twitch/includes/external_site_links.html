@@ -1,0 +1,12 @@
+{% if external_site_links %}
+    <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
+        <span class="fs-xs fg-3 text-uppercase" style="letter-spacing: 0.04em">Also on</span>
+        {% for link in external_site_links %}
+            <a class="btn-outline theme-secondary btn-xs"
+               href="{{ link.url }}"
+               target="_blank"
+               rel="noopener"
+               title="View on {{ link.name }}">{{ link.name }}</a>
+        {% endfor %}
+    </div>
+{% endif %}

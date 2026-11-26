@@ -31,9 +31,25 @@
         <header>
             <h1>Site-wide Rewards</h1>
             <!-- Breadcrumbs -->
-            <div>
-                <a href="{% url 'core:dashboard' %}">Home</a> &gt; <a href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a> &gt; Site-wide
-            </div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'twitch:reward_campaign_list' %}">Reward Campaigns</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">Site-wide</span>
+                    </li>
+                </ol>
+            </nav>
             <p>
                 Reward campaigns available site-wide (not tied to a specific game). Data is scraped from <a href="https://github.com/SunkwiBOT/twitch-drops-api"
                                                                                                             target="_blank"

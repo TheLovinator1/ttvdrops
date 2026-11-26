@@ -5574,6 +5574,7 @@ class TestTwitchEndpointSEO:
         urls: list[str] = [item["item"] for item in crumbs["itemListElement"]]
         assert urls == [
             "https://ttvdrops.lovinator.space/",
+            "https://ttvdrops.lovinator.space/twitch/",
             "https://ttvdrops.lovinator.space/twitch/organizations/",
             f"https://ttvdrops.lovinator.space/twitch/organizations/{org.twitch_id}/",
         ]

@@ -3,10 +3,24 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
-        <nav aria-label="Breadcrumb">
-            <a href="{% url 'kick:dashboard' %}">Kick</a> &gt;
-            <a href="{% url 'kick:organization_list' %}">Organizations</a> &gt;
-            {{ org.name }}
+        <nav aria-label="breadcrumb" class="mb-2">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'kick:organization_list' %}">Organizations</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item" aria-current="page">
+                    <span class="breadcrumb-link active">{{ org.name }}</span>
+                </li>
+            </ol>
         </nav>
         <div style="display: flex;
                     align-items: flex-start;
