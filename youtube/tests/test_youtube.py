@@ -125,13 +125,13 @@ class YouTubeIndexViewTest(TestCase):
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         content: str = response.content.decode()
 
-        activision_cell: str = "<td>Activision (Call of Duty)</td>"
-        blizzard_cell: str = "<td>Battle.net / Blizzard</td>"
+        activision_heading: str = ">Activision (Call of Duty)</h2>"
+        blizzard_heading: str = ">Battle.net / Blizzard</h2>"
 
-        assert activision_cell in content
-        assert blizzard_cell in content
-        assert content.index(activision_cell) < content.index(
-            blizzard_cell,
+        assert activision_heading in content
+        assert blizzard_heading in content
+        assert content.index(activision_heading) < content.index(
+            blizzard_heading,
         )
 
     def test_index_embed_buttons_are_youtube_focused(self) -> None:

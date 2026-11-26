@@ -152,14 +152,6 @@
         <nav class="navbar lg:navbar-expand bg-1" data-bs-theme="dark">
             <div class="container">
                 <a class="navbar-brand fw-bold" href="{% url 'core:dashboard' %}">TTVDrops</a>
-                <button class="btn-icon navbar-toggler"
-                        type="button"
-                        data-bs-toggle="drawer"
-                        data-bs-target="#mainNavbarDrawer"
-                        aria-controls="mainNavbarDrawer"
-                        aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon" aria-hidden="true"></span>
-                </button>
                 <dialog class="drawer drawer-end"
                         id="mainNavbarDrawer"
                         aria-labelledby="mainNavbarDrawerLabel">
@@ -261,25 +253,26 @@
                                     <a class="menu-item" href="{% url 'chzzk:campaign_list' %}">Campaigns</a>
                                 </div>
                             </li>
-                            <li class="nav-item d-none xl:d-flex align-items-center">
-                                <span class="vr mx-3 fg-white fg-opacity-50"></span>
-                            </li>
-                            <li class="nav-item lg:d-none xl:d-block">
-                                <a class="nav-link"
-                                   href="https://github.com/sponsors/TheLovinator1"
-                                   target="_blank"
-                                   rel="noopener">Donate
+                            <li class="nav-item">
+                                <button class="nav-link"
+                                        type="button"
+                                        data-bs-toggle="menu"
+                                        aria-expanded="false">
+                                    Other
                                     <svg width="1em"
                                          height="1em"
-                                         viewBox="0 0 24 24"
-                                         fill="none"
-                                         stroke="currentColor"
-                                         stroke-width="2"
+                                         viewBox="0 0 16 16"
+                                         fill="currentColor"
                                          aria-hidden="true">
-                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                                        <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
                                     </svg>
-                                </a>
+                                </button>
+                                <div class="menu">
+                                    <a class="menu-item" href="{% url 'youtube:index' %}">YouTube</a>
+                                </div>
+                            </li>
+                            <li class="nav-item d-none xl:d-flex align-items-center">
+                                <span class="vr mx-3 fg-white fg-opacity-50"></span>
                             </li>
                             <li class="nav-item lg:d-none xl:d-block">
                                 <a class="nav-link"
@@ -299,7 +292,8 @@
                                 </a>
                             </li>
                         </ul>
-                        <form class="d-flex gap-3"
+                        <form class="input-group"
+                              style="max-width: 18rem"
                               role="search"
                               action="{% url 'core:search' %}"
                               method="get">
@@ -313,6 +307,31 @@
                         </form>
                     </div>
                 </dialog>
+                <div class="d-flex align-items-center gap-1">
+                    <a class="btn-icon d-none lg:d-flex"
+                       href="https://github.com/sponsors/TheLovinator1"
+                       target="_blank"
+                       rel="noopener"
+                       aria-label="Donate"
+                       title="Donate">
+                        <svg class="fg-danger"
+                             width="1em"
+                             height="1em"
+                             viewBox="0 0 16 16"
+                             fill="currentColor"
+                             aria-hidden="true">
+                            <path d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
+                        </svg>
+                    </a>
+                    <button class="btn-icon navbar-toggler"
+                            type="button"
+                            data-bs-toggle="drawer"
+                            data-bs-target="#mainNavbarDrawer"
+                            aria-controls="mainNavbarDrawer"
+                            aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon" aria-hidden="true"></span>
+                    </button>
+                </div>
             </div>
         </nav>
         {% if messages %}

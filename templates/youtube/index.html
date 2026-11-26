@@ -1,29 +1,71 @@
 {% extends "base.html" %}
 {% block content %}
-    <main>
-        <h1>YouTube channels with rewards.</h1>
-        <p>
-            <a href="https://support.google.com/youtube/answer/9024948?hl=en&co=GENIE.Platform%3DAndroid">YouTube Help Center</a> has the following channels listed where you can earn rewards:
-        </p>
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Channel</th>
-                    <th>Organization</th>
-                </tr>
-            </thead>
-            <tbody>
+    <main class="xl:container py-4">
+        <header class="mb-4">
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">YouTube</span>
+                    </li>
+                </ol>
+            </nav>
+            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <h1 class="h2 mb-0">YouTube channels with rewards.</h1>
+                        <span class="badge badge-subtle theme-secondary">
+                            {{ channel_count }} channel{{ channel_count|pluralize }}
+                        </span>
+                        <span class="badge badge-subtle theme-secondary">
+                            {{ organization_groups|length }} organization{{ organization_groups|length|pluralize }}
+                        </span>
+                    </div>
+                    <p class="fg-2 mb-0">
+                        The
+                        <a href="https://support.google.com/youtube/answer/9024948?hl=en&co=GENIE.Platform%3DAndroid">YouTube Help Center</a>
+                        has the following channels listed where you can earn rewards.
+                    </p>
+                </div>
+                <div class="align-self-start md:align-self-auto">
+                    <a class="btn-outline theme-secondary btn-sm"
+                       href="https://support.google.com/youtube/answer/9024948?hl=en&co=GENIE.Platform%3DAndroid"
+                       target="_blank"
+                       rel="noopener">YouTube Help</a>
+                </div>
+            </div>
+        </header>
+        {% if organization_groups %}
+            <div class="d-flex flex-column gap-3">
                 {% for group in organization_groups %}
-                    {% for item in group.channels %}
-                        <tr>
-                            <td>
-                                <a href="{{ item.url }}">{{ item.channel }}</a>
-                            </td>
-                            <td>{{ group.organization }}</td>
-                        </tr>
-                    {% endfor %}
+                    <div class="list-group">
+                        <div class="list-group-item bg-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <h2 class="h6 mb-0">{{ group.organization }}</h2>
+                            <span class="badge badge-subtle theme-secondary">{{ group.channels|length }}</span>
+                        </div>
+                        {% for item in group.channels %}
+                            <a class="list-group-item list-group-item-action d-flex flex-wrap align-items-center justify-content-between gap-2"
+                               href="{{ item.url }}"
+                               target="_blank"
+                               rel="noopener"
+                               title="Open {{ item.channel }} on YouTube">
+                                <span>{{ item.channel }}</span>
+                                <span class="fg-3 fs-sm">YouTube ↗</span>
+                            </a>
+                        {% endfor %}
+                    </div>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+        {% else %}
+            <section class="card bg-1 text-center py-5 px-3">
+                <div class="card-body align-items-center">
+                    <h2 class="h4 mb-2">No Channels Found</h2>
+                    <p class="fg-2 mb-0">No YouTube reward channels are currently listed.</p>
+                </div>
+            </section>
+        {% endif %}
     </main>
 {% endblock content %}

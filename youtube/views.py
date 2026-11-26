@@ -147,6 +147,7 @@ def index(request: HttpRequest) -> HttpResponse:
         "page_title": PAGE_TITLE,
         "page_description": PAGE_DESCRIPTION,
         "organization_groups": organization_groups,
+        "channel_count": len(channels),
         "schema_data": json.dumps(schema),
         "discord_embed_buttons": embed_buttons(
             ("YouTube", "https://www.youtube.com/"),
