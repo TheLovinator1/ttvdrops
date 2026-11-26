@@ -212,7 +212,7 @@
                                                 <a class="games-list-owner fs-sm"
                                                    href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
                                             {% empty %}
-                                                <span class="fs-sm fg-3">—</span>
+                                                <span class="fs-sm fg-3">None</span>
                                             {% endfor %}
                                         </div>
                                     </td>
@@ -223,7 +223,7 @@
                                         {% if game.active_count %}
                                             <span class="badge badge-subtle theme-success">{{ game.active_count }} active</span>
                                         {% else %}
-                                            <span class="fg-3">—</span>
+                                            <span class="fg-3">None</span>
                                         {% endif %}
                                     </td>
                                     <td class="md:text-end">

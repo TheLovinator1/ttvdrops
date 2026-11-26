@@ -257,3 +257,183 @@ class ChzzkDashboardViewTests(TestCase):
         assert included_v1.title in content
         assert included_v2.title in content
         assert excluded.title not in content
+
+
+class ChzzkCategoryViewTests(TestCase):
+    """Tests for Chzzk game and category detail pages."""
+
+    def _make_campaign(
+        self,
+        campaign_no: int,
+        *,
+        category_type: str = "GAME",
+        category_id: str = "dokkaebi",
+        category_value: str = "Dokkaebi",
+        title: str = "Category Campaign",
+    ) -> ChzzkCampaign:
+        now = timezone.now()
+        return ChzzkCampaign.objects.create(
+            campaign_no=campaign_no,
+            title=title,
+            description="Category campaign description",
+            category_type=category_type,
+            category_id=category_id,
+            category_value=category_value,
+            service_id="chzzk",
+            state="ACTIVE",
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+            has_ios_based_reward=False,
+            drops_campaign_not_started=False,
+            source_api="unit-test",
+        )
+
+    def test_game_detail_lists_all_campaigns_for_category(self) -> None:
+        """The game page should list every campaign in the category."""
+        first = self._make_campaign(8101, title="First Category Campaign")
+        second = self._make_campaign(8102, title="Second Category Campaign")
+        self._make_campaign(
+            8103,
+            category_id="other-game",
+            category_value="Other Game",
+            title="Other Campaign",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("chzzk:game_detail", args=[first.category_id]),
+        )
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert first.title in content
+        assert second.title in content
+        assert "Other Campaign" not in content
+        assert (
+            f'href="{reverse("chzzk:game_detail", args=[first.category_id])}"'
+            not in content
+        )
+
+    def test_category_detail_lists_non_game_campaigns(self) -> None:
+        """Non-game categories should render through the generic route."""
+        campaign = self._make_campaign(
+            8201,
+            category_type="ETC",
+            category_id="sci_tech",
+            category_value="Science & Tech",
+            title="Science Category Campaign",
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse(
+                "chzzk:category_detail",
+                args=[campaign.category_type, campaign.category_id],
+            ),
+        )
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert campaign.title in content
+        assert "Science &amp; Tech" in content
+        assert "ETC" in content
+
+    def test_unknown_category_returns_404(self) -> None:
+        """Unknown categories should return 404."""
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("chzzk:game_detail", args=["does-not-exist"]),
+        )
+
+        assert response.status_code == 404
+
+
+class ChzzkCampaignListFilterTests(TestCase):
+    """Tests for Chzzk campaign list status tabs."""
+
+    def _make_campaign(
+        self,
+        campaign_no: int,
+        *,
+        title: str,
+        start_date: datetime,
+        end_date: datetime,
+        is_ios: bool = False,
+    ) -> ChzzkCampaign:
+        return ChzzkCampaign.objects.create(
+            campaign_no=campaign_no,
+            title=title,
+            description="",
+            category_type="GAME",
+            category_id="test-game",
+            category_value="Test Game",
+            service_id="chzzk",
+            state="ACTIVE",
+            start_date=start_date,
+            end_date=end_date,
+            has_ios_based_reward=is_ios,
+            drops_campaign_not_started=False,
+            source_api="unit-test",
+        )
+
+    def test_status_tabs_filter_campaigns(self) -> None:
+        """Status tabs should only show campaigns in the selected state."""
+        now = timezone.now()
+        active = self._make_campaign(
+            9101,
+            title="Active Filter Campaign",
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+        )
+        expired = self._make_campaign(
+            9102,
+            title="Expired Filter Campaign",
+            start_date=now - timedelta(days=3),
+            end_date=now - timedelta(days=2),
+        )
+        upcoming = self._make_campaign(
+            9103,
+            title="Upcoming Filter Campaign",
+            start_date=now + timedelta(days=1),
+            end_date=now + timedelta(days=2),
+        )
+
+        for status, included, excluded in (
+            ("active", active, expired),
+            ("expired", expired, upcoming),
+            ("upcoming", upcoming, active),
+        ):
+            response: _MonkeyPatchedWSGIResponse = self.client.get(
+                reverse("chzzk:campaign_list"),
+                {"status": status},
+            )
+            content = response.content.decode()
+            assert response.status_code == 200
+            assert included.title in content
+            assert excluded.title not in content
+            assert 'class="nav-link active"' in content
+
+    def test_ios_only_tab_filters_ios_rewards(self) -> None:
+        """The iOS only tab should show only iOS-based campaigns."""
+        now = timezone.now()
+        ios_campaign = self._make_campaign(
+            9201,
+            title="iOS Campaign",
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+            is_ios=True,
+        )
+        other_campaign = self._make_campaign(
+            9202,
+            title="Non iOS Campaign",
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("chzzk:campaign_list"),
+            {"status": "ios"},
+        )
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert ios_campaign.title in content
+        assert other_campaign.title not in content
+        assert "iOS only" in content

@@ -8,6 +8,7 @@ from django.shortcuts import render
 from ninja import NinjaAPI
 from ninja.openapi.docs import Swagger
 
+from chzzk.api import api as chzzk_router
 from core.base_url import build_absolute_uri
 from core.discord_embed import DEFAULT_ACCENT_COLOR
 from core.discord_embed import embed_buttons
@@ -43,11 +44,11 @@ class TTVDropsSwaggerDocs(Swagger):
             "swagger_settings": json.dumps(self.settings, indent=1),
             "api": api,
             "add_csrf": False,
-            "page_title": "TTVDrops API v1 Documentation - Twitch and Kick Drops API",
+            "page_title": "TTVDrops API v1 Documentation - Twitch, Kick and Chzzk Drops API",
             "page_description": (
                 "Interactive documentation for the TTVDrops API v1. Browse endpoints "
-                "for Twitch and Kick drop campaigns, games, rewards, organizations "
-                "and channels. No authentication required."
+                "for Twitch, Kick and Chzzk drop campaigns, games, rewards, "
+                "organizations and channels. No authentication required."
             ),
             "page_url": build_absolute_uri("/api/v1/docs/"),
             "discord_embed_accent_color": DEFAULT_ACCENT_COLOR,
@@ -97,6 +98,7 @@ api_v1 = NinjaAPI(
 
 api_v1.add_router("/twitch/", twitch_router, url_name_prefix="twitch-api-v1")
 api_v1.add_router("/kick/", kick_router, url_name_prefix="kick-api-v1")
+api_v1.add_router("/chzzk/", chzzk_router, url_name_prefix="chzzk-api-v1")
 
 app_name = "api-v1"
 urlpatterns = api_v1.urls[0]

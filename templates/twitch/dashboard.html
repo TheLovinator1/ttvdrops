@@ -22,10 +22,6 @@
             display: block;
         }
 
-        .landing-stat {
-            height: 100%;
-        }
-
         .landing-stat-value {
             font-variant-numeric: tabular-nums;
             line-height: 1;
@@ -36,15 +32,13 @@
 {% block content %}
     <main>
         {# Hero #}
-        <header class="pb-7 mb-7 border-bottom border-subtle">
+        <header class="pb-6 mb-7">
             <div class="row g-6 align-items-center">
                 <div class="col-12 lg:col-7">
-                    <span class="badge badge-subtle theme-primary rounded-pill mb-3">Twitch Drops Archive</span>
                     <h1 class="fs-3xl fw-bold mb-3 text-balance">Twitch Drops, Campaigns &amp; Rewards</h1>
-                    <p class="fs-lg fg-2 mb-4 text-pretty" style="max-width: 65ch;">
-                        Browse active Twitch drop campaigns, check watch requirements and rewards,
-                        and explore an archive of past campaigns. Everything is available through
-                        free RSS feeds and a public JSON API.
+                    <p class="fs-lg fg-2 mb-4 text-pretty" style="max-width: 60ch;">
+                        Active drops, upcoming campaigns, rewards, and the full archive.
+                        Follow updates with RSS or use the free JSON API.
                     </p>
                     <div class="d-flex flex-wrap gap-3 mb-4">
                         <a class="btn-solid theme-primary"
@@ -64,37 +58,25 @@
                     {% endif %}
                 </div>
                 <div class="col-12 lg:col-5">
-                    <div class="row g-3" role="group" aria-label="Twitch archive statistics">
+                    <div class="row g-4" role="group" aria-label="Twitch archive statistics">
                         <div class="col-6">
-                            <div class="card bg-1 landing-stat p-4">
-                                <div class="fs-2xl fw-bold landing-stat-value">{{ counts.active_campaigns }}</div>
-                                <div class="fs-xs fw-semibold fg-3 mt-2 text-uppercase"
-                                     style="letter-spacing: 0.05em">Active drops</div>
-                            </div>
+                            <div class="fs-2xl fw-bold landing-stat-value">{{ counts.active_campaigns }}</div>
+                            <div class="fs-sm fg-3 mt-1">Active drops</div>
                         </div>
                         <div class="col-6">
-                            <div class="card bg-1 landing-stat p-4">
-                                <div class="fs-2xl fw-bold landing-stat-value">{{ counts.active_reward_campaigns }}</div>
-                                <div class="fs-xs fw-semibold fg-3 mt-2 text-uppercase"
-                                     style="letter-spacing: 0.05em">Open rewards</div>
-                            </div>
+                            <div class="fs-2xl fw-bold landing-stat-value">{{ counts.active_reward_campaigns }}</div>
+                            <div class="fs-sm fg-3 mt-1">Open rewards</div>
                         </div>
                         <div class="col-6">
-                            <div class="card bg-1 landing-stat p-4">
-                                <div class="fs-2xl fw-bold landing-stat-value">{{ counts.games }}</div>
-                                <div class="fs-xs fw-semibold fg-3 mt-2 text-uppercase"
-                                     style="letter-spacing: 0.05em">Games</div>
-                            </div>
+                            <div class="fs-2xl fw-bold landing-stat-value">{{ counts.games }}</div>
+                            <div class="fs-sm fg-3 mt-1">Games</div>
                         </div>
                         <div class="col-6">
-                            <div class="card bg-1 landing-stat p-4">
-                                <div class="fs-2xl fw-bold landing-stat-value">{{ counts.channels }}</div>
-                                <div class="fs-xs fw-semibold fg-3 mt-2 text-uppercase"
-                                     style="letter-spacing: 0.05em">Channels</div>
-                            </div>
+                            <div class="fs-2xl fw-bold landing-stat-value">{{ counts.channels }}</div>
+                            <div class="fs-sm fg-3 mt-1">Channels</div>
                         </div>
                     </div>
-                    <p class="fs-xs fg-3 mt-3 mb-0 text-center">
+                    <p class="fs-xs fg-3 mt-4 mb-0">
                         {{ counts.total_campaigns }} campaigns archived · {{ counts.organizations }} organizations tracked
                     </p>
                 </div>
@@ -114,20 +96,20 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {% for campaign in featured_campaigns %}
                         {% with campaign_image=campaign.dashboard_image_url channel_count=campaign.channels_ordered|length %}
-                            <article class="card bg-1 hover-lift overflow-hidden h-100">
-                                <div class="ratio-16x9 campaign-media overflow-hidden bg-2 position-relative">
-                                    {% if campaign_image %}
-                                        {% picture campaign_image alt="Artwork for "|add:campaign.name width=480 %}
-                                    {% elif campaign.game.dashboard_box_art_url %}
-                                        {% picture campaign.game.dashboard_box_art_url alt="Box art for "|add:campaign.game.get_game_name width=480 %}
-                                    {% else %}
-                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">
-                                            No artwork
-                                        </div>
-                                    {% endif %}
-                                    <div class="position-absolute top-0 start-0 p-2 z-1">
-                                        <span class="badge badge-subtle theme-success">Active</span>
-                                    </div>
+                            <article class="card bg-1 hover-lift overflow-hidden h-100 border-0">
+                                <div class="ratio-16x9 campaign-media overflow-hidden bg-2">
+                                    <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}"
+                                       class="d-block w-100 h-100">
+                                        {% if campaign_image %}
+                                            {% picture campaign_image alt="Artwork for "|add:campaign.name width=480 %}
+                                        {% elif campaign.game.dashboard_box_art_url %}
+                                            {% picture campaign.game.dashboard_box_art_url alt="Box art for "|add:campaign.game.get_game_name width=480 %}
+                                        {% else %}
+                                            <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">
+                                                No artwork
+                                            </div>
+                                        {% endif %}
+                                    </a>
                                 </div>
                                 <div class="card-body p-4 d-flex flex-column gap-2">
                                     <div class="d-flex align-items-center gap-2 min-w-0">
@@ -141,7 +123,7 @@
                                     </div>
                                     <h3 class="fs-lg lh-sm mb-0">
                                         <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}"
-                                           class="stretched-link text-decoration-none fg-1">{{ campaign.clean_name }}</a>
+                                           class="text-decoration-none fg-1">{{ campaign.clean_name }}</a>
                                     </h3>
                                     <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
                                         <span class="badge badge-subtle theme-secondary"
@@ -179,7 +161,8 @@
                     <div>
                         <h2 id="reward-campaigns-heading" class="fs-2xl mb-1">Open reward campaigns</h2>
                         <p class="fs-sm fg-2 mb-0">
-                            Limited-time offers from brands that you can unlock by supporting creators.
+                            Limited-time offers from brands that you can unlock by buying
+                            or gifting Twitch subscriptions.
                         </p>
                     </div>
                     <a class="btn-text theme-secondary btn-sm text-nowrap"
@@ -188,18 +171,18 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {% for campaign in featured_reward_campaigns %}
                         {% with reward_image=campaign.image_best_url reward_count=campaign.rewards.all|length %}
-                            <article class="card bg-1 hover-lift overflow-hidden h-100">
-                                <div class="ratio-16x9 campaign-media overflow-hidden bg-2 position-relative">
-                                    {% if reward_image %}
-                                        {% picture reward_image alt="Artwork for "|add:campaign.name width=480 %}
-                                    {% else %}
-                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">
-                                            No artwork
-                                        </div>
-                                    {% endif %}
-                                    <div class="position-absolute top-0 start-0 p-2 z-1">
-                                        <span class="badge badge-subtle theme-primary">Reward campaign</span>
-                                    </div>
+                            <article class="card bg-1 hover-lift overflow-hidden h-100 border-0">
+                                <div class="ratio-16x9 campaign-media overflow-hidden bg-2">
+                                    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
+                                       class="d-block w-100 h-100">
+                                        {% if reward_image %}
+                                            {% picture reward_image alt="Artwork for "|add:campaign.name width=480 %}
+                                        {% else %}
+                                            <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">
+                                                No artwork
+                                            </div>
+                                        {% endif %}
+                                    </a>
                                 </div>
                                 <div class="card-body p-4 d-flex flex-column gap-2">
                                     {% if campaign.brand %}
@@ -207,7 +190,7 @@
                                     {% endif %}
                                     <h3 class="fs-lg lh-sm mb-0">
                                         <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
-                                           class="stretched-link text-decoration-none fg-1">{{ campaign.name }}</a>
+                                           class="text-decoration-none fg-1">{{ campaign.name }}</a>
                                     </h3>
                                     <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
                                         <span class="badge badge-subtle theme-secondary"
@@ -235,64 +218,63 @@
                 <h2 id="explore-heading" class="fs-2xl mb-1">Explore the archive</h2>
                 <p class="fs-sm fg-2 mb-0">Jump straight into campaigns, games, channels, and historical data.</p>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <a href="{% url 'twitch:campaign_list' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Campaigns</h3>
-                    <p class="fs-sm fg-2 mb-0">Active, upcoming, and expired drops with rewards and watch requirements.</p>
-                </a>
-                <a href="{% url 'twitch:reward_campaign_list' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Reward campaigns</h3>
-                    <p class="fs-sm fg-2 mb-0">Brand offers you can claim after linking your Twitch account.</p>
-                </a>
-                <a href="{% url 'twitch:games_grid' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Games</h3>
-                    <p class="fs-sm fg-2 mb-0">Every game with a drop campaign in the archive, with box art.</p>
-                </a>
-                <a href="{% url 'twitch:org_list' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Organizations</h3>
-                    <p class="fs-sm fg-2 mb-0">Publishers and brands behind Twitch drop campaigns.</p>
-                </a>
-                <a href="{% url 'twitch:channel_list' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Channels</h3>
-                    <p class="fs-sm fg-2 mb-0">Participating channels and the campaigns they are eligible for.</p>
-                </a>
-                <a href="{% url 'twitch:history' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">History</h3>
-                    <p class="fs-sm fg-2 mb-0">A changelog of campaign, game, channel, and reward updates.</p>
-                </a>
-                <a href="{% url 'twitch:stats' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Stats</h3>
-                    <p class="fs-sm fg-2 mb-0">Archive totals, fun records, and leaderboards.</p>
-                </a>
-                <a href="{% url 'twitch:badge_list' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Badges</h3>
-                    <p class="fs-sm fg-2 mb-0">Global Twitch chat badges collected from the API.</p>
-                </a>
-                <a href="{% url 'twitch:emote_gallery' %}"
-                   class="card bg-1 hover-lift p-4 h-100 text-decoration-none fg-reset">
-                    <h3 class="fs-lg mb-1">Emotes</h3>
-                    <p class="fs-sm fg-2 mb-0">Emotes earned as drop rewards, with their source campaigns.</p>
-                </a>
+            <div class="row g-4">
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:campaign_list' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Campaigns</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Active, upcoming, and expired drops with rewards.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:reward_campaign_list' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Reward campaigns</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Brand offers you can claim after linking your account.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:games_grid' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Games</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Every game with a campaign in the archive.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:org_list' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Organizations</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Publishers and brands behind drop campaigns.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:channel_list' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Channels</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Participating channels and their campaigns.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:history' %}"
+                       class="fw-semibold fg-1 text-decoration-none">History</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">A changelog of campaign and reward updates.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:stats' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Stats</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Archive totals, records, and leaderboards.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:badge_list' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Badges</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Global Twitch chat badges from the API.</p>
+                </div>
+                <div class="col-12 sm:col-6 lg:col-4">
+                    <a href="{% url 'twitch:emote_gallery' %}"
+                       class="fw-semibold fg-1 text-decoration-none">Emotes</a>
+                    <p class="fs-sm fg-2 mt-1 mb-0">Emotes earned as drop rewards.</p>
+                </div>
             </div>
         </section>
         {# Feeds, API, and how Drops work #}
-        <section aria-labelledby="feeds-heading"
-                 class="pt-5 border-top border-2 border-subtle">
+        <section aria-labelledby="feeds-heading" class="pt-3">
             <div class="row g-5 align-items-start">
                 <div class="col-12 md:col-7">
-                    <h2 id="feeds-heading" class="fs-2xl mb-2">Never miss a drop</h2>
+                    <h2 id="feeds-heading" class="fs-2xl mb-2">Feeds and API</h2>
                     <p class="fs-md fg-2 mb-4 text-pretty" style="max-width: 65ch;">
-                        Subscribe to the campaign feed in your RSS reader, Discord server, or bot.
-                        Prefer structured data? The free JSON API exposes campaigns, games,
-                        organizations, channels, and rewards.
+                        Follow campaign updates in your RSS reader, Discord server, or bot.
+                        The free JSON API exposes campaigns, games, organizations, channels,
+                        and rewards.
                     </p>
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         <a class="btn-outline theme-secondary"
@@ -305,12 +287,13 @@
                            href="{% url 'api-v1:openapi-view' %}">API docs</a>
                     </div>
                     <p class="fs-xs fg-3 mb-0">
-                        Read the <a href="{% url 'core:docs_rss' %}">feed documentation</a> for filters
-                        and per-game feeds, or download the <a href="{% url 'core:dataset_backups' %}">full dataset</a>.
+                        Read the <a href="{% url 'core:docs_rss' %}">feed documentation</a> for
+                        per-game feeds and other options, or download the
+                        <a href="{% url 'core:dataset_backups' %}">full dataset</a>.
                     </p>
                 </div>
                 <div class="col-12 md:col-5">
-                    <div class="card bg-1 p-5">
+                    <div class="bg-1 p-5 rounded-3">
                         <h3 class="fs-lg mb-3">How Drops work</h3>
                         <ol class="ps-4 mb-4 fs-sm fg-2">
                             <li class="mb-2">Watch participating channels for the required amount of time.</li>
@@ -322,8 +305,9 @@
                                    rel="noopener">Drops Inventory</a>.
                             </li>
                         </ol>
-                        <a class="btn-text theme-secondary btn-sm"
-                           href="{% url 'core:about' %}">Learn more about Drops</a>
+                        <p class="fs-sm mb-0">
+                            <a href="{% url 'core:about' %}">Learn more about Drops</a>
+                        </p>
                     </div>
                 </div>
             </div>

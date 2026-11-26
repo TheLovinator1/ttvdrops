@@ -2273,6 +2273,63 @@ class TestChannelListView:
         assert "game" in response.context
 
     @pytest.mark.django_db
+    def test_game_detail_status_tabs_filter_campaigns(
+        self,
+        client: Client,
+    ) -> None:
+        """Game detail status tabs should filter campaigns and rewards."""
+        now: datetime.datetime = timezone.now()
+        game: Game = Game.objects.create(
+            twitch_id="game-tabs",
+            name="Game Tabs",
+            display_name="Game Tabs",
+        )
+        DropCampaign.objects.create(
+            twitch_id="game-tabs-active",
+            name="Active Tab Campaign",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        DropCampaign.objects.create(
+            twitch_id="game-tabs-past",
+            name="Past Tab Campaign",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+            start_at=now - timedelta(days=3),
+            end_at=now - timedelta(days=2),
+        )
+        url: str = reverse("twitch:game_detail", args=[game.twitch_id])
+
+        active_response: _MonkeyPatchedWSGIResponse = client.get(
+            f"{url}?status=active",
+        )
+        active_content: str = active_response.content.decode()
+        assert active_response.status_code == 200
+        assert "Available" in active_content
+        assert 'id="active-campaigns-table"' in active_content
+        assert 'id="expired-campaigns-table"' not in active_content
+
+        past_response: _MonkeyPatchedWSGIResponse = client.get(
+            f"{url}?status=expired",
+        )
+        past_content: str = past_response.content.decode()
+        assert past_response.status_code == 200
+        assert 'id="expired-campaigns-table"' in past_content
+        assert 'id="active-campaigns-table"' not in past_content
+
+        upcoming_response: _MonkeyPatchedWSGIResponse = client.get(
+            f"{url}?status=upcoming",
+        )
+        upcoming_content: str = upcoming_response.content.decode()
+        assert upcoming_response.status_code == 200
+        assert 'id="empty-status-message"' in upcoming_content
+        assert "No upcoming campaigns or rewards" in upcoming_content
+
+    @pytest.mark.django_db
     def test_game_detail_campaign_query_plan_uses_game_end_index(self) -> None:
         """Game-detail campaign list query should use the game/end_at composite index."""
         now: datetime.datetime = timezone.now()
@@ -2715,6 +2772,39 @@ class TestRewardCampaignViews:
         assert item.redemption_instructions in content
         assert item.redemption_url in content
         assert "https://example.com/thumbnail.png" in content
+        assert 'id="redeem-button"' in content
+
+    def test_reward_campaign_detail_hides_common_redeem_when_urls_differ(
+        self,
+        client: Client,
+    ) -> None:
+        """A shared top Redeem button is only shown when all URLs match."""
+        game: Game = self._create_game("reward-diff-game", "Reward Diff Game")
+        reward: RewardCampaign = self._create_reward_campaign(
+            "reward-diff",
+            brand="Diff Brand",
+            name="Different Redeem Reward",
+            game=game,
+            starts_delta=-timedelta(days=1),
+            ends_delta=timedelta(days=1),
+        )
+        for index in range(1, 3):
+            Reward.objects.create(
+                reward_campaign=reward,
+                twitch_id=f"reward-diff-item-{index}",
+                name=f"Reward {index}",
+                redemption_url=f"https://example.com/redeem/{index}",
+            )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:reward_campaign_detail", args=[reward.twitch_id]),
+        )
+
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert 'id="redeem-button"' not in content
+        assert "https://example.com/redeem/1" in content
+        assert "https://example.com/redeem/2" in content
 
     def test_reward_campaign_list_renders_individual_rewards(
         self,
@@ -5394,6 +5484,52 @@ class TestDropCampaignListView:
         assert game_match.twitch_id in campaign_ids
         assert owner_match.twitch_id in campaign_ids
         assert "cl_search_other" not in campaign_ids
+
+    def test_ios_filter(
+        self,
+        client: Client,
+        game_with_campaigns: dict[str, Any],
+    ) -> None:
+        """The iOS filter returns only campaigns with iOS-available benefits."""
+        game: Game = game_with_campaigns["game"]
+        ios_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="cl_ios",
+            name="iOS Campaign",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+        )
+        other_campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="cl_not_ios",
+            name="Non iOS Campaign",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+        )
+        drop: TimeBasedDrop = TimeBasedDrop.objects.create(
+            twitch_id="drop_ios",
+            name="iOS Drop",
+            campaign=ios_campaign,
+            required_minutes_watched=0,
+            required_subs=0,
+        )
+        benefit: DropBenefit = DropBenefit.objects.create(
+            twitch_id="benefit_ios",
+            name="iOS Benefit",
+            is_ios_available=True,
+        )
+        drop.benefits.add(benefit)
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?status=ios",
+        )
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        campaign_ids = {c.twitch_id for c in context["campaigns"].object_list}
+        assert ios_campaign.twitch_id in campaign_ids
+        assert other_campaign.twitch_id not in campaign_ids
 
     def test_campaign_list_indexes_exist(self) -> None:
         """Required composite indexes for the campaign list query must exist on DropCampaign."""

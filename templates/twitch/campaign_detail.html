@@ -19,7 +19,7 @@
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
-    <main>
+    <main class="xl:container py-4">
         <ul class="nav nav-tabs mb-4"
             role="tablist"
             aria-label="Campaign sections">
@@ -55,114 +55,72 @@
                  role="tabpanel"
                  aria-labelledby="overview-tab"
                  tabindex="0">
-                <div style="display: flex; align-items: flex-start;">
-                    <!-- Campaign image -->
-                    <div style="margin-right: 16px;">
-                        {% if campaign.image_best_url %}
-                            {% picture campaign.image_best_url alt=campaign.name width=160 %}
-                        {% endif %}
-                    </div>
-                    <!-- Campaign Title -->
-                    <div class="flex-grow-1" style="display: flex; flex-direction: column;">
-                        <h1 style="margin-top: 0; margin-bottom: 0px;">{{ campaign.clean_name }}</h1>
-                        <!-- Add breadcrumbs -->
-                        <nav aria-label="breadcrumb" class="mb-2">
-                            <ol class="breadcrumb mb-0">
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'twitch:campaign_list' %}">Campaigns</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link"
-                                       href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item" aria-current="page">
-                                    <span class="breadcrumb-link active">{{ campaign.clean_name }}</span>
-                                </li>
-                            </ol>
-                        </nav>
-                        <!-- Game owner -->
-                        {% if owners %}
-                            <div style="font-size: 0.9em;">
-                                Owned by
-                                {% for owner in owners %}
-                                    <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
-                                    {% if not forloop.last %}-{% endif %}
-                                {% endfor %}
+                <header class="mb-4">
+                    <nav aria-label="breadcrumb" class="mb-2">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item">
+                                <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                            </li>
+                            <li class="breadcrumb-divider"></li>
+                            <li class="breadcrumb-item">
+                                <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                            </li>
+                            <li class="breadcrumb-divider"></li>
+                            <li class="breadcrumb-item">
+                                <a class="breadcrumb-link" href="{% url 'twitch:campaign_list' %}">Campaigns</a>
+                            </li>
+                            <li class="breadcrumb-divider"></li>
+                            <li class="breadcrumb-item">
+                                <a class="breadcrumb-link"
+                                   href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                            </li>
+                            <li class="breadcrumb-divider"></li>
+                            <li class="breadcrumb-item" aria-current="page">
+                                <span class="breadcrumb-link active">{{ campaign.clean_name }}</span>
+                            </li>
+                        </ol>
+                    </nav>
+                    <div class="d-flex flex-column md:flex-row align-items-start gap-3">
+                        <div class="flex-shrink-0" style="width: 180px; max-width: 100%">
+                            {% if campaign.image_best_url %}
+                                {% picture campaign.image_best_url alt="Artwork for "|add:campaign.name width=180 css_class="w-100 h-auto rounded-2" %}
+                            {% else %}
+                                <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3"
+                                     style="aspect-ratio: 1 / 1">No Image</div>
+                            {% endif %}
+                        </div>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                <h1 class="h2 mb-0">{{ campaign.clean_name }}</h1>
+                                {% if campaign_status == "active" %}
+                                    <span class="badge badge-subtle theme-success">Active</span>
+                                {% elif campaign_status == "upcoming" %}
+                                    <span class="badge badge-subtle theme-info">Upcoming</span>
+                                {% elif campaign_status == "expired" %}
+                                    <span class="badge badge-subtle theme-danger">Expired</span>
+                                {% else %}
+                                    <span class="badge badge-subtle theme-secondary">Unknown</span>
+                                {% endif %}
+                                <span class="badge badge-subtle theme-secondary">#{{ campaign.twitch_id }}</span>
                             </div>
-                        {% endif %}
-                        <!-- Campaign description -->
-                        <p>{{ campaign.description|linebreaksbr }}</p>
-                        <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
-                            <dt>Published</dt>
-                            <dd>
-                                <time datetime="{{ campaign.added_at|date:'c' }}"
-                                      title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time> ({{ campaign.added_at|timesince }} ago)
-                            </dd>
-                            <dt>Last updated</dt>
-                            <dd>
-                                <time datetime="{{ campaign.updated_at|date:'c' }}"
-                                      title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time> ({{ campaign.updated_at|timesince }} ago)
-                            </dd>
-                            <!-- Campaign end times -->
-                            <dt>
-                                {% if campaign.end_at < now %}
-                                    Ended
-                                {% else %}
-                                    Ends in
-                                {% endif %}
-                            </dt>
-                            <dd>
-                                <time datetime="{{ campaign.end_at|date:'c' }}"
-                                      title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M d, Y H:i" }}</time>
-                                {% if campaign.end_at < now %}
-                                    ({{ campaign.end_at|timesince }} ago)
-                                {% else %}
-                                    (in {{ campaign.end_at|timeuntil }})
-                                {% endif %}
-                            </dd>
-                            <!-- Campaign start times -->
-                            <dt>
-                                {% if campaign.start_at > now %}
-                                    Starts in
-                                {% else %}
-                                    Started
-                                {% endif %}
-                            </dt>
-                            <dd>
-                                <time datetime="{{ campaign.start_at|date:'c' }}"
-                                      title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M d, Y H:i" }}</time>
-                                {% if campaign.start_at > now %}
-                                    (in {{ campaign.start_at|timeuntil }})
-                                {% else %}
-                                    ({{ campaign.start_at|timesince }} ago)
-                                {% endif %}
-                            </dd>
-                            <!-- Campaign duration -->
-                            <dt>Duration</dt>
-                            <dd>
-                                <time datetime="{{ campaign.duration_iso }}"
-                                      title="{{ campaign.start_at|date:'DATETIME_FORMAT' }} to {{ campaign.end_at|date:'DATETIME_FORMAT' }}">
-                                    {{ campaign.end_at|timeuntil:campaign.start_at }}
-                                </time>
-                            </dd>
-                            <!-- Data source -->
-                            <dt>Data source</dt>
-                            <dd>
-                                {{ campaign.data_source }}
-                            </dd>
-                        </dl>
-                        {% if campaign.game %}
-                            <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-3">
+                            {% if campaign.name != campaign.clean_name %}
+                                <p class="fg-2 mb-2">{{ campaign.name }}</p>
+                            {% endif %}
+                            {% if owners %}
+                                <p class="fs-sm fg-2 mb-2">
+                                    Owned by
+                                    {% for owner in owners %}
+                                        <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
+                                        {% if not forloop.last %}-{% endif %}
+                                    {% endfor %}
+                                </p>
+                            {% endif %}
+                            {% if campaign.description %}
+                                <p class="fg-2 mb-0">{{ campaign.description|linebreaksbr }}</p>
+                            {% else %}
+                                <p class="fg-3 fst-italic mb-0">No description</p>
+                            {% endif %}
+                            <div class="d-flex flex-wrap justify-content-end align-items-center gap-3 mt-4">
                                 {% if campaign.details_url %}
                                     <a class="btn-solid theme-primary btn-sm"
                                        href="{{ campaign.details_url }}"
@@ -215,93 +173,342 @@
                                 </div>
                             </div>
                             {% include "twitch/includes/external_site_links.html" with external_site_links=campaign.external_site_links %}
-                        {% endif %}
+                        </div>
                     </div>
-                </div>
-                <h5>Campaign Info</h5>
-                {% if drops %}
-                    <!-- Drops table -->
-                    <table class="table table-striped table-hover"
-                           style="border-collapse: collapse;
-                                  width: 100%;
-                                  --bs-table-cell-vertical-align: middle">
-                        <tbody>
+                </header>
+                <section class="card bg-1 mb-4" aria-labelledby="campaign-details-heading">
+                    <div class="card-body p-4">
+                        <h2 id="campaign-details-heading" class="h4 mb-3">Campaign details</h2>
+                        <dl class="row g-2 mb-0 fs-sm">
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Twitch ID</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                <code>{{ campaign.twitch_id }}</code>
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Name</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ campaign.name }}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Status</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ campaign_status|capfirst }}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Start</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {% if campaign.start_at %}
+                                    <time datetime="{{ campaign.start_at|date:'c' }}"
+                                          title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M d, Y H:i" }}</time>
+                                    {% if campaign.start_at > now %}
+                                        <span class="fg-3">(in {{ campaign.start_at|timeuntil }})</span>
+                                    {% else %}
+                                        <span class="fg-3">({{ campaign.start_at|timesince }} ago)</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="fg-3 fst-italic">Not available</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">End</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {% if campaign.end_at %}
+                                    <time datetime="{{ campaign.end_at|date:'c' }}"
+                                          title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M d, Y H:i" }}</time>
+                                    {% if campaign.end_at > now %}
+                                        <span class="fg-3">(in {{ campaign.end_at|timeuntil }})</span>
+                                    {% else %}
+                                        <span class="fg-3">({{ campaign.end_at|timesince }} ago)</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="fg-3 fst-italic">Not available</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Duration</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {% if campaign.start_at and campaign.end_at %}
+                                    {{ campaign.end_at|timeuntil:campaign.start_at }}
+                                {% else %}
+                                    <span class="fg-3 fst-italic">Not available</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Published</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                <time datetime="{{ campaign.added_at|date:'c' }}"
+                                      title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time>
+                                <span class="fg-3">({{ campaign.added_at|timesince }} ago)</span>
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Last updated</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                <time datetime="{{ campaign.updated_at|date:'c' }}"
+                                      title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time>
+                                <span class="fg-3">({{ campaign.updated_at|timesince }} ago)</span>
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Details URL</dt>
+                            <dd class="col-12 sm:col-9 mb-0 text-break">
+                                {% if campaign.details_url %}
+                                    <a href="{{ campaign.details_url }}"
+                                       target="_blank"
+                                       rel="noopener">{{ campaign.details_url }}</a>
+                                {% else %}
+                                    <span class="fg-3 fst-italic">Not available</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Account link URL</dt>
+                            <dd class="col-12 sm:col-9 mb-0 text-break">
+                                {% if campaign.account_link_url %}
+                                    <a href="{{ campaign.account_link_url }}"
+                                       target="_blank"
+                                       rel="noopener">{{ campaign.account_link_url }}</a>
+                                {% else %}
+                                    <span class="fg-3 fst-italic">Not available</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Image URL</dt>
+                            <dd class="col-12 sm:col-9 mb-0 text-break">
+                                {% if campaign.image_best_url %}
+                                    <a href="{{ campaign.image_best_url }}"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="{{ campaign.image_best_url }}">Open image</a>
+                                {% else %}
+                                    <span class="fg-3 fst-italic">Not available</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Allow enabled</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ campaign.allow_is_enabled|yesno:"Yes,No" }}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Fully imported</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ campaign.is_fully_imported|yesno:"Yes,No" }}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Operation names</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for operation in campaign.operation_names %}
+                                        <span class="badge badge-subtle theme-secondary">{{ operation }}</span>
+                                    {% empty %}
+                                        <span class="fg-3 fst-italic">None</span>
+                                    {% endfor %}
+                                </div>
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Data source</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ campaign.data_source|default:"Unknown" }}
+                            </dd>
+                        </dl>
+                    </div>
+                </section>
+                <section class="card bg-1 mb-4" aria-labelledby="game-details-heading">
+                    <div class="card-body p-4">
+                        <h2 id="game-details-heading" class="h4 mb-3">Game details</h2>
+                        <dl class="row g-2 mb-0 fs-sm">
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Game</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Name</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ campaign.game.name }}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Slug</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                <code>{{ campaign.game.slug|default:"Unknown" }}</code>
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Twitch ID</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                <code>{{ campaign.game.twitch_id }}</code>
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Box art URL</dt>
+                            <dd class="col-12 sm:col-9 mb-0 text-break">
+                                {% if campaign.game.box_art_best_url %}
+                                    <a href="{{ campaign.game.box_art_best_url }}"
+                                       target="_blank"
+                                       rel="noopener"
+                                       title="{{ campaign.game.box_art_best_url }}">Open box art</a>
+                                {% else %}
+                                    <span class="fg-3 fst-italic">Not available</span>
+                                {% endif %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Organizations</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {% for owner in owners %}
+                                    <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
+                                    {% if not forloop.last %}-{% endif %}
+                                {% empty %}
+                                    <span class="fg-3 fst-italic">None</span>
+                                {% endfor %}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Campaigns</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ game_campaign_count }}
+                            </dd>
+                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Active campaigns</dt>
+                            <dd class="col-12 sm:col-9 mb-0">
+                                {{ game_active_campaign_count }}
+                            </dd>
+                        </dl>
+                    </div>
+                </section>
+                <section aria-labelledby="drops-heading" class="mb-4">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <h2 id="drops-heading" class="h4 mb-0">Drops</h2>
+                        <span class="badge badge-subtle theme-secondary">{{ drops|length }}</span>
+                    </div>
+                    {% if drops %}
+                        <div class="d-flex flex-column gap-3">
                             {% for drop in drops %}
-                                <tr>
-                                    <td style="display: flex; gap: 12px; align-items: center;">
-                                        <div style="flex-shrink: 0;">
-                                            {% for benefit in drop.drop.benefits.all %}
-                                                {% if benefit.image_asset_url %}
-                                                    {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=160 height=160 style="object-fit: cover" %}
+                                <article class="card bg-1">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                                            <div>
+                                                <h3 class="h5 mb-1">{{ drop.drop.name }}</h3>
+                                                <code class="fs-xs fg-3">{{ drop.drop.twitch_id }}</code>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-1">
+                                                {% if drop.drop.required_minutes_watched is not None %}
+                                                    <span class="badge badge-subtle theme-secondary">
+                                                        {{ drop.drop.required_minutes_watched }} minute{{ drop.drop.required_minutes_watched|pluralize }} watched
+                                                    </span>
                                                 {% endif %}
-                                            {% endfor %}
+                                                {% if drop.drop.required_subs %}
+                                                    <span class="badge badge-subtle theme-secondary">
+                                                        {{ drop.drop.required_subs }} subscription{{ drop.drop.required_subs|pluralize }} required
+                                                    </span>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div style="margin-bottom: 5px;">{{ drop.drop.name }}</div>
-                                            {% for benefit in drop.drop.benefits.all %}
-                                                {% if benefit.name != drop.drop.name %}
-                                                    <div style="font-size: 0.9em; color: #a9a9a9; margin-bottom: 3px;">{{ benefit.name }}</div>
+                                        <dl class="row g-1 mb-3 fs-sm">
+                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Starts</dt>
+                                            <dd class="col-12 sm:col-9 mb-0">
+                                                {% if drop.drop.start_at %}
+                                                    <time datetime="{{ drop.drop.start_at|date:'c' }}"
+                                                          title="{{ drop.drop.start_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.start_at|date:"M d, Y H:i" }}</time>
+                                                {% else %}
+                                                    <span class="fg-3 fst-italic">Not available</span>
                                                 {% endif %}
-                                            {% endfor %}
+                                            </dd>
+                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Ends</dt>
+                                            <dd class="col-12 sm:col-9 mb-0">
+                                                {% if drop.drop.end_at %}
+                                                    <time datetime="{{ drop.drop.end_at|date:'c' }}"
+                                                          title="{{ drop.drop.end_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.end_at|date:"M d, Y H:i" }}</time>
+                                                {% else %}
+                                                    <span class="fg-3 fst-italic">Not available</span>
+                                                {% endif %}
+                                            </dd>
+                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Duration</dt>
+                                            <dd class="col-12 sm:col-9 mb-0">
+                                                {{ drop.duration_text|default:"Unknown" }}
+                                            </dd>
+                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Timezone</dt>
+                                            <dd class="col-12 sm:col-9 mb-0">
+                                                {{ drop.timezone_name }}
+                                            </dd>
+                                        </dl>
+                                        <h4 class="h6 mb-2">Benefits</h4>
+                                        <div class="d-flex flex-column gap-3">
                                             {% for benefit in drop.drop.benefits.all %}
-                                                {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
-                                                    <div style="margin-top: 6px; font-size: 0.9em;">
-                                                        <strong>Awards Badge:</strong>
-                                                        <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
-                                                            {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 style="vertical-align: middle; margin-right: 4px" %}
-                                                            {{ drop.awarded_badge.title }}
-                                                        </a>
-                                                        {% if drop.awarded_badge.description %}
-                                                            <div style="margin-top: 4px; color: #a9a9a9; font-size: 0.9em;">{{ drop.awarded_badge.description|linebreaksbr }}</div>
+                                                <div class="d-flex flex-column sm:flex-row gap-3 border-top border-subtle pt-3">
+                                                    <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
+                                                        {% if benefit.image_best_url %}
+                                                            {% picture benefit.image_best_url alt="Artwork for "|add:benefit.name width=96 css_class="w-100 h-auto rounded-2" %}
+                                                        {% else %}
+                                                            <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
+                                                                 style="aspect-ratio: 1 / 1">No Image</div>
                                                         {% endif %}
                                                     </div>
-                                                {% endif %}
+                                                    <div class="flex-grow-1 min-w-0">
+                                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                                            <h5 class="h6 mb-0">{{ benefit.name }}</h5>
+                                                            {% if benefit.is_ios_available %}
+                                                                <span class="badge badge-subtle theme-info">iOS available</span>
+                                                            {% endif %}
+                                                            <span class="badge badge-subtle theme-secondary">{{ benefit.distribution_type|default:"Unknown distribution" }}</span>
+                                                        </div>
+                                                        <dl class="row g-1 mb-0 fs-xs">
+                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Twitch ID</dt>
+                                                            <dd class="col-12 sm:col-8 mb-0">
+                                                                <code>{{ benefit.twitch_id }}</code>
+                                                            </dd>
+                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Distribution type</dt>
+                                                            <dd class="col-12 sm:col-8 mb-0">
+                                                                {{ benefit.distribution_type|default:"Unknown" }}
+                                                            </dd>
+                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Entitlement limit</dt>
+                                                            <dd class="col-12 sm:col-8 mb-0">
+                                                                {{ benefit.entitlement_limit }}
+                                                            </dd>
+                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">iOS available</dt>
+                                                            <dd class="col-12 sm:col-8 mb-0">
+                                                                {{ benefit.is_ios_available|yesno:"Yes,No" }}
+                                                            </dd>
+                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Created</dt>
+                                                            <dd class="col-12 sm:col-8 mb-0">
+                                                                {% if benefit.created_at %}
+                                                                    <time datetime="{{ benefit.created_at|date:'c' }}"
+                                                                          title="{{ benefit.created_at|date:'DATETIME_FORMAT' }}">{{ benefit.created_at|date:"M d, Y H:i" }}</time>
+                                                                {% else %}
+                                                                    <span class="fg-3 fst-italic">Not available</span>
+                                                                {% endif %}
+                                                            </dd>
+                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Image URL</dt>
+                                                            <dd class="col-12 sm:col-8 mb-0 text-break">
+                                                                {% if benefit.image_best_url %}
+                                                                    <a href="{{ benefit.image_best_url }}"
+                                                                       target="_blank"
+                                                                       rel="noopener"
+                                                                       title="{{ benefit.image_best_url }}">Open image</a>
+                                                                {% else %}
+                                                                    <span class="fg-3 fst-italic">Not available</span>
+                                                                {% endif %}
+                                                            </dd>
+                                                        </dl>
+                                                        {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
+                                                            <div class="mt-2 fs-sm">
+                                                                <strong>Awards badge:</strong>
+                                                                <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
+                                                                    {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 style="vertical-align: middle; margin-right: 4px" %}
+                                                                    {{ drop.awarded_badge.title }}
+                                                                </a>
+                                                                {% if drop.awarded_badge.description %}
+                                                                    <div class="fg-3 mt-1">{{ drop.awarded_badge.description|linebreaksbr }}</div>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            {% empty %}
+                                                <p class="fg-3 fst-italic mb-0">No benefits</p>
                                             {% endfor %}
                                         </div>
-                                    </td>
-                                    <td>
-                                        {% if drop.drop.required_minutes_watched %}{{ drop.drop.required_minutes_watched }} minute{{ drop.drop.required_minutes_watched|pluralize }} watched{% endif %}
-                                        {% if drop.drop.required_subs > 0 %}
-                                            {% if drop.drop.required_minutes_watched %}and{% endif %}
-                                            {{ drop.drop.required_subs }} subscription{{ drop.drop.required_subs|pluralize }} required
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div>
-                                            {% if drop.local_start %}
-                                                <time datetime="{{ drop.local_start|date:'c' }}">{{ drop.local_start|date:"M j, Y H:i" }}</time>
-                                            {% endif %}
-                                            {% if drop.local_start and drop.local_end %} – {% endif %}
-                                            {% if drop.local_end %}
-                                                <time datetime="{{ drop.local_end|date:'c' }}">{{ drop.local_end|date:"M j, Y H:i" }}</time>
-                                            {% endif %}
-                                        </div>
-                                        <div style="font-size: 0.8em; color: #a9a9a9;">TZ: {{ drop.timezone_name }}</div>
-                                        <div style="font-size: 0.8em; color: #a9a9a9;">Duration: {{ drop.duration_text }}</div>
-                                    </td>
-                                </tr>
+                                    </div>
+                                </article>
                             {% endfor %}
-                        </tbody>
-                    </table>
-                {% else %}
-                    <!-- If there are no drops, show a message indicating that there are no drops available for this campaign -->
-                    <p>No drops available for this campaign.</p>
-                {% endif %}
-                <!-- Allowed channels -->
-                {% if allowed_channels %}
-                    <!-- If specific allowed channels are specified, list them -->
-                    <h5 id="allowed-channels" class="d-flex align-items-center gap-2">
-                        Allowed Channels
-                        <span class="badge badge-subtle theme-secondary rounded-pill">{{ allowed_channels|length }}</span>
-                    </h5>
-                    <div class="d-flex flex-wrap gap-2">
-                        {% for channel in allowed_channels %}
-                            <a class="chip theme-secondary"
-                               href="{% url 'twitch:channel_detail' channel.twitch_id %}"
-                               title="View {{ channel.display_name }}">{{ channel.display_name }}</a>
-                        {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="card bg-1 text-center py-5 px-3">
+                            <div class="card-body">
+                                <h3 class="h4 mb-2">No Drops</h3>
+                                <p class="fg-2 mb-0">No drops are available for this campaign.</p>
+                            </div>
+                        </div>
+                    {% endif %}
+                </section>
+                <section aria-labelledby="allowed-channels-heading">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <h2 id="allowed-channels-heading" class="h4 mb-0">Allowed Channels</h2>
+                        <span class="badge badge-subtle theme-secondary">{{ allowed_channels|length }}</span>
                     </div>
-                {% endif %}
+                    {% if allowed_channels %}
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for channel in allowed_channels %}
+                                <a class="chip theme-secondary"
+                                   href="{% url 'twitch:channel_detail' channel.twitch_id %}"
+                                   title="ID: {{ channel.twitch_id }} | name: {{ channel.name }} | display names: {{ channel.display_names|join:', ' }}">{{ channel.display_name }}</a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="fg-3 fst-italic mb-0">None</p>
+                    {% endif %}
+                </section>
             </div>
             <div class="tab-pane fade"
                  id="history-pane"

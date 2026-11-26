@@ -1,0 +1,31 @@
+<ul class="nav nav-tabs mb-3"
+    role="tablist"
+    aria-label="Campaign status filters">
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if not selected_status %}active{% endif %}"
+           href="{% querystring status=None page=None %}"
+           {% if not selected_status %}aria-current="page"{% endif %}>All</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if selected_status == 'active' %}active{% endif %}"
+           href="{% querystring status='active' page=None %}"
+           {% if selected_status == 'active' %}aria-current="page"{% endif %}>Active</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if selected_status == 'upcoming' %}active{% endif %}"
+           href="{% querystring status='upcoming' page=None %}"
+           {% if selected_status == 'upcoming' %}aria-current="page"{% endif %}>Upcoming</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link {% if selected_status == 'expired' %}active{% endif %}"
+           href="{% querystring status='expired' page=None %}"
+           {% if selected_status == 'expired' %}aria-current="page"{% endif %}>Expired</a>
+    </li>
+    {% if show_ios %}
+        <li class="nav-item" role="presentation">
+            <a class="nav-link {% if selected_status == 'ios' %}active{% endif %}"
+               href="{% querystring status='ios' page=None %}"
+               {% if selected_status == 'ios' %}aria-current="page"{% endif %}>{{ ios_label|default:"iOS only" }}</a>
+        </li>
+    {% endif %}
+</ul>

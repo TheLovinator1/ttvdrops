@@ -320,10 +320,28 @@ class ImportChzzkCampaignCommandTest(TestCase):
     def test_get_campaign_import_candidates_uses_initial_range_on_empty_db(
         self,
     ) -> None:
-        """When there are no campaigns, candidates should be 1..5."""
+        """Without discovery, a fresh database should start from 1..5."""
         command: ImportChzzkCampaignCommand = ImportChzzkCampaignCommand()
-        candidates: list[int] = command.get_campaign_import_candidates()
+        with patch.object(
+            command,
+            "_discover_latest_campaign_no",
+            return_value=None,
+        ):
+            candidates: list[int] = command.get_campaign_import_candidates()
         assert candidates == [1, 2, 3, 4, 5]
+
+    def test_get_campaign_import_candidates_discovers_latest_on_empty_db(
+        self,
+    ) -> None:
+        """A fresh database should seed around the latest live campaign."""
+        command: ImportChzzkCampaignCommand = ImportChzzkCampaignCommand()
+        with patch.object(
+            command,
+            "_discover_latest_campaign_no",
+            return_value=2135,
+        ):
+            candidates: list[int] = command.get_campaign_import_candidates()
+        assert candidates == list(range(2130, 2141))
 
     def test_get_campaign_import_candidates_adds_backfill_and_new_candidates(
         self,
@@ -374,6 +392,74 @@ class ImportChzzkCampaignCommandTest(TestCase):
         msg = stdout_write.call_args.args[0]
         assert "Failed to fetch campaign 12345" in msg
         assert "Campaign not found" in msg
+
+    def test_import_campaign_handles_null_content(self) -> None:
+        """Missing campaigns return 200 with null content and should be skipped."""
+        command = ImportChzzkCampaignCommand()
+
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "code": 200,
+            "message": None,
+            "content": None,
+        }
+
+        with (
+            patch(
+                "chzzk.management.commands.import_chzzk_campaign.requests.get",
+                return_value=response,
+            ),
+            patch.object(command.stdout, "write") as stdout_write,
+            patch.object(command, "import_campaign_data") as import_campaign_data_mock,
+        ):
+            command._import_campaign(1)
+
+        assert import_campaign_data_mock.call_count == 0
+        assert stdout_write.call_count == 1
+        msg = stdout_write.call_args.args[0]
+        assert "Campaign 1 does not exist" in msg
+
+    def test_discover_latest_campaign_no_returns_highest_drops_campaign(self) -> None:
+        """Discovery should return the highest campaign number from live streams."""
+        command = ImportChzzkCampaignCommand()
+
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "code": 200,
+            "message": None,
+            "content": {
+                "data": [
+                    {"liveId": 1, "dropsCampaignNo": 100},
+                    {"liveId": 2, "dropsCampaignNo": 205},
+                    {"liveId": 3, "dropsCampaignNo": None},
+                ],
+            },
+        }
+
+        with patch(
+            "chzzk.management.commands.import_chzzk_campaign.requests.get",
+            return_value=response,
+        ):
+            campaign_no = command._discover_latest_campaign_no()
+
+        assert campaign_no == 205
+
+    def test_discover_latest_campaign_no_handles_request_failure(self) -> None:
+        """Discovery failures should be reported without raising."""
+        command = ImportChzzkCampaignCommand()
+
+        with (
+            patch(
+                "chzzk.management.commands.import_chzzk_campaign.requests.get",
+                side_effect=requests.RequestException("network down"),
+            ),
+            patch.object(command.stdout, "write"),
+        ):
+            campaign_no = command._discover_latest_campaign_no()
+
+        assert campaign_no is None
 
     def test_update_or_create_reward_updates_existing_reward(self) -> None:
         """Existing rewards should be updated when incoming reward data differs."""

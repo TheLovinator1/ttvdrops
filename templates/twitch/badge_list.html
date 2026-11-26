@@ -99,7 +99,7 @@
                                     {% for badge in data.badges %}
                                         <a class="badge-tile d-flex flex-column align-items-center justify-content-center text-center text-decoration-none bg-2 border border-subtle rounded-4 p-3 hover-lift"
                                            href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}"
-                                           title="{{ badge.title }}{% if badge.description and badge.description != badge.title %} — {{ badge.description }}{% endif %}">
+                                           title="{{ badge.title }}{% if badge.description and badge.description != badge.title %} - {{ badge.description }}{% endif %}">
                                             {% picture badge.image_url_4x alt=badge.title width=72 height=72 css_class="badge-tile-img" %}
                                             <div class="fw-semibold fs-sm mt-2 w-100 text-truncate">{{ badge.title }}</div>
                                             {% if data.badges|length > 1 or badge.badge_id != "1" %}

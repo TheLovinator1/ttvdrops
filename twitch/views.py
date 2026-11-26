@@ -28,6 +28,7 @@ from django.views.generic import DetailView
 from django.views.generic import ListView
 
 from core.base_url import build_absolute_uri
+from core.campaign_timing import campaign_timing_stats
 from core.discord_embed import TWITCH_ACCENT_COLOR
 from core.discord_embed import embed_buttons
 from core.discord_embed import escape_markdown
@@ -50,6 +51,7 @@ from twitch.models import DropBenefit
 from twitch.models import DropCampaign
 from twitch.models import Game
 from twitch.models import Organization
+from twitch.models import Reward
 from twitch.models import RewardCampaign
 from twitch.models import TimeBasedDrop
 
@@ -889,6 +891,10 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
             | Q(game__name__icontains=search_query)
             | Q(game__owners__name__icontains=search_query),
         ).distinct()
+    if status_filter == "ios":
+        queryset = queryset.filter(
+            time_based_drops__benefits__is_ios_available=True,
+        ).distinct()
 
     paginator: Paginator[DropCampaign] = Paginator(queryset, per_page)
     page: str | Literal[1] = request.GET.get("page") or 1
@@ -1018,6 +1024,22 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     now: datetime.datetime = timezone.now()
     owners: list[Organization] = list(getattr(campaign.game, "owners_for_detail", []))
     enhanced_drops: list[dict[str, Any]] = campaign.enhanced_drops_for_detail(now)
+    if campaign.start_at and campaign.end_at:
+        if campaign.start_at <= now <= campaign.end_at:
+            campaign_status: str = "active"
+        elif campaign.start_at > now:
+            campaign_status = "upcoming"
+        else:
+            campaign_status = "expired"
+    else:
+        campaign_status = "unknown"
+
+    game_campaign_count: int = DropCampaign.objects.filter(game=campaign.game).count()
+    game_active_campaign_count: int = DropCampaign.objects.filter(
+        game=campaign.game,
+        start_at__lte=now,
+        end_at__gte=now,
+    ).count()
 
     history_querysets: list[QuerySet] = campaign_history_querysets(campaign)
     history_events: list[dict[str, Any]] = build_event_rows(
@@ -1031,6 +1053,9 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         "drops": enhanced_drops,
         "owners": owners,
         "allowed_channels": getattr(campaign, "channels_ordered", []),
+        "campaign_status": campaign_status,
+        "game_campaign_count": game_campaign_count,
+        "game_active_campaign_count": game_active_campaign_count,
         "history_events": history_events,
         "history_event_count": history_event_count,
     }
@@ -1266,7 +1291,7 @@ class GameDetailView(DetailView):
         """Return game queryset optimized for the game detail page."""
         return Game.for_detail_view()
 
-    def get_context_data(self, **kwargs) -> dict[str, Any]:  # ruff:ignore[too-many-locals]
+    def get_context_data(self, **kwargs) -> dict[str, Any]:  # ruff:ignore[too-many-locals, too-many-statements]
         """Add additional context data.
 
         Args:
@@ -1426,8 +1451,14 @@ class GameDetailView(DetailView):
         last_campaign_date: datetime.datetime | None = (
             max(campaign_dates) if campaign_dates else None
         )
+        last_campaign_end_at, average_gap_days = campaign_timing_stats(
+            (campaign.start_at, campaign.end_at) for campaign in campaigns_list
+        )
 
         context.update({
+            "selected_status": self.request.GET.get("status", ""),
+            "last_campaign_end_at": last_campaign_end_at,
+            "average_gap_days": average_gap_days,
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
@@ -1713,14 +1744,28 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         Http404: If the reward campaign is not found.
     """
     try:
-        reward_campaign: RewardCampaign = RewardCampaign.objects.select_related(
-            "game",
-        ).get(twitch_id=twitch_id)
+        reward_campaign: RewardCampaign = (
+            RewardCampaign.objects
+            .select_related("game")
+            .prefetch_related("rewards")
+            .get(twitch_id=twitch_id)
+        )
     except RewardCampaign.DoesNotExist as exc:
         msg = "No reward campaign found matching the query"
         raise Http404(msg) from exc
 
     now: datetime.datetime = timezone.now()
+    rewards: list[Reward] = list(reward_campaign.rewards.all())  # pyright: ignore[reportAttributeAccessIssue]
+    redemption_urls: set[str] = {
+        reward.redemption_url for reward in rewards if reward.redemption_url
+    }
+    common_redemption_url: str = (
+        next(iter(redemption_urls))
+        if rewards
+        and len(redemption_urls) == 1
+        and all(reward.redemption_url for reward in rewards)
+        else ""
+    )
 
     history_querysets: list[QuerySet] = reward_campaign_history_querysets(
         reward_campaign,
@@ -1812,13 +1857,12 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         },
     )
     seo_context["discord_embed_gallery"] = _gallery_items(
-        (
-            (reward.name, reward.image_best_url)
-            for reward in reward_campaign.rewards.all()[:6]
-        ),
+        ((reward.name, reward.image_best_url) for reward in rewards[:6]),
     )
     context: dict[str, Any] = {
         "reward_campaign": reward_campaign,
+        "rewards": rewards,
+        "common_redemption_url": common_redemption_url,
         "now": now,
         "is_active": reward_campaign.is_active,
         "history_events": history_events,

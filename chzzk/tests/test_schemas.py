@@ -35,3 +35,14 @@ def test_chzzk_schema_cross_fail(fname: str, data_model: type) -> None:
         data = json.load(f)
     with pytest.raises(pydantic.ValidationError):
         data_model.model_validate(data)
+
+
+def test_chzzk_response_allows_null_content() -> None:
+    """Missing campaigns return HTTP 200 with a null content payload."""
+    response = ChzzkApiResponseV2.model_validate({
+        "code": 200,
+        "message": None,
+        "content": None,
+    })
+
+    assert response.content is None

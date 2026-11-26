@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.urls import reverse
@@ -11,6 +12,7 @@ from django.utils.safestring import SafeText
 from django.views import generic
 
 from chzzk import models
+from core.campaign_timing import campaign_timing_stats
 from core.discord_embed import CHZZK_ACCENT_COLOR
 from core.discord_embed import embed_buttons
 from twitch.feeds import TTVDropsBaseFeed
@@ -32,18 +34,28 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     Returns:
         HttpResponse: The HTTP response containing the rendered dashboard page.
     """
+    now = timezone.now()
     active_campaigns: QuerySet[models.ChzzkCampaign, models.ChzzkCampaign] = (
         models.ChzzkCampaign.objects
-        .filter(end_date__gte=timezone.now())
+        .filter(end_date__gte=now)
         .exclude(state="TESTING")
         .prefetch_related("rewards")
         .order_by("-start_date")
     )
+    counts: dict[str, int] = {
+        "active_campaigns": active_campaigns.count(),
+        "total_campaigns": models.ChzzkCampaign.objects.exclude(
+            state="TESTING",
+        ).count(),
+        "total_rewards": models.ChzzkReward.objects.count(),
+    }
     return render(
         request=request,
         template_name="chzzk/dashboard.html",
         context={
             "active_campaigns": active_campaigns,
+            "counts": counts,
+            "now": now,
             "page_title": "Chzzk Drops - Campaigns, Rewards and Schedule",
             "page_description": (
                 "Browse active Chzzk drop campaigns, rewards and schedules."
@@ -57,6 +69,128 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
     )
 
 
+def _category_campaigns(
+    category_type: str,
+    category_id: str,
+) -> list[models.ChzzkCampaign]:
+    """Return non-testing campaigns for a Chzzk category.
+
+    Returns:
+        Campaigns belonging to the category.
+
+    Raises:
+        Http404: If the category has no non-testing campaigns.
+    """
+    campaigns: list[models.ChzzkCampaign] = list(
+        models.ChzzkCampaign.objects
+        .filter(
+            category_type__iexact=category_type,
+            category_id=category_id,
+        )
+        .exclude(state="TESTING")
+        .prefetch_related("rewards")
+        .order_by("-start_date"),
+    )
+    if not campaigns:
+        msg = "No campaigns found for this category"
+        raise Http404(msg)
+    return campaigns
+
+
+def _render_category_detail(
+    request: HttpRequest,
+    category_type: str,
+    category_id: str,
+) -> HttpResponse:
+    """Render all campaigns belonging to a Chzzk category.
+
+    Returns:
+        The rendered category detail response.
+    """
+    campaigns: list[models.ChzzkCampaign] = _category_campaigns(
+        category_type,
+        category_id,
+    )
+    now = timezone.now()
+    category_value: str = next(
+        (campaign.category_value for campaign in campaigns if campaign.category_value),
+        category_id,
+    )
+    category_id_display: str = category_id.replace("_", " ")
+    category_display: str = (
+        f"{category_value} ({category_id_display})"
+        if category_id_display and category_id_display != category_value
+        else category_value
+    )
+    active_campaigns: list[models.ChzzkCampaign] = [
+        campaign
+        for campaign in campaigns
+        if campaign.start_date <= now <= campaign.end_date
+    ]
+    upcoming_campaigns: list[models.ChzzkCampaign] = [
+        campaign for campaign in campaigns if campaign.start_date > now
+    ]
+    expired_campaigns: list[models.ChzzkCampaign] = [
+        campaign for campaign in campaigns if campaign.end_date < now
+    ]
+    reward_count: int = sum(len(campaign.rewards.all()) for campaign in campaigns)
+    last_campaign_end_at, average_gap_days = campaign_timing_stats(
+        (campaign.start_date, campaign.end_date) for campaign in campaigns
+    )
+
+    return render(
+        request=request,
+        template_name="chzzk/category_detail.html",
+        context={
+            "category_type": campaigns[0].category_type,
+            "category_id": category_id,
+            "category_value": category_value,
+            "category_display": category_display,
+            "campaigns": campaigns,
+            "active_campaigns": active_campaigns,
+            "upcoming_campaigns": upcoming_campaigns,
+            "expired_campaigns": expired_campaigns,
+            "latest_campaign": campaigns[0],
+            "now": now,
+            "active_count": len(active_campaigns),
+            "upcoming_count": len(upcoming_campaigns),
+            "expired_count": len(expired_campaigns),
+            "reward_count": reward_count,
+            "last_campaign_end_at": last_campaign_end_at,
+            "average_gap_days": average_gap_days,
+            "page_title": f"{category_display} - Chzzk Drops and Campaigns",
+            "page_description": f"Chzzk drop campaigns for {category_display}.",
+            "discord_embed_accent_color": CHZZK_ACCENT_COLOR,
+            "discord_embed_buttons": embed_buttons(
+                ("Chzzk Drops", "https://chzzk.naver.com/"),
+                ("Campaigns", "/chzzk/campaigns/"),
+            ),
+        },
+    )
+
+
+def game_detail_view(request: HttpRequest, category_id: str) -> HttpResponse:
+    """Show all Chzzk campaigns for a GAME category.
+
+    Returns:
+        The rendered game detail response.
+    """
+    return _render_category_detail(request, "GAME", category_id)
+
+
+def category_detail_view(
+    request: HttpRequest,
+    category_type: str,
+    category_id: str,
+) -> HttpResponse:
+    """Show all Chzzk campaigns for a non-game category.
+
+    Returns:
+        The rendered category detail response.
+    """
+    return _render_category_detail(request, category_type, category_id)
+
+
 class CampaignListView(generic.ListView):
     """List view showing all chzzk campaigns."""
 
@@ -64,6 +198,23 @@ class CampaignListView(generic.ListView):
     template_name = "chzzk/campaign_list.html"
     context_object_name = "campaigns"
     paginate_by = 25
+
+    def get_queryset(self) -> QuerySet[models.ChzzkCampaign, models.ChzzkCampaign]:
+        """Return campaigns filtered by the selected status tab."""
+        queryset = super().get_queryset().exclude(state="TESTING")
+        status: str = self.request.GET.get("status", "")
+        now = timezone.now()
+
+        if status == "active":
+            queryset = queryset.filter(start_date__lte=now, end_date__gte=now)
+        elif status == "upcoming":
+            queryset = queryset.filter(start_date__gt=now)
+        elif status == "expired":
+            queryset = queryset.filter(end_date__lt=now)
+        elif status == "ios":
+            queryset = queryset.filter(has_ios_based_reward=True)
+
+        return queryset.order_by("-start_date")
 
     def get_context_data(self, **kwargs) -> dict[str, Any]:
         """Add SEO metadata to the campaign list context.
@@ -75,6 +226,8 @@ class CampaignListView(generic.ListView):
             dict[str, Any]: Context data with page title and description.
         """
         context: dict[str, Any] = super().get_context_data(**kwargs)
+        context["now"] = timezone.now()
+        context["selected_status"] = self.request.GET.get("status", "")
         context["page_title"] = "Chzzk Drop Campaigns, Rewards and Archive"
         context["page_description"] = (
             "Browse all Chzzk drop campaigns, rewards and past campaigns."
@@ -101,13 +254,23 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
         models.ChzzkCampaign,
         campaign_no=campaign_no,
     )
+    now = timezone.now()
+    if campaign.start_date <= now <= campaign.end_date:
+        campaign_status: str = "active"
+    elif campaign.start_date > now:
+        campaign_status = "upcoming"
+    else:
+        campaign_status = "expired"
+
     rewards: QuerySet[models.ChzzkReward, models.ChzzkReward] = campaign.rewards.all()  # pyright: ignore[reportAttributeAccessIssue]
     return render(
         request=request,
         template_name="chzzk/campaign_detail.html",
         context={
             "campaign": campaign,
+            "campaign_status": campaign_status,
             "rewards": rewards,
+            "now": now,
             "page_title": f"{campaign.title} - Chzzk Drop Campaign and Rewards",
             "page_description": campaign.description or campaign.title,
             "discord_embed_accent_color": CHZZK_ACCENT_COLOR,
@@ -181,11 +344,12 @@ class ChzzkCampaignFeed(TTVDropsBaseFeed):
             SafeText: The HTML description of the feed item.
         """
         parts: list[SafeText] = []
-        if getattr(item, "image_url", ""):
+        image_url: str = getattr(item, "image_best_url", "")
+        if image_url:
             parts.append(
                 format_html(
                     '<img src="{}" alt="{}" width="320" height="180" />',
-                    item.image_url,
+                    self._absolute_url(image_url),
                     item.title,
                 ),
             )

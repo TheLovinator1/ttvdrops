@@ -49,6 +49,6 @@ class ChzzkApiResponseV2(BaseModel):
 
     code: int
     message: Any | None
-    content: ChzzkCampaignV2
+    content: ChzzkCampaignV2 | None
 
     model_config = {"extra": "forbid"}

@@ -3,11 +3,14 @@
          class="card bg-1 hover-lift overflow-hidden h-100 position-relative d-flex flex-column">
     <div class="reward-campaign-upper bg-3">
         <div class="ratio-16x9 reward-campaign-media overflow-hidden position-relative">
-            {% if campaign.image_best_url %}
-                {% picture campaign.image_best_url alt="" width=480 %}
-            {% else %}
-                <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">No artwork</div>
-            {% endif %}
+            <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
+               class="d-block w-100 h-100">
+                {% if campaign.image_best_url %}
+                    {% picture campaign.image_best_url alt="" width=480 %}
+                {% else %}
+                    <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">No artwork</div>
+                {% endif %}
+            </a>
             <div class="position-absolute top-0 start-0 p-2 z-1">
                 {% if card_status == "active" %}
                     <span class="badge badge-subtle theme-success">Active</span>
@@ -21,7 +24,7 @@
         <div class="p-4 d-flex flex-column gap-2">
             <h3 class="fs-lg lh-sm mb-0">
                 <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
-                   class="stretched-link text-decoration-none fg-1">
+                   class="text-decoration-none fg-1">
                     {% if campaign.brand %}{{ campaign.brand }}: {% endif %}{{ campaign.name }}
                 </a>
             </h3>
@@ -38,12 +41,12 @@
                 {% endif %}
                 {% if campaign.game %}
                     <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}"
-                       class="badge badge-subtle theme-primary text-decoration-none position-relative z-2">{{ campaign.game.get_game_name }}</a>
+                       class="badge badge-subtle theme-primary text-decoration-none">{{ campaign.game.get_game_name }}</a>
                 {% elif campaign.is_sitewide %}
                     <span class="badge badge-subtle theme-accent">Site-wide</span>
                 {% else %}
                     <a href="{% url 'twitch:game_less_rewards' %}"
-                       class="badge badge-subtle theme-warning text-decoration-none position-relative z-2">Brand reward</a>
+                       class="badge badge-subtle theme-warning text-decoration-none">Brand reward</a>
                 {% endif %}
             </div>
             {% if campaign.summary %}

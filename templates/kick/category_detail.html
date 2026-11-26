@@ -111,6 +111,29 @@
                 </div>
             </div>
         </header>
+        <section class="mb-4">
+            <h2 class="h5 mb-2">Campaign history</h2>
+            <p class="fg-2 mb-0">
+                {% if last_campaign_end_at %}
+                    {% if last_campaign_end_at > now %}
+                        The latest campaign ends
+                        <time datetime="{{ last_campaign_end_at|date:'c' }}"
+                              title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
+                        (in {{ last_campaign_end_at|timeuntil }}).
+                    {% else %}
+                        The last campaign ended
+                        <time datetime="{{ last_campaign_end_at|date:'c' }}"
+                              title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
+                        ({{ last_campaign_end_at|timesince }} ago).
+                    {% endif %}
+                {% else %}
+                    No campaign history is available for this game yet.
+                {% endif %}
+                {% if average_gap_days %}
+                    On average, campaigns are about {{ average_gap_days|floatformat:1 }} days apart.
+                {% endif %}
+            </p>
+        </section>
         {% if active_campaigns %}
             <section aria-labelledby="active-campaigns-heading" class="mb-4">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">

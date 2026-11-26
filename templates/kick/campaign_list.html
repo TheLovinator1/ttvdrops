@@ -79,11 +79,15 @@
                 Scraped from <a href="https://web.kick.com/api/v1/drops/campaigns">Kick API</a>.
             </p>
         </header>
+        {% include "includes/campaign_status_tabs.html" %}
         {# Slim Filter Row #}
         <section aria-label="Filters" class="mb-4 pb-3 border-bottom">
             <form method="get"
                   action="{% url 'kick:campaign_list' %}"
                   class="row g-2 align-items-center">
+                {% if selected_status %}
+                    <input type="hidden" name="status" value="{{ selected_status }}" />
+                {% endif %}
                 <div class="col-12 md:col-4">
                     <label for="campaign-search" class="visually-hidden">Search campaigns</label>
                     <input type="search"
@@ -109,20 +113,7 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-12 sm:col-6 md:col-2">
-                    <label for="status" class="visually-hidden">Status</label>
-                    <select class="form-control"
-                            id="status"
-                            name="status"
-                            onchange="this.form.submit()">
-                        <option value="">All Statuses</option>
-                        {% for s in status_options %}
-                            <option value="{{ s }}"
-                                    {% if selected_status == s %}selected{% endif %}>{{ s|title }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-12 md:col-2 d-flex gap-2">
+                <div class="col-12 md:col-4 d-flex gap-2">
                     <button class="btn-solid theme-primary flex-grow-1" type="submit">Search</button>
                     {% if selected_game or selected_status or selected_query %}
                         <a href="{% url 'kick:campaign_list' %}"

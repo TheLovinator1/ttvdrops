@@ -372,11 +372,31 @@ class SiteEndpointSmokeTest(TestCase):
             ),
             ("kick:organization_feed_discord", {}, 200),
             # CHZZK endpoints
+            ("api-v1:chzzk-api-v1_stats", {}, 200),
+            ("api-v1:chzzk-api-v1_list_campaigns", {}, 200),
+            (
+                "api-v1:chzzk-api-v1_get_campaign",
+                {"campaign_no": self.chzzk_campaign.campaign_no},
+                200,
+            ),
             ("chzzk:dashboard", {}, 200),
             ("chzzk:campaign_list", {}, 200),
             (
                 "chzzk:campaign_detail",
                 {"campaign_no": self.chzzk_campaign.campaign_no},
+                200,
+            ),
+            (
+                "chzzk:game_detail",
+                {"category_id": self.chzzk_campaign.category_id},
+                200,
+            ),
+            (
+                "chzzk:category_detail",
+                {
+                    "category_type": self.chzzk_campaign.category_type,
+                    "category_id": self.chzzk_campaign.category_id,
+                },
                 200,
             ),
             ("chzzk:campaign_feed", {}, 200),

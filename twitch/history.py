@@ -718,7 +718,7 @@ def _image_preview_url(value: Any) -> str:  # ruff:ignore[any-type]
 
 def _format_generic(value: Any) -> str:  # ruff:ignore[any-type]
     if value is None or (isinstance(value, str) and not value):
-        return "—"
+        return "None"
     if isinstance(value, bool):
         return "Yes" if value else "No"
     if isinstance(value, datetime):

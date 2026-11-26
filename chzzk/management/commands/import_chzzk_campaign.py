@@ -24,6 +24,8 @@ CHZZK_API_URLS: list[tuple[str, str]] = [
     ("v2", "https://api.chzzk.naver.com/service/v2/drops/campaigns/{campaign_no}"),
 ]
 
+CHZZK_LIVE_LIST_URL = "https://api.chzzk.naver.com/service/v1/lives?size=50"
+
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:151.0) Gecko/20100101 Firefox/151.0"
 )
@@ -114,6 +116,20 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(msg))
 
         if max_campaign_no <= 0:
+            discovered_campaign_no: int | None = self._discover_latest_campaign_no()
+            if discovered_campaign_no is not None:
+                msg = (
+                    "No campaigns in database; using discovered campaign "
+                    f"{discovered_campaign_no} as the starting point."
+                )
+                self.stdout.write(self.style.SUCCESS(msg))
+                return list(
+                    range(
+                        max(1, discovered_campaign_no - 5),
+                        discovered_campaign_no + 6,
+                    ),
+                )
+
             backfill_candidates: list[int] = []
         else:
             backfill_start: int = max(1, max_campaign_no - 5)
@@ -137,6 +153,39 @@ class Command(BaseCommand):
         )
         to_import: list[int] = backfill_candidates + new_candidates
         return to_import
+
+    def _discover_latest_campaign_no(self) -> int | None:
+        """Find a recent campaign number from live streams running drops.
+
+        Returns:
+            int | None: The highest campaign number currently attached to a live
+            stream, or None when discovery fails or no drops are live.
+        """
+        try:
+            resp: requests.Response = requests.get(
+                CHZZK_LIVE_LIST_URL,
+                timeout=5,
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": USER_AGENT,
+                },
+            )
+            resp.raise_for_status()
+            data: dict[str, Any] = resp.json()
+        except (requests.RequestException, ValueError) as exc:
+            msg: str = f"Could not discover a recent Chzzk campaign: {exc}"
+            self.stdout.write(self.style.WARNING(msg))
+            return None
+
+        content: dict[str, Any] = data.get("content") or {}
+        live_streams: list[dict[str, Any]] = content.get("data") or []
+        campaign_nos: list[int] = []
+        for stream in live_streams:
+            campaign_no: Any = stream.get("dropsCampaignNo")
+            if isinstance(campaign_no, int):
+                campaign_nos.append(campaign_no)
+
+        return max(campaign_nos, default=None)
 
     def _import_campaign(self, campaign_no: int) -> None:
         """Import a single campaign by its campaign number.
@@ -168,7 +217,11 @@ class Command(BaseCommand):
             return
 
         data: dict[str, Any] = resp.json()
-        cd: ChzzkCampaignV2 = ChzzkApiResponseV2.model_validate(data).content
+        cd: ChzzkCampaignV2 | None = ChzzkApiResponseV2.model_validate(data).content
+        if cd is None:
+            msg: str = f"Campaign {campaign_no} does not exist (empty response)"
+            self.stdout.write(self.style.WARNING(msg))
+            return
 
         campaign_obj: ChzzkCampaign = self.import_campaign_data(
             campaign_no=campaign_no,

@@ -126,11 +126,20 @@ _ROUTE_TABLE: tuple[tuple[str, RouteSpec], ...] = (
             ("chzzk:campaign:{campaign_no}",),
         ),
     ),
+    (
+        r"^/chzzk/games/(?P<category_id>[^/]+)/$",
+        RouteSpec("chzzk-game-detail", 60, ("chzzk",)),
+    ),
+    (
+        r"^/chzzk/categories/(?P<category_type>[^/]+)/(?P<category_id>[^/]+)/$",
+        RouteSpec("chzzk-category-detail", 60, ("chzzk",)),
+    ),
     (r"^/twitch/", RouteSpec("twitch", 60, ("twitch",))),
     (r"^/kick/", RouteSpec("kick", 60, ("kick",))),
     (r"^/chzzk/", RouteSpec("chzzk", 60, ("chzzk",))),
     (r"^/api/v1/twitch/", RouteSpec("api-twitch", 60, ("twitch",))),
     (r"^/api/v1/kick/", RouteSpec("api-kick", 60, ("kick",))),
+    (r"^/api/v1/chzzk/", RouteSpec("api-chzzk", 60, ("chzzk",))),
 )
 
 _COMPILED_ROUTES: tuple[tuple[Pattern[str], RouteSpec], ...] = tuple(

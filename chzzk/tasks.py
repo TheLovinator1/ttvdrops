@@ -24,3 +24,9 @@ def discover_chzzk_campaigns(self) -> None:  # ruff:ignore[missing-type-function
         call_command("import_chzzk_campaign", latest=True)
     except Exception as exc:
         raise self.retry(exc=exc) from exc
+
+
+@shared_task
+def download_all_chzzk_images() -> None:
+    """Download and cache all Chzzk campaign and reward images."""
+    call_command("download_chzzk_images", model="all")

@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from chzzk.tasks import discover_chzzk_campaigns
+from chzzk.tasks import download_all_chzzk_images
 from chzzk.tasks import import_chzzk_campaign_task
 
 
@@ -30,6 +31,14 @@ def test_import_chzzk_campaign_task_retries_on_command_error() -> None:
         import_chzzk_campaign_task.run(905)
 
     retry_mock.assert_called_once_with(exc=error)
+
+
+def test_download_all_chzzk_images_calls_command() -> None:
+    """It should download images for all Chzzk campaigns and rewards."""
+    with patch("chzzk.tasks.call_command") as call_command_mock:
+        download_all_chzzk_images.run()
+
+    call_command_mock.assert_called_once_with("download_chzzk_images", model="all")
 
 
 def test_discover_chzzk_campaigns_calls_command_with_latest_flag() -> None:

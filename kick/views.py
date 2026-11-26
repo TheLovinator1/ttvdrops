@@ -18,6 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.base_url import build_absolute_uri
+from core.campaign_timing import campaign_timing_stats
 from core.discord_embed import KICK_ACCENT_COLOR
 from core.discord_embed import embed_buttons
 from kick.models import KickCategory
@@ -468,6 +469,9 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
     expired_campaigns: list[KickDropCampaign] = [
         c for c in all_campaigns if c.ends_at and c.ends_at < now
     ]
+    last_campaign_end_at, average_gap_days = campaign_timing_stats(
+        (campaign.starts_at, campaign.ends_at) for campaign in all_campaigns
+    )
 
     breadcrumb_schema: str = _build_breadcrumb_schema([
         {"name": "Home", "url": build_absolute_uri("/")},
@@ -523,6 +527,8 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
             "total_campaigns": len(all_campaigns),
+            "last_campaign_end_at": last_campaign_end_at,
+            "average_gap_days": average_gap_days,
             "now": now,
             "breadcrumb_schema": breadcrumb_schema,
             **seo_context,

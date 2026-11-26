@@ -185,8 +185,14 @@ class TestRouteTable:
             ("/kick/campaigns/abc/", "kick-campaign-detail"),
             ("/chzzk/", "chzzk"),
             ("/chzzk/campaigns/1/", "chzzk-campaign-detail"),
+            ("/chzzk/games/dokkaebi/", "chzzk-game-detail"),
+            (
+                "/chzzk/categories/ETC/sci_tech/",
+                "chzzk-category-detail",
+            ),
             ("/api/v1/twitch/campaigns/", "api-twitch"),
             ("/api/v1/kick/campaigns/", "api-kick"),
+            ("/api/v1/chzzk/campaigns/", "api-chzzk"),
         ],
     )
     def test_route_specs(self, path: str, name: str) -> None:
