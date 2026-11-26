@@ -103,6 +103,20 @@ LABEL_LABELS: dict[str, str] = {
     "owner_removed": "Owner removed",
 }
 
+KIND_THEMES: dict[str, str] = {
+    "campaign": "primary",
+    "drop": "success",
+    "benefit": "warning",
+    "edge": "secondary",
+    "game": "accent",
+    "organization": "info",
+    "channel": "secondary",
+    "reward_campaign": "accent",
+    "reward": "accent",
+    "channel_access": "secondary",
+    "game_owner": "secondary",
+}
+
 ACTION_FILTERS: dict[str, tuple[str, ...]] = {
     "created": ("created",),
     "updated": ("updated",),
@@ -1114,6 +1128,7 @@ def build_event_rows(events: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
             "created_at": event.get("pgh_created_at"),
             "model": _model_label(event_model),
             "kind": kind,
+            "theme": KIND_THEMES.get(kind, "secondary"),
             "label": LABEL_LABELS.get(label, label),
             "label_key": label,
             "object_name": object_name,
@@ -1141,6 +1156,7 @@ def build_event_detail(event: dict[str, Any]) -> dict[str, Any]:
     resolver: HistoryResolver = HistoryResolver([event])
     before, after = _snapshot_rows(event, resolver)
     event_model: str = str(event.get("pgh_model") or "")
+    kind: str = _model_kind(event_model)
     label: str = str(event.get("pgh_label") or "")
     context: dict[str, Any] = event.get("pgh_context") or {}
     object_name, object_url = resolver.object_name_and_url(event)
@@ -1149,7 +1165,8 @@ def build_event_detail(event: dict[str, Any]) -> dict[str, Any]:
         "slug": event.get("pgh_slug"),
         "created_at": event.get("pgh_created_at"),
         "model": _model_label(event_model),
-        "kind": _model_kind(event_model),
+        "kind": kind,
+        "theme": KIND_THEMES.get(kind, "secondary"),
         "label": LABEL_LABELS.get(label, label),
         "label_key": label,
         "object_name": object_name,

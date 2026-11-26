@@ -582,6 +582,92 @@ def _feed_link(name: str, title: str, *args: str) -> dict[str, str]:
     }
 
 
+# MARK: /twitch/
+def dashboard_view(request: HttpRequest) -> HttpResponse:
+    """Render the Twitch landing page.
+
+    Args:
+        request: The HTTP request.
+
+    Returns:
+        HttpResponse: The rendered Twitch landing page.
+    """
+    now: datetime.datetime = timezone.now()
+
+    campaign_stats: dict[str, Any] = DropCampaign.objects.aggregate(
+        total=Count("pk"),
+        active=Count("pk", filter=Q(start_at__lte=now, end_at__gte=now)),
+        latest_added=Max("added_at"),
+    )
+    reward_stats: dict[str, Any] = RewardCampaign.objects.aggregate(
+        active=Count("pk", filter=Q(starts_at__lte=now, ends_at__gte=now)),
+        latest_added=Max("added_at"),
+    )
+
+    latest_campaign_added_at: datetime.datetime | None = max(
+        (
+            added_at
+            for added_at in (
+                campaign_stats["latest_added"],
+                reward_stats["latest_added"],
+            )
+            if added_at is not None
+        ),
+        default=None,
+    )
+
+    # Show campaigns that are ending soonest first, so the landing page stays
+    # useful for visitors looking for drops they can still earn.
+    featured_campaigns: list[DropCampaign] = list(
+        DropCampaign.active_for_dashboard(now).order_by("end_at")[:6],
+    )
+    featured_reward_campaigns: list[RewardCampaign] = list(
+        RewardCampaign.active_for_dashboard(now).order_by("ends_at")[:3],
+    )
+
+    counts: dict[str, int] = {
+        "active_campaigns": campaign_stats["active"],
+        "total_campaigns": campaign_stats["total"],
+        "active_reward_campaigns": reward_stats["active"],
+        "games": Game.objects.count(),
+        "channels": Channel.objects.count(),
+        "organizations": Organization.objects.count(),
+    }
+
+    description: str = (
+        "Track active Twitch drop campaigns, open reward campaigns, games, "
+        "channels, and organizations. Browse the archive, subscribe via RSS, "
+        "or use the free JSON API."
+    )
+    page_url: str = build_absolute_uri(reverse("twitch:dashboard"))
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title="Twitch Drops, Campaigns & Rewards",
+        page_description=description,
+        seo_meta={
+            "page_url": page_url,
+            "schema_data": _webpage_schema(
+                "Twitch Drops, Campaigns & Rewards",
+                description,
+                page_url,
+            ),
+            "breadcrumb_schema": _twitch_breadcrumb([
+                ("Home", "core:dashboard", None),
+                ("Twitch", "twitch:dashboard", None),
+            ]),
+        },
+    )
+
+    context: dict[str, Any] = {
+        "now": now,
+        "counts": counts,
+        "featured_campaigns": featured_campaigns,
+        "featured_reward_campaigns": featured_reward_campaigns,
+        "latest_campaign_added_at": latest_campaign_added_at,
+        **seo_context,
+    }
+    return render(request, "twitch/dashboard.html", context)
+
+
 def emote_gallery_view(request: HttpRequest) -> HttpResponse:
     """View to display all emote images.
 
@@ -1678,7 +1764,9 @@ class ChannelListView(ListView):
 
         # Build pagination info
         query_string: str = urlencode({"search": search_query}) if search_query else ""
-        base_url: str = f"/channels/?{query_string}" if query_string else "/channels/"
+        base_url: str = reverse("twitch:channel_list")
+        if query_string:
+            base_url = f"{base_url}?{query_string}"
 
         page_obj: Page | None = context.get("page_obj")
         pagination_info: list[dict[str, str]] | None = (

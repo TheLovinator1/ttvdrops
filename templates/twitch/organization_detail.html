@@ -86,32 +86,30 @@
                 {% endif %}
             </div>
         {% endif %}
-        <footer aria-label="Links"
-                style="margin-top: 0.5rem;
-                       border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                       padding-top: 0.5rem">
-            <div style="display: flex;
-                        flex-wrap: wrap;
-                        column-gap: 1.5rem;
-                        row-gap: 0.4rem">
-                <div>
-                    <div style="font-size: 0.8rem;
-                                color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                margin-bottom: 0.15rem;
-                                text-transform: uppercase;
-                                letter-spacing: 0.05em">External</div>
-                    <div>
-                        <a href="https://twitch-drops.fenrisapps.com/organizations/{{ organization.twitch_id }}"
-                           title="View this organization on Fenris Apps">[fenrisapps]</a>
-                        <a href="{% url 'twitch:organization_history' organization.twitch_id %}"
-                           title="Organization history">[history]</a>
-                    </div>
+        <div class="d-flex justify-content-end mb-3">
+            <div>
+                <button class="btn-outline theme-secondary btn-sm"
+                        type="button"
+                        data-bs-toggle="menu"
+                        data-bs-placement="bottom-end"
+                        aria-expanded="false">Links ▾</button>
+                <div class="menu">
+                    <h6 class="menu-header">External</h6>
+                    <a class="menu-item"
+                       href="https://twitch-drops.fenrisapps.com/organizations/{{ organization.twitch_id }}"
+                       title="View this organization on Fenris Apps">Fenris Apps</a>
+                    <a class="menu-item"
+                       href="{% url 'twitch:organization_history' organization.twitch_id %}"
+                       title="Organization history">History</a>
+                    <hr class="menu-divider" />
+                    <h6 class="menu-header">Help</h6>
+                    <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                 </div>
             </div>
-        </footer>
+        </div>
     </header>
     <h2>Games by {{ organization.name }}</h2>
-    <table>
+    <table class="table table-striped table-hover">
         <thead>
             <tr>
                 <th>Game</th>

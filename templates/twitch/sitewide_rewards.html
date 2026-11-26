@@ -36,49 +36,42 @@
             </div>
             <p>
                 Reward campaigns available site-wide (not tied to a specific game). Data is scraped from <a href="https://github.com/SunkwiBOT/twitch-drops-api"
-    target="_blank"
-    rel="noopener">SunkwiBOT/twitch-drops-api</a> every 15 minutes.
+                                                                                                            target="_blank"
+                                                                                                            rel="noopener">SunkwiBOT/twitch-drops-api</a>.
             </p>
             <!-- Feeds and links -->
-            <footer aria-label="Links"
-                    style="border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                           padding-top: 0.5rem">
-                <div style="display: flex;
-                            flex-wrap: wrap;
-                            column-gap: 1.5rem;
-                            row-gap: 0.4rem">
-                    <div>
-                        <div style="font-size: 0.8rem;
-                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                    margin-bottom: 0.15rem;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.05em">
-                            Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
-                        </div>
-                        <div>
-                            Rewards:
-                            <a href="{% url 'core:sitewide_reward_feed' %}"
-                               title="RSS feed for site-wide rewards">[rss]</a>
-                            <a href="{% url 'core:sitewide_reward_feed_atom' %}"
-                               title="Atom feed for site-wide rewards">[atom]</a>
-                            <a href="{% url 'core:sitewide_reward_feed_discord' %}"
-                               title="Discord-flavored feed for site-wide rewards">[discord-flavored]</a>
-                        </div>
-                        <div style="margin-top: 0.4rem;">
-                            <a href="{% url 'twitch:game_less_rewards' %}"
-                               title="View all rewards with no game linked">[no game]</a>
-                        </div>
+            <div class="d-flex justify-content-end mb-3">
+                <div>
+                    <button class="btn-outline theme-secondary btn-sm"
+                            type="button"
+                            data-bs-toggle="menu"
+                            data-bs-placement="bottom-end"
+                            aria-expanded="false">Subscribe ▾</button>
+                    <div class="menu">
+                        <h6 class="menu-header">Subscribe</h6>
+                        <a class="menu-item"
+                           href="{% url 'core:sitewide_reward_feed' %}"
+                           title="RSS feed for site-wide rewards">RSS</a>
+                        <a class="menu-item"
+                           href="{% url 'core:sitewide_reward_feed_atom' %}"
+                           title="Atom feed for site-wide rewards">Atom</a>
+                        <a class="menu-item"
+                           href="{% url 'core:sitewide_reward_feed_discord' %}"
+                           title="Discord-flavored feed for site-wide rewards">Discord-flavored</a>
+                        <hr class="menu-divider" />
+                        <h6 class="menu-header">More</h6>
+                        <a class="menu-item"
+                           href="{% url 'twitch:game_less_rewards' %}"
+                           title="View all rewards with no game linked">Game-less rewards</a>
+                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                     </div>
                 </div>
-            </footer>
+            </div>
         </header>
         {% if active_campaigns %}
             <section>
                 <h2>Active Rewards</h2>
-                <table>
+                <table class="table table-striped table-hover">
                     <thead>
                         <tr>
                             <th>Campaign</th>
@@ -124,7 +117,7 @@
         {% if upcoming_campaigns %}
             <section>
                 <h2>Upcoming Rewards</h2>
-                <table>
+                <table class="table table-striped table-hover">
                     <thead>
                         <tr>
                             <th>Campaign</th>
@@ -170,7 +163,7 @@
         {% if expired_campaigns %}
             <section>
                 <h2>Past Rewards</h2>
-                <table>
+                <table class="table table-striped table-hover">
                     <thead>
                         <tr>
                             <th>Campaign</th>

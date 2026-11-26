@@ -1,0 +1,32 @@
+<div class="history-diff">
+    {% for change in changes %}
+        <div class="history-diff-row">
+            <span class="history-field">{{ change.field }}</span>
+            <div class="history-diff-values">
+                <span class="history-old">
+                    {% if change.old.image_url %}
+                        <a href="{{ change.old.image_url }}" target="_blank" rel="noopener">
+                            <img class="history-diff-image"
+                                 src="{{ change.old.image_url }}"
+                                 alt=""
+                                 loading="lazy" />
+                        </a>
+                    {% endif %}
+                    {{ change.old.text }}
+                </span>
+                <span class="history-arrow" aria-hidden="true">→</span>
+                <span class="history-new">
+                    {% if change.new.image_url %}
+                        <a href="{{ change.new.image_url }}" target="_blank" rel="noopener">
+                            <img class="history-diff-image"
+                                 src="{{ change.new.image_url }}"
+                                 alt=""
+                                 loading="lazy" />
+                        </a>
+                    {% endif %}
+                    {{ change.new.text }}
+                </span>
+            </div>
+        </div>
+    {% endfor %}
+</div>

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+    <main>
+        <header class="pb-5 mb-7 border-bottom border-subtle">
+            <h1 class="fs-3xl fw-bold mb-3 text-balance">MCP Server Documentation</h1>
+            <p class="fs-md fg-2 mb-0 text-pretty" style="max-width: 68ch;">
+                The TTVDrops <a class="fg-1 underline-offset-2 underline-opacity-50 hover:underline-opacity-100"
+                                href="https://modelcontextprotocol.io/">Model Context Protocol</a>
+                server lets AI clients search the archive of Twitch, Kick, and Chzzk drop
+                campaigns. It is read-only and unauthenticated, matching the public website
+                and JSON API. The endpoint is <code class="fs-sm">{{ mcp_url }}</code>.
+            </p>
+        </header>
+        <section class="mb-9" aria-label="Client configuration">
+            <h2 class="fs-xl fw-semibold mb-2">Connect a client</h2>
+            <p class="fs-sm fg-2 mb-4 text-pretty" style="max-width: 68ch;">
+                Add the server to an MCP client as a Streamable HTTP server. It uses the
+                MCP protocol directly, so there is no separate API key or token.
+            </p>
+            <div class="table-card">
+                <pre class="mb-0 p-4"><code>{
+  "mcpServers": {
+    "ttvdrops": {
+      "type": "http",
+      "url": "{{ mcp_url }}"
+    }
+  }
+}</code></pre>
+            </div>
+            <div class="alert theme-info mt-5 mb-0" role="note">
+                <div>
+                    <strong>Looking for REST instead?</strong>
+                    The <a class="fg-1 underline-offset-2 underline-opacity-50 hover:underline-opacity-100"
+                           href="{% url 'api-v1:openapi-view' %}">JSON API documentation</a>
+                    is available at <code class="fs-sm">/api/v1/docs/</code>, and bulk data can be
+                    downloaded from <a class="fg-1 underline-offset-2 underline-opacity-50 hover:underline-opacity-100"
+                                       href="{% url 'core:dataset_backups' %}">datasets</a>.
+                </div>
+            </div>
+        </section>
+        <section class="mb-9" aria-label="Available tools">
+            <h2 class="fs-xl fw-semibold mb-2">Available tools</h2>
+            <p class="fs-sm fg-2 mb-4 text-pretty" style="max-width: 68ch;">
+                Every tool is read-only and returns structured data. Dates are ISO 8601, and
+                timestamps are UTC unless an offset is given. Searches return at most 100
+                campaigns per call; use the <code class="fs-sm">limit</code> parameter to narrow
+                large result sets.
+            </p>
+            <div class="table-card">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Tool</th>
+                                <th scope="col">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tool in mcp_tools %}
+                                <tr>
+                                    <th scope="row" class="font-monospace fs-xs text-nowrap">{{ tool.name }}</th>
+                                    <td class="fs-sm fg-2">{{ tool.description }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+        <section aria-label="Discovery">
+            <h2 class="fs-xl fw-semibold mb-2">Discovery</h2>
+            <p class="fs-sm fg-2 mb-4 text-pretty" style="max-width: 68ch;">
+                AI clients and registries can read the machine-readable server card at
+                <a class="font-monospace fs-xs" href="{{ mcp_server_card_url }}">{{ mcp_server_card_url }}</a>.
+                It describes the endpoint, transport, and capabilities without opening an MCP
+                session. The same information is also available to MCP clients through the
+                protocol's <code class="fs-sm">tools/list</code> method.
+            </p>
+            <p class="fs-sm fg-2 mb-0 text-pretty" style="max-width: 68ch;">
+                Prefer feeds for new campaigns? See the
+                <a class="fg-1 underline-offset-2 underline-opacity-50 hover:underline-opacity-100"
+                   href="{% url 'core:docs_rss' %}">RSS and Atom feed documentation</a>.
+            </p>
+        </section>
+    </main>
+{% endblock content %}

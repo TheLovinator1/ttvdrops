@@ -333,6 +333,50 @@ server = MCPServer(
     auth=public,
 )
 
+
+# MARK: Documentation
+def documented_tools() -> list[dict[str, str]]:
+    """Return the registered tools for the human-readable documentation page.
+
+    Returns:
+        The tool names and descriptions in registration order.
+    """
+    return [
+        {
+            "name": tool.name,
+            "description": tool.definition["description"],
+        }
+        for tool in server._tools.values()  # ruff:ignore[private-member-access]
+    ]
+
+
+def server_card() -> dict[str, Any]:
+    """Return a machine-readable MCP server card for discovery clients.
+
+    Server cards are an emerging MCP discovery proposal, so this is served in
+    addition to the MCP protocol's own discovery. It only contains public
+    metadata.
+
+    Returns:
+        The server card document.
+    """
+    return {
+        "$schema": (
+            "https://static.modelcontextprotocol.io/schemas/mcp-server-card/v1.json"
+        ),
+        "version": "1.0",
+        "protocolVersion": server.supported_versions[0],
+        "serverInfo": dict(server.server_info),
+        "description": server.server_info.get("description", ""),
+        "documentationUrl": build_absolute_uri(reverse("core:docs_mcp")),
+        "transport": {"type": "streamable-http", "endpoint": "/mcp"},
+        "capabilities": {"tools": {}},
+        "authentication": {"required": False, "schemes": []},
+        "instructions": server.instructions or "",
+        "tools": ["dynamic"],
+    }
+
+
 # MARK: Helpers
 
 

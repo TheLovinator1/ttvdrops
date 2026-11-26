@@ -13,12 +13,8 @@ app_name = "twitch"
 
 
 urlpatterns: list[URLPattern | URLResolver] = [
-    # /twitch/ redirects to the main multi-platform dashboard at /
-    path(
-        "",
-        RedirectView.as_view(pattern_name="core:dashboard", permanent=True),
-        name="dashboard",
-    ),
+    # /twitch/
+    path("", views.dashboard_view, name="dashboard"),
     # Redirect old standalone Twitch v1 API URLs to the new combined API
     # These must come before the catch-all below.
     path(

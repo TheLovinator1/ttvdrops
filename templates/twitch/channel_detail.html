@@ -53,7 +53,7 @@
     </iframe>
     {% if active_campaigns %}
         <h5>Active Campaigns</h5>
-        <table>
+        <table class="table table-striped table-hover">
             <tbody>
                 {% for campaign in active_campaigns %}
                     <tr>
@@ -102,7 +102,7 @@
     {% if upcoming_campaigns %}
         <!-- If there are upcoming campaigns, show them in a separate section -->
         <h5>Upcoming Campaigns</h5>
-        <table>
+        <table class="table table-striped table-hover">
             <tbody>
                 {% for campaign in upcoming_campaigns %}
                     <tr>
@@ -151,7 +151,7 @@
     {% if expired_campaigns %}
         <!-- If there are expired campaigns, show them in a separate section -->
         <h5>Past Campaigns</h5>
-        <table>
+        <table class="table table-striped table-hover">
             <tbody>
                 {% for campaign in expired_campaigns %}
                     <tr>

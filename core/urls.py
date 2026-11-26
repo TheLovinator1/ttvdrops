@@ -7,7 +7,9 @@ from core.views import dashboard
 from core.views import dataset_backup_download_view
 from core.views import dataset_backups_view
 from core.views import debug_view
+from core.views import docs_mcp_view
 from core.views import docs_rss_view
+from core.views import mcp_server_card_view
 from core.views import search_view
 from twitch.feeds import DropCampaignAtomFeed
 from twitch.feeds import DropCampaignDiscordFeed
@@ -83,6 +85,18 @@ urlpatterns: list[URLPattern | URLResolver] = [
         route="docs/rss/",
         view=docs_rss_view,
         name="docs_rss",
+    ),
+    # /docs/mcp/
+    path(
+        route="docs/mcp/",
+        view=docs_mcp_view,
+        name="docs_mcp",
+    ),
+    # /.well-known/mcp/server-card.json
+    path(
+        route=".well-known/mcp/server-card.json",
+        view=mcp_server_card_view,
+        name="mcp_server_card",
     ),
     # RSS feeds
     # /rss/campaigns/ - all active campaigns

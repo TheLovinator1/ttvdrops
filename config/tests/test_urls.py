@@ -59,6 +59,33 @@ def test_root_favicon_redirects_to_static_asset(client: Client) -> None:
     assert response["Location"] == "/static/favicon.ico"
 
 
+@pytest.mark.parametrize(
+    ("source", "target"),
+    [
+        ("/channels/", "/twitch/channels/"),
+        ("/games/", "/twitch/games/"),
+    ],
+)
+def test_legacy_twitch_urls_redirect(
+    client: Client,
+    source: str,
+    target: str,
+) -> None:
+    """Old root-level Twitch URLs permanently redirect to their new homes."""
+    response = client.get(source)
+
+    assert response.status_code == 301
+    assert response["Location"] == target
+
+
+def test_legacy_twitch_urls_preserve_query_string(client: Client) -> None:
+    """Query strings (for example search filters) survive the redirect."""
+    response = client.get("/channels/?search=example&page=2")
+
+    assert response.status_code == 301
+    assert response["Location"] == "/twitch/channels/?search=example&page=2"
+
+
 def test_debug_tools_not_present_while_testing() -> None:
     """Django Debug Toolbar URL patterns are not present while running tests."""
     # Default test environment should *not* expose debug routes.

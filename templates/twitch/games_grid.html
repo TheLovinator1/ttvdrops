@@ -16,67 +16,56 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
-        <header>
-            <h1>All Games</h1>
-            <!-- Add breadcrumbs -->
-            <div>
-                <a href="{% url 'core:dashboard' %}">Home</a> > Games
-            </div>
-            <footer aria-label="Links"
-                    style="border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                           padding-top: 0.5rem">
-                <div style="display: flex;
-                            flex-wrap: wrap;
-                            column-gap: 1.5rem;
-                            row-gap: 0.4rem">
+        <header class="mb-4">
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">Games</span>
+                    </li>
+                </ol>
+            </nav>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <h1 class="h2 mb-0">All Games</h1>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'twitch:games_list' %}"
+                       class="btn-outline theme-secondary btn-sm"
+                       title="View games as list">List view</a>
                     <div>
-                        <div style="font-size: 0.8rem;
-                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                    margin-bottom: 0.15rem;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.05em">
-                            Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
-                        </div>
-                        <div>
-                            Games:
-                            <a href="{% url 'core:game_feed' %}" title="RSS feed for all games">[rss]</a>
-                            <a href="{% url 'core:game_feed_atom' %}"
-                               title="Atom feed for all games">[atom]</a>
-                            <a href="{% url 'core:game_feed_discord' %}"
-                               title="Discord-flavored feed for all games">[discord-flavored]</a>
-                        </div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.8rem;
-                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                    margin-bottom: 0.15rem;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.05em">Developer</div>
-                        <div>
-                            <a href="{% url 'api-v1:twitch-api-v1_list_games' %}"
-                               title="Twitch games API">[api]</a>
-                        </div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.8rem;
-                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                    margin-bottom: 0.15rem;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.05em">Export</div>
-                        <div>
-                            <a href="{% url 'twitch:export_games_csv' %}"
-                               title="Export all games as CSV">[csv]</a>
-                            <a href="{% url 'twitch:export_games_json' %}"
-                               title="Export all games as JSON">[json]</a>
+                        <button class="btn-outline theme-secondary btn-sm"
+                                type="button"
+                                data-bs-toggle="menu"
+                                data-bs-placement="bottom-end"
+                                aria-expanded="false">Subscribe / Export ▾</button>
+                        <div class="menu">
+                            <h6 class="menu-header">Subscribe</h6>
+                            <a class="menu-item" href="{% url 'core:game_feed' %}" title="RSS feed for all games">RSS</a>
+                            <a class="menu-item"
+                               href="{% url 'core:game_feed_atom' %}"
+                               title="Atom feed for all games">Atom</a>
+                            <a class="menu-item"
+                               href="{% url 'core:game_feed_discord' %}"
+                               title="Discord-flavored feed for all games">Discord-flavored</a>
+                            <hr class="menu-divider" />
+                            <h6 class="menu-header">Export</h6>
+                            <a class="menu-item"
+                               href="{% url 'twitch:export_games_csv' %}"
+                               title="Export all games as CSV">CSV</a>
+                            <a class="menu-item"
+                               href="{% url 'twitch:export_games_json' %}"
+                               title="Export all games as JSON">JSON</a>
+                            <hr class="menu-divider" />
+                            <h6 class="menu-header">Developer &amp; Help</h6>
+                            <a class="menu-item"
+                               href="{% url 'api-v1:twitch-api-v1_list_games' %}"
+                               title="Twitch games API">API</a>
+                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                         </div>
                     </div>
                 </div>
-            </footer>
-            <div>
-                <a href="{% url 'twitch:games_list' %}" title="View games as list">[list]</a>
             </div>
         </header>
         {% if games_by_org %}

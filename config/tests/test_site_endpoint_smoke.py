@@ -214,6 +214,8 @@ class SiteEndpointSmokeTest(TestCase):
             ("core:dataset_backups", {}, 200),
             ("core:dataset_backup_download", {"relative_path": self.dataset_name}, 200),
             ("core:docs_rss", {}, 200),
+            ("core:docs_mcp", {}, 200),
+            ("core:mcp_server_card", {}, 200),
             ("core:campaign_feed", {}, 200),
             ("core:game_feed", {}, 200),
             ("core:game_campaign_feed", {"twitch_id": self.twitch_game.twitch_id}, 200),
@@ -238,7 +240,7 @@ class SiteEndpointSmokeTest(TestCase):
             ("core:organization_feed_discord", {}, 200),
             ("core:reward_campaign_feed_discord", {}, 200),
             # Twitch endpoints
-            ("twitch:dashboard", {}, 301),
+            ("twitch:dashboard", {}, 200),
             ("twitch:badge_list", {}, 200),
             ("twitch:badge_set_detail", {"set_id": self.badge_set.set_id}, 200),
             ("twitch:campaign_list", {}, 200),

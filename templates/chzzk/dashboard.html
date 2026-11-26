@@ -16,8 +16,8 @@
 {% block body_class %}dashboard-page{% endblock body_class %}
 {% block content %}
     <main>
-        <div class="dashboard-layout">
-            <nav class="dashboard-toc" aria-label="Drops table of contents">
+        <div class="row g-3">
+            <nav class="col-md-3 col-lg-2 sticky-top" style="max-height: 100vh; overflow-y: auto;" aria-label="Drops table of contents">
                 {% if active_campaigns %}
                     <ul>
                         {% for campaign in active_campaigns %}
@@ -25,47 +25,40 @@
                                 <a href="#chzzk-campaign-{{ campaign.campaign_no }}"
                                    title="{{ campaign.title }}{% if campaign.category_value %} · {{ campaign.category_value }}{% endif %}">
                                     {{ campaign.title }}
-                                    {% if campaign.category_value %}<span class="dashboard-toc-meta">· {{ campaign.category_value }}</span>{% endif %}
+                                    {% if campaign.category_value %}<span class="text-muted small">· {{ campaign.category_value }}</span>{% endif %}
                                 </a>
                             </li>
                         {% endfor %}
                     </ul>
                 {% endif %}
             </nav>
-            <div class="dashboard-content">
+            <div class="col-md-9 col-lg-10">
                 <h1 style="text-align: center;">Active Chzzk Drops</h1>
                 <div>CHZZK is South Korean alternative to Twitch.</div>
-                <footer aria-label="Links"
-                        style="margin-top: 0.5rem;
-                               border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                               padding-top: 0.5rem">
-                    <div style="display: flex;
-                                flex-wrap: wrap;
-                                column-gap: 1.5rem;
-                                row-gap: 0.4rem">
-                        <div>
-                            <div style="font-size: 0.8rem;
-                                        color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                        margin-bottom: 0.15rem;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.05em">
-                                Subscribe <a href="{% url 'core:docs_rss' %}"
-                                             title="RSS feed documentation"
-                                             style="color: inherit;
-                                                    text-decoration: none">(?)</a>
-                            </div>
-                            <div>
-                                Campaigns:
-                                <a href="{% url 'chzzk:campaign_feed' %}"
-                                   title="RSS feed for all campaigns">[rss]</a>
-                                <a href="{% url 'chzzk:campaign_feed_atom' %}"
-                                   title="Atom feed for all campaigns">[atom]</a>
-                                <a href="{% url 'chzzk:campaign_feed_discord' %}"
-                                   title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
-                            </div>
+                <div class="d-flex justify-content-end mb-3">
+                    <div>
+                        <button class="btn-outline theme-secondary btn-sm"
+                                type="button"
+                                data-bs-toggle="menu"
+                                data-bs-placement="bottom-end"
+                                aria-expanded="false">Subscribe ▾</button>
+                        <div class="menu">
+                            <h6 class="menu-header">Subscribe</h6>
+                            <a class="menu-item"
+                               href="{% url 'chzzk:campaign_feed' %}"
+                               title="RSS feed for all campaigns">RSS</a>
+                            <a class="menu-item"
+                               href="{% url 'chzzk:campaign_feed_atom' %}"
+                               title="Atom feed for all campaigns">Atom</a>
+                            <a class="menu-item"
+                               href="{% url 'chzzk:campaign_feed_discord' %}"
+                               title="Discord-flavored feed for all campaigns">Discord-flavored</a>
+                            <hr class="menu-divider" />
+                            <h6 class="menu-header">Help</h6>
+                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                         </div>
                     </div>
-                </footer>
+                </div>
                 {% if active_campaigns %}
                     {% for campaign in active_campaigns %}
                         <!-- {{ campaign }} -->

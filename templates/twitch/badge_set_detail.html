@@ -6,7 +6,7 @@
         <a href="{% url 'core:dashboard' %}">Home</a> > <a href="{% url 'twitch:badge_list' %}">Badges</a> > {{ badge_set.set_id }}
     </div>
     {% if badges %}
-        <table>
+        <table class="table table-striped table-hover">
             <tbody>
                 {% for badge in badges %}
                     <tr>

@@ -947,12 +947,47 @@ class TestChannelListView:
         assert channel2.allowed_campaign_count == 1
 
     @pytest.mark.django_db
-    def test_dashboard_redirects_to_main_dashboard(self, client: Client) -> None:
-        """The legacy /twitch/ URL redirects to the main dashboard."""
+    def test_dashboard_renders_landing_page(self, client: Client) -> None:
+        """The /twitch/ URL renders the Twitch landing page."""
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
 
-        assert response.status_code == 301
-        assert response["Location"] == reverse("core:dashboard")
+        assert response.status_code == 200
+        content: str = response.content.decode("utf-8")
+        assert "Twitch Drops, Campaigns &amp; Rewards" in content
+        assert reverse("twitch:campaign_list") in content
+        assert reverse("twitch:reward_campaign_list") in content
+
+    @pytest.mark.django_db
+    def test_dashboard_lists_active_campaigns(self, client: Client) -> None:
+        """The landing page shows active campaigns and hides expired ones."""
+        now: datetime.datetime = timezone.now()
+        game: Game = Game.objects.create(
+            twitch_id="landing_game",
+            name="Landing Game",
+            display_name="Landing Game",
+        )
+        DropCampaign.objects.create(
+            twitch_id="landing_active_campaign",
+            name="Landing Active Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(hours=1),
+            end_at=now + timedelta(hours=1),
+        )
+        DropCampaign.objects.create(
+            twitch_id="landing_expired_campaign",
+            name="Landing Expired Campaign",
+            game=game,
+            operation_names=["DropCampaignDetails"],
+            start_at=now - timedelta(days=2),
+            end_at=now - timedelta(days=1),
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:dashboard"))
+
+        content: str = response.content.decode("utf-8")
+        assert "Landing Active Campaign" in content
+        assert "Landing Expired Campaign" not in content
 
     @pytest.mark.django_db
     def test_dashboard_context_dedupes_campaigns_for_multi_owner_game(self) -> None:
@@ -3911,7 +3946,7 @@ class TestSitemapView:
             "<loc>https://ttvdrops.lovinator.space/</loc>" in content
             or "<loc>http://localhost:8000/</loc>" in content
         )
-        assert "<loc>https://ttvdrops.lovinator.space/twitch/</loc>" not in content
+        assert "<loc>https://ttvdrops.lovinator.space/twitch/</loc>" in content
         assert "https://ttvdrops.lovinator.space/kick/" in content
         assert "https://ttvdrops.lovinator.space/youtube/" in content
         assert "https://ttvdrops.lovinator.space/twitch/campaigns/" in content

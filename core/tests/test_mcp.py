@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from django.test import Client
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from chzzk.models import ChzzkCampaign
@@ -305,3 +306,43 @@ class TestMCPServer(TestCase):
         """The server only accepts POST requests."""
         response = self.client.get("/mcp")
         assert response.status_code == 405
+
+
+class TestMCPDocs(TestCase):
+    """Tests for the MCP documentation page and discovery file."""
+
+    def test_docs_page_lists_tools_and_endpoint(self) -> None:
+        """The docs page documents the endpoint, config, and every tool."""
+        response = self.client.get(reverse("core:docs_mcp"))
+        assert response.status_code == 200
+
+        content = response.content.decode()
+        assert "/mcp" in content
+        for tool in (
+            "search_drops",
+            "list_drops_between_dates",
+            "get_drop",
+            "search_games",
+            "search_organizations",
+            "get_stats",
+        ):
+            assert tool in content
+
+    def test_server_card_is_machine_readable(self) -> None:
+        """The server card advertises the HTTP transport and docs."""
+        response = self.client.get(reverse("core:mcp_server_card"))
+        assert response.status_code == 200
+        assert response["Content-Type"] == "application/json"
+        assert response["Access-Control-Allow-Origin"] == "*"
+        assert "max-age=3600" in response["Cache-Control"]
+
+        card = response.json()
+        assert card["serverInfo"]["name"] == "ttvdrops"
+        assert card["transport"] == {
+            "type": "streamable-http",
+            "endpoint": "/mcp",
+        }
+        assert card["authentication"]["required"] is False
+        assert card["documentationUrl"].endswith("/docs/mcp/")
+        assert card["tools"] == ["dynamic"]
+        assert "search_drops" in card["instructions"]

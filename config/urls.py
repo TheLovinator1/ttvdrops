@@ -55,6 +55,23 @@ urlpatterns: list[URLPattern | URLResolver] = [
     ),
     # MCP server (no trailing slash: some clients strip it)
     path(route="mcp", view=mcp_server),
+    # Legacy Twitch URLs from before the app moved to /twitch/
+    path(
+        route="channels/",
+        view=RedirectView.as_view(
+            pattern_name="twitch:channel_list",
+            permanent=True,
+            query_string=True,
+        ),
+    ),
+    path(
+        route="games/",
+        view=RedirectView.as_view(
+            pattern_name="twitch:games_grid",
+            permanent=True,
+            query_string=True,
+        ),
+    ),
     # API v1
     path(
         "api/v1/",

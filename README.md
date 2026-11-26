@@ -1,4 +1,4 @@
-# ttvdrops
+# ttvdrops.lovinator.space
 
 Track limited-time free rewards across Twitch, Kick, and Chzzk.
 
@@ -10,7 +10,7 @@ collections of rewards distributed during a specified time period, each with its
 and end dates and requirements. Campaigns are only available for a limited window and can
 be scattered across different platforms, making them easy to miss.
 
-ttvdrops.lovinator.space monitors these campaigns across multiple platforms, archives their data for
+[ttvdrops.lovinator.space](https://ttvdrops.lovinator.space) monitors these campaigns across multiple platforms, archives their data for
 historical reference, and lets you subscribe to RSS/Atom feeds so you never miss a new
 offer. All historical campaign data is available as [open datasets](https://github.com/TheLovinator1/ttvdrops)
 licensed under CC0.
@@ -28,7 +28,11 @@ licensed under CC0.
 
 The site exposes an [MCP](https://modelcontextprotocol.io/) server at
 `https://ttvdrops.lovinator.space/mcp` for AI clients. It is read-only and
-unauthenticated, matching the public website and API.
+unauthenticated, matching the public website and API. Human-readable
+documentation is at
+[`/docs/mcp/`](https://ttvdrops.lovinator.space/docs/mcp/), and a
+machine-readable server card is served from
+`/.well-known/mcp/server-card.json`.
 
 Available tools:
 

@@ -2547,6 +2547,8 @@ class RewardCampaign(auto_prefetch.Model):
                 "brand",
                 "summary",
                 "external_url",
+                "image_url",
+                "image_file",
                 "starts_at",
                 "ends_at",
                 "is_sitewide",

@@ -10,7 +10,7 @@
             <h2>
                 <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">{{ data.set.set_id }}</a>
             </h2>
-            <table>
+            <table class="table table-striped table-hover">
                 {% for badge in data.badges %}
                     <tr>
                         <td style="width: 40px;">

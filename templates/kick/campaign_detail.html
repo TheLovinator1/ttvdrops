@@ -143,58 +143,49 @@
                         {% if campaign.channels.count > 5 %}and {{ campaign.channels.count|add:"-5" }} more{% endif %}
                     {% endif %}
                 </div>
-                <footer aria-label="Links"
-                        style="margin-top: 0.5rem;
-                               border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                               padding-top: 0.5rem">
-                    <div style="display: flex;
-                                flex-wrap: wrap;
-                                column-gap: 1.5rem;
-                                row-gap: 0.4rem">
-                        <div>
-                            <div style="font-size: 0.8rem;
-                                        color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                        margin-bottom: 0.15rem;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.05em">External</div>
-                            <div>
-                                {% if campaign.connect_url %}
-                                    <a href="{{ campaign.connect_url }}"
-                                       title="Connect URL for {{ campaign.name }}">[connect]</a>
+                <div class="d-flex justify-content-end mb-3">
+                    <div>
+                        <button class="btn-outline theme-secondary btn-sm"
+                                type="button"
+                                data-bs-toggle="menu"
+                                data-bs-placement="bottom-end"
+                                aria-expanded="false">Links ▾</button>
+                        <div class="menu">
+                            <h6 class="menu-header">External</h6>
+                            {% if campaign.connect_url %}
+                                <a class="menu-item"
+                                   href="{{ campaign.connect_url }}"
+                                   title="Connect URL for {{ campaign.name }}">Connect</a>
+                            {% endif %}
+                            {% if campaign.url %}
+                                <a class="menu-item"
+                                   href="{{ campaign.url }}"
+                                   title="About URL for {{ campaign.name }}">About</a>
+                            {% endif %}
+                            {% if campaign.channels.count == 0 %}
+                                {% if campaign.category and campaign.rule_name == "Watch to redeem" %}
+                                    <a class="menu-item" href="{{ campaign.category.kick_url }}">Watch</a>
                                 {% endif %}
-                                {% if campaign.url %}<a href="{{ campaign.url }}" title="About URL for {{ campaign.name }}">[about]</a>{% endif %}
-                                {% if campaign.channels.count == 0 %}
-                                    {% if campaign.category and campaign.rule_name == "Watch to redeem" %}
-                                        <a href="{{ campaign.category.kick_url }}">[watch]</a>
-                                    {% endif %}
-                                {% endif %}
-                            </div>
+                            {% endif %}
+                            {% if campaign.category %}
+                                <hr class="menu-divider" />
+                                <h6 class="menu-header">Subscribe</h6>
+                                <a class="menu-item"
+                                   href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
+                                   title="RSS feed for {{ campaign.category.name }} campaigns">RSS</a>
+                                <a class="menu-item"
+                                   href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
+                                   title="Atom feed for {{ campaign.category.name }} campaigns">Atom</a>
+                                <a class="menu-item"
+                                   href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
+                                   title="Discord-flavored feed for {{ campaign.category.name }} campaigns">Discord-flavored</a>
+                            {% endif %}
+                            <hr class="menu-divider" />
+                            <h6 class="menu-header">Help</h6>
+                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                         </div>
-                        {% if campaign.category %}
-                            <div>
-                                <div style="font-size: 0.8rem;
-                                            color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                            margin-bottom: 0.15rem;
-                                            text-transform: uppercase;
-                                            letter-spacing: 0.05em">
-                                    Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
-                                </div>
-                                <div>
-                                    Campaigns:
-                                    <a href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
-                                       title="RSS feed for {{ campaign.category.name }} campaigns">[rss]</a>
-                                    <a href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
-                                       title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
-                                    <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
-                                       title="Discord-flavored feed for {{ campaign.category.name }} campaigns">[discord-flavored]</a>
-                                </div>
-                            </div>
-                        {% endif %}
                     </div>
-                </footer>
+                </div>
             </div>
         </div>
         <hr />

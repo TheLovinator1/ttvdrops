@@ -4,10 +4,12 @@
     TTVDrops has a public JSON API and downloadable datasets.
     You do not need to scrape this site for this data.
     - API docs: https://ttvdrops.lovinator.space/api/v1/docs/
+    - MCP server: https://ttvdrops.lovinator.space/mcp
+    - MCP docs: https://ttvdrops.lovinator.space/docs/mcp/
     - Datasets: https://ttvdrops.lovinator.space/datasets/
 -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
     <head>
         <link rel="apple-touch-icon"
               sizes="180x180"
@@ -31,8 +33,16 @@
               sizes="16x16"
               href="{% static 'favicon-16x16.png' %}" />
         <link rel="manifest" href="{% static 'site.webmanifest' %}" />
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.2/dist/css/bootstrap.min.css"
+              rel="stylesheet"
+              integrity="sha384-MKn5NWVBEuQXJE7TSKSgPUmMiSCmVTfCsR+VSSeQpHnoyJQZZFn/kBn+Ht5jZDPQ"
+              crossorigin="anonymous">
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap"
+              rel="stylesheet" />
         <meta name="keywords" content="Twitch, Drops" />
         <title>{% block title %}{% firstof page_title "Twitch, Kick & Chzzk Drops, Rewards and Campaigns" %}{% endblock title %} | TTVDrops</title>
         {% include "includes/meta_tags.html" %}
@@ -123,292 +133,260 @@
               type="application/atom+xml"
               title="All Kick organizations (Discord-flavored)"
               href="{% url 'kick:organization_feed_discord' %}" />
+        <!-- Read {% url 'core:docs_mcp' %} for MCP server documentation -->
+        <link rel="alternate"
+              type="application/json"
+              title="TTVDrops MCP server card"
+              href="{% url 'core:mcp_server_card' %}" />
         {% block extra_head %}
         {% endblock extra_head %}
         <style>
-            html {
-                color-scheme: light dark;
-            }
-
-            body {
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-                line-height: 1.4;
-                padding: 0;
-                font-size: 115%;
-                max-width: 75%;
-                margin: 0 auto;
-            }
-
-            @media (max-width: 900px) {
-                body {
-                    max-width: 95%;
-                }
-            }
-
-            body.dashboard-page {
-                max-width: none;
-                padding: 0 1rem;
-            }
-
-            table {
-                width: 100%;
-            }
-
-            th,
-            td {
-                padding: 8px;
-                text-align: left;
-                vertical-align: middle;
-            }
-
-            th {
-                background-color: Canvas;
-                color: CanvasText;
-                font-weight: bold;
-            }
-
-            tr:nth-child(even) {
-                background-color: color-mix(in srgb, Canvas 95%, CanvasText 5%);
-            }
-
-            td>img {
-                display: block;
-                height: 160px;
-                width: 160px;
-                object-fit: cover;
-                border-radius: 4px;
-            }
-
-            .campaign-benefits {
-                margin-top: 4px;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-            }
-
-            .benefit-item {
-                display: inline-flex;
-                align-items: center;
-                padding: 2px 6px;
-                background-color: color-mix(in srgb, Canvas 90%, CanvasText 10%);
-                border-radius: 4px;
-                font-size: 0.9em;
-            }
-
-            .benefit-item img {
-                width: 24px !important;
-                height: 24px !important;
-                display: inline-block !important;
-                margin-right: 4px;
-                border-radius: 2px;
-            }
-
-            dd {
-                margin-left: 0;
-            }
-
-            .dashboard-layout {
-                display: grid;
-                grid-template-columns: 18rem minmax(0, 1fr);
-                gap: 1.5rem;
-                align-items: start;
-            }
-
-            .dashboard-content {
-                min-width: 0;
-            }
-
-            .dashboard-toc {
-                position: sticky;
-                top: 0.5rem;
-                max-height: calc(100vh - 1rem);
-                overflow-y: auto;
-                overscroll-behavior: contain;
-                padding: 0.6rem 0.7rem;
-                border: 1px solid color-mix(in srgb, CanvasText 15%, transparent 85%);
-                border-radius: 6px;
-                font-size: 1rem;
-                line-height: 1.4;
-            }
-
-            .dashboard-toc-title {
-                margin-bottom: 0.3rem;
-                color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                font-size: 0.875rem;
-                font-weight: bold;
-                letter-spacing: 0.05em;
-                text-transform: uppercase;
-            }
-
-            .dashboard-toc ul {
-                margin: 0;
-                padding: 0;
-                list-style: none;
-            }
-
-            .dashboard-toc li {
-                margin: 0;
-            }
-
-            .dashboard-toc a {
-                display: block;
-                padding: 0.05rem 0;
-                color: inherit;
-                text-decoration: none;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-
-            .dashboard-toc a:hover {
-                text-decoration: underline;
-            }
-
-            .dashboard-toc-section {
-                margin-top: 0.5rem;
-                font-size: 1.15rem;
-                font-weight: bold;
-            }
-
-            .dashboard-toc-game {
-                font-weight: bold;
-            }
-
-            .dashboard-toc ul.dashboard-toc-sub {
-                margin-left: 0;
-                padding-left: 1.5em;
-            }
-
-            .dashboard-toc-meta {
-                color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                font-size: 0.9em;
-            }
-
-            .external-link-icon {
-                display: inline-block;
-                width: 0.8em;
-                height: 0.8em;
-                margin-left: 0.15em;
-                vertical-align: -0.05em;
-            }
-
-            @media (max-width: 1000px) {
-                .dashboard-layout {
-                    grid-template-columns: minmax(0, 1fr);
-                }
-
-                .dashboard-toc {
-                    position: static;
-                    max-height: 40vh;
-                }
+            :root {
+                --bs-body-font-family: "Geist", system-ui, sans-serif;
+                --bs-font-mono: "Geist Mono", ui-monospace, monospace;
             }
         </style>
     </head>
-    <body class="{% block body_class %}{% endblock body_class %}">
-        <nav>
-            <a href="{% url 'core:dashboard' %}">Dashboard</a> |
-            <a href="{% url 'core:docs_rss' %}">RSS</a> |
-            <a href="{% url 'core:debug' %}">Debug</a> |
-            <a href="{% url 'core:dataset_backups' %}">Dataset</a> |
-            <a href="https://github.com/TheLovinator1/ttvdrops/issues">Issues</a> |
-            <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
-            <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a> |
-            <a href="{% url 'api-v1:openapi-view' %}">API Docs</a> |
-            <a href="{% url 'core:about' %}">About</a> |
-            <form action="{% url 'core:search' %}" method="get" style="display: inline">
-                <input type="search"
-                       name="q"
-                       placeholder="Search..."
-                       value="{{ request.GET.q }}" />
-                <button type="submit">Search</button>
-            </form>
-            <br />
-            <strong>Twitch</strong>
-            <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> |
-            <a href="{% url 'twitch:reward_campaign_list' %}">Rewards</a> |
-            <a href="{% url 'twitch:games_grid' %}">Games</a> |
-            <a href="{% url 'twitch:org_list' %}">Orgs</a> |
-            <a href="{% url 'twitch:channel_list' %}">Channels</a> |
-            <a href="{% url 'twitch:badge_list' %}">Badges</a> |
-            <a href="{% url 'twitch:emote_gallery' %}">Emotes</a> |
-            <a href="{% url 'twitch:stats' %}">Stats</a> |
-            <a href="{% url 'twitch:history' %}">History</a> |
-            <a href="https://www.twitch.tv/drops/inventory"
-               title="Open the Twitch Drops Inventory on an external site">
-                Inventory
-                <svg class="external-link-icon"
-                     viewBox="0 0 24 24"
-                     fill="none"
-                     stroke="currentColor"
-                     stroke-width="2"
-                     stroke-linecap="round"
-                     stroke-linejoin="round"
-                     aria-hidden="true">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                    <polyline points="15 3 21 3 21 9" />
-                    <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-            </a>
-            <br />
-            <strong>Kick</strong>
-            <a href="{% url 'kick:dashboard' %}">Dashboard</a> |
-            <a href="{% url 'kick:campaign_list' %}">Campaigns</a> |
-            <a href="{% url 'kick:game_list' %}">Games</a> |
-            <a href="{% url 'kick:organization_list' %}">Organizations</a>
-            <br />
-            <strong>Chzzk</strong>
-            <a href="{% url 'chzzk:dashboard' %}">Dashboard</a> |
-            <a href="{% url 'chzzk:campaign_list' %}">Campaigns</a>
-            <br />
-            <strong>Other sites</strong>
-            <a href="{% url 'youtube:index' %}">YouTube</a>
+    <body {% block body_attributes %}{% endblock body_attributes %}
+          class="{% block body_class %}{% endblock body_class %}">
+        <nav class="navbar lg:navbar-expand bg-1" data-bs-theme="dark">
+            <div class="container">
+                <a class="navbar-brand fw-bold" href="{% url 'core:dashboard' %}">TTVDrops</a>
+                <button class="btn-icon navbar-toggler"
+                        type="button"
+                        data-bs-toggle="drawer"
+                        data-bs-target="#mainNavbarDrawer"
+                        aria-controls="mainNavbarDrawer"
+                        aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon" aria-hidden="true"></span>
+                </button>
+                <dialog class="drawer drawer-end"
+                        id="mainNavbarDrawer"
+                        aria-labelledby="mainNavbarDrawerLabel">
+                    <div class="drawer-header">
+                        <h5 class="drawer-title" id="mainNavbarDrawerLabel">Menu</h5>
+                        <button type="button"
+                                class="btn-close"
+                                data-bs-dismiss="drawer"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="drawer-body">
+                        <ul class="nav navbar-nav me-auto mb-3 lg:mb-0">
+                            <li class="nav-item"><a class="nav-link" href="{% url 'core:docs_rss' %}">RSS</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'api-v1:openapi-view' %}">API</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'core:docs_mcp' %}">MCP</a></li>
+                            <li class="nav-item"><a class="nav-link" href="{% url 'core:about' %}">About</a></li>
+                            <li class="nav-item d-none xl:d-flex align-items-center">
+                                <span class="vr mx-3 fg-white fg-opacity-50"></span>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link"
+                                        type="button"
+                                        data-bs-toggle="menu"
+                                        aria-expanded="false">
+                                    Twitch
+                                    <svg width="1em"
+                                         height="1em"
+                                         viewBox="0 0 16 16"
+                                         fill="currentColor"
+                                         aria-hidden="true">
+                                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="menu">
+                                    <a class="menu-item" href="{% url 'twitch:dashboard' %}">Dashboard</a>
+                                    <a class="menu-item" href="{% url 'twitch:campaign_list' %}">Campaigns</a>
+                                    <a class="menu-item" href="{% url 'twitch:reward_campaign_list' %}">Rewards</a>
+                                    <a class="menu-item" href="{% url 'twitch:games_grid' %}">Games</a>
+                                    <a class="menu-item" href="{% url 'twitch:org_list' %}">Orgs</a>
+                                    <a class="menu-item" href="{% url 'twitch:channel_list' %}">Channels</a>
+                                    <a class="menu-item" href="{% url 'twitch:badge_list' %}">Badges</a>
+                                    <a class="menu-item" href="{% url 'twitch:emote_gallery' %}">Emotes</a>
+                                    <a class="menu-item" href="{% url 'twitch:stats' %}">Stats</a>
+                                    <a class="menu-item" href="{% url 'twitch:history' %}">History</a>
+                                    <a class="menu-item"
+                                       href="https://www.twitch.tv/drops/inventory"
+                                       target="_blank"
+                                       rel="noopener">Inventory
+                                        <svg width="1em"
+                                             height="1em"
+                                             viewBox="0 0 24 24"
+                                             fill="none"
+                                             stroke="currentColor"
+                                             stroke-width="2"
+                                             aria-hidden="true">
+                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                            <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link"
+                                        type="button"
+                                        data-bs-toggle="menu"
+                                        aria-expanded="false">
+                                    Kick
+                                    <svg width="1em"
+                                         height="1em"
+                                         viewBox="0 0 16 16"
+                                         fill="currentColor"
+                                         aria-hidden="true">
+                                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="menu">
+                                    <a class="menu-item" href="{% url 'kick:dashboard' %}">Dashboard</a>
+                                    <a class="menu-item" href="{% url 'kick:campaign_list' %}">Campaigns</a>
+                                    <a class="menu-item" href="{% url 'kick:game_list' %}">Games</a>
+                                    <a class="menu-item" href="{% url 'kick:organization_list' %}">Organizations</a>
+                                </div>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link"
+                                        type="button"
+                                        data-bs-toggle="menu"
+                                        aria-expanded="false">
+                                    Chzzk
+                                    <svg width="1em"
+                                         height="1em"
+                                         viewBox="0 0 16 16"
+                                         fill="currentColor"
+                                         aria-hidden="true">
+                                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+                                    </svg>
+                                </button>
+                                <div class="menu">
+                                    <a class="menu-item" href="{% url 'chzzk:dashboard' %}">Dashboard</a>
+                                    <a class="menu-item" href="{% url 'chzzk:campaign_list' %}">Campaigns</a>
+                                </div>
+                            </li>
+                            <li class="nav-item d-none xl:d-flex align-items-center">
+                                <span class="vr mx-3 fg-white fg-opacity-50"></span>
+                            </li>
+                            <li class="nav-item lg:d-none xl:d-block">
+                                <a class="nav-link"
+                                   href="https://github.com/sponsors/TheLovinator1"
+                                   target="_blank"
+                                   rel="noopener">Donate
+                                    <svg width="1em"
+                                         height="1em"
+                                         viewBox="0 0 24 24"
+                                         fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="2"
+                                         aria-hidden="true">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                        <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
+                                </a>
+                            </li>
+                            <li class="nav-item lg:d-none xl:d-block">
+                                <a class="nav-link"
+                                   href="https://github.com/TheLovinator1/ttvdrops"
+                                   target="_blank"
+                                   rel="noopener">GitHub
+                                    <svg width="1em"
+                                         height="1em"
+                                         viewBox="0 0 24 24"
+                                         fill="none"
+                                         stroke="currentColor"
+                                         stroke-width="2"
+                                         aria-hidden="true">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                        <polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
+                                </a>
+                            </li>
+                        </ul>
+                        <form class="d-flex gap-3"
+                              role="search"
+                              action="{% url 'core:search' %}"
+                              method="get">
+                            <input class="form-control"
+                                   type="search"
+                                   name="q"
+                                   placeholder="Search"
+                                   aria-label="Search"
+                                   value="{{ request.GET.q }}" />
+                            <button class="btn-outline theme-success" type="submit">Search</button>
+                        </form>
+                    </div>
+                </dialog>
+            </div>
         </nav>
-        <hr />
         {% if messages %}
-            <ul>
+            <div class="container">
                 {% for message in messages %}
-                    <li>
-                        {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}Important:{% endif %}
-                        {{ message|linebreaksbr }}
-                    </li>
+                    <div class="alert {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}theme-danger{% else %}theme-info{% endif %}"
+                         role="alert">
+                        <div>
+                            {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}Important:{% endif %}
+                            {{ message|linebreaksbr }}
+                        </div>
+                    </div>
                 {% endfor %}
-            </ul>
+            </div>
         {% endif %}
-        {% block content %}
-            <!-- Main content will be injected here -->
-        {% endblock content %}
-        <footer>
-            <div style="text-align: center; font-size: 0.9em; color: #6a737d">
+        <div class="container my-12">
+            {% block content %}
+                <!-- Main content will be injected here -->
+            {% endblock content %}
+        </div>
+        <footer class="border-top border-subtle bg-1 mt-9 pt-3 pb-6 fg-2 fs-sm">
+            <div class="container d-flex flex-column align-items-center text-center gap-2">
                 <img src="{% static 'toycar_driving_lc.gif' %}"
                      alt="Animated toy car driving"
                      width="156"
                      height="156"
                      loading="lazy" />
-                <br />
-                CC0; Information wants to be free.
-                <br />
-                Data retrival possible because of <a href="https://github.com/DevilXD/TwitchDropsMiner">DevilXD/TwitchDropsMiner</a>
-                and <a href="https://github.com/SunkwiBOT/twitch-drops-api">SunkwiBOT/twitch-drops-api</a>.
+                <div class="d-flex flex-wrap justify-content-center align-items-center gap-2">
+                    <span class="badge badge-subtle theme-secondary rounded-pill">CC0</span>
+                    <span>Information wants to be free.</span>
+                </div>
+                <p class="mb-0 text-balance fg-3">
+                    Data retrieval possible because of
+                    <a class="fg-1 underline-offset-2 underline-opacity-50 hover:underline-opacity-100"
+                       href="https://github.com/DevilXD/TwitchDropsMiner">DevilXD/TwitchDropsMiner</a>
+                    and
+                    <a class="fg-1 underline-offset-2 underline-opacity-50 hover:underline-opacity-100"
+                       href="https://github.com/SunkwiBOT/twitch-drops-api">SunkwiBOT/twitch-drops-api</a>.
+                </p>
+                <div class="d-flex flex-wrap justify-content-center align-items-center gap-2 mt-2">
+                    <a class="btn-text theme-secondary btn-xs"
+                       href="{% url 'core:dataset_backups' %}">Datasets &amp; Backups</a>
+                    <a class="btn-text theme-secondary btn-xs"
+                       href="{% url 'api-v1:openapi-view' %}">API Docs</a>
+                    <a class="btn-text theme-secondary btn-xs"
+                       href="{% url 'core:docs_rss' %}">RSS Feeds</a>
+                    <a class="btn-text theme-secondary btn-xs"
+                       href="{% url 'core:docs_mcp' %}">MCP Server</a>
+                    <a class="btn-text theme-secondary btn-xs" href="{% url 'core:about' %}">About</a>
+                </div>
             </div>
         </footer>
-    </body>
-    <script>
-        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        document.cookie = "timezone=" + tz + "; path=/; SameSite=Lax";
+        <script type="module"
+                src="https://cdn.jsdelivr.net/npm/bootstrap@6.0.0-alpha.2/dist/js/bootstrap.bundle.min.js"
+                integrity="sha384-+PW0IDVGGwmpaBQvcXY+W0BcpHpITFB3dSfSoGvDdHtLbrLpSbpGcvtQRM/BJpz+"
+                crossorigin="anonymous"></script>
+        <script>
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            document.cookie = "timezone=" + tz + "; path=/; SameSite=Lax";
 
-        document.querySelectorAll("time[datetime]").forEach(el => {
-            const d = new Date(el.getAttribute("datetime"));
-            if (!isNaN(d)) {
-                el.textContent = d.toLocaleString(undefined, {
-                    year: "numeric", month: "short", day: "numeric",
-                    hour: "2-digit", minute: "2-digit"
-                });
-                el.title = d.toLocaleString(undefined, {
-                    weekday: "long", year: "numeric", month: "long", day: "numeric",
-                    hour: "2-digit", minute: "2-digit", second: "2-digit",
-                    timeZoneName: "short"
-                });
-            }
-        });
-    </script>
+            document.querySelectorAll("time[datetime]").forEach(el => {
+                const d = new Date(el.getAttribute("datetime"));
+                if (!isNaN(d)) {
+                    el.textContent = d.toLocaleString(undefined, {
+                        year: "numeric", month: "short", day: "numeric",
+                        hour: "2-digit", minute: "2-digit"
+                    });
+                    el.title = d.toLocaleString(undefined, {
+                        weekday: "long", year: "numeric", month: "long", day: "numeric",
+                        hour: "2-digit", minute: "2-digit", second: "2-digit",
+                        timeZoneName: "short"
+                    });
+                }
+            });
+        </script>
+    </body>
 </html>

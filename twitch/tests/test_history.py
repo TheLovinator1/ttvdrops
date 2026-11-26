@@ -526,7 +526,7 @@ def test_history_pagination_is_cursor_based(client: Client) -> None:
         )
 
     assert older_response.status_code == 200
-    assert b"[newer]" in older_response.content
+    assert b"Newer" in older_response.content
     assert b"[last]" not in older_response.content
 
     for query in (*first_queries.captured_queries, *older_queries.captured_queries):

@@ -166,6 +166,7 @@ class TestCoreDashboardRewardCampaigns(TestCase):
             reward_campaign=campaign,
             twitch_id="core-dashboard-reward-item-1",
             name="Core Dashboard Reward Item",
+            thumbnail_image_url="https://example.com/reward-thumbnail.png",
         )
 
         response: _MonkeyPatchedWSGIResponse = self.client.get(
@@ -175,6 +176,7 @@ class TestCoreDashboardRewardCampaigns(TestCase):
 
         assert response.status_code == 200
         assert "Core Dashboard Reward Item" in content
+        assert "https://example.com/reward-thumbnail.png" in content
 
 
 class TestCoreDashboardLatestCampaign(TestCase):

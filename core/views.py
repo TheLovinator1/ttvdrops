@@ -26,6 +26,8 @@ from django.utils import timezone
 from core.base_url import build_absolute_uri
 from core.discord_embed import DEFAULT_ACCENT_COLOR
 from core.discord_embed import embed_buttons
+from core.mcp import documented_tools
+from core.mcp import server_card
 from kick.models import KickChannel
 from kick.models import KickDropCampaign
 from twitch.models import Channel
@@ -270,6 +272,7 @@ def sitemap_static_view(request: HttpRequest) -> HttpResponse:
         {"loc": f"{base_url}{reverse('core:debug')}"},
         {"loc": f"{base_url}{reverse('core:dataset_backups')}"},
         {"loc": f"{base_url}{reverse('core:docs_rss')}"},
+        {"loc": f"{base_url}{reverse('core:docs_mcp')}"},
         # Core RSS/Atom/Discord feeds
         {"loc": f"{base_url}{reverse('core:campaign_feed')}"},
         {"loc": f"{base_url}{reverse('core:game_feed')}"},
@@ -284,6 +287,7 @@ def sitemap_static_view(request: HttpRequest) -> HttpResponse:
         {"loc": f"{base_url}{reverse('core:organization_feed_discord')}"},
         {"loc": f"{base_url}{reverse('core:reward_campaign_feed_discord')}"},
         # Twitch app pages
+        {"loc": f"{base_url}{reverse('twitch:dashboard')}"},
         {"loc": f"{base_url}{reverse('twitch:campaign_list')}"},
         {"loc": f"{base_url}{reverse('twitch:games_grid')}"},
         {"loc": f"{base_url}{reverse('twitch:games_list')}"},
@@ -561,6 +565,60 @@ def docs_rss_view(request: HttpRequest) -> HttpResponse:
             **seo_context,
         },
     )
+
+
+# MARK: /docs/mcp/
+def docs_mcp_view(request: HttpRequest) -> HttpResponse:
+    """View for /docs/mcp that documents the MCP server and its tools.
+
+    Args:
+        request: The HTTP request object.
+
+    Returns:
+        HttpResponse: The rendered documentation page.
+    """
+    seo_context: dict[str, Any] = _build_seo_context(
+        page_title="MCP Server Documentation - TTVDrops",
+        page_description=(
+            "Connect AI clients to the TTVDrops MCP server at /mcp. Search "
+            "Twitch, Kick, and Chzzk drops, rewards, games, and organizations."
+        ),
+        page_url=build_absolute_uri(reverse("core:docs_mcp")),
+    )
+
+    return render(
+        request,
+        "core/docs_mcp.html",
+        {
+            "mcp_url": build_absolute_uri("/mcp"),
+            "mcp_server_card_url": build_absolute_uri(
+                reverse("core:mcp_server_card"),
+            ),
+            "mcp_tools": documented_tools(),
+            **seo_context,
+        },
+    )
+
+
+# MARK: /.well-known/mcp/server-card.json
+def mcp_server_card_view(request: HttpRequest) -> HttpResponse:
+    """Serve a machine-readable MCP server card for discovery clients.
+
+    Args:
+        request: The HTTP request object.
+
+    Returns:
+        HttpResponse: The server card as JSON.
+    """
+    response = HttpResponse(
+        json.dumps(server_card(), indent=2),
+        content_type="application/json",
+    )
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "GET"
+    response["Access-Control-Allow-Headers"] = "Content-Type"
+    response["Cache-Control"] = "public, max-age=3600"
+    return response
 
 
 # MARK: /debug/

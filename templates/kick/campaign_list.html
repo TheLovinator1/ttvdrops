@@ -22,63 +22,56 @@
         <div>
             Scraped from <a href="https://web.kick.com/api/v1/drops/campaigns">Kick API</a>.
         </div>
-        <footer aria-label="Links"
-                style="margin-top: 0.5rem;
-                       border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                       padding-top: 0.5rem">
-            <div style="display: flex;
-                        flex-wrap: wrap;
-                        column-gap: 1.5rem;
-                        row-gap: 0.4rem">
-                <div>
-                    <div style="font-size: 0.8rem;
-                                color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                margin-bottom: 0.15rem;
-                                text-transform: uppercase;
-                                letter-spacing: 0.05em">
-                        Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
-                    </div>
-                    <div>
-                        Campaigns:
-                        <a href="{% url 'kick:campaign_feed' %}"
-                           title="RSS feed for all campaigns">[rss]</a>
-                        <a href="{% url 'kick:campaign_feed_atom' %}"
-                           title="Atom feed for all campaigns">[atom]</a>
-                        <a href="{% url 'kick:campaign_feed_discord' %}"
-                           title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
-                    </div>
+        <div class="d-flex justify-content-end mb-3">
+            <div>
+                <button class="btn-outline theme-secondary btn-sm"
+                        type="button"
+                        data-bs-toggle="menu"
+                        data-bs-placement="bottom-end"
+                        aria-expanded="false">Subscribe ▾</button>
+                <div class="menu">
+                    <h6 class="menu-header">Subscribe</h6>
+                    <a class="menu-item"
+                       href="{% url 'kick:campaign_feed' %}"
+                       title="RSS feed for all campaigns">RSS</a>
+                    <a class="menu-item"
+                       href="{% url 'kick:campaign_feed_atom' %}"
+                       title="Atom feed for all campaigns">Atom</a>
+                    <a class="menu-item"
+                       href="{% url 'kick:campaign_feed_discord' %}"
+                       title="Discord-flavored feed for all campaigns">Discord-flavored</a>
+                    <hr class="menu-divider" />
+                    <h6 class="menu-header">Help</h6>
+                    <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                 </div>
             </div>
-        </footer>
+        </div>
         <form method="get" action="{% url 'kick:campaign_list' %}">
             <div style="display: flex;
                         gap: 1rem;
                         flex-wrap: wrap;
                         margin-bottom: 1rem">
-                <select name="game">
+                <select class="form-select" name="game">
                     <option value="">All Games</option>
                     {% for game in games %}
                         <option value="{{ game.kick_id }}"
                                 {% if selected_game == game.kick_id|stringformat:"s" %}selected{% endif %}>{{ game.name }}</option>
                     {% endfor %}
                 </select>
-                <select name="status">
+                <select class="form-select" name="status">
                     <option value="">All Statuses</option>
                     {% for s in status_options %}
                         <option value="{{ s }}" {% if selected_status == s %}selected{% endif %}>{{ s|capfirst }}</option>
                     {% endfor %}
                 </select>
-                <button type="submit">Filter</button>
+                <button class="btn btn-primary" type="submit">Filter</button>
                 {% if selected_status or selected_game %}
                     <a href="{% url 'kick:campaign_list' %}">Clear</a>
                 {% endif %}
             </div>
         </form>
         {% if campaigns %}
-            <table>
+            <table class="table table-striped table-hover">
                 <thead>
                     <tr>
                         <th>Name</th>

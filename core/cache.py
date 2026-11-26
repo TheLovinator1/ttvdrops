@@ -80,6 +80,7 @@ _ROUTE_TABLE: tuple[tuple[str, RouteSpec], ...] = (
     (r"^/$", RouteSpec("core-dashboard", 60, ("twitch", "kick", "chzzk"))),
     (r"^/about/$", RouteSpec("about", 86400)),
     (r"^/docs/rss/$", RouteSpec("docs-rss", 86400)),
+    (r"^/docs/mcp/$", RouteSpec("docs-mcp", 86400)),
     (r"^/datasets/$", RouteSpec("datasets", 300)),
     (r"^/youtube/", RouteSpec("youtube", 86400)),
     (r"^/sitemap\.xml$", RouteSpec("sitemap-index", 3600, ("twitch", "kick", "chzzk"))),
@@ -136,7 +137,16 @@ _COMPILED_ROUTES: tuple[tuple[Pattern[str], RouteSpec], ...] = tuple(
     (re.compile(pattern), spec) for pattern, spec in _ROUTE_TABLE
 )
 
-_EXCLUDED_PATHS: frozenset[str] = frozenset({"/api/v1/", "/favicon.ico", "/mcp"})
+_EXCLUDED_PATHS: frozenset[str] = frozenset(
+    {
+        "/.well-known/mcp/server-card.json",
+        "/api/v1/",
+        "/channels/",
+        "/favicon.ico",
+        "/games/",
+        "/mcp",
+    },
+)
 _EXCLUDED_PREFIXES: tuple[str, ...] = (
     "/__debug__/",
     "/api/v1/docs",

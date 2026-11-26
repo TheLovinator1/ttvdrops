@@ -88,85 +88,65 @@
                 </dd>
             </dl>
             <!-- Feeds -->
-            <footer aria-label="Links"
-                    style="margin-top: 0.5rem;
-                           border-top: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                           padding-top: 0.5rem">
-                <div style="display: flex;
-                            flex-wrap: wrap;
-                            column-gap: 1.5rem;
-                            row-gap: 0.4rem">
-                    <div>
-                        <div style="font-size: 0.8rem;
-                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                    margin-bottom: 0.15rem;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.05em">External</div>
-                        <div>
-                            <a href="https://twitch-drops.fenrisapps.com/games/{{ game.twitch_id }}/"
-                               title="View this game on Fenris Apps">[fenrisapps]</a>
-                        </div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.8rem;
-                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                    margin-bottom: 0.15rem;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.05em">
-                            Subscribe <a href="{% url 'core:docs_rss' %}"
-    title="RSS feed documentation"
-    style="color: inherit;
-           text-decoration: none">(?)</a>
-                        </div>
-                        <div>
-                            Campaigns:
-                            <a href="{% url 'core:game_campaign_feed' game.twitch_id %}"
-                               title="RSS feed for {{ game.display_name }} campaigns">[rss]</a>
-                            <a href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}"
-                               title="Atom feed for {{ game.display_name }} campaigns">[atom]</a>
-                            <a href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}"
-                               title="Discord-flavored feed for {{ game.display_name }} campaigns">[discord-flavored]</a>
-                        </div>
-                        <div>
-                            Rewards:
-                            <a href="{% url 'core:game_reward_feed' game.twitch_id %}"
-                               title="RSS feed for {{ game.display_name }} rewards">[rss]</a>
-                            <a href="{% url 'core:game_reward_feed_atom' game.twitch_id %}"
-                               title="Atom feed for {{ game.display_name }} rewards">[atom]</a>
-                            <a href="{% url 'core:game_reward_feed_discord' game.twitch_id %}"
-                               title="Discord-flavored feed for {{ game.display_name }} rewards">[discord-flavored]</a>
-                        </div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.8rem;
-                                    color: color-mix(in srgb, CanvasText 55%, transparent 45%);
-                                    margin-bottom: 0.15rem;
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.05em">Developer</div>
-                        <div>
-                            <a href="{% url 'api-v1:twitch-api-v1_get_game' game.twitch_id %}"
-                               title="Twitch game API">[api]</a>
-                            <a href="{% url 'twitch:game_history' game.twitch_id %}"
-                               title="Game history">[history]</a>
-                        </div>
+            <div class="d-flex justify-content-end mb-3">
+                <div>
+                    <button class="btn-outline theme-secondary btn-sm"
+                            type="button"
+                            data-bs-toggle="menu"
+                            data-bs-placement="bottom-end"
+                            aria-expanded="false">Links ▾</button>
+                    <div class="menu">
+                        <h6 class="menu-header">External</h6>
+                        <a class="menu-item"
+                           href="https://twitch-drops.fenrisapps.com/games/{{ game.twitch_id }}/"
+                           title="View this game on Fenris Apps">Fenris Apps</a>
+                        <hr class="menu-divider" />
+                        <h6 class="menu-header">Subscribe</h6>
+                        <a class="menu-item"
+                           href="{% url 'core:game_campaign_feed' game.twitch_id %}"
+                           title="RSS feed for {{ game.display_name }} campaigns">Campaigns RSS</a>
+                        <a class="menu-item"
+                           href="{% url 'core:game_campaign_feed_atom' game.twitch_id %}"
+                           title="Atom feed for {{ game.display_name }} campaigns">Campaigns Atom</a>
+                        <a class="menu-item"
+                           href="{% url 'core:game_campaign_feed_discord' game.twitch_id %}"
+                           title="Discord-flavored feed for {{ game.display_name }} campaigns">Campaigns Discord-flavored</a>
+                        <a class="menu-item"
+                           href="{% url 'core:game_reward_feed' game.twitch_id %}"
+                           title="RSS feed for {{ game.display_name }} rewards">Rewards RSS</a>
+                        <a class="menu-item"
+                           href="{% url 'core:game_reward_feed_atom' game.twitch_id %}"
+                           title="Atom feed for {{ game.display_name }} rewards">Rewards Atom</a>
+                        <a class="menu-item"
+                           href="{% url 'core:game_reward_feed_discord' game.twitch_id %}"
+                           title="Discord-flavored feed for {{ game.display_name }} rewards">Rewards Discord-flavored</a>
+                        <hr class="menu-divider" />
+                        <h6 class="menu-header">Developer &amp; Help</h6>
+                        <a class="menu-item"
+                           href="{% url 'api-v1:twitch-api-v1_get_game' game.twitch_id %}"
+                           title="Twitch game API">API</a>
+                        <a class="menu-item"
+                           href="{% url 'twitch:game_history' game.twitch_id %}"
+                           title="Game history">History</a>
+                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
                     </div>
                 </div>
-            </footer>
+            </div>
         </div>
     </header>
     {% if active_campaigns %}
         <h5 id="active-campaigns-header">Active Campaigns</h5>
-        <table id="active-campaigns-table">
+        <table class="table table-striped table-hover" id="active-campaigns-table">
             <tbody>
                 {% for campaign in active_campaigns %}
                     <tr id="campaign-row-{{ campaign.twitch_id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                             {% if campaign.time_based_drops.all %}
-                                <div class="campaign-benefits">
+                                <div class="d-flex flex-wrap gap-2 mt-1">
                                     {% comment %}Show unique benefits sorted alphabetically{% endcomment %}
                                     {% for benefit in campaign.sorted_benefits %}
-                                        <span class="benefit-item" title="{{ benefit.name }}">
+                                        <span class="badge text-bg-secondary d-inline-flex align-items-center gap-1" title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
                                                 {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=24 height=24 style="display: inline-block; margin-right: 4px; vertical-align: middle" %}
                                             {% endif %}
@@ -187,16 +167,16 @@
     {% endif %}
     {% if upcoming_campaigns %}
         <h5 id="upcoming-campaigns-header">Upcoming Campaigns</h5>
-        <table id="upcoming-campaigns-table">
+        <table class="table table-striped table-hover" id="upcoming-campaigns-table">
             <tbody>
                 {% for campaign in upcoming_campaigns %}
                     <tr id="campaign-row-{{ campaign.twitch_id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                             {% if campaign.time_based_drops.all %}
-                                <div class="campaign-benefits">
+                                <div class="d-flex flex-wrap gap-2 mt-1">
                                     {% for benefit in campaign.sorted_benefits %}
-                                        <span class="benefit-item" title="{{ benefit.name }}">
+                                        <span class="badge text-bg-secondary d-inline-flex align-items-center gap-1" title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
                                                 {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=24 height=24 style="display: inline-block; margin-right: 4px; vertical-align: middle" %}
                                             {% endif %}
@@ -217,17 +197,17 @@
     {% endif %}
     {% if expired_campaigns %}
         <h5 id="expired-campaigns-header">Past Campaigns</h5>
-        <table id="expired-campaigns-table">
+        <table class="table table-striped table-hover" id="expired-campaigns-table">
             <tbody>
                 {% for campaign in expired_campaigns %}
                     <tr id="campaign-row-{{ campaign.twitch_id }}">
                         <td>
                             <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
                             {% if campaign.time_based_drops.all %}
-                                <div class="campaign-benefits">
+                                <div class="d-flex flex-wrap gap-2 mt-1">
                                     {% comment %}Show unique benefits sorted alphabetically{% endcomment %}
                                     {% for benefit in campaign.sorted_benefits %}
-                                        <span class="benefit-item" title="{{ benefit.name }}">
+                                        <span class="badge text-bg-secondary d-inline-flex align-items-center gap-1" title="{{ benefit.name }}">
                                             {% if benefit.image_best_url or benefit.image_asset_url %}
                                                 {% picture benefit.image_best_url|default:benefit.image_asset_url alt=benefit.name width=24 height=24 style="display: inline-block; margin-right: 4px; vertical-align: middle" %}
                                             {% endif %}
@@ -251,7 +231,7 @@
     {% endif %}
     {% if active_rewards %}
         <h5 id="active-rewards-header">Active Rewards</h5>
-        <table id="active-rewards-table">
+        <table class="table table-striped table-hover" id="active-rewards-table">
             <tbody>
                 {% for reward in active_rewards %}
                     <tr id="reward-row-{{ reward.twitch_id }}">
@@ -292,7 +272,7 @@
     {% endif %}
     {% if upcoming_rewards %}
         <h5 id="upcoming-rewards-header">Upcoming Rewards</h5>
-        <table id="upcoming-rewards-table">
+        <table class="table table-striped table-hover" id="upcoming-rewards-table">
             <tbody>
                 {% for reward in upcoming_rewards %}
                     <tr id="reward-row-{{ reward.twitch_id }}">
@@ -331,7 +311,7 @@
     {% endif %}
     {% if expired_rewards %}
         <h5 id="expired-rewards-header">Past Rewards</h5>
-        <table id="expired-rewards-table">
+        <table class="table table-striped table-hover" id="expired-rewards-table">
             <tbody>
                 {% for reward in expired_rewards %}
                     <tr id="reward-row-{{ reward.twitch_id }}">
