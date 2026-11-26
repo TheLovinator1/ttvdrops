@@ -1,7 +1,12 @@
 from typing import TYPE_CHECKING
 from typing import Any
 
+from django.conf import settings
+from django.db.models import Count
+from django.db.models import Max
+from django.db.models import OuterRef
 from django.db.models import Q
+from django.db.models import Subquery
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.shortcuts import render
@@ -65,6 +70,127 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
                 ("Chzzk Drops", "https://chzzk.naver.com/"),
                 ("Campaigns", "/chzzk/campaigns/"),
             ),
+        },
+    )
+
+
+def _game_list_rows() -> list[dict[str, Any]]:
+    """Return GAME categories with campaign counts and representative artwork."""
+    now = timezone.now()
+    latest_campaign = (
+        models.ChzzkCampaign.objects
+        .filter(
+            category_type=OuterRef("category_type"),
+            category_id=OuterRef("category_id"),
+        )
+        .exclude(state="TESTING")
+        .order_by("-start_date")
+    )
+    queryset = (
+        models.ChzzkCampaign.objects
+        .filter(category_type__iexact="GAME")
+        .exclude(state="TESTING")
+        .values("category_type", "category_id")
+        .annotate(
+            category_value=Max("category_value"),
+            campaign_count=Count("id"),
+            active_campaign_count=Count(
+                "id",
+                filter=Q(start_date__lte=now, end_date__gte=now),
+            ),
+            upcoming_campaign_count=Count(
+                "id",
+                filter=Q(start_date__gt=now),
+            ),
+            last_campaign_ended_at=Max(
+                "end_date",
+                filter=Q(end_date__lt=now),
+            ),
+            latest_image_url=Subquery(latest_campaign.values("image_url")[:1]),
+            latest_image_file=Subquery(latest_campaign.values("image_file")[:1]),
+        )
+        .order_by("category_value", "category_id")
+    )
+
+    rows: list[dict[str, Any]] = []
+    for row in queryset:
+        category_value: str = row["category_value"] or row["category_id"]
+        category_id_display: str = row["category_id"].replace("_", " ")
+        category_display: str = (
+            f"{category_value} ({category_id_display})"
+            if category_id_display and category_id_display != category_value
+            else category_value
+        )
+        image_file: str = row.pop("latest_image_file") or ""
+        image_url: str = row.pop("latest_image_url") or ""
+        image_best_url: str = (
+            f"{settings.MEDIA_URL.rstrip('/')}/{image_file.lstrip('/')}"
+            if image_file
+            else image_url
+        )
+        rows.append({
+            **row,
+            "category_value": category_value,
+            "category_id_display": category_id_display,
+            "category_display": category_display,
+            "category_url": reverse(
+                "chzzk:game_detail",
+                args=[row["category_id"]],
+            ),
+            "image_best_url": image_best_url,
+        })
+
+    return rows
+
+
+def game_list_view(request: HttpRequest) -> HttpResponse:
+    """Show Chzzk games in a grid layout.
+
+    Returns:
+        The rendered Chzzk games grid.
+    """
+    games: list[dict[str, Any]] = _game_list_rows()
+    seo_context: dict[str, Any] = {
+        "page_title": "Chzzk Games with Drops, Rewards and Campaigns",
+        "page_description": "Games on Chzzk that have drop campaigns.",
+        "discord_embed_accent_color": CHZZK_ACCENT_COLOR,
+        "discord_embed_buttons": embed_buttons(
+            ("Chzzk Drops", "https://chzzk.naver.com/"),
+            ("Campaigns", "/chzzk/campaigns/"),
+        ),
+    }
+    return render(
+        request,
+        "chzzk/category_list.html",
+        {
+            "games": games,
+            **seo_context,
+        },
+    )
+
+
+def game_list_table_view(request: HttpRequest) -> HttpResponse:
+    """Show Chzzk games in a list layout.
+
+    Returns:
+        The rendered Chzzk games list.
+    """
+    games: list[dict[str, Any]] = _game_list_rows()
+    seo_context: dict[str, Any] = {
+        "page_title": "Chzzk Games List with Drops, Rewards and Campaigns",
+        "page_description": "Games on Chzzk that have drop campaigns.",
+        "discord_embed_accent_color": CHZZK_ACCENT_COLOR,
+        "discord_embed_buttons": embed_buttons(
+            ("Chzzk Drops", "https://chzzk.naver.com/"),
+            ("Campaigns", "/chzzk/campaigns/"),
+        ),
+    }
+    return render(
+        request,
+        "chzzk/category_list_table.html",
+        {
+            "games": games,
+            **seo_context,
         },
     )
 
@@ -142,6 +268,7 @@ def _render_category_detail(
         request=request,
         template_name="chzzk/category_detail.html",
         context={
+            "selected_status": request.GET.get("status", ""),
             "category_type": campaigns[0].category_type,
             "category_id": category_id,
             "category_value": category_value,

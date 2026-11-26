@@ -111,6 +111,30 @@
                 </div>
             </div>
         </header>
+        <ul class="nav nav-tabs mb-4"
+            role="tablist"
+            aria-label="Game campaign status filters">
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if not selected_status %}active{% endif %}"
+                   href="{% querystring status=None %}"
+                   {% if not selected_status %}aria-current="page"{% endif %}>All</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if selected_status == 'active' %}active{% endif %}"
+                   href="{% querystring status='active' %}"
+                   {% if selected_status == 'active' %}aria-current="page"{% endif %}>Available</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if selected_status == 'upcoming' %}active{% endif %}"
+                   href="{% querystring status='upcoming' %}"
+                   {% if selected_status == 'upcoming' %}aria-current="page"{% endif %}>Upcoming</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link {% if selected_status == 'expired' %}active{% endif %}"
+                   href="{% querystring status='expired' %}"
+                   {% if selected_status == 'expired' %}aria-current="page"{% endif %}>Past</a>
+            </li>
+        </ul>
         <section class="mb-4">
             <h2 class="h5 mb-2">Campaign history</h2>
             <p class="fg-2 mb-0">
@@ -134,46 +158,58 @@
                 {% endif %}
             </p>
         </section>
-        {% if active_campaigns %}
-            <section aria-labelledby="active-campaigns-heading" class="mb-4">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <h2 id="active-campaigns-heading" class="h4 mb-0">Active Campaigns</h2>
-                    <span class="badge badge-subtle theme-success">{{ active_campaigns|length }}</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {% for campaign in active_campaigns %}
-                        {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="active" status_label="Active" status_theme="success" %}
-                    {% endfor %}
-                </div>
-            </section>
+        {% if not selected_status or selected_status == "active" %}
+            {% if active_campaigns %}
+                <section aria-labelledby="active-campaigns-heading" class="mb-4">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <h2 id="active-campaigns-heading" class="h4 mb-0">Active Campaigns</h2>
+                        <span class="badge badge-subtle theme-success">{{ active_campaigns|length }}</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {% for campaign in active_campaigns %}
+                            {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="active" status_label="Active" status_theme="success" %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
         {% endif %}
-        {% if upcoming_campaigns %}
-            <section aria-labelledby="upcoming-campaigns-heading" class="mb-4">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <h2 id="upcoming-campaigns-heading" class="h4 mb-0">Upcoming Campaigns</h2>
-                    <span class="badge badge-subtle theme-info">{{ upcoming_campaigns|length }}</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {% for campaign in upcoming_campaigns %}
-                        {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="upcoming" status_label="Upcoming" status_theme="info" %}
-                    {% endfor %}
-                </div>
-            </section>
+        {% if not selected_status or selected_status == "upcoming" %}
+            {% if upcoming_campaigns %}
+                <section aria-labelledby="upcoming-campaigns-heading" class="mb-4">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <h2 id="upcoming-campaigns-heading" class="h4 mb-0">Upcoming Campaigns</h2>
+                        <span class="badge badge-subtle theme-info">{{ upcoming_campaigns|length }}</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {% for campaign in upcoming_campaigns %}
+                            {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="upcoming" status_label="Upcoming" status_theme="info" %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
         {% endif %}
-        {% if expired_campaigns %}
-            <section aria-labelledby="expired-campaigns-heading" class="mb-4">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <h2 id="expired-campaigns-heading" class="h4 mb-0">Expired Campaigns</h2>
-                    <span class="badge badge-subtle theme-danger">{{ expired_campaigns|length }}</span>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {% for campaign in expired_campaigns %}
-                        {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="expired" status_label="Expired" status_theme="danger" %}
-                    {% endfor %}
-                </div>
-            </section>
+        {% if not selected_status or selected_status == "expired" %}
+            {% if expired_campaigns %}
+                <section aria-labelledby="expired-campaigns-heading" class="mb-4">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                        <h2 id="expired-campaigns-heading" class="h4 mb-0">Expired Campaigns</h2>
+                        <span class="badge badge-subtle theme-danger">{{ expired_campaigns|length }}</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {% for campaign in expired_campaigns %}
+                            {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="expired" status_label="Expired" status_theme="danger" %}
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
         {% endif %}
-        {% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
+        {% if selected_status == "active" and not active_campaigns %}
+            <p id="empty-status-message" class="fg-3 fst-italic">No available campaigns for this game right now.</p>
+        {% elif selected_status == "upcoming" and not upcoming_campaigns %}
+            <p id="empty-status-message" class="fg-3 fst-italic">No upcoming campaigns for this game.</p>
+        {% elif selected_status == "expired" and not expired_campaigns %}
+            <p id="empty-status-message" class="fg-3 fst-italic">No past campaigns for this game.</p>
+        {% elif not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
             <section class="card bg-1 text-center py-5 px-3">
                 <div class="card-body align-items-center">
                     <h2 class="h4 mb-2">No Campaigns Found</h2>

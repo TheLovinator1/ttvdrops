@@ -11,6 +11,7 @@ from django.core.paginator import EmptyPage
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
 from django.db.models import Count
+from django.db.models import Max
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import render
@@ -405,16 +406,37 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
 
 
 # MARK: /kick/games/
+def _game_list_categories() -> QuerySet[KickCategory]:
+    """Return Kick games annotated with campaign counts and dates."""
+    now = timezone.now()
+    return KickCategory.objects.annotate(
+        campaign_count=Count("campaigns", distinct=True),
+        active_campaign_count=Count(
+            "campaigns",
+            filter=Q(
+                campaigns__starts_at__lte=now,
+                campaigns__ends_at__gte=now,
+            ),
+            distinct=True,
+        ),
+        upcoming_campaign_count=Count(
+            "campaigns",
+            filter=Q(campaigns__starts_at__gt=now),
+            distinct=True,
+        ),
+        last_campaign_ended_at=Max(
+            "campaigns__ends_at",
+            filter=Q(campaigns__ends_at__lt=now),
+        ),
+    ).order_by("name")
+
+
 def category_list_view(request: HttpRequest) -> HttpResponse:
     """List of all Kick games with their campaign counts.
 
     Returns:
         An HttpResponse rendering the category list template with all games and their campaign counts.
     """
-    categories: QuerySet[KickCategory] = KickCategory.objects.annotate(
-        campaign_count=Count("campaigns", distinct=True),
-    ).order_by("name")
-
     seo_context: dict[str, str] = _build_seo_context(
         page_title="Kick Games with Drops, Rewards and Campaigns",
         page_description="Games on Kick that have drop campaigns.",
@@ -423,7 +445,27 @@ def category_list_view(request: HttpRequest) -> HttpResponse:
         request,
         "kick/category_list.html",
         {
-            "categories": categories,
+            "categories": _game_list_categories(),
+            **seo_context,
+        },
+    )
+
+
+def category_list_table_view(request: HttpRequest) -> HttpResponse:
+    """List of all Kick games in a compact list layout.
+
+    Returns:
+        An HttpResponse rendering the Kick games list view.
+    """
+    seo_context: dict[str, str] = _build_seo_context(
+        page_title="Kick Games List with Drops, Rewards and Campaigns",
+        page_description="Games on Kick that have drop campaigns.",
+    )
+    return render(
+        request,
+        "kick/category_list_table.html",
+        {
+            "categories": _game_list_categories(),
             **seo_context,
         },
     )
@@ -523,6 +565,7 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
         "kick/category_detail.html",
         {
             "category": category,
+            "selected_status": request.GET.get("status", ""),
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,

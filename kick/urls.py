@@ -56,6 +56,12 @@ urlpatterns: list[URLPattern | URLResolver] = [
         view=views.category_list_view,
         name="game_list",
     ),
+    # /kick/games/list/
+    path(
+        route="games/list/",
+        view=views.category_list_table_view,
+        name="game_list_table",
+    ),
     # /kick/games/<kick_id>/
     path(
         route="games/<int:kick_id>/",

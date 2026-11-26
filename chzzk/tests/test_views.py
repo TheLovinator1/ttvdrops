@@ -344,6 +344,37 @@ class ChzzkCategoryViewTests(TestCase):
 
         assert response.status_code == 404
 
+    def test_category_status_tabs(self) -> None:
+        """Status tabs should filter the active, upcoming, and past sections."""
+        now = timezone.now()
+        active = self._make_campaign(9401, title="Active Tab Campaign")
+        expired = self._make_campaign(9402, title="Past Tab Campaign")
+        ChzzkCampaign.objects.filter(pk=active.pk).update(
+            start_date=now - timedelta(hours=1),
+            end_date=now + timedelta(hours=1),
+        )
+        ChzzkCampaign.objects.filter(pk=expired.pk).update(
+            start_date=now - timedelta(days=3),
+            end_date=now - timedelta(days=2),
+        )
+        url = reverse("chzzk:game_detail", args=[active.category_id])
+
+        active_response: _MonkeyPatchedWSGIResponse = self.client.get(
+            f"{url}?status=active",
+        )
+        active_content = active_response.content.decode()
+        assert active_response.status_code == 200
+        assert 'id="active-campaigns-heading"' in active_content
+        assert 'id="expired-campaigns-heading"' not in active_content
+
+        upcoming_response: _MonkeyPatchedWSGIResponse = self.client.get(
+            f"{url}?status=upcoming",
+        )
+        upcoming_content = upcoming_response.content.decode()
+        assert upcoming_response.status_code == 200
+        assert 'id="empty-status-message"' in upcoming_content
+        assert "No upcoming campaigns" in upcoming_content
+
 
 class ChzzkCampaignListFilterTests(TestCase):
     """Tests for Chzzk campaign list status tabs."""
@@ -437,3 +468,56 @@ class ChzzkCampaignListFilterTests(TestCase):
         assert ios_campaign.title in content
         assert other_campaign.title not in content
         assert "iOS only" in content
+
+
+class ChzzkGameListViewTests(TestCase):
+    """Tests for the Chzzk games grid and list pages."""
+
+    def _make_campaign(
+        self,
+        campaign_no: int,
+        category_id: str,
+        name: str,
+    ) -> ChzzkCampaign:
+        now = timezone.now()
+        return ChzzkCampaign.objects.create(
+            campaign_no=campaign_no,
+            title="Game List Campaign",
+            description="",
+            category_type="GAME",
+            category_id=category_id,
+            category_value=name,
+            service_id="chzzk",
+            state="ACTIVE",
+            start_date=now - timedelta(days=1),
+            end_date=now + timedelta(days=1),
+            has_ios_based_reward=False,
+            drops_campaign_not_started=False,
+            source_api="unit-test",
+        )
+
+    def test_game_list_grid_renders_categories(self) -> None:
+        """The games grid should show categories and a list view link."""
+        campaign = self._make_campaign(9301, "dokkaebi", "Dokkaebi")
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("chzzk:game_list"),
+        )
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert campaign.category_value in content
+        assert reverse("chzzk:game_list_table") in content
+
+    def test_game_list_table_renders_categories(self) -> None:
+        """The games table should show categories and a grid view link."""
+        campaign = self._make_campaign(9302, "dokkaebi", "Dokkaebi")
+
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("chzzk:game_list_table"),
+        )
+        content = response.content.decode()
+
+        assert response.status_code == 200
+        assert campaign.category_value in content
+        assert reverse("chzzk:game_list") in content

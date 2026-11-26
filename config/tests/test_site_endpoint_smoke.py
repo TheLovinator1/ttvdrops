@@ -328,6 +328,7 @@ class SiteEndpointSmokeTest(TestCase):
             ("kick:campaign_list", {}, 200),
             ("kick:campaign_detail", {"kick_id": self.kick_campaign.kick_id}, 200),
             ("kick:game_list", {}, 200),
+            ("kick:game_list_table", {}, 200),
             ("kick:game_detail", {"kick_id": self.kick_category.kick_id}, 200),
             ("kick:category_list", {}, 200),
             ("kick:category_detail", {"kick_id": self.kick_category.kick_id}, 200),
@@ -381,6 +382,8 @@ class SiteEndpointSmokeTest(TestCase):
             ),
             ("chzzk:dashboard", {}, 200),
             ("chzzk:campaign_list", {}, 200),
+            ("chzzk:game_list", {}, 200),
+            ("chzzk:game_list_table", {}, 200),
             (
                 "chzzk:campaign_detail",
                 {"campaign_no": self.chzzk_campaign.campaign_no},

@@ -127,6 +127,10 @@ _ROUTE_TABLE: tuple[tuple[str, RouteSpec], ...] = (
         ),
     ),
     (
+        r"^/chzzk/games/list/$",
+        RouteSpec("chzzk-game-list", 60, ("chzzk",)),
+    ),
+    (
         r"^/chzzk/games/(?P<category_id>[^/]+)/$",
         RouteSpec("chzzk-game-detail", 60, ("chzzk",)),
     ),

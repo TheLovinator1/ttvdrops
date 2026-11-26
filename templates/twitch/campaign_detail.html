@@ -177,8 +177,9 @@
                     </div>
                 </header>
                 <section class="card bg-1 mb-4" aria-labelledby="campaign-details-heading">
+                    <h2 id="campaign-details-heading"
+                        class="card-header bg-2 px-4 py-3 h5 mb-0">Campaign details</h2>
                     <div class="card-body p-4">
-                        <h2 id="campaign-details-heading" class="h4 mb-3">Campaign details</h2>
                         <dl class="row g-2 mb-0 fs-sm">
                             <dt class="col-12 sm:col-3 fw-semibold mb-0">Twitch ID</dt>
                             <dd class="col-12 sm:col-9 mb-0">
@@ -297,8 +298,8 @@
                     </div>
                 </section>
                 <section class="card bg-1 mb-4" aria-labelledby="game-details-heading">
+                    <h2 id="game-details-heading" class="card-header bg-2 px-4 py-3 h5 mb-0">Game details</h2>
                     <div class="card-body p-4">
-                        <h2 id="game-details-heading" class="h4 mb-3">Game details</h2>
                         <dl class="row g-2 mb-0 fs-sm">
                             <dt class="col-12 sm:col-3 fw-semibold mb-0">Game</dt>
                             <dd class="col-12 sm:col-9 mb-0">
@@ -347,148 +348,145 @@
                         </dl>
                     </div>
                 </section>
-                <section aria-labelledby="drops-heading" class="mb-4">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="drops-heading" class="h4 mb-0">Drops</h2>
+                <section aria-labelledby="drops-heading" class="card bg-1 mb-4">
+                    <h2 id="drops-heading"
+                        class="card-header bg-2 px-4 py-3 h5 mb-0 d-flex flex-row flex-wrap justify-content-start align-items-center gap-2">
+                        Drops
                         <span class="badge badge-subtle theme-secondary">{{ drops|length }}</span>
-                    </div>
+                    </h2>
                     {% if drops %}
-                        <div class="d-flex flex-column gap-3">
+                        <div class="card-body p-0">
                             {% for drop in drops %}
-                                <article class="card bg-1">
-                                    <div class="card-body p-4">
-                                        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
-                                            <div>
-                                                <h3 class="h5 mb-1">{{ drop.drop.name }}</h3>
-                                                <code class="fs-xs fg-3">{{ drop.drop.twitch_id }}</code>
-                                            </div>
-                                            <div class="d-flex flex-wrap gap-1">
-                                                {% if drop.drop.required_minutes_watched is not None %}
-                                                    <span class="badge badge-subtle theme-secondary">
-                                                        {{ drop.drop.required_minutes_watched }} minute{{ drop.drop.required_minutes_watched|pluralize }} watched
-                                                    </span>
-                                                {% endif %}
-                                                {% if drop.drop.required_subs %}
-                                                    <span class="badge badge-subtle theme-secondary">
-                                                        {{ drop.drop.required_subs }} subscription{{ drop.drop.required_subs|pluralize }} required
-                                                    </span>
-                                                {% endif %}
-                                            </div>
+                                <div class="p-4{% if not forloop.first %} border-top border-subtle{% endif %}">
+                                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                                        <div>
+                                            <h3 class="h5 mb-1">{{ drop.drop.name }}</h3>
+                                            <code class="fs-xs fg-3">{{ drop.drop.twitch_id }}</code>
                                         </div>
-                                        <dl class="row g-1 mb-3 fs-sm">
-                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Starts</dt>
-                                            <dd class="col-12 sm:col-9 mb-0">
-                                                {% if drop.drop.start_at %}
-                                                    <time datetime="{{ drop.drop.start_at|date:'c' }}"
-                                                          title="{{ drop.drop.start_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.start_at|date:"M d, Y H:i" }}</time>
-                                                {% else %}
-                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                {% endif %}
-                                            </dd>
-                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Ends</dt>
-                                            <dd class="col-12 sm:col-9 mb-0">
-                                                {% if drop.drop.end_at %}
-                                                    <time datetime="{{ drop.drop.end_at|date:'c' }}"
-                                                          title="{{ drop.drop.end_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.end_at|date:"M d, Y H:i" }}</time>
-                                                {% else %}
-                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                {% endif %}
-                                            </dd>
-                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Duration</dt>
-                                            <dd class="col-12 sm:col-9 mb-0">
-                                                {{ drop.duration_text|default:"Unknown" }}
-                                            </dd>
-                                            <dt class="col-12 sm:col-3 fw-semibold mb-0">Timezone</dt>
-                                            <dd class="col-12 sm:col-9 mb-0">
-                                                {{ drop.timezone_name }}
-                                            </dd>
-                                        </dl>
-                                        <h4 class="h6 mb-2">Benefits</h4>
-                                        <div class="d-flex flex-column gap-3">
-                                            {% for benefit in drop.drop.benefits.all %}
-                                                <div class="d-flex flex-column sm:flex-row gap-3 border-top border-subtle pt-3">
-                                                    <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
-                                                        {% if benefit.image_best_url %}
-                                                            {% picture benefit.image_best_url alt="Artwork for "|add:benefit.name width=96 css_class="w-100 h-auto rounded-2" %}
-                                                        {% else %}
-                                                            <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
-                                                                 style="aspect-ratio: 1 / 1">No Image</div>
-                                                        {% endif %}
-                                                    </div>
-                                                    <div class="flex-grow-1 min-w-0">
-                                                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                                            <h5 class="h6 mb-0">{{ benefit.name }}</h5>
-                                                            {% if benefit.is_ios_available %}
-                                                                <span class="badge badge-subtle theme-info">iOS available</span>
-                                                            {% endif %}
-                                                            <span class="badge badge-subtle theme-secondary">{{ benefit.distribution_type|default:"Unknown distribution" }}</span>
-                                                        </div>
-                                                        <dl class="row g-1 mb-0 fs-xs">
-                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Twitch ID</dt>
-                                                            <dd class="col-12 sm:col-8 mb-0">
-                                                                <code>{{ benefit.twitch_id }}</code>
-                                                            </dd>
-                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Distribution type</dt>
-                                                            <dd class="col-12 sm:col-8 mb-0">
-                                                                {{ benefit.distribution_type|default:"Unknown" }}
-                                                            </dd>
-                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Entitlement limit</dt>
-                                                            <dd class="col-12 sm:col-8 mb-0">
-                                                                {{ benefit.entitlement_limit }}
-                                                            </dd>
-                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">iOS available</dt>
-                                                            <dd class="col-12 sm:col-8 mb-0">
-                                                                {{ benefit.is_ios_available|yesno:"Yes,No" }}
-                                                            </dd>
-                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Created</dt>
-                                                            <dd class="col-12 sm:col-8 mb-0">
-                                                                {% if benefit.created_at %}
-                                                                    <time datetime="{{ benefit.created_at|date:'c' }}"
-                                                                          title="{{ benefit.created_at|date:'DATETIME_FORMAT' }}">{{ benefit.created_at|date:"M d, Y H:i" }}</time>
-                                                                {% else %}
-                                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                                {% endif %}
-                                                            </dd>
-                                                            <dt class="col-12 sm:col-4 fw-semibold mb-0">Image URL</dt>
-                                                            <dd class="col-12 sm:col-8 mb-0 text-break">
-                                                                {% if benefit.image_best_url %}
-                                                                    <a href="{{ benefit.image_best_url }}"
-                                                                       target="_blank"
-                                                                       rel="noopener"
-                                                                       title="{{ benefit.image_best_url }}">Open image</a>
-                                                                {% else %}
-                                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                                {% endif %}
-                                                            </dd>
-                                                        </dl>
-                                                        {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
-                                                            <div class="mt-2 fs-sm">
-                                                                <strong>Awards badge:</strong>
-                                                                <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
-                                                                    {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 style="vertical-align: middle; margin-right: 4px" %}
-                                                                    {{ drop.awarded_badge.title }}
-                                                                </a>
-                                                                {% if drop.awarded_badge.description %}
-                                                                    <div class="fg-3 mt-1">{{ drop.awarded_badge.description|linebreaksbr }}</div>
-                                                                {% endif %}
-                                                            </div>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
-                                            {% empty %}
-                                                <p class="fg-3 fst-italic mb-0">No benefits</p>
-                                            {% endfor %}
+                                        <div class="d-flex flex-wrap gap-1">
+                                            {% if drop.drop.required_minutes_watched is not None %}
+                                                <span class="badge badge-subtle theme-secondary">
+                                                    {{ drop.drop.required_minutes_watched }} minute{{ drop.drop.required_minutes_watched|pluralize }} watched
+                                                </span>
+                                            {% endif %}
+                                            {% if drop.drop.required_subs %}
+                                                <span class="badge badge-subtle theme-secondary">
+                                                    {{ drop.drop.required_subs }} subscription{{ drop.drop.required_subs|pluralize }} required
+                                                </span>
+                                            {% endif %}
                                         </div>
                                     </div>
-                                </article>
+                                    <dl class="row g-1 mb-3 fs-sm">
+                                        <dt class="col-12 sm:col-3 fw-semibold mb-0">Starts</dt>
+                                        <dd class="col-12 sm:col-9 mb-0">
+                                            {% if drop.drop.start_at %}
+                                                <time datetime="{{ drop.drop.start_at|date:'c' }}"
+                                                      title="{{ drop.drop.start_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.start_at|date:"M d, Y H:i" }}</time>
+                                            {% else %}
+                                                <span class="fg-3 fst-italic">Not available</span>
+                                            {% endif %}
+                                        </dd>
+                                        <dt class="col-12 sm:col-3 fw-semibold mb-0">Ends</dt>
+                                        <dd class="col-12 sm:col-9 mb-0">
+                                            {% if drop.drop.end_at %}
+                                                <time datetime="{{ drop.drop.end_at|date:'c' }}"
+                                                      title="{{ drop.drop.end_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.end_at|date:"M d, Y H:i" }}</time>
+                                            {% else %}
+                                                <span class="fg-3 fst-italic">Not available</span>
+                                            {% endif %}
+                                        </dd>
+                                        <dt class="col-12 sm:col-3 fw-semibold mb-0">Duration</dt>
+                                        <dd class="col-12 sm:col-9 mb-0">
+                                            {{ drop.duration_text|default:"Unknown" }}
+                                        </dd>
+                                        <dt class="col-12 sm:col-3 fw-semibold mb-0">Timezone</dt>
+                                        <dd class="col-12 sm:col-9 mb-0">
+                                            {{ drop.timezone_name }}
+                                        </dd>
+                                    </dl>
+                                    <h4 class="h6 mb-2">Benefits</h4>
+                                    <div class="d-flex flex-column gap-3">
+                                        {% for benefit in drop.drop.benefits.all %}
+                                            <div class="d-flex flex-column sm:flex-row gap-3 border-top border-subtle pt-3">
+                                                <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
+                                                    {% if benefit.image_best_url %}
+                                                        {% picture benefit.image_best_url alt="Artwork for "|add:benefit.name width=96 css_class="w-100 h-auto rounded-2" %}
+                                                    {% else %}
+                                                        <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
+                                                             style="aspect-ratio: 1 / 1">No Image</div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="flex-grow-1 min-w-0">
+                                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                                        <h5 class="h6 mb-0">{{ benefit.name }}</h5>
+                                                        {% if benefit.is_ios_available %}
+                                                            <span class="badge badge-subtle theme-info">iOS available</span>
+                                                        {% endif %}
+                                                        <span class="badge badge-subtle theme-secondary">{{ benefit.distribution_type|default:"Unknown distribution" }}</span>
+                                                    </div>
+                                                    <dl class="row g-1 mb-0 fs-xs">
+                                                        <dt class="col-12 sm:col-4 fw-semibold mb-0">Twitch ID</dt>
+                                                        <dd class="col-12 sm:col-8 mb-0">
+                                                            <code>{{ benefit.twitch_id }}</code>
+                                                        </dd>
+                                                        <dt class="col-12 sm:col-4 fw-semibold mb-0">Distribution type</dt>
+                                                        <dd class="col-12 sm:col-8 mb-0">
+                                                            {{ benefit.distribution_type|default:"Unknown" }}
+                                                        </dd>
+                                                        <dt class="col-12 sm:col-4 fw-semibold mb-0">Entitlement limit</dt>
+                                                        <dd class="col-12 sm:col-8 mb-0">
+                                                            {{ benefit.entitlement_limit }}
+                                                        </dd>
+                                                        <dt class="col-12 sm:col-4 fw-semibold mb-0">iOS available</dt>
+                                                        <dd class="col-12 sm:col-8 mb-0">
+                                                            {{ benefit.is_ios_available|yesno:"Yes,No" }}
+                                                        </dd>
+                                                        <dt class="col-12 sm:col-4 fw-semibold mb-0">Created</dt>
+                                                        <dd class="col-12 sm:col-8 mb-0">
+                                                            {% if benefit.created_at %}
+                                                                <time datetime="{{ benefit.created_at|date:'c' }}"
+                                                                      title="{{ benefit.created_at|date:'DATETIME_FORMAT' }}">{{ benefit.created_at|date:"M d, Y H:i" }}</time>
+                                                            {% else %}
+                                                                <span class="fg-3 fst-italic">Not available</span>
+                                                            {% endif %}
+                                                        </dd>
+                                                        <dt class="col-12 sm:col-4 fw-semibold mb-0">Image URL</dt>
+                                                        <dd class="col-12 sm:col-8 mb-0 text-break">
+                                                            {% if benefit.image_best_url %}
+                                                                <a href="{{ benefit.image_best_url }}"
+                                                                   target="_blank"
+                                                                   rel="noopener"
+                                                                   title="{{ benefit.image_best_url }}">Open image</a>
+                                                            {% else %}
+                                                                <span class="fg-3 fst-italic">Not available</span>
+                                                            {% endif %}
+                                                        </dd>
+                                                    </dl>
+                                                    {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
+                                                        <div class="mt-2 fs-sm">
+                                                            <strong>Awards badge:</strong>
+                                                            <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
+                                                                {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 style="vertical-align: middle; margin-right: 4px" %}
+                                                                {{ drop.awarded_badge.title }}
+                                                            </a>
+                                                            {% if drop.awarded_badge.description %}
+                                                                <div class="fg-3 mt-1">{{ drop.awarded_badge.description|linebreaksbr }}</div>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% empty %}
+                                            <p class="fg-3 fst-italic mb-0">No benefits</p>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <div class="card bg-1 text-center py-5 px-3">
-                            <div class="card-body">
-                                <h3 class="h4 mb-2">No Drops</h3>
-                                <p class="fg-2 mb-0">No drops are available for this campaign.</p>
-                            </div>
+                        <div class="p-5 text-center">
+                            <h3 class="h4 mb-2">No Drops</h3>
+                            <p class="fg-2 mb-0">No drops are available for this campaign.</p>
                         </div>
                     {% endif %}
                 </section>

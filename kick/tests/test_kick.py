@@ -1062,6 +1062,21 @@ class KickCategoryListViewTest(TestCase):
         )
         assert cat.name in response.content.decode()
 
+    def test_category_list_table_returns_200(self) -> None:
+        """List view should render Kick games."""
+        cat: KickCategory = KickCategory.objects.create(
+            kick_id=501,
+            name="Category Table View",
+            slug="category-table-view",
+        )
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("kick:game_list_table"),
+        )
+
+        assert response.status_code == 200
+        assert cat.name in response.content.decode()
+        assert reverse("kick:game_list") in response.content.decode()
+
 
 class KickCategoryDetailViewTest(TestCase):
     """Tests for the kick category detail view."""
@@ -1108,6 +1123,49 @@ class KickCategoryDetailViewTest(TestCase):
             reverse("kick:game_detail", kwargs={"kick_id": 99999}),
         )
         assert response.status_code == 404
+
+    def test_category_detail_status_tabs(self) -> None:
+        """Status tabs should filter the active, upcoming, and past sections."""
+        cat: KickCategory = self._make_category()
+        now = timezone.now()
+        org = KickOrganization.objects.get(kick_id="org-catdet-1")
+        KickDropCampaign.objects.create(
+            kick_id="catdet-active",
+            name="Active Category Campaign",
+            organization=org,
+            category=cat,
+            starts_at=now - timedelta(hours=1),
+            ends_at=now + timedelta(hours=1),
+            rule_id=1,
+            rule_name="Watch to redeem",
+        )
+        KickDropCampaign.objects.create(
+            kick_id="catdet-expired",
+            name="Past Category Campaign",
+            organization=org,
+            category=cat,
+            starts_at=now - timedelta(days=3),
+            ends_at=now - timedelta(days=2),
+            rule_id=1,
+            rule_name="Watch to redeem",
+        )
+        url = reverse("kick:game_detail", kwargs={"kick_id": cat.kick_id})
+
+        active_response: _MonkeyPatchedWSGIResponse = self.client.get(
+            f"{url}?status=active",
+        )
+        active_content = active_response.content.decode()
+        assert active_response.status_code == 200
+        assert 'id="active-campaigns-heading"' in active_content
+        assert 'id="expired-campaigns-heading"' not in active_content
+
+        upcoming_response: _MonkeyPatchedWSGIResponse = self.client.get(
+            f"{url}?status=upcoming",
+        )
+        upcoming_content = upcoming_response.content.decode()
+        assert upcoming_response.status_code == 200
+        assert 'id="empty-status-message"' in upcoming_content
+        assert "No upcoming campaigns" in upcoming_content
 
 
 class KickOrganizationListViewTest(TestCase):

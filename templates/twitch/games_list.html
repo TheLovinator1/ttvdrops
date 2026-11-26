@@ -18,6 +18,14 @@
             --bs-table-bg: var(--bs-bg-1);
         }
 
+        .games-list-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background-color: var(--bs-bg-1);
+            box-shadow: inset 0 -1px 0 var(--bs-border-color);
+        }
+
         .games-list-table td[data-cell]::before {
             color: var(--bs-fg-3);
             font-size: 0.75rem;
@@ -163,8 +171,8 @@
                     </div>
                 </div>
             </section>
-            <div class="table-card bg-1 border-subtle">
-                <div class="table-responsive">
+            <div class="table-card bg-1 border-subtle overflow-visible">
+                <div class="table-responsive overflow-visible">
                     <table id="games-list-table"
                            class="table table-hover align-middle games-list-table md:table-stacked">
                         <thead>
@@ -173,6 +181,8 @@
                                 <th scope="col">Organization</th>
                                 <th scope="col" class="md:text-end">Campaigns</th>
                                 <th scope="col" class="md:text-end">Active</th>
+                                <th scope="col" class="md:text-end">Upcoming</th>
+                                <th scope="col">Last drop</th>
                                 <th scope="col"><span class="visually-hidden">Actions</span></th>
                             </tr>
                         </thead>
@@ -226,6 +236,22 @@
                                             <span class="fg-3">None</span>
                                         {% endif %}
                                     </td>
+                                    <td data-cell="Upcoming" class="md:text-end">
+                                        {% if game.upcoming_count %}
+                                            <span class="badge badge-subtle theme-info">{{ game.upcoming_count }} upcoming</span>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-cell="Last drop">
+                                        {% if game.last_campaign_ended_at %}
+                                            <time datetime="{{ game.last_campaign_ended_at|date:'c' }}"
+                                                  title="{{ game.last_campaign_ended_at|date:'DATETIME_FORMAT' }}">{{ game.last_campaign_ended_at|date:"M d, Y" }}</time>
+                                            <div class="fs-xs fg-3">{{ game.last_campaign_ended_at|timesince }} ago</div>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="md:text-end">
                                         <a class="btn-text theme-secondary btn-sm"
                                            href="{% url 'twitch:game_detail' game.twitch_id %}">View →</a>
@@ -233,7 +259,7 @@
                                 </tr>
                             {% endfor %}
                             <tr id="games-list-no-results" hidden>
-                                <td colspan="5" class="text-center py-4 fg-3">No games match your filter.</td>
+                                <td colspan="7" class="text-center py-4 fg-3">No games match your filter.</td>
                             </tr>
                         </tbody>
                     </table>

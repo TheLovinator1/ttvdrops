@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block extra_head %}
+    <link rel="alternate"
+          type="application/rss+xml"
+          title="All Chzzk campaigns (RSS)"
+          href="{% url 'chzzk:campaign_feed' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="All Chzzk campaigns (Atom)"
+          href="{% url 'chzzk:campaign_feed_atom' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="All Chzzk campaigns (Discord-flavored)"
+          href="{% url 'chzzk:campaign_feed_discord' %}" />
+    <style>
+        .chzzk-games-list-table {
+            --bs-table-bg: var(--bs-bg-1);
+        }
+
+        .chzzk-games-list-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background-color: var(--bs-bg-1);
+            box-shadow: inset 0 -1px 0 var(--bs-border-color);
+        }
+
+        .chzzk-games-list-thumb {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+    </style>
+{% endblock extra_head %}
+{% block content %}
+    <main class="xl:container py-4">
+        <header class="mb-4">
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'chzzk:dashboard' %}">Chzzk</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'chzzk:game_list' %}">Games</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">List</span>
+                    </li>
+                </ol>
+            </nav>
+            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <h1 class="h2 mb-0">All Games</h1>
+                        <span class="badge badge-subtle theme-secondary">
+                            {{ games|length }} game{{ games|length|pluralize }}
+                        </span>
+                    </div>
+                    <p class="fg-2 mb-0">Chzzk games with drop campaigns.</p>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 align-self-start md:align-self-auto">
+                    <a class="btn-outline theme-secondary btn-sm"
+                       href="{% url 'chzzk:game_list' %}"
+                       title="View games as cards">Grid view</a>
+                    {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
+                    <div>
+                        <button class="btn-outline theme-secondary btn-sm"
+                                type="button"
+                                data-bs-toggle="menu"
+                                data-bs-placement="bottom-end"
+                                aria-expanded="false">Subscribe ▾</button>
+                        <div class="menu">
+                            <h6 class="menu-header">Feeds</h6>
+                            <a class="menu-item"
+                               href="{% url 'chzzk:campaign_feed' %}"
+                               title="RSS feed for all campaigns">RSS</a>
+                            <a class="menu-item"
+                               href="{% url 'chzzk:campaign_feed_atom' %}"
+                               title="Atom feed for all campaigns">Atom</a>
+                            <a class="menu-item"
+                               href="{% url 'chzzk:campaign_feed_discord' %}"
+                               title="Discord-flavored feed for all campaigns">Discord-flavored</a>
+                            <hr class="menu-divider" />
+                            <h6 class="menu-header">Developer &amp; Help</h6>
+                            <a class="menu-item"
+                               href="{% url 'api-v1:chzzk-api-v1_list_campaigns' %}">TTVDrops API</a>
+                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        {% if games %}
+            <div class="table-card bg-1 border-subtle overflow-visible">
+                <div class="table-responsive overflow-visible">
+                    <table class="table table-hover align-middle chzzk-games-list-table md:table-stacked">
+                        <thead>
+                            <tr>
+                                <th scope="col">Game</th>
+                                <th scope="col" class="text-end">Campaigns</th>
+                                <th scope="col" class="text-end">Active</th>
+                                <th scope="col" class="text-end">Upcoming</th>
+                                <th scope="col">Last drop</th>
+                                <th scope="col"><span class="visually-hidden">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for game in games %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <a href="{{ game.category_url }}"
+                                               class="flex-shrink-0"
+                                               tabindex="-1"
+                                               aria-hidden="true">
+                                                {% if game.image_best_url %}
+                                                    <img src="{{ game.image_best_url }}"
+                                                         alt=""
+                                                         width="40"
+                                                         height="40"
+                                                         loading="lazy"
+                                                         class="chzzk-games-list-thumb rounded-2 bg-2" />
+                                                {% else %}
+                                                    <div class="chzzk-games-list-thumb rounded-2 bg-2 d-flex align-items-center justify-content-center fg-3 fs-xs">
+                                                        N/A
+                                                    </div>
+                                                {% endif %}
+                                            </a>
+                                            <div class="min-w-0">
+                                                <a href="{{ game.category_url }}"
+                                                   class="fw-semibold fg-1 text-decoration-none">{{ game.category_display }}</a>
+                                                <div class="fs-xs fg-3">{{ game.category_id_display }}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end" data-cell="Campaigns">
+                                        <span class="badge badge-subtle theme-secondary">{{ game.campaign_count }}</span>
+                                    </td>
+                                    <td class="text-end" data-cell="Active">
+                                        {% if game.active_campaign_count %}
+                                            <span class="badge badge-subtle theme-success">{{ game.active_campaign_count }} active</span>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end" data-cell="Upcoming">
+                                        {% if game.upcoming_campaign_count %}
+                                            <span class="badge badge-subtle theme-info">{{ game.upcoming_campaign_count }} upcoming</span>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-cell="Last drop">
+                                        {% if game.last_campaign_ended_at %}
+                                            <time datetime="{{ game.last_campaign_ended_at|date:'c' }}"
+                                                  title="{{ game.last_campaign_ended_at|date:'DATETIME_FORMAT' }}">{{ game.last_campaign_ended_at|date:"M d, Y" }}</time>
+                                            <div class="fs-xs fg-3">{{ game.last_campaign_ended_at|timesince }} ago</div>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end" data-cell="Actions">
+                                        <a class="btn-text theme-secondary btn-sm"
+                                           href="{{ game.category_url }}">View →</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <section class="card bg-1 text-center py-5 px-3">
+                <div class="card-body align-items-center">
+                    <h2 class="h4 mb-2">No Games Found</h2>
+                    <p class="fg-2 mb-0">No games are currently available.</p>
+                </div>
+            </section>
+        {% endif %}
+    </main>
+{% endblock content %}

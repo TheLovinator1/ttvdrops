@@ -185,6 +185,7 @@ class TestRouteTable:
             ("/kick/campaigns/abc/", "kick-campaign-detail"),
             ("/chzzk/", "chzzk"),
             ("/chzzk/campaigns/1/", "chzzk-campaign-detail"),
+            ("/chzzk/games/list/", "chzzk-game-list"),
             ("/chzzk/games/dokkaebi/", "chzzk-game-detail"),
             (
                 "/chzzk/categories/ETC/sci_tech/",

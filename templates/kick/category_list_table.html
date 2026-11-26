@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block extra_head %}
+    <link rel="alternate"
+          type="application/rss+xml"
+          title="All Kick games (RSS)"
+          href="{% url 'kick:game_feed' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="All Kick games (Atom)"
+          href="{% url 'kick:game_feed_atom' %}" />
+    <link rel="alternate"
+          type="application/atom+xml"
+          title="All Kick games (Discord-flavored)"
+          href="{% url 'kick:game_feed_discord' %}" />
+    <style>
+        .kick-games-list-table {
+            --bs-table-bg: var(--bs-bg-1);
+        }
+
+        .kick-games-list-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background-color: var(--bs-bg-1);
+            box-shadow: inset 0 -1px 0 var(--bs-border-color);
+        }
+
+        .kick-games-list-thumb {
+            width: 40px;
+            height: 53px;
+            object-fit: contain;
+        }
+    </style>
+{% endblock extra_head %}
+{% block content %}
+    <main class="xl:container py-4">
+        <header class="mb-4">
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item">
+                        <a class="breadcrumb-link" href="{% url 'kick:game_list' %}">Games</a>
+                    </li>
+                    <li class="breadcrumb-divider"></li>
+                    <li class="breadcrumb-item" aria-current="page">
+                        <span class="breadcrumb-link active">List</span>
+                    </li>
+                </ol>
+            </nav>
+            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <h1 class="h2 mb-0">All Games</h1>
+                        <span class="badge badge-subtle theme-secondary">
+                            {{ categories|length }} game{{ categories|length|pluralize }}
+                        </span>
+                    </div>
+                    <p class="fg-2 mb-0">Games on Kick with drop campaigns.</p>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2 align-self-start md:align-self-auto">
+                    <a class="btn-outline theme-secondary btn-sm"
+                       href="{% url 'kick:game_list' %}"
+                       title="View games as cards">Grid view</a>
+                    {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
+                    <div>
+                        <button class="btn-outline theme-secondary btn-sm"
+                                type="button"
+                                data-bs-toggle="menu"
+                                data-bs-placement="bottom-end"
+                                aria-expanded="false">Subscribe ▾</button>
+                        <div class="menu">
+                            <h6 class="menu-header">Feeds</h6>
+                            <a class="menu-item"
+                               href="{% url 'kick:game_feed' %}"
+                               title="RSS feed for all games">RSS</a>
+                            <a class="menu-item"
+                               href="{% url 'kick:game_feed_atom' %}"
+                               title="Atom feed for all games">Atom</a>
+                            <a class="menu-item"
+                               href="{% url 'kick:game_feed_discord' %}"
+                               title="Discord-flavored feed for all games">Discord-flavored</a>
+                            <hr class="menu-divider" />
+                            <h6 class="menu-header">Developer &amp; Help</h6>
+                            <a class="menu-item"
+                               href="{% url 'api-v1:kick-api-v1_list_games' %}"
+                               title="Kick games API">API</a>
+                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        {% if categories %}
+            <div class="table-card bg-1 border-subtle overflow-visible">
+                <div class="table-responsive overflow-visible">
+                    <table class="table table-hover align-middle kick-games-list-table md:table-stacked">
+                        <thead>
+                            <tr>
+                                <th scope="col">Game</th>
+                                <th scope="col" class="text-end">Campaigns</th>
+                                <th scope="col" class="text-end">Active</th>
+                                <th scope="col" class="text-end">Upcoming</th>
+                                <th scope="col">Last drop</th>
+                                <th scope="col"><span class="visually-hidden">Actions</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in categories %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            <a href="{% url 'kick:game_detail' category.kick_id %}"
+                                               class="flex-shrink-0"
+                                               tabindex="-1"
+                                               aria-hidden="true">
+                                                {% if category.image_url %}
+                                                    <img src="{{ category.image_url }}"
+                                                         alt=""
+                                                         width="40"
+                                                         height="53"
+                                                         loading="lazy"
+                                                         class="kick-games-list-thumb rounded-2 bg-2" />
+                                                {% else %}
+                                                    <div class="kick-games-list-thumb rounded-2 bg-2 d-flex align-items-center justify-content-center fg-3 fs-xs">
+                                                        N/A
+                                                    </div>
+                                                {% endif %}
+                                            </a>
+                                            <div class="min-w-0">
+                                                <a href="{% url 'kick:game_detail' category.kick_id %}"
+                                                   class="fw-semibold fg-1 text-decoration-none">{{ category.name }}</a>
+                                                <div class="fs-xs fg-3">
+                                                    {{ category.campaign_count }} campaign{{ category.campaign_count|pluralize }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end" data-cell="Campaigns">
+                                        <span class="badge badge-subtle theme-secondary">{{ category.campaign_count }}</span>
+                                    </td>
+                                    <td class="text-end" data-cell="Active">
+                                        {% if category.active_campaign_count %}
+                                            <span class="badge badge-subtle theme-success">{{ category.active_campaign_count }} active</span>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end" data-cell="Upcoming">
+                                        {% if category.upcoming_campaign_count %}
+                                            <span class="badge badge-subtle theme-info">{{ category.upcoming_campaign_count }} upcoming</span>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-cell="Last drop">
+                                        {% if category.last_campaign_ended_at %}
+                                            <time datetime="{{ category.last_campaign_ended_at|date:'c' }}"
+                                                  title="{{ category.last_campaign_ended_at|date:'DATETIME_FORMAT' }}">{{ category.last_campaign_ended_at|date:"M d, Y" }}</time>
+                                            <div class="fs-xs fg-3">{{ category.last_campaign_ended_at|timesince }} ago</div>
+                                        {% else %}
+                                            <span class="fg-3">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end" data-cell="Actions">
+                                        <a class="btn-text theme-secondary btn-sm"
+                                           href="{% url 'kick:game_detail' category.kick_id %}">View →</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <section class="card bg-1 text-center py-5 px-3">
+                <div class="card-body align-items-center">
+                    <h2 class="h4 mb-2">No Games Found</h2>
+                    <p class="fg-2 mb-0">No games are currently available.</p>
+                </div>
+            </section>
+        {% endif %}
+    </main>
+{% endblock content %}

@@ -179,8 +179,9 @@
                     </div>
                 </header>
                 <section class="card bg-1 mb-4" aria-labelledby="campaign-details-heading">
+                    <h2 id="campaign-details-heading"
+                        class="card-header bg-2 px-4 py-3 h5 mb-0">Campaign details</h2>
                     <div class="card-body p-4">
-                        <h2 id="campaign-details-heading" class="h4 mb-3">Campaign details</h2>
                         <dl class="row g-2 mb-0 fs-sm">
                             <dt class="col-12 sm:col-3 fw-semibold mb-0">Twitch ID</dt>
                             <dd class="col-12 sm:col-9 mb-0">
@@ -328,22 +329,31 @@
                         </dl>
                     </div>
                 </section>
-                <section aria-labelledby="rewards-title">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="rewards-title" class="h4 mb-0">Rewards</h2>
+                <section aria-labelledby="rewards-title" class="card bg-1 mb-4">
+                    <h2 id="rewards-title"
+                        class="card-header bg-2 px-4 py-3 h5 mb-0 d-flex flex-row flex-wrap justify-content-start align-items-center gap-2">
+                        Rewards
                         <span class="badge badge-subtle theme-secondary">{{ rewards|length }}</span>
-                    </div>
+                    </h2>
                     {% if rewards %}
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="card-body p-0">
                             {% for reward in rewards %}
-                                <article class="card bg-1">
-                                    <div class="card-body p-4 d-flex flex-column sm:flex-row gap-3">
-                                        <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
+                                <div class="p-4{% if not forloop.first %} border-top border-subtle{% endif %}">
+                                    <div class="d-flex flex-column sm:flex-row gap-3">
+                                        <div class="flex-shrink-0">
                                             {% if reward.image_best_url %}
-                                                {% picture reward.image_best_url alt="Artwork for "|add:reward.name width=96 css_class="w-100 h-auto rounded-2" %}
+                                                <img src="{{ reward.image_best_url }}"
+                                                     alt="Artwork for {{ reward.name }}"
+                                                     width="96"
+                                                     height="96"
+                                                     loading="lazy"
+                                                     class="rounded-2 bg-2 object-fit-contain d-block"
+                                                     style="width: 96px;
+                                                            height: 96px" />
                                             {% else %}
-                                                <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
-                                                     style="aspect-ratio: 1 / 1">No Image</div>
+                                                <div class="d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
+                                                     style="width: 96px;
+                                                            height: 96px">No Image</div>
                                             {% endif %}
                                         </div>
                                         <div class="flex-grow-1 min-w-0">
@@ -421,15 +431,13 @@
                                             </dl>
                                         </div>
                                     </div>
-                                </article>
+                                </div>
                             {% endfor %}
                         </div>
                     {% else %}
-                        <div class="card bg-1 text-center py-5 px-3">
-                            <div class="card-body">
-                                <h3 class="h4 mb-2">No Rewards</h3>
-                                <p class="fg-2 mb-0">No individual rewards are listed for this campaign.</p>
-                            </div>
+                        <div class="p-5 text-center">
+                            <h3 class="h4 mb-2">No Rewards</h3>
+                            <p class="fg-2 mb-0">No individual rewards are listed for this campaign.</p>
                         </div>
                     {% endif %}
                 </section>

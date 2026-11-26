@@ -14,6 +14,7 @@ from django.db import models
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import F
+from django.db.models import Max
 from django.db.models import OuterRef
 from django.db.models import Prefetch
 from django.db.models import Q
@@ -474,6 +475,14 @@ class Game(auto_prefetch.Model):
             .annotate(total=models.Count("id"))
             .values("total")[:1]
         )
+        upcoming_count_subquery = (
+            campaigns_for_game
+            .filter(start_at__gt=now)
+            .order_by()
+            .values("game_id")
+            .annotate(total=models.Count("id"))
+            .values("total")[:1]
+        )
 
         queryset: models.QuerySet[Game] = (
             cls.objects
@@ -511,6 +520,17 @@ class Game(auto_prefetch.Model):
                         output_field=models.IntegerField(),
                     ),
                     models.Value(0),
+                ),
+                upcoming_count=Coalesce(
+                    models.Subquery(
+                        upcoming_count_subquery,
+                        output_field=models.IntegerField(),
+                    ),
+                    models.Value(0),
+                ),
+                last_campaign_ended_at=Max(
+                    "drop_campaigns__end_at",
+                    filter=Q(drop_campaigns__end_at__lt=now),
                 ),
             )
             .order_by("display_name")
@@ -1949,9 +1969,11 @@ class DropCampaign(auto_prefetch.Model):
     def clean_name(self) -> str:
         """The campaign name without the game name prefix.
 
+        Only explicit separators are stripped. Names such as
+        "EMPULSE Drops" keep the game name instead of becoming just "Drops".
+
         Examples:
             "Ravendawn - July 2" -> "July 2"
-            "Party Animals Twitch Drop" -> "Twitch Drop"
             "Skull & Bones - Closed Beta" -> "Closed Beta" (& is replaced
             with "and")
         """
@@ -1968,7 +1990,7 @@ class DropCampaign(auto_prefetch.Model):
 
         for game_name in game_variations:
             # Check for different separators after the game name
-            for separator in [" - ", " | ", " "]:
+            for separator in [" - ", " | "]:
                 prefix_to_check: str = game_name + separator
 
                 name: str = self.name

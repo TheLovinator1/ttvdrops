@@ -16,6 +16,18 @@ urlpatterns: list[URLPattern] = [
         views.dashboard_view,
         name="dashboard",
     ),
+    # /chzzk/games/
+    path(
+        "games/",
+        views.game_list_view,
+        name="game_list",
+    ),
+    # /chzzk/games/list/
+    path(
+        "games/list/",
+        views.game_list_table_view,
+        name="game_list_table",
+    ),
     # /chzzk/games/<category_id>/
     path(
         "games/<str:category_id>/",
