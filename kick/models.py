@@ -415,6 +415,14 @@ class KickReward(auto_prefetch.Model):
         verbose_name="Required Units",
         help_text="Number of watch-minutes required to earn this reward.",
     )
+    in_app_reward_type = models.TextField(
+        blank=True,
+        default="none",
+        verbose_name="In-App Reward Type",
+        help_text=(
+            "How Kick presents the reward in-app, e.g. 'none', 'badge', or 'emote'."
+        ),
+    )
     campaign = auto_prefetch.ForeignKey(
         KickDropCampaign,
         on_delete=models.CASCADE,
@@ -464,3 +472,10 @@ class KickReward(auto_prefetch.Model):
         if self.image_url.startswith("http"):
             return self.image_url
         return "https://ext.cdn.kick.com/" + self.image_url
+
+    @property
+    def in_app_reward_type_label(self) -> str:
+        """Human-readable in-app reward type, or an empty string for "none"."""
+        if not self.in_app_reward_type or self.in_app_reward_type == "none":
+            return ""
+        return self.in_app_reward_type.replace("_", " ").title()

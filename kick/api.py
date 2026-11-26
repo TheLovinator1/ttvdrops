@@ -93,6 +93,7 @@ class V1RewardSchema(Schema):
     name: str
     image_url: str
     required_minutes_watched: int
+    in_app_reward_type: str
 
 
 class V1CampaignSummarySchema(Schema):
@@ -291,6 +292,7 @@ def _serialize_reward(reward: KickReward) -> V1RewardSchema:
         name=reward.name,
         image_url=reward.full_image_url,
         required_minutes_watched=reward.required_units,
+        in_app_reward_type=reward.in_app_reward_type,
     )
 
 

@@ -627,6 +627,9 @@
                                                                                  loading="lazy" />
                                                                         {% endif %}
                                                                         <span>{{ reward.name }}</span>
+                                                                        {% if reward.in_app_reward_type_label %}
+                                                                            <span class="fs-xs fg-3">{{ reward.in_app_reward_type_label }}</span>
+                                                                        {% endif %}
                                                                     </span>
                                                                 {% endfor %}
                                                             </div>

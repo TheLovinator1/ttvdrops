@@ -188,6 +188,9 @@
                                                                 border-radius: 4px" />
                                                 {% endif %}
                                                 {{ reward.name }} ({{ reward.required_units }} min)
+                                                {% if reward.in_app_reward_type_label %}
+                                                    <span class="badge badge-subtle theme-secondary">{{ reward.in_app_reward_type_label }}</span>
+                                                {% endif %}
                                             </li>
                                         {% endfor %}
                                     </ul>

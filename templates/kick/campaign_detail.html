@@ -235,6 +235,11 @@
                             {% else %}
                                 <p>No watch-time requirement</p>
                             {% endif %}
+                            {% if reward.in_app_reward_type_label %}
+                                <p>
+                                    <span class="badge badge-subtle theme-secondary">{{ reward.in_app_reward_type_label }} reward</span>
+                                </p>
+                            {% endif %}
                         </div>
                     </div>
                 </article>

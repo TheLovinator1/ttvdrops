@@ -73,6 +73,7 @@ SINGLE_CAMPAIGN_JSON: dict[str, list[dict[str, Any]] | str] = {
                     "required_units": 30,
                     "category_id": 53,
                     "organization_id": "01KFF1CP2Q2X6EFDN9M85M3M97",
+                    "in_app_reward_type": "emote",
                 },
             ],
             "rule": {"id": 1, "name": "Watch to redeem"},
@@ -140,6 +141,7 @@ CAMPAIGN_WITH_CHANNELS_JSON: dict[str, list[dict[str, Any]] | str] = {
                     "required_units": 120,
                     "category_id": 13,
                     "organization_id": "01K6WKP5BBMPZJ89G5Y7QK1E9P",
+                    "in_app_reward_type": "badge",
                 },
             ],
             "rule": {"id": 1, "name": "Watch to redeem"},
@@ -185,7 +187,19 @@ class KickDropsResponseSchemaTest(TestCase):
         reward: KickRewardSchema = result.data[0].rewards[0]
         assert reward.id == "01KKBM2YDPSBJD437HF7CDPTQT"
         assert reward.required_units == 30
+        assert reward.in_app_reward_type == "emote"
         assert "drops/reward-image/" in reward.image_url
+
+    def test_missing_in_app_reward_type_defaults_to_none(self) -> None:
+        """Kick responses without in_app_reward_type fall back to "none"."""
+        payload: dict[str, Any] = deepcopy(SINGLE_CAMPAIGN_JSON)
+        del payload["data"][0]["rewards"][0]["in_app_reward_type"]
+
+        result: KickDropsResponseSchema = KickDropsResponseSchema.model_validate(
+            payload,
+        )
+
+        assert result.data[0].rewards[0].in_app_reward_type == "none"
 
     def test_empty_channels_list(self) -> None:
         """Schema accepts an empty channels list."""
@@ -220,7 +234,11 @@ class KickDropsResponseSchemaTest(TestCase):
 class KickRewardFullImageUrlTest(TestCase):
     """Tests for KickReward.full_image_url property."""
 
-    def _make_reward(self, image_url: str) -> KickReward:
+    def _make_reward(
+        self,
+        image_url: str,
+        in_app_reward_type: str = "none",
+    ) -> KickReward:
         org: KickOrganization = KickOrganization.objects.create(
             kick_id="org-1",
             name="Org",
@@ -246,6 +264,7 @@ class KickRewardFullImageUrlTest(TestCase):
             campaign=campaign,
             category=cat,
             organization=org,
+            in_app_reward_type=in_app_reward_type,
         )
 
     def test_relative_image_url_gets_base_prefix(self) -> None:
@@ -265,6 +284,16 @@ class KickRewardFullImageUrlTest(TestCase):
         """If image_url is empty, full_image_url should also be empty."""
         reward: KickReward = self._make_reward("")
         assert not reward.full_image_url
+
+    def test_in_app_reward_type_label_blank_for_none(self) -> None:
+        """The "none" in-app reward type has no visible label."""
+        reward: KickReward = self._make_reward("", in_app_reward_type="none")
+        assert not reward.in_app_reward_type_label
+
+    def test_in_app_reward_type_label_is_title_cased(self) -> None:
+        """Non-"none" in-app reward types render as a readable label."""
+        reward: KickReward = self._make_reward("", in_app_reward_type="badge")
+        assert reward.in_app_reward_type_label == "Badge"
 
 
 class KickChannelUrlTest(TestCase):
@@ -493,6 +522,9 @@ class ImportKickDropsCommandTest(TestCase):
         assert campaign.category is not None
         assert campaign.organization.name == "KRAFTON"
         assert campaign.category.name == "PUBG: Battlegrounds"
+
+        reward: KickReward = KickReward.objects.get()
+        assert reward.in_app_reward_type == "emote"
 
     def test_imports_campaign_with_channels(self) -> None:
         """Command creates channels and links them to the campaign."""

@@ -76,6 +76,7 @@ class KickCampaignApiTest(TestCase):
             campaign=cls.campaign,
             category=cls.category,
             organization=cls.organization,
+            in_app_reward_type="badge",
         )
 
     def test_list_returns_paginated_campaigns_with_nested_data(self) -> None:
@@ -136,6 +137,7 @@ class KickCampaignApiTest(TestCase):
                 "name": "API Reward",
                 "image_url": "https://ext.cdn.kick.com/drops/reward-image/reward.png",
                 "required_minutes_watched": 30,
+                "in_app_reward_type": "badge",
             },
         ]
         assert item["is_fully_imported"] is True

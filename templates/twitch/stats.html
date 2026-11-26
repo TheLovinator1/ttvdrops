@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
     <main>
-        <header>
-            <h1>Twitch Drops statistics</h1>
+        <header class="mb-4">
             <nav aria-label="breadcrumb" class="mb-2">
                 <ol class="breadcrumb mb-0">
                     <li class="breadcrumb-item">
@@ -18,120 +17,125 @@
                     </li>
                 </ol>
             </nav>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                        <h1 class="h2 mb-0">Twitch Drops Statistics</h1>
+                        <span class="badge badge-subtle theme-primary">Archive overview</span>
+                    </div>
+                    <p class="fg-2 mb-0 text-pretty" style="max-width: 80ch;">
+                        Totals, record holders, and leaderboards from every Twitch drop campaign in the archive.
+                    </p>
+                </div>
+                <div class="align-self-start">
+                    <button class="btn-outline theme-secondary btn-sm"
+                            type="button"
+                            data-bs-toggle="menu"
+                            data-bs-placement="bottom-end"
+                            aria-expanded="false">Developer ▾</button>
+                    <div class="menu">
+                        <h6 class="menu-header">Developer &amp; Help</h6>
+                        <a class="menu-item" href="{% url 'api-v1:openapi-view' %}">API docs</a>
+                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                    </div>
+                </div>
+            </div>
         </header>
         {% if not stats.counters.campaigns %}
-            <section style="text-align: center; padding: 3rem 1rem;">
-                <h2 style="margin: 0 0 1rem 0;">No drops yet!</h2>
-                <p style="margin: 0; font-size: 1.1rem;">
-                    The archive is empty, so there is nothing to brag about.
-                    Check back after the next drop import.
-                </p>
+            <section class="card bg-1 text-center py-5 px-3">
+                <div class="card-body align-items-center">
+                    <h2 class="h4 mb-2">No drops yet!</h2>
+                    <p class="fg-2 mb-0">The archive is empty, so there is nothing to brag about. Check back after the next drop import.</p>
+                </div>
             </section>
         {% else %}
             <!-- Totals -->
-            <section aria-label="Totals" style="margin-bottom: 2rem;">
-                <h2>Archive totals</h2>
-                <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
-                    {% for label, count in totals %}
-                        <div style="flex: 1 1 140px;
-                                    min-width: 140px;
-                                    border: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                                    border-radius: 8px;
-                                    padding: 0.75rem 1rem;
-                                    text-align: center">
-                            <div style="font-size: 1.8rem; font-weight: 700;">{{ count }}</div>
-                            <div style="font-size: 0.8rem;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.05em;
-                                        color: color-mix(in srgb, CanvasText 55%, transparent 45%)">{{ label }}</div>
-                        </div>
-                    {% endfor %}
+            <section aria-label="Totals" class="mb-4">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <h2 class="h3 mb-0">Archive totals</h2>
+                    <span class="badge badge-subtle theme-secondary">Updated {{ now|date:"M j, Y H:i" }}</span>
                 </div>
-            </section>
-            <!-- Fun records -->
-            <section aria-label="Records" style="margin-bottom: 2rem;">
-                <h2>Fun records</h2>
-                <div style="display: grid;
-                            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-                            gap: 1rem">
-                    {% for record in stats.records %}
-                        <article style="border: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%);
-                                        border-radius: 8px;
-                                        padding: 1rem;
-                                        display: flex;
-                                        flex-direction: column;
-                                        gap: 0.35rem">
-                            <div style="font-size: 0.8rem;
-                                        text-transform: uppercase;
-                                        letter-spacing: 0.05em;
-                                        color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
-                                {{ record.title }}
-                            </div>
-                            <div style="font-size: 1.4rem; font-weight: 700;">{{ record.value }}</div>
-                            <div style="font-size: 0.95rem;">
-                                {% if record.url %}
-                                    <a href="{{ record.url }}">{{ record.detail }}</a>
-                                {% else %}
-                                    {{ record.detail }}
-                                {% endif %}
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
+                    {% for label, count in totals %}
+                        <article class="card bg-1 hover-lift h-100">
+                            <div class="card-body text-center p-3">
+                                <div class="fs-2xl fw-bold lh-1
+                                            {% if label == "Active" %}fg-success{% elif label == "Upcoming" %}fg-info{% elif label == "Expired" %}fg-3{% endif %}">
+                                    {{ count }}
+                                </div>
+                                <div class="fs-xs fg-3 text-uppercase fw-semibold mt-2">{{ label }}</div>
                             </div>
                         </article>
                     {% endfor %}
                 </div>
             </section>
+            <!-- Fun records -->
+            <section aria-label="Records" class="mb-4">
+                <h2 class="h3 mb-3">Fun records</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {% for record in stats.records %}
+                        <article class="card bg-1 hover-lift h-100">
+                            <div class="card-body d-flex flex-column gap-2">
+                                <div class="fs-xs fg-3 text-uppercase fw-semibold">{{ record.title }}</div>
+                                <div class="fs-xl fw-bold lh-sm">{{ record.value }}</div>
+                                <div class="fs-sm mt-auto">
+                                    {% if record.url %}
+                                        <a class="text-decoration-none" href="{{ record.url }}">{{ record.detail }}</a>
+                                    {% else %}
+                                        {{ record.detail }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <p class="fg-2 mb-0">No records yet.</p>
+                    {% endfor %}
+                </div>
+            </section>
             <!-- Leaderboards -->
-            <section aria-label="Leaderboards" style="margin-bottom: 2rem;">
-                <h2>Leaderboards</h2>
-                <div style="display: grid;
-                            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-                            gap: 1.5rem">
+            <section aria-label="Leaderboards">
+                <h2 class="h3 mb-3">Leaderboards</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                     {% for board in leaderboards %}
-                        <div>
-                            <h3 style="margin: 0 0 0.5rem 0;">{{ board.title }}</h3>
-                            <table class="table table-striped table-hover" style="width: 100%; border-collapse: collapse;">
-                                <thead>
-                                    <tr>
-                                        <th style="text-align: left;
-                                                   padding: 0.3rem 0.5rem;
-                                                   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%)">
-                                            #
-                                        </th>
-                                        <th style="text-align: left;
-                                                   padding: 0.3rem 0.5rem;
-                                                   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%)">
-                                            Name
-                                        </th>
-                                        <th style="text-align: right;
-                                                   padding: 0.3rem 0.5rem;
-                                                   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent 80%)">
-                                            Count
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for row in board.rows %}
-                                        <tr>
-                                            <td style="padding: 0.3rem 0.5rem;
-                                                       color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
-                                                {{ forloop.counter }}
-                                            </td>
-                                            <td style="padding: 0.3rem 0.5rem;">
-                                                <a href="{{ row.url }}">{{ row.name }}</a>
-                                            </td>
-                                            <td style="padding: 0.3rem 0.5rem; text-align: right;">{{ row.count }}</td>
-                                        </tr>
-                                    {% empty %}
-                                        <tr>
-                                            <td colspan="3"
-                                                style="padding: 0.3rem 0.5rem;
-                                                       color: color-mix(in srgb, CanvasText 55%, transparent 45%)">
-                                                Nothing here yet.
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                        <section class="card bg-1 h-100">
+                            <div class="card-header">
+                                <h3 class="h5 mb-0">{{ board.title }}</h3>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover align-middle mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col" class="text-center" style="width: 3rem">#</th>
+                                                <th scope="col">Name</th>
+                                                <th scope="col" class="text-end">Count</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in board.rows %}
+                                                <tr>
+                                                    <td class="text-center">
+                                                        <span class="badge badge-subtle {% if forloop.counter == 1 %}theme-warning{% else %}theme-secondary{% endif %}">
+                                                            {{ forloop.counter }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <a class="text-decoration-none" href="{{ row.url }}">{{ row.name }}</a>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <span class="badge badge-subtle theme-secondary">{{ row.count }}</span>
+                                                    </td>
+                                                </tr>
+                                            {% empty %}
+                                                <tr>
+                                                    <td colspan="3" class="text-center fg-3 py-4">Nothing here yet.</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
                     {% endfor %}
                 </div>
             </section>

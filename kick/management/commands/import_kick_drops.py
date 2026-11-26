@@ -320,6 +320,7 @@ class Command(BaseCommand):
                 "name": reward_data.name,
                 "image_url": reward_data.image_url,
                 "required_units": reward_data.required_units,
+                "in_app_reward_type": reward_data.in_app_reward_type,
                 "campaign": campaign,
                 "category": reward_category,
                 "organization": reward_org,

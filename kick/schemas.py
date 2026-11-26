@@ -72,6 +72,9 @@ class KickRewardSchema(BaseModel):
     required_units: int
     category_id: int
     organization_id: str
+    # Kick reports the in-app presentation of a reward, e.g. "none", "badge",
+    # or "emote". New values may appear, so keep this permissive.
+    in_app_reward_type: str = "none"
 
     model_config = {
         "extra": "forbid",
