@@ -499,13 +499,13 @@ class TwitchApiV1TestCase(TestCase):
             (
                 reverse("twitch:campaign_list"),
                 "API Docs",
-                "[api]",
+                ">API</a>",
                 reverse("api-v1:twitch-api-v1_list_campaigns"),
             ),
             (
                 reverse("twitch:campaign_detail", args=[self.campaign.twitch_id]),
                 "API Docs",
-                "[api]",
+                ">API</a>",
                 reverse(
                     "api-v1:twitch-api-v1_get_campaign",
                     args=[self.campaign.twitch_id],
@@ -514,25 +514,25 @@ class TwitchApiV1TestCase(TestCase):
             (
                 reverse("twitch:game_detail", args=[self.game.twitch_id]),
                 "API Docs",
-                "[api]",
+                ">API</a>",
                 reverse("api-v1:twitch-api-v1_get_game", args=[self.game.twitch_id]),
             ),
             (
                 reverse("twitch:games_grid"),
                 "API Docs",
-                "[api]",
+                ">API</a>",
                 reverse("api-v1:twitch-api-v1_list_games"),
             ),
             (
                 reverse("twitch:org_list"),
                 "API Docs",
-                "[api]",
+                ">API</a>",
                 reverse("api-v1:twitch-api-v1_list_organizations"),
             ),
             (
                 reverse("twitch:reward_campaign_list"),
                 "API Docs",
-                "[api]",
+                ">API</a>",
                 reverse("api-v1:twitch-api-v1_list_reward_campaigns"),
             ),
             (
@@ -541,7 +541,7 @@ class TwitchApiV1TestCase(TestCase):
                     args=[self.reward_campaign.twitch_id],
                 ),
                 "API Docs",
-                "[api]",
+                ">API</a>",
                 reverse(
                     "api-v1:twitch-api-v1_get_reward_campaign",
                     args=[self.reward_campaign.twitch_id],
@@ -571,7 +571,7 @@ class TwitchApiV1TestCase(TestCase):
             args=[self.campaign.twitch_id],
         )
         assert f'href="{campaign_api_url}"' in content
-        assert 'title="Twitch campaign API">[api]</a>' in content
+        assert 'title="Twitch campaign API">API</a>' in content
 
     # ── Games ──────────────────────────────────────────────────────────
 
