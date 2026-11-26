@@ -5329,6 +5329,72 @@ class TestDropCampaignListView:
         assert active.twitch_id in campaign_ids
         assert "cl_expired" not in campaign_ids
 
+    def test_search_filter(
+        self,
+        client: Client,
+        game_with_campaigns: dict[str, Any],
+    ) -> None:
+        """Search query matches campaign, game, and organization names."""
+        game: Game = game_with_campaigns["game"]
+        searchable_org: Organization = Organization.objects.create(
+            twitch_id="org_search",
+            name="Searchable Org",
+        )
+        searchable_game: Game = Game.objects.create(
+            twitch_id="game_search",
+            name="searchable_game",
+            display_name="Searchable Game",
+        )
+        searchable_game.owners.add(searchable_org)
+        owner_game: Game = Game.objects.create(
+            twitch_id="game_owner_search",
+            name="owner_game",
+            display_name="Owner Game",
+        )
+        owner_game.owners.add(searchable_org)
+
+        name_match: DropCampaign = DropCampaign.objects.create(
+            twitch_id="cl_search_name",
+            name="Searchable Campaign",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+        )
+        game_match: DropCampaign = DropCampaign.objects.create(
+            twitch_id="cl_search_game",
+            name="Game Match Campaign",
+            game=searchable_game,
+            operation_names=[],
+            is_fully_imported=True,
+        )
+        owner_match: DropCampaign = DropCampaign.objects.create(
+            twitch_id="cl_search_owner",
+            name="Owner Match Campaign",
+            game=owner_game,
+            operation_names=[],
+            is_fully_imported=True,
+        )
+        DropCampaign.objects.create(
+            twitch_id="cl_search_other",
+            name="Unrelated Campaign",
+            game=game,
+            operation_names=[],
+            is_fully_imported=True,
+        )
+
+        response: _MonkeyPatchedWSGIResponse = client.get(
+            reverse("twitch:campaign_list") + "?q=Searchable",
+        )
+        context: ContextList | dict[str, Any] = response.context  # type: ignore[assignment]
+        if isinstance(context, list):
+            context = context[-1]
+
+        campaign_ids = {c.twitch_id for c in context["campaigns"].object_list}
+        assert name_match.twitch_id in campaign_ids
+        assert game_match.twitch_id in campaign_ids
+        assert owner_match.twitch_id in campaign_ids
+        assert "cl_search_other" not in campaign_ids
+
     def test_campaign_list_indexes_exist(self) -> None:
         """Required composite indexes for the campaign list query must exist on DropCampaign."""
         expected: set[str] = {

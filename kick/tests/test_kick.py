@@ -846,6 +846,9 @@ class KickCampaignListViewTest(TestCase):
         kick_id: str,
         name: str,
         status: str = "active",
+        *,
+        category: KickCategory | None = None,
+        organization: KickOrganization | None = None,
     ) -> KickDropCampaign:
         # Set dates so the active/expired filter works correctly
         if status == "active":
@@ -860,8 +863,8 @@ class KickCampaignListViewTest(TestCase):
             status=status,
             starts_at=starts_at,
             ends_at=ends_at,
-            organization=self.org,
-            category=self.cat,
+            organization=organization or self.org,
+            category=category or self.cat,
             rule_id=1,
             rule_name="Watch to redeem",
             is_fully_imported=True,
@@ -924,6 +927,44 @@ class KickCampaignListViewTest(TestCase):
         content: str = response.content.decode()
         assert active.name in content
         assert expired.name not in content
+
+    def test_campaign_list_search(self) -> None:
+        """Searching should match campaign, game, and organization names."""
+        searchable_category: KickCategory = KickCategory.objects.create(
+            kick_id=301,
+            name="Searchable Game",
+            slug="searchable-game",
+        )
+        searchable_org: KickOrganization = KickOrganization.objects.create(
+            kick_id="org-searchable",
+            name="Searchable Org",
+        )
+        name_match: KickDropCampaign = self._make_campaign(
+            "camp-list-search-name",
+            "Searchable Campaign",
+        )
+        game_match: KickDropCampaign = self._make_campaign(
+            "camp-list-search-game",
+            "Game Match Campaign",
+            category=searchable_category,
+        )
+        owner_match: KickDropCampaign = self._make_campaign(
+            "camp-list-search-owner",
+            "Owner Match Campaign",
+            organization=searchable_org,
+        )
+        other: KickDropCampaign = self._make_campaign(
+            "camp-list-search-other",
+            "Unrelated Campaign",
+        )
+        response: _MonkeyPatchedWSGIResponse = self.client.get(
+            reverse("kick:campaign_list") + "?q=Searchable",
+        )
+        content: str = response.content.decode()
+        assert name_match.name in content
+        assert game_match.name in content
+        assert owner_match.name in content
+        assert other.name not in content
 
 
 class KickCampaignDetailViewTest(TestCase):

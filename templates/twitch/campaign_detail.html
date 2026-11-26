@@ -221,7 +221,10 @@
                 <h5>Campaign Info</h5>
                 {% if drops %}
                     <!-- Drops table -->
-                    <table class="table table-striped table-hover" style="border-collapse: collapse; width: 100%;">
+                    <table class="table table-striped table-hover"
+                           style="border-collapse: collapse;
+                                  width: 100%;
+                                  --bs-table-cell-vertical-align: middle">
                         <tbody>
                             {% for drop in drops %}
                                 <tr>

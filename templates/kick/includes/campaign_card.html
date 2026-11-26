@@ -1,0 +1,97 @@
+<article class="card bg-1 hover-lift overflow-hidden">
+    <div class="ratio-16x9 overflow-hidden bg-2 position-relative">
+        <a href="{% url 'kick:campaign_detail' campaign.kick_id %}"
+           class="d-block w-100 h-100">
+            {% if campaign.image_url %}
+                <img src="{{ campaign.image_url }}"
+                     alt="Campaign artwork for {{ campaign.name }}"
+                     width="320"
+                     height="180"
+                     loading="lazy"
+                     class="w-100 h-100 object-fit-cover d-block" />
+            {% else %}
+                <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">No Artwork</div>
+            {% endif %}
+        </a>
+        <div class="position-absolute top-0 start-0 p-2 z-1">
+            <span class="badge badge-subtle theme-{{ status_theme }}">{{ status_label }}</span>
+        </div>
+    </div>
+    <div class="card-body p-3 d-flex flex-column gap-2">
+        {% if campaign.organization %}
+            <div class="d-flex align-items-center gap-2 min-w-0">
+                <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}"
+                   class="fs-sm fg-2 text-decoration-none text-truncate">{{ campaign.organization.name }}</a>
+            </div>
+        {% endif %}
+        <h3 class="h6 card-title mb-0">
+            <a href="{% url 'kick:campaign_detail' campaign.kick_id %}"
+               class="text-decoration-none fg-1">{{ campaign.name }}</a>
+        </h3>
+        <div class="d-flex flex-wrap gap-1">
+            {% if campaign.rule_name %}
+                <span class="badge badge-subtle theme-secondary">{{ campaign.rule_name }}</span>
+            {% endif %}
+            {% if campaign.duration %}
+                <span class="badge badge-subtle theme-secondary">{{ campaign.duration }}</span>
+            {% endif %}
+        </div>
+        <div class="fs-xs fg-2"
+             {% if campaign.starts_at and campaign.ends_at %}title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }} → {{ campaign.ends_at|date:'DATETIME_FORMAT' }}"{% endif %}>
+            {% if status_key == "active" %}
+                Ends in {{ campaign.ends_at|timeuntil }}
+            {% elif status_key == "upcoming" %}
+                Starts in {{ campaign.starts_at|timeuntil }}
+            {% else %}
+                Ended {{ campaign.ends_at|timesince }} ago
+            {% endif %}
+        </div>
+        {% if campaign.merged_rewards %}
+            <div class="d-flex flex-wrap gap-1">
+                {% for reward in campaign.merged_rewards %}
+                    <span class="badge badge-subtle theme-secondary d-inline-flex align-items-center gap-1"
+                          title="{{ reward.name }} ({{ reward.required_units }} min){% if reward.in_app_reward_type_label %} · {{ reward.in_app_reward_type_label }}{% endif %}">
+                        {% if reward.full_image_url %}
+                            <img src="{{ reward.full_image_url }}"
+                                 alt=""
+                                 width="20"
+                                 height="20"
+                                 loading="lazy"
+                                 class="rounded-1" />
+                        {% endif %}
+                        {{ reward.name }} ({{ reward.required_units }} min)
+                    </span>
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div class="d-flex flex-wrap align-items-center gap-1 fs-xs">
+            {% if campaign.channels.all %}
+                <span class="fg-3">Channels:</span>
+                {% for channel in campaign.channels.all|slice:":5" %}
+                    <a class="chip theme-secondary" href="{{ channel.channel_url }}">
+                        {% if channel.user %}
+                            {{ channel.user.username }}
+                        {% else %}
+                            {{ channel.slug }}
+                        {% endif %}
+                    </a>
+                {% endfor %}
+                {% if campaign.channels.count > 5 %}
+                    <span class="chip theme-secondary">+{{ campaign.channels.count|add:"-5" }} more</span>
+                {% endif %}
+            {% else %}
+                <span class="fg-3">
+                    {% if category.kick_url %}
+                        <a class="fg-3" href="{{ category.kick_url }}">{{ category.name }}</a> is game wide.
+                    {% else %}
+                        Game wide.
+                    {% endif %}
+                </span>
+            {% endif %}
+        </div>
+        {% if campaign.connect_url %}
+            <a class="btn-outline theme-primary btn-sm align-self-start"
+               href="{{ campaign.connect_url }}">Connect account</a>
+        {% endif %}
+    </div>
+</article>

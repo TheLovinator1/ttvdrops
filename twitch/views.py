@@ -873,6 +873,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
     """
     game_filter: str | None = request.GET.get("game")
     status_filter: str | None = request.GET.get("status")
+    search_query: str = request.GET.get("q", "").strip()
     per_page: int = 100
     now: datetime.datetime = timezone.now()
 
@@ -881,6 +882,13 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
         game_twitch_id=game_filter,
         status=status_filter,
     )
+    if search_query:
+        queryset = queryset.filter(
+            Q(name__icontains=search_query)
+            | Q(game__display_name__icontains=search_query)
+            | Q(game__name__icontains=search_query)
+            | Q(game__owners__name__icontains=search_query),
+        ).distinct()
 
     paginator: Paginator[DropCampaign] = Paginator(queryset, per_page)
     page: str | Literal[1] = request.GET.get("page") or 1
@@ -931,12 +939,17 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
 
     # Build base URL for pagination
     base_url = "/campaigns/"
-    if status_filter and game_filter:
-        base_url += f"?status={status_filter}&game={game_filter}"
-    elif status_filter:
-        base_url += f"?status={status_filter}"
-    elif game_filter:
-        base_url += f"?game={game_filter}"
+    query_params: dict[str, str] = {
+        key: value
+        for key, value in (
+            ("q", search_query),
+            ("status", status_filter),
+            ("game", game_filter),
+        )
+        if value
+    }
+    if query_params:
+        base_url += "?" + urlencode(query_params)
 
     pagination_info: list[dict[str, str]] | None = _build_pagination_info(
         request,
@@ -975,6 +988,7 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
         "now": now,
         "selected_game": game_filter or "",
         "selected_per_page": per_page,
+        "selected_query": search_query,
         "selected_status": status_filter or "",
         **seo_context,
     }

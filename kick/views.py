@@ -5,11 +5,13 @@ import logging
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
+from urllib.parse import urlencode
 
 from django.core.paginator import EmptyPage
 from django.core.paginator import PageNotAnInteger
 from django.core.paginator import Paginator
 from django.db.models import Count
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import render
 from django.urls import reverse
@@ -190,14 +192,15 @@ def dashboard(request: HttpRequest) -> HttpResponse:
 def campaign_list_view(request: HttpRequest) -> HttpResponse:
     """Paginated list of all Kick campaigns with optional filtering.
 
-    Supports filtering by game and status (active/upcoming/expired) via query parameters.
-    Pagination is implemented with 100 campaigns per page.
+    Supports searching, filtering by game and status (active/upcoming/expired) via
+    query parameters. Pagination is implemented with 100 campaigns per page.
 
     Returns:
         An HttpResponse rendering the campaign list template with the filtered and paginated campaigns.
     """
     game_filter: str | None = request.GET.get("game") or request.GET.get("category")
     status_filter: str | None = request.GET.get("status")
+    search_query: str = request.GET.get("q", "").strip()
     per_page = 100
     now: datetime.datetime = timezone.now()
 
@@ -211,6 +214,13 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
 
     if game_filter:
         queryset = queryset.filter(category__kick_id=game_filter)
+
+    if search_query:
+        queryset = queryset.filter(
+            Q(name__icontains=search_query)
+            | Q(category__name__icontains=search_query)
+            | Q(organization__name__icontains=search_query),
+        )
 
     if status_filter == "active":
         queryset = queryset.filter(starts_at__lte=now, ends_at__gte=now)
@@ -233,12 +243,17 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
         title += f" ({status_filter.capitalize()})"
 
     base_url = "/kick/campaigns/"
-    if status_filter:
-        base_url += f"?status={status_filter}"
-        if game_filter:
-            base_url += f"&game={game_filter}"
-    elif game_filter:
-        base_url += f"?game={game_filter}"
+    query_params: dict[str, str] = {
+        key: value
+        for key, value in (
+            ("q", search_query),
+            ("status", status_filter),
+            ("game", game_filter),
+        )
+        if value
+    }
+    if query_params:
+        base_url += "?" + urlencode(query_params)
 
     pagination_info: list[dict[str, str]] | None = _build_pagination_info(
         request,
@@ -262,6 +277,7 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
             "status_options": ["active", "upcoming", "expired"],
             "now": now,
             "selected_game": game_filter or "",
+            "selected_query": search_query,
             "selected_status": status_filter or "",
             "pagination_info": pagination_info,
             **seo_context,
@@ -506,6 +522,7 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
             "expired_campaigns": expired_campaigns,
+            "total_campaigns": len(all_campaigns),
             "now": now,
             "breadcrumb_schema": breadcrumb_schema,
             **seo_context,
