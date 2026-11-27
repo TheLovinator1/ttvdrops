@@ -318,6 +318,19 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
     )
     channels: list[KickChannel] = list(campaign.channels.select_related("user"))
 
+    campaign_progress_percent: int = 0
+    if (
+        campaign.starts_at
+        and campaign.ends_at
+        and campaign.ends_at > campaign.starts_at
+    ):
+        if now >= campaign.ends_at:
+            campaign_progress_percent = 100
+        elif now > campaign.starts_at:
+            elapsed: float = (now - campaign.starts_at).total_seconds()
+            total: float = (campaign.ends_at - campaign.starts_at).total_seconds()
+            campaign_progress_percent = round(elapsed / total * 100)
+
     breadcrumb_schema: str = _build_breadcrumb_schema([
         {"name": "Home", "url": build_absolute_uri("/")},
         {
@@ -399,6 +412,7 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
             "rewards": rewards,
             "channels": channels,
             "now": now,
+            "campaign_progress_percent": campaign_progress_percent,
             "breadcrumb_schema": breadcrumb_schema,
             **seo_context,
         },

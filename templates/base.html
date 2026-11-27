@@ -156,6 +156,91 @@
                     max-width: 10rem !important;
                 }
             }
+            [data-bs-theme="dark"] {
+                --bs-primary-bg-subtle: #131644;
+                --bs-bg-1: #111111;
+                --bs-bg-2: #222222;
+            }
+
+            /* Compact label/value grids used on detail pages. */
+            .detail-grid {
+                display: grid;
+                grid-template-columns: max-content minmax(0, 1fr);
+                gap: 0.35rem 1.5rem;
+            }
+
+            .detail-grid dt {
+                font-weight: 600;
+                color: var(--bs-secondary-color, #9aa0a6);
+            }
+
+            .detail-grid dd {
+                margin: 0;
+                min-width: 0;
+            }
+
+            .detail-grid small {
+                color: #aeb4bd;
+            }
+
+            /* Cards that sit on top of the felt background. */
+            .detail-card {
+                background-color: rgb(20 22 26 / 0.92);
+                border: 1px solid rgb(255 255 255 / 0.09);
+            }
+
+            .detail-card > .card-header {
+                background-color: transparent;
+                border-bottom-color: rgb(255 255 255 / 0.09);
+            }
+
+            /* Collapsed technical/raw data block. */
+            .technical-details {
+                overflow: hidden;
+            }
+
+            .technical-details > summary {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 1rem 1.25rem;
+                cursor: pointer;
+                font-weight: 600;
+                list-style: none;
+            }
+
+            .technical-details > summary::-webkit-details-marker {
+                display: none;
+            }
+
+            .technical-details > summary::after {
+                content: "▾";
+                margin-inline-start: auto;
+                color: var(--bs-fg-3);
+                transition: transform 0.15s ease;
+            }
+
+            .technical-details[open] > summary::after {
+                transform: rotate(180deg);
+            }
+
+            .technical-details[open] > summary {
+                border-bottom: 1px solid rgb(255 255 255 / 0.09);
+            }
+
+            /* Thin start-to-end progress bar for active campaigns. */
+            .campaign-progress {
+                height: 0.35rem;
+                overflow: hidden;
+                border-radius: 999px;
+                background-color: rgb(255 255 255 / 0.1);
+            }
+
+            .campaign-progress-bar {
+                height: 100%;
+                border-radius: inherit;
+                background-color: var(--bs-success-fg, #4ade80);
+            }
         </style>
     </head>
     <body {% block body_attributes %}{% endblock body_attributes %}
@@ -356,7 +441,7 @@
                 {% endfor %}
             </div>
         {% endif %}
-        <div class="container my-12">
+        <div class="container mt-6 mb-12">
             {% block content %}
                 <!-- Main content will be injected here -->
             {% endblock content %}

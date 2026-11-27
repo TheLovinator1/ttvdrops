@@ -32,6 +32,25 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'twitch:games_grid' %}">Games</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item" aria-current="page">
+                    <span class="breadcrumb-link active">{{ game.display_name }}</span>
+                </li>
+            </ol>
+        </nav>
         <ul class="nav nav-tabs mb-4" role="tablist" aria-label="Game sections">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active"
@@ -76,25 +95,6 @@
                             {{ game.display_name }}
                             {% if game.display_name != game.name and game.name %}<small>({{ game.name }})</small>{% endif %}
                         </h1>
-                        <nav aria-label="breadcrumb" class="mb-2">
-                            <ol class="breadcrumb mb-0">
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'twitch:games_grid' %}">Games</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item" aria-current="page">
-                                    <span class="breadcrumb-link active">{{ game.display_name }}</span>
-                                </li>
-                            </ol>
-                        </nav>
                         <div style="font-size: 0.9rem;
                                     color: color-mix(in srgb, CanvasText 60%, transparent 40%);
                                     margin-top: 0.15rem">
@@ -108,7 +108,7 @@
                             {% endif %}
                         </div>
                         <!-- Game metadata -->
-                        <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0 8px;">
+                        <dl class="detail-grid fs-sm mt-3 mb-3">
                             {% if owners %}
                                 <dt>Owned by</dt>
                                 <dd>
@@ -124,19 +124,19 @@
                             </dd>
                             {% if game.slug %}
                                 <dt>Slug</dt>
-                                <dd>
-                                    {{ game.slug }}
-                                </dd>
+                                <dd>{{ game.slug }}</dd>
                             {% endif %}
                             <dt>Published</dt>
                             <dd>
                                 <time datetime="{{ game.added_at|date:'c' }}"
-                                      title="{{ game.added_at|date:'DATETIME_FORMAT' }}">{{ game.added_at|date:"M d, Y H:i" }}</time> ({{ game.added_at|timesince }} ago)
+                                      title="{{ game.added_at|date:'DATETIME_FORMAT' }}">{{ game.added_at|date:"M d, Y H:i" }}</time>
+                                <small>({{ game.added_at|timesince }} ago)</small>
                             </dd>
                             <dt>Last updated</dt>
                             <dd>
                                 <time datetime="{{ game.updated_at|date:'c' }}"
-                                      title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time> ({{ game.updated_at|timesince }} ago)
+                                      title="{{ game.updated_at|date:'DATETIME_FORMAT' }}">{{ game.updated_at|date:"M d, Y H:i" }}</time>
+                                <small>({{ game.updated_at|timesince }} ago)</small>
                             </dd>
                         </dl>
                         <!-- Feeds -->
@@ -497,7 +497,7 @@
                 {% if history_events %}
                     {% include "twitch/includes/history_table.html" with events=history_events %}
                 {% else %}
-                    <div class="card bg-1 text-center py-5 px-3">
+                    <div class="card detail-card text-center py-5 px-3">
                         <div class="card-body">
                             <h2 class="h4 mb-2">No history events</h2>
                             <p class="fg-2 mb-0">No changes have been recorded for this game yet.</p>

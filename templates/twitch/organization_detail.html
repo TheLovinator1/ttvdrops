@@ -22,6 +22,25 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'twitch:org_list' %}">Organizations</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item" aria-current="page">
+                    <span class="breadcrumb-link active">{{ organization.name }}</span>
+                </li>
+            </ol>
+        </nav>
         <ul class="nav nav-tabs mb-4"
             role="tablist"
             aria-label="Organization sections">
@@ -61,25 +80,6 @@
                     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
                         <div>
                             <h1 class="mb-2">{{ organization.name }}</h1>
-                            <nav aria-label="breadcrumb" class="mb-2">
-                                <ol class="breadcrumb mb-0">
-                                    <li class="breadcrumb-item">
-                                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                                    </li>
-                                    <li class="breadcrumb-divider"></li>
-                                    <li class="breadcrumb-item">
-                                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                                    </li>
-                                    <li class="breadcrumb-divider"></li>
-                                    <li class="breadcrumb-item">
-                                        <a class="breadcrumb-link" href="{% url 'twitch:org_list' %}">Organizations</a>
-                                    </li>
-                                    <li class="breadcrumb-divider"></li>
-                                    <li class="breadcrumb-item" aria-current="page">
-                                        <span class="breadcrumb-link active">{{ organization.name }}</span>
-                                    </li>
-                                </ol>
-                            </nav>
                             <p class="fs-sm fg-2 mb-0">
                                 <span class="fw-semibold">{{ games_count }}</span> game{{ games_count|pluralize }}
                                 {% if total_campaigns %}
@@ -89,7 +89,7 @@
                         </div>
                         {% include "twitch/includes/external_site_links.html" with external_site_links=organization.external_site_links %}
                     </div>
-                    <section class="card bg-1 p-4" aria-label="Organization details">
+                    <section class="card detail-card p-4" aria-label="Organization details">
                         <dl class="row g-3 mb-0">
                             <div class="col-12 md:col-4">
                                 <dt class="fs-xs fw-semibold fg-3 text-uppercase mb-1">Organization ID</dt>
@@ -213,7 +213,7 @@
                 {% if history_events %}
                     {% include "twitch/includes/history_table.html" with events=history_events %}
                 {% else %}
-                    <div class="card bg-1 text-center py-5 px-3">
+                    <div class="card detail-card text-center py-5 px-3">
                         <div class="card-body">
                             <h2 class="h4 mb-2">No history events</h2>
                             <p class="fg-2 mb-0">No changes have been recorded for this organization yet.</p>

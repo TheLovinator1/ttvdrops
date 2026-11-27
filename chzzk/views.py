@@ -390,6 +390,18 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
         campaign_status = "expired"
 
     rewards: QuerySet[models.ChzzkReward, models.ChzzkReward] = campaign.rewards.all()  # pyright: ignore[reportAttributeAccessIssue]
+    campaign_progress_percent: int = 0
+    if (
+        campaign.start_date
+        and campaign.end_date
+        and campaign.end_date > campaign.start_date
+    ):
+        if now >= campaign.end_date:
+            campaign_progress_percent = 100
+        elif now > campaign.start_date:
+            elapsed: float = (now - campaign.start_date).total_seconds()
+            total: float = (campaign.end_date - campaign.start_date).total_seconds()
+            campaign_progress_percent = round(elapsed / total * 100)
     return render(
         request=request,
         template_name="chzzk/campaign_detail.html",
@@ -398,6 +410,7 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
             "campaign_status": campaign_status,
             "rewards": rewards,
             "now": now,
+            "campaign_progress_percent": campaign_progress_percent,
             "page_title": f"{campaign.title} - Chzzk Drop Campaign and Rewards",
             "page_description": campaign.description or campaign.title,
             "discord_embed_accent_color": CHZZK_ACCENT_COLOR,

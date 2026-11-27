@@ -6,6 +6,25 @@
 {% endblock extra_head %}
 {% block content %}
     <main>
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item">
+                    <a class="breadcrumb-link" href="{% url 'twitch:channel_list' %}">Channels</a>
+                </li>
+                <li class="breadcrumb-divider"></li>
+                <li class="breadcrumb-item" aria-current="page">
+                    <span class="breadcrumb-link active">{{ channel.display_name }}</span>
+                </li>
+            </ol>
+        </nav>
         <ul class="nav nav-tabs mb-4"
             role="tablist"
             aria-label="Channel sections">
@@ -44,26 +63,6 @@
                 <header class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
                     <div class="flex-grow-1 min-w-0">
                         <h1 class="mb-1">{{ channel.display_name }}</h1>
-                        <!-- Add breadcrumbs -->
-                        <nav aria-label="breadcrumb" class="mb-2">
-                            <ol class="breadcrumb mb-0">
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item">
-                                    <a class="breadcrumb-link" href="{% url 'twitch:channel_list' %}">Channels</a>
-                                </li>
-                                <li class="breadcrumb-divider"></li>
-                                <li class="breadcrumb-item" aria-current="page">
-                                    <span class="breadcrumb-link active">{{ channel.display_name }}</span>
-                                </li>
-                            </ol>
-                        </nav>
                         <div class="d-flex flex-wrap align-items-center gap-2">
                             <span class="badge badge-subtle theme-secondary">Twitch ID {{ channel.twitch_id }}</span>
                             {% if active_campaigns %}
@@ -90,16 +89,16 @@
                        title="Watch {{ channel.display_name }} on Twitch">Watch on Twitch</a>
                 </header>
                 <!-- Channel metadata -->
-                <dl class="row g-2 mb-4 fs-sm">
+                <dl class="detail-grid fs-sm mb-4">
                     {% if channel.display_name != channel.name %}
-                        <dt class="col-12 sm:col-3 md:col-2 fg-3 fw-normal">Username</dt>
-                        <dd class="col-12 sm:col-9 md:col-10 mb-0">
+                        <dt>Username</dt>
+                        <dd>
                             <code>{{ channel.name }}</code>
                         </dd>
                     {% endif %}
                     {% if channel.other_display_names %}
-                        <dt class="col-12 sm:col-3 md:col-2 fg-3 fw-normal">Also known as</dt>
-                        <dd class="col-12 sm:col-9 md:col-10 mb-0">
+                        <dt>Also known as</dt>
+                        <dd>
                             <div class="d-flex flex-wrap gap-1">
                                 {% for name in channel.other_display_names %}
                                     <span class="badge badge-subtle theme-secondary">{{ name }}</span>
@@ -107,15 +106,17 @@
                             </div>
                         </dd>
                     {% endif %}
-                    <dt class="col-12 sm:col-3 md:col-2 fg-3 fw-normal">Published</dt>
-                    <dd class="col-12 sm:col-9 md:col-10 mb-0">
+                    <dt>Published</dt>
+                    <dd>
                         <time datetime="{{ channel.added_at|date:'c' }}"
-                              title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">{{ channel.added_at|date:"M d, Y H:i" }}</time> ({{ channel.added_at|timesince }} ago)
+                              title="{{ channel.added_at|date:'DATETIME_FORMAT' }}">{{ channel.added_at|date:"M d, Y H:i" }}</time>
+                        <small>({{ channel.added_at|timesince }} ago)</small>
                     </dd>
-                    <dt class="col-12 sm:col-3 md:col-2 fg-3 fw-normal">Last updated</dt>
-                    <dd class="col-12 sm:col-9 md:col-10 mb-0">
+                    <dt>Last updated</dt>
+                    <dd>
                         <time datetime="{{ channel.updated_at|date:'c' }}"
-                              title="{{ channel.updated_at|date:'DATETIME_FORMAT' }}">{{ channel.updated_at|date:"M d, Y H:i" }}</time> ({{ channel.updated_at|timesince }} ago)
+                              title="{{ channel.updated_at|date:'DATETIME_FORMAT' }}">{{ channel.updated_at|date:"M d, Y H:i" }}</time>
+                        <small>({{ channel.updated_at|timesince }} ago)</small>
                     </dd>
                 </dl>
                 <!-- Twitch Stream Embed -->
@@ -127,7 +128,7 @@
                             allowfullscreen></iframe>
                 </div>
                 {% if active_campaigns %}
-                    <section class="card bg-1 mb-3">
+                    <section class="card detail-card mb-3">
                         <div class="card-header">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <h2 class="h5 mb-0" id="active-campaigns-header">Active Campaigns</h2>
@@ -174,7 +175,7 @@
                     </section>
                 {% endif %}
                 {% if upcoming_campaigns %}
-                    <section class="card bg-1 mb-3">
+                    <section class="card detail-card mb-3">
                         <div class="card-header">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <h2 class="h5 mb-0" id="upcoming-campaigns-header">Upcoming Campaigns</h2>
@@ -221,7 +222,7 @@
                     </section>
                 {% endif %}
                 {% if expired_campaigns %}
-                    <section class="card bg-1 mb-3">
+                    <section class="card detail-card mb-3">
                         <div class="card-header">
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 <h2 class="h5 mb-0" id="past-campaigns-header">Past Campaigns</h2>
@@ -268,7 +269,7 @@
                     </section>
                 {% endif %}
                 {% if not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
-                    <div class="card bg-1 text-center py-5 px-3">
+                    <div class="card detail-card text-center py-5 px-3">
                         <div class="card-body">
                             <h2 class="h4 mb-2">No campaigns found</h2>
                             <p class="fg-2 mb-0">This channel hasn't participated in any drop campaigns yet.</p>
@@ -292,7 +293,7 @@
                 {% if history_events %}
                     {% include "twitch/includes/history_table.html" with events=history_events %}
                 {% else %}
-                    <div class="card bg-1 text-center py-5 px-3">
+                    <div class="card detail-card text-center py-5 px-3">
                         <div class="card-body">
                             <h2 class="h4 mb-2">No history events</h2>
                             <p class="fg-2 mb-0">No changes have been recorded for this channel yet.</p>

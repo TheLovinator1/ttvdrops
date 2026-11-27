@@ -1040,6 +1040,14 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         start_at__lte=now,
         end_at__gte=now,
     ).count()
+    campaign_progress_percent: int = 0
+    if campaign.start_at and campaign.end_at and campaign.end_at > campaign.start_at:
+        if now >= campaign.end_at:
+            campaign_progress_percent = 100
+        elif now > campaign.start_at:
+            elapsed: float = (now - campaign.start_at).total_seconds()
+            total: float = (campaign.end_at - campaign.start_at).total_seconds()
+            campaign_progress_percent = round(elapsed / total * 100)
 
     history_querysets: list[QuerySet] = campaign_history_querysets(campaign)
     history_events: list[dict[str, Any]] = build_event_rows(
@@ -1056,6 +1064,7 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         "campaign_status": campaign_status,
         "game_campaign_count": game_campaign_count,
         "game_active_campaign_count": game_active_campaign_count,
+        "campaign_progress_percent": campaign_progress_percent,
         "history_events": history_events,
         "history_event_count": history_event_count,
     }
@@ -1794,6 +1803,21 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         )
     )
 
+    reward_progress_percent: int = 0
+    if (
+        reward_campaign.starts_at
+        and reward_campaign.ends_at
+        and reward_campaign.ends_at > reward_campaign.starts_at
+    ):
+        if now >= reward_campaign.ends_at:
+            reward_progress_percent = 100
+        elif now > reward_campaign.starts_at:
+            elapsed: float = (now - reward_campaign.starts_at).total_seconds()
+            total: float = (
+                reward_campaign.ends_at - reward_campaign.starts_at
+            ).total_seconds()
+            reward_progress_percent = round(elapsed / total * 100)
+
     reward_url: str = build_absolute_uri(
         reverse("twitch:reward_campaign_detail", args=[reward_campaign.twitch_id]),
     )
@@ -1865,6 +1889,7 @@ def reward_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRes
         "common_redemption_url": common_redemption_url,
         "now": now,
         "is_active": reward_campaign.is_active,
+        "reward_progress_percent": reward_progress_percent,
         "history_events": history_events,
         "history_event_count": history_event_count,
         **seo_context,
