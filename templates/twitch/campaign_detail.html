@@ -116,10 +116,15 @@
                                 </p>
                             {% endif %}
                             {% if campaign.description %}
-                                <p class="fg-2 mb-0">{{ campaign.description|linebreaksbr }}</p>
+                                <p class="fg-2 mb-0">{{ campaign.description_with_links|linebreaksbr }}</p>
                             {% else %}
                                 <p class="fg-3 fst-italic mb-0">No description</p>
                             {% endif %}
+                            {% with reward_summary=campaign.reward_summary %}
+                                {% if reward_summary %}
+                                    <p class="fs-sm fg-2 mt-2 mb-0">{{ reward_summary }}</p>
+                                {% endif %}
+                            {% endwith %}
                             <div class="d-flex flex-wrap justify-content-end align-items-center gap-3 mt-4">
                                 {% if campaign.details_url %}
                                     <a class="btn-solid theme-primary btn-sm"
@@ -137,7 +142,17 @@
                                        href="{{ campaign.account_link_url }}"
                                        title="Connect your account for {{ campaign.name }}">Connect</a>
                                 {% endif %}
-                                {% if not allowed_channels %}
+                                {% if allowed_channels|length == 1 %}
+                                    {% with channel=allowed_channels.0 %}
+                                        <a class="btn-solid theme-primary btn-sm"
+                                           href="https://www.twitch.tv/{{ channel.name }}"
+                                           target="_blank"
+                                           rel="noopener"
+                                           title="Watch {{ channel.display_name|default:channel.name }} on Twitch">
+                                            Watch {{ channel.display_name|default:channel.name }}
+                                        </a>
+                                    {% endwith %}
+                                {% elif not allowed_channels %}
                                     <a class="btn-solid theme-primary btn-sm"
                                        href="{{ campaign.game.twitch_directory_url }}"
                                        target="_blank"
@@ -490,12 +505,12 @@
                         </div>
                     {% endif %}
                 </section>
-                <section aria-labelledby="allowed-channels-heading">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="allowed-channels-heading" class="h4 mb-0">Allowed Channels</h2>
-                        <span class="badge badge-subtle theme-secondary">{{ allowed_channels|length }}</span>
-                    </div>
-                    {% if allowed_channels %}
+                {% if allowed_channels %}
+                    <section aria-labelledby="allowed-channels-heading">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                            <h2 id="allowed-channels-heading" class="h4 mb-0">Allowed Channels</h2>
+                            <span class="badge badge-subtle theme-secondary">{{ allowed_channels|length }}</span>
+                        </div>
                         <div class="d-flex flex-wrap gap-2">
                             {% for channel in allowed_channels %}
                                 <a class="chip theme-secondary"
@@ -503,10 +518,8 @@
                                    title="ID: {{ channel.twitch_id }} | name: {{ channel.name }} | display names: {{ channel.display_names|join:', ' }}">{{ channel.display_name }}</a>
                             {% endfor %}
                         </div>
-                    {% else %}
-                        <p class="fg-3 fst-italic mb-0">None</p>
-                    {% endif %}
-                </section>
+                    </section>
+                {% endif %}
             </div>
             <div class="tab-pane fade"
                  id="history-pane"

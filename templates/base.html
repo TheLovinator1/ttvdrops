@@ -145,11 +145,22 @@
                 --bs-body-font-family: "Geist", system-ui, sans-serif;
                 --bs-font-mono: "Geist Mono", ui-monospace, monospace;
             }
+
+            @media (width < 768px) {
+                .navbar .nav-link {
+                    padding-inline: 0.4rem;
+                    font-size: var(--bs-font-size-sm);
+                }
+
+                .navbar form.input-group {
+                    max-width: 10rem !important;
+                }
+            }
         </style>
     </head>
     <body {% block body_attributes %}{% endblock body_attributes %}
           class="{% block body_class %}{% endblock body_class %}">
-        <nav class="navbar lg:navbar-expand bg-1" data-bs-theme="dark">
+        <nav class="navbar sm:navbar-expand bg-1" data-bs-theme="dark">
             <div class="container">
                 <a class="navbar-brand fw-bold" href="{% url 'core:dashboard' %}">TTVDrops</a>
                 <dialog class="drawer drawer-end"

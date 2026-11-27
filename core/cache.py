@@ -87,9 +87,9 @@ _ROUTE_TABLE: tuple[tuple[str, RouteSpec], ...] = (
     (r"^/sitemap-twitch", RouteSpec("sitemap-twitch", 3600, ("twitch",))),
     (r"^/sitemap-kick\.xml$", RouteSpec("sitemap-kick", 3600, ("kick",))),
     (r"^/sitemap-(?:static|youtube)\.xml$", RouteSpec("sitemap-static", 3600)),
-    (r"^/(?:rss|atom|discord)/", RouteSpec("twitch-feed", 300, ("twitch",))),
-    (r"^/kick/(?:rss|atom|discord)/", RouteSpec("kick-feed", 300, ("kick",))),
-    (r"^/chzzk/(?:rss|atom|discord)/", RouteSpec("chzzk-feed", 300, ("chzzk",))),
+    (r"^/(?:rss|atom|discord)/", RouteSpec("twitch-feed", 60, ("twitch",))),
+    (r"^/kick/(?:rss|atom|discord)/", RouteSpec("kick-feed", 60, ("kick",))),
+    (r"^/chzzk/(?:rss|atom|discord)/", RouteSpec("chzzk-feed", 60, ("chzzk",))),
     (
         r"^/twitch/campaigns/(?P<twitch_id>[^/]+)/$",
         RouteSpec(

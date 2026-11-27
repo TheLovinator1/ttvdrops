@@ -23,7 +23,9 @@ from django.db.models.functions import Coalesce
 from django.db.models.functions import Length
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.timesince import timesince
 
@@ -35,6 +37,8 @@ if TYPE_CHECKING:
     from django.db.models import QuerySet
 
 logger: logging.Logger = logging.getLogger("ttvdrops")
+
+MIN_LINKABLE_CHANNEL_NAME_LENGTH = 2
 
 
 def _external_slug(value: str) -> str:
@@ -1964,6 +1968,116 @@ class DropCampaign(auto_prefetch.Model):
         if self.start_at is None or self.end_at is None:
             return False
         return self.start_at <= now <= self.end_at
+
+    @property
+    def reward_summary(self) -> str:
+        """Human-readable sentence listing the campaign's rewards.
+
+        Badge rewards get a "badge" suffix unless their name already ends
+        with the word "badge".
+
+        Returns:
+            A summary sentence, or an empty string when there are no rewards.
+        """
+        reward_names: list[str] = []
+        seen_names: set[str] = set()
+        drops = sorted(
+            self.time_based_drops.all(),  # pyright: ignore[reportAttributeAccessIssue]
+            key=lambda drop: (drop.required_minutes_watched or 0, drop.twitch_id),
+        )
+
+        for drop in drops:
+            for benefit in drop.benefits.all():  # pyright: ignore[reportAttributeAccessIssue]
+                name: str = benefit.name.strip()
+                if not name:
+                    continue
+
+                if (
+                    benefit.distribution_type == "BADGE"
+                    and not name.casefold().endswith("badge")
+                ):
+                    name = f"{name} badge"
+
+                key: str = name.casefold()
+                if key in seen_names:
+                    continue
+                seen_names.add(key)
+                reward_names.append(name)
+
+        if not reward_names:
+            return ""
+
+        if len(reward_names) == 1:
+            rewards_text: str = reward_names[0]
+        else:
+            rewards_text = f"{', '.join(reward_names[:-1])} and {reward_names[-1]}"
+
+        return f"Campaign gives {rewards_text}"
+
+    @property
+    def description_with_links(self) -> str:
+        """Campaign description with known channel names linked to Twitch.
+
+        Returns:
+            The description with allowed channel names wrapped in profile links.
+        """
+        description: str = self.description or ""
+        channels = getattr(self, "channels_ordered", None)
+        if channels is None:
+            channels = list(self.allow_channels.all())  # pyright: ignore[reportAttributeAccessIssue]
+
+        name_urls: dict[str, str] = {}
+        for channel in channels:
+            profile_name: str = channel.name or channel.display_name
+            if not profile_name:
+                continue
+            profile_url: str = f"https://www.twitch.tv/{profile_name}"
+            variants = [
+                channel.display_name,
+                channel.name,
+                *(channel.display_names or []),
+            ]
+            for variant in variants:
+                if variant and len(variant) >= MIN_LINKABLE_CHANNEL_NAME_LENGTH:
+                    name_urls.setdefault(variant.casefold(), profile_url)
+
+        if not description or not name_urls:
+            return description
+
+        ordered_names: list[str] = sorted(
+            name_urls,
+            key=len,
+            reverse=True,
+        )
+        pattern = re.compile(
+            r"(?<!\w)(?P<name>"
+            + "|".join(re.escape(name) for name in ordered_names)
+            + r")(?!\w)",
+            re.IGNORECASE,
+        )
+
+        parts: list[str] = []
+        last_index: int = 0
+        for match in pattern.finditer(description):
+            matched_name: str = match.group("name")
+            profile_url = name_urls.get(matched_name.casefold(), "")
+            if not profile_url:
+                continue
+            parts.extend((
+                escape(description[last_index : match.start()]),
+                format_html(
+                    '<a href="{}" target="_blank" rel="noopener">{}</a>',
+                    profile_url,
+                    matched_name,
+                ),
+            ))
+            last_index = match.end()
+
+        if not parts:
+            return description
+
+        parts.append(escape(description[last_index:]))
+        return mark_safe("".join(parts))  # ruff: ignore[suspicious-mark-safe-usage] - text is escaped above
 
     @property
     def clean_name(self) -> str:
