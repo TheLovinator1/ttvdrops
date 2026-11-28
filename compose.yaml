@@ -2,7 +2,7 @@ name: ttvdrops
 
 services:
   db:
-    image: postgres:18-trixie
+    image: postgres:19-trixie
     environment:
       POSTGRES_DB: ttvdrops
       POSTGRES_USER: ttvdrops
