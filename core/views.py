@@ -1138,11 +1138,13 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
     seo_context: dict[str, Any] = _build_seo_context(
         page_title="Twitch, Kick and Chzzk Drops, Rewards and Campaigns",
         page_description=(
-            "RSS feeds, historical data, and information about Twitch and Kick drops, campaigns, rewards, and more."
+            "Live and archived drops, rewards and campaigns for Twitch, Kick and "
+            "Chzzk. Browse campaigns, follow RSS feeds, or query the free JSON API."
         ),
         og_type="website",
         schema_data=website_schema,
     )
+    seo_context["discord_embed_buttons"] = []
 
     return render(
         request,

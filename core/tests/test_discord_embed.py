@@ -326,18 +326,14 @@ def test_home_page_includes_embed(client: Client) -> None:
     text_component: dict[str, Any] = payload["component"]["components"][0]
     assert (
         text_component["components"][0]["content"]
-        == "# **[Twitch, Kick and Chzzk Drops, Rewards and Campaigns](https://ttvdrops.lovinator.space/)**\nRSS feeds, historical data, and information about Twitch and Kick drops, campaigns, rewards, and more."
+        == "# **[Twitch, Kick and Chzzk Drops, Rewards and Campaigns](https://ttvdrops.lovinator.space/)**\nLive and archived drops, rewards and campaigns for Twitch, Kick and Chzzk. Browse campaigns, follow RSS feeds, or query the free JSON API."
     )
     assert (
         text_component["accessory"]["media"]["url"]
         == "https://ttvdrops.lovinator.space/static/android-chrome-512x512.png"
     )
 
-    buttons: dict[str, str] = {
-        button["label"]: button["url"] for button in _buttons(payload)
-    }
-    assert list(buttons) == ["Twitch Drops", "Kick Drops", "Datasets"]
-    assert buttons["Twitch Drops"] == "https://ttvdrops.lovinator.space/twitch/"
+    assert _buttons(payload) == []
 
     match = EMBED_PATTERN.search(content)
     assert match is not None
