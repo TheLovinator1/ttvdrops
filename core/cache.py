@@ -165,7 +165,6 @@ _EXCLUDED_PREFIXES: tuple[str, ...] = (
     "/api/v1/docs",
     "/api/v1/openapi.json",
     "/datasets/download/",
-    "/debug/",
     "/media/",
     "/search/",
     "/static/",

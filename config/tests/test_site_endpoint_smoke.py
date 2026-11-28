@@ -210,7 +210,6 @@ class SiteEndpointSmokeTest(TestCase):
             # Core endpoints
             ("core:dashboard", {}, 200),
             ("core:search", {}, 200),
-            ("core:debug", {}, 200),
             ("core:dataset_backups", {}, 200),
             ("core:dataset_backup_download", {"relative_path": self.dataset_name}, 200),
             ("core:docs_rss", {}, 200),

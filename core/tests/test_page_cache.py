@@ -206,7 +206,6 @@ class TestRouteTable:
         "path",
         [
             "/search/",
-            "/debug/",
             "/datasets/download/file.json/",
             "/favicon.ico",
             "/channels/",

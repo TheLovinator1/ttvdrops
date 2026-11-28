@@ -1744,13 +1744,6 @@ class TestChannelListView:
         )
 
     @pytest.mark.django_db
-    def test_debug_view(self, client: Client) -> None:
-        """Test debug view returns 200 and has games_without_owner in context."""
-        response: _MonkeyPatchedWSGIResponse = client.get(reverse("core:debug"))
-        assert response.status_code == 200
-        assert "games_without_owner" in response.context
-
-    @pytest.mark.django_db
     def test_drop_campaign_list_view(self, client: Client) -> None:
         """Test campaign list view returns 200 and has campaigns in context."""
         response: _MonkeyPatchedWSGIResponse = client.get(

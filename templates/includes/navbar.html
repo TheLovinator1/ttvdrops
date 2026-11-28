@@ -2,7 +2,6 @@
     <nav aria-label="Main navigation">
         <a href="{% url 'core:dashboard' %}">Dashboard</a> |
         <a href="{% url 'core:docs_rss' %}">RSS</a> |
-        <a href="{% url 'core:debug' %}">Debug</a> |
         <a href="{% url 'core:dataset_backups' %}">Dataset</a> |
         <a href="https://github.com/TheLovinator1/ttvdrops/issues">Issues</a> |
         <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
@@ -14,11 +13,11 @@
               method="get"
               role="search"
               style="display: inline">
-            <label for="site-search">Search:</label>
             <input type="search"
                    id="site-search"
                    name="q"
                    placeholder="Search..."
+                   aria-label="Search"
                    value="{{ request.GET.q }}" />
             <button type="submit">Search</button>
         </form>

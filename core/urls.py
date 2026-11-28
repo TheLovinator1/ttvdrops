@@ -6,7 +6,6 @@ from core.views import about_view
 from core.views import dashboard
 from core.views import dataset_backup_download_view
 from core.views import dataset_backups_view
-from core.views import debug_view
 from core.views import docs_mcp_view
 from core.views import docs_rss_view
 from core.views import mcp_server_card_view
@@ -55,12 +54,6 @@ urlpatterns: list[URLPattern | URLResolver] = [
         route="search/",
         view=search_view,
         name="search",
-    ),
-    # /debug/
-    path(
-        route="debug/",
-        view=debug_view,
-        name="debug",
     ),
     # /datasets/
     path(

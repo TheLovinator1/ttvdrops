@@ -37,7 +37,6 @@ def test_sitemap_static_contains_expected_links(
     expected_paths = [
         reverse("core:dashboard"),
         reverse("core:search"),
-        reverse("core:debug"),
         reverse("core:dataset_backups"),
         reverse("core:docs_rss"),
         reverse("core:docs_mcp"),

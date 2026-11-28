@@ -1341,7 +1341,6 @@ URL_NAMES: list[tuple[str, dict[str, str]]] = [
     ("twitch:campaign_detail", {"twitch_id": "test-campaign-123"}),
     ("twitch:channel_list", {}),
     ("twitch:channel_detail", {"twitch_id": "test-channel-123"}),
-    ("core:debug", {}),
     ("core:docs_rss", {}),
     ("twitch:emote_gallery", {}),
     ("twitch:games_grid", {}),
