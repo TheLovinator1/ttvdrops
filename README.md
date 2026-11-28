@@ -15,6 +15,14 @@ historical reference, and lets you subscribe to RSS/Atom feeds so you never miss
 offer. All historical campaign data is available as [open datasets](https://github.com/TheLovinator1/ttvdrops)
 licensed under CC0.
 
+## Contact
+
+Found a bug or have an idea? Please [open an issue](https://github.com/TheLovinator1/ttvdrops/issues/new).
+Include as much detail as possible, including what you expected, what happened, and steps to reproduce.
+
+You can also email [tlovinator@gmail.com](mailto:tlovinator@gmail.com) or reach out on Discord
+([TheLovinator](https://discord.com/users/126462229892694018)).
+
 ## Features
 
 - **Multi-platform**: Twitch, Kick, and Chzzk
@@ -75,14 +83,6 @@ Other sites that track Twitch drops:
 - [BadgeEmoteHQ](https://badgeemotehq.hipdiscovery.com/twitch)
 - [Drop Lookout](https://www.botscabin.com/drop-lookout)
 - [DropScope](https://www.dropscope.games/)
-
-## Bug reports & feature requests
-
-Found a bug or have an idea? Please [open an issue](https://github.com/TheLovinator1/ttvdrops/issues/new).
-Include as much detail as possible, including what you expected, what happened, and steps to reproduce.
-
-You can also email [tlovinator@gmail.com](mailto:tlovinator@gmail.com) or reach out on Discord
-(**TheLovinator** / `TheLovinator#9276`).
 
 ## Contributing
 
