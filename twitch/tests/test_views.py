@@ -218,6 +218,27 @@ class TestSearchView:
         result_key: str = result_key_map[model_key]
         assert sample_data[model_key] in context["results"][result_key]
 
+    def test_short_query_matches_inside_benefit_name(
+        self,
+        client: Client,
+        sample_data: dict[
+            str,
+            Organization | Game | DropCampaign | TimeBasedDrop | DropBenefit,
+        ],
+    ) -> None:
+        """Short queries should match inside benefit names, ignoring trailing spaces."""
+        sample_data["benefit"].name = "Secret Crate:S15\uff08Epic\uff09"
+        sample_data["benefit"].save(update_fields=["name"])
+        sample_data["drop"].benefits.add(sample_data["benefit"])
+
+        response = client.get(reverse("core:search"), {"q": "\uff08 "})
+        context = self._get_context(response)
+
+        assert response.status_code == 200
+        assert sample_data["benefit"] in context["results"]["benefits"]
+        assert sample_data["drop"] in context["results"]["drops"]
+        assert sample_data["campaign"] in context["results"]["campaigns"]
+
     @pytest.mark.parametrize(
         "model_key",
         ["org", "game", "campaign", "drop", "benefit"],
@@ -2111,6 +2132,8 @@ class TestChannelListView:
         # The campaign detail page prints a syntax-highlighted JSON block; the badge description should be present.
         html = response.content.decode("utf-8")
         assert "This badge was earned by subscribing." in html
+        assert "1 subscription required" in html
+        assert "0 minutes watched" not in html
 
     @pytest.mark.django_db
     def test_drop_campaign_detail_badge_queries_stay_flat(self, client: Client) -> None:
@@ -2255,9 +2278,21 @@ class TestChannelListView:
     @pytest.mark.django_db
     def test_games_list_view(self, client: Client) -> None:
         """Test games list view returns 200 and has games in context."""
+        game: Game = Game.objects.create(
+            twitch_id="games-list-table-game",
+            name="Games List Table Game",
+            display_name="Games List Table Game",
+        )
+        DropCampaign.objects.create(
+            twitch_id="games-list-table-campaign",
+            name="Games List Table Campaign",
+            game=game,
+            operation_names=[],
+        )
         response: _MonkeyPatchedWSGIResponse = client.get(reverse("twitch:games_list"))
         assert response.status_code == 200
         assert "games" in response.context
+        assert 'id="games-list-table"' in response.content.decode()
 
     @pytest.mark.django_db
     def test_game_detail_view(self, client: Client, db: None) -> None:
@@ -3727,7 +3762,9 @@ class TestSEOMetaTags:
 
         description: str = response.context["page_description"]
         assert description.startswith("Test Game")
-        assert "1 active · 1 upcoming · 3 campaigns · 0 rewards" in description
+        assert "1 active" in description
+        assert "1 upcoming" in description
+        assert "out of 3 archived campaigns" in description
         assert len(description) >= MIN_META_DESCRIPTION_LENGTH
 
     def test_game_detail_embed_buttons_are_game_specific(
@@ -4275,6 +4312,26 @@ class TestDropCampaignImageFallback:
         drop.benefits.add(benefit)
 
         assert campaign.image_best_url == "https://example.com/benefit.png"
+
+    def test_default_campaign_image_is_treated_as_missing(self) -> None:
+        """Twitch's placeholder campaign image should not be displayed."""
+        game: Game = Game.objects.create(
+            twitch_id="game1",
+            name="test_game",
+            display_name="Test Game",
+        )
+        campaign: DropCampaign = DropCampaign.objects.create(
+            twitch_id="camp1",
+            name="Test Campaign",
+            game=game,
+            image_url=(
+                "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/default.png"
+            ),
+        )
+
+        assert not campaign.image_best_url
+        assert not campaign.listing_image_url
+        assert not campaign.dashboard_image_url
 
     def test_image_best_url_prefers_campaign_image_over_benefit_image(self) -> None:
         """Test that campaign image is preferred over benefit image."""

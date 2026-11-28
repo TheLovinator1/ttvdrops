@@ -1,128 +1,75 @@
 {% extends "base.html" %}
 {% load static %}
-{% block extra_head %}
-    <link rel="stylesheet" href="{% static 'history.css' %}" />
-{% endblock extra_head %}
 {% block content %}
-    <main class="history-page">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item"
-                        {% if not entity_name %}aria-current="page"{% endif %}>
-                        <a class="breadcrumb-link{% if not entity_name %} active{% endif %}"
-                           href="{% url 'twitch:history' %}">History</a>
-                    </li>
-                    {% if entity_name %}
-                        <li class="breadcrumb-divider"></li>
-                        <li class="breadcrumb-item" aria-current="page">
-                            <span class="breadcrumb-link active">{{ entity_name }}</span>
-                        </li>
-                    {% endif %}
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">{{ history_title }}</h1>
-                        <span class="badge badge-subtle theme-secondary">
-                            {{ events|length }} event{{ events|length|pluralize }}
-                        </span>
-                    </div>
-                    <p class="fg-2 mb-0 text-pretty" style="max-width: 80ch;">{{ history_description }}</p>
-                </div>
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+                <li {% if not entity_name %}aria-current="page"{% endif %}>
+                    <a href="{% url 'twitch:history' %}">History</a>
+                </li>
                 {% if entity_name %}
-                    <a href="{{ entity_url }}"
-                       class="btn-outline theme-secondary align-self-start md:align-self-auto">← Back to {{ entity_name }}</a>
+                    <li aria-current="page">{{ entity_name }}</li>
                 {% endif %}
-            </div>
-        </header>
-        {% if show_filters %}
-            <form method="get"
-                  action="{% url 'twitch:history' %}"
-                  class="card bg-1 p-4 mb-4"
-                  aria-label="History filters">
-                <div class="row g-3 align-items-end">
-                    <div class="col-12 sm:col-6 lg:col-3">
-                        <label class="form-label fs-xs fw-semibold fg-3 text-uppercase"
-                               for="history-model">Object</label>
-                        <select class="form-control"
-                                id="history-model"
-                                name="model"
-                                onchange="this.form.submit()">
-                            {% for option in model_options %}
-                                <option value="{{ option.value }}"
-                                        {% if selected_model == option.value %}selected{% endif %}>
-                                    {{ option.label }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 sm:col-6 lg:col-2">
-                        <label class="form-label fs-xs fw-semibold fg-3 text-uppercase"
-                               for="history-action">Action</label>
-                        <select class="form-control"
-                                id="history-action"
-                                name="action"
-                                onchange="this.form.submit()">
-                            {% for option in action_options %}
-                                <option value="{{ option.value }}"
-                                        {% if selected_action == option.value %}selected{% endif %}>
-                                    {{ option.label }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 sm:col-6 lg:col-2">
-                        <label class="form-label fs-xs fw-semibold fg-3 text-uppercase"
-                               for="history-period">Period</label>
-                        <select class="form-control"
-                                id="history-period"
-                                name="period"
-                                onchange="this.form.submit()">
-                            {% for option in period_options %}
-                                <option value="{{ option.value }}"
-                                        {% if selected_period == option.value %}selected{% endif %}>
-                                    {{ option.label }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 sm:col-6 lg:col-3">
-                        <label class="form-label fs-xs fw-semibold fg-3 text-uppercase"
-                               for="history-search">Search</label>
-                        <input class="form-control"
-                               id="history-search"
-                               type="search"
-                               name="q"
-                               value="{{ search_query }}"
-                               placeholder="Campaign, drop, game, org…" />
-                    </div>
-                    <div class="col-12 lg:col-2 d-flex gap-2">
-                        <button class="btn-solid theme-primary flex-grow-1" type="submit">Apply</button>
-                        <a href="{% url 'twitch:history' %}" class="btn-outline theme-secondary">Reset</a>
-                    </div>
-                </div>
-            </form>
+            </ol>
+        </nav>
+        <h2>{{ history_title }}</h2>
+        <p>
+            {{ history_description }}
+            <small>{{ events|length }} event{{ events|length|pluralize }}.</small>
+        </p>
+        {% if entity_name %}
+            <p><a href="{{ entity_url }}">&larr; Back to {{ entity_name }}</a></p>
         {% endif %}
-        <section aria-labelledby="history-events-heading">
-            <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
-                <div>
-                    <h2 id="history-events-heading" class="h5 mb-1">Change log</h2>
-                    <p class="fs-sm fg-3 mb-0">Every tracked change, newest first.</p>
-                </div>
-                <span class="fs-xs fg-3">Times shown in your local timezone</span>
-            </div>
-            {% include "twitch/includes/history_table.html" %}
+    </header>
+    {% if show_filters %}
+        <section aria-label="History filters">
+            <h3>Filter history</h3>
+            <form method="get" action="{% url 'twitch:history' %}">
+                <p>
+                    <label for="history-model">Object:</label>
+                    <select id="history-model" name="model" onchange="this.form.submit()">
+                        {% for option in model_options %}
+                            <option value="{{ option.value }}" {% if selected_model == option.value %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <p>
+                    <label for="history-action">Action:</label>
+                    <select id="history-action" name="action" onchange="this.form.submit()">
+                        {% for option in action_options %}
+                            <option value="{{ option.value }}" {% if selected_action == option.value %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <p>
+                    <label for="history-period">Period:</label>
+                    <select id="history-period" name="period" onchange="this.form.submit()">
+                        {% for option in period_options %}
+                            <option value="{{ option.value }}" {% if selected_period == option.value %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <p>
+                    <label for="history-search">Search:</label>
+                    <input id="history-search"
+                           type="search"
+                           name="q"
+                           value="{{ search_query }}"
+                           placeholder="Campaign, drop, game, org..." />
+                    <button type="submit">Apply</button>
+                    <a href="{% url 'twitch:history' %}">Reset</a>
+                </p>
+            </form>
         </section>
-        {% include "includes/pagination.html" %}
-    </main>
+    {% endif %}
+    <section aria-labelledby="history-events-heading">
+        <header>
+            <h3 id="history-events-heading">Change log</h3>
+            <p>Every tracked change, newest first. <small>Times are shown in your local timezone.</small></p>
+        </header>
+        {% include "twitch/includes/history_table.html" %}
+    </section>
+    {% include "includes/pagination.html" %}
 {% endblock content %}

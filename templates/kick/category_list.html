@@ -14,106 +14,46 @@
           href="{% url 'kick:game_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Games</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">All Games</h1>
-                        <span class="badge badge-subtle theme-secondary">
-                            {{ categories|length }} game{{ categories|length|pluralize }}
-                        </span>
-                    </div>
-                    <p class="fg-2 mb-0">Games on Kick with drop campaigns.</p>
-                </div>
-                <div class="d-flex flex-wrap align-items-center gap-2 align-self-start md:align-self-auto">
-                    <a class="btn-outline theme-secondary btn-sm"
-                       href="{% url 'kick:game_list_table' %}"
-                       title="View games as a list">List view</a>
-                    {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                    <div>
-                        <button class="btn-outline theme-secondary btn-sm"
-                                type="button"
-                                data-bs-toggle="menu"
-                                data-bs-placement="bottom-end"
-                                aria-expanded="false">Subscribe ▾</button>
-                        <div class="menu">
-                            <h6 class="menu-header">Feeds</h6>
-                            <a class="menu-item"
-                               href="{% url 'kick:game_feed' %}"
-                               title="RSS feed for all games">RSS</a>
-                            <a class="menu-item"
-                               href="{% url 'kick:game_feed_atom' %}"
-                               title="Atom feed for all games">Atom</a>
-                            <a class="menu-item"
-                               href="{% url 'kick:game_feed_discord' %}"
-                               title="Discord-flavored feed for all games">Discord-flavored</a>
-                            <hr class="menu-divider" />
-                            <h6 class="menu-header">Developer &amp; Help</h6>
-                            <a class="menu-item"
-                               href="{% url 'api-v1:kick-api-v1_list_games' %}"
-                               title="Kick games API">API</a>
-                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
-        {% if categories %}
-            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'kick:dashboard' %}">Kick</a></li>
+                <li aria-current="page">Games</li>
+            </ol>
+        </nav>
+        <h2>All Games</h2>
+        {% include "includes/games_view_tabs.html" with grid_url_name="kick:game_list" list_url_name="kick:game_list_table" active_view="grid" %}
+        {% include "includes/link_footer.html" with rss_url_name="kick:game_feed" atom_url_name="kick:game_feed_atom" discord_url_name="kick:game_feed_discord" api_url_name="api-v1:kick-api-v1_list_games" docs_url_name="core:docs_rss" %}
+    </header>
+    {% if categories %}
+        <section aria-label="Games grouped by category">
+            <div class="game-grid">
                 {% for category in categories %}
-                    <article class="card bg-1 hover-lift overflow-hidden">
-                        <div class="overflow-hidden bg-2" style="aspect-ratio: 3 / 4">
-                            <a href="{% url 'kick:game_detail' category.kick_id %}"
-                               class="d-block w-100 h-100">
-                                {% if category.image_url %}
-                                    <img src="{{ category.image_url }}"
+                    <article class="game-card">
+                        <div>
+                            {% if category.image_url %}
+                                <a href="{% url 'kick:game_detail' category.kick_id %}">
+                                    <img class="kick-game-image"
+                                         src="{{ category.image_url }}"
                                          alt="Artwork for {{ category.name }}"
-                                         width="320"
-                                         height="427"
-                                         loading="lazy"
-                                         class="w-100 h-100 object-fit-contain d-block" />
-                                {% else %}
-                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">
-                                        No Artwork
-                                    </div>
-                                {% endif %}
-                            </a>
+                                         width="180"
+                                         loading="lazy" />
+                                </a>
+                            {% else %}
+                                <small>No image</small>
+                            {% endif %}
                         </div>
-                        <div class="card-body p-2">
-                            <h2 class="h6 card-title mb-1">
-                                <a href="{% url 'kick:game_detail' category.kick_id %}"
-                                   class="text-decoration-none fg-1">{{ category.name }}</a>
-                            </h2>
-                            <p class="fs-xs fg-3 mb-0">
-                                {{ category.campaign_count }} campaign{{ category.campaign_count|pluralize }}
-                            </p>
-                        </div>
+                        <h4>
+                            <a href="{% url 'kick:game_detail' category.kick_id %}">{{ category.name }}</a>
+                        </h4>
+                        <p><small>{{ category.campaign_count }} campaign{{ category.campaign_count|pluralize }}</small></p>
                     </article>
                 {% endfor %}
             </div>
-        {% else %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No Games Found</h2>
-                    <p class="fg-2 mb-0">No games are currently available.</p>
-                </div>
-            </section>
-        {% endif %}
-    </main>
+        </section>
+    {% else %}
+        <h3>No Games Found</h3>
+        <p>No games are currently available.</p>
+    {% endif %}
 {% endblock content %}

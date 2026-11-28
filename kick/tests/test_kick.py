@@ -275,6 +275,22 @@ class KickRewardFullImageUrlTest(TestCase):
             == "https://ext.cdn.kick.com/drops/reward-image/abc.png"
         )
 
+    def test_kick_cdn_avif_images_keep_original_url(self) -> None:
+        """Kick CDN AVIF reward images should keep the original URL."""
+        reward: KickReward = self._make_reward("drops/reward-image/abc.avif")
+        assert (
+            reward.full_image_url
+            == "https://ext.cdn.kick.com/drops/reward-image/abc.avif"
+        )
+        assert reward.image_best_url == reward.full_image_url
+
+    def test_image_best_url_prefers_local_file(self) -> None:
+        """A cached local reward image should be used instead of the API URL."""
+        reward: KickReward = self._make_reward("drops/reward-image/abc.avif")
+        reward.image_file.name = "kick/rewards/images/abc.png"
+
+        assert reward.image_best_url.endswith("/kick/rewards/images/abc.png")
+
     def test_absolute_image_url_unchanged(self) -> None:
         """If image_url is already absolute, full_image_url should return it unchanged."""
         reward: KickReward = self._make_reward("https://example.com/image.png")

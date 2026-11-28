@@ -1,0 +1,68 @@
+<header>
+    <nav aria-label="Main navigation">
+        <a href="{% url 'core:dashboard' %}">Dashboard</a> |
+        <a href="{% url 'core:docs_rss' %}">RSS</a> |
+        <a href="{% url 'core:debug' %}">Debug</a> |
+        <a href="{% url 'core:dataset_backups' %}">Dataset</a> |
+        <a href="https://github.com/TheLovinator1/ttvdrops/issues">Issues</a> |
+        <a href="https://github.com/sponsors/TheLovinator1">Donate</a> |
+        <a href="https://github.com/TheLovinator1/ttvdrops">GitHub</a> |
+        <a href="{% url 'api-v1:openapi-view' %}">API Docs</a> |
+        <a href="{% url 'core:docs_mcp' %}">MCP</a> |
+        <a href="{% url 'core:about' %}">About</a> |
+        <form action="{% url 'core:search' %}"
+              method="get"
+              role="search"
+              style="display: inline">
+            <label for="site-search">Search:</label>
+            <input type="search"
+                   id="site-search"
+                   name="q"
+                   placeholder="Search..."
+                   value="{{ request.GET.q }}" />
+            <button type="submit">Search</button>
+        </form>
+        <br />
+        <strong>Twitch</strong>
+        <a href="{% url 'twitch:campaign_list' %}">Campaigns</a> |
+        <a href="{% url 'twitch:reward_campaign_list' %}">Rewards</a> |
+        <a href="{% url 'twitch:games_grid' %}">Games</a> |
+        <a href="{% url 'twitch:org_list' %}">Orgs</a> |
+        <a href="{% url 'twitch:channel_list' %}">Channels</a> |
+        <a href="{% url 'twitch:badge_list' %}">Badges</a> |
+        <a href="{% url 'twitch:emote_gallery' %}">Emotes</a> |
+        <a href="{% url 'twitch:stats' %}">Stats</a> |
+        <a href="{% url 'twitch:history' %}">History</a> |
+        <a href="https://www.twitch.tv/drops/inventory"
+           title="Open the Twitch Drops Inventory on an external site">
+            Inventory
+            <svg viewBox="0 0 24 24"
+                 width="1em"
+                 height="1em"
+                 fill="none"
+                 stroke="currentColor"
+                 stroke-width="2"
+                 stroke-linecap="round"
+                 stroke-linejoin="round"
+                 aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+        </a>
+        <br />
+        <strong>Kick</strong>
+        <a href="{% url 'kick:dashboard' %}">Dashboard</a> |
+        <a href="{% url 'kick:campaign_list' %}">Campaigns</a> |
+        <a href="{% url 'kick:game_list' %}">Games</a> |
+        <a href="{% url 'kick:organization_list' %}">Organizations</a>
+        <br />
+        <strong>Chzzk</strong>
+        <a href="{% url 'chzzk:dashboard' %}">Dashboard</a> |
+        <a href="{% url 'chzzk:campaign_list' %}">Campaigns</a> |
+        <a href="{% url 'chzzk:game_list' %}">Games</a>
+        <br />
+        <strong>Other sites</strong>
+        <a href="{% url 'youtube:index' %}">YouTube</a>
+    </nav>
+</header>

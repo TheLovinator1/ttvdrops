@@ -1,57 +1,74 @@
 {% extends "base.html" %}
 {% block content %}
-    <div id="search-results-container">
-        <h1 id="page-title">Search Results for "{{ query }}"</h1>
-        {% if not results.organizations and not results.games and not results.campaigns and not results.drops and not results.benefits and not results.reward_campaigns and not results.badge_sets and not results.badges %}
-            <p id="no-results">No results found.</p>
-        {% else %}
-            {% if results.organizations %}
-                <h2 id="organizations-header">Organizations</h2>
-                <ul id="organizations-list">
+    <nav aria-label="Breadcrumb">
+        <ol>
+            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+            <li aria-current="page">Search</li>
+        </ol>
+    </nav>
+    <header>
+        <h2>Search Results for "{{ query }}"</h2>
+    </header>
+    {% if not results.organizations and not results.games and not results.campaigns and not results.drops and not results.benefits and not results.reward_campaigns and not results.badge_sets and not results.badges %}
+        <p>No results found.</p>
+    {% else %}
+        {% if results.organizations %}
+            <section aria-labelledby="organizations-header">
+                <h3 id="organizations-header">Organizations</h3>
+                <ul>
                     {% for org in results.organizations %}
                         <li id="org-{{ org.twitch_id }}">
                             <a href="{% url 'twitch:organization_detail' org.twitch_id %}">{{ org.name }}</a>
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
-            {% if results.games %}
-                <h2 id="games-header">Games</h2>
-                <ul id="games-list">
+            </section>
+        {% endif %}
+        {% if results.games %}
+            <section aria-labelledby="games-header">
+                <h3 id="games-header">Games</h3>
+                <ul>
                     {% for game in results.games %}
                         <li id="game-{{ game.twitch_id }}">
                             <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.display_name }}</a>
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
-            {% if results.campaigns %}
-                <h2 id="campaigns-header">Campaigns</h2>
-                <ul id="campaigns-list">
+            </section>
+        {% endif %}
+        {% if results.campaigns %}
+            <section aria-labelledby="campaigns-header">
+                <h3 id="campaigns-header">Campaigns</h3>
+                <ul>
                     {% for campaign in results.campaigns %}
                         <li id="campaign-{{ campaign.twitch_id }}">
                             <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.name }}</a>
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
-            {% if results.drops %}
-                <h2 id="drops-header">Drops</h2>
-                <ul id="drops-list">
+            </section>
+        {% endif %}
+        {% if results.drops %}
+            <section aria-labelledby="drops-header">
+                <h3 id="drops-header">Drops</h3>
+                <ul>
                     {% for drop in results.drops %}
                         <li id="drop-{{ drop.twitch_id }}">
                             {% if drop.campaign and drop.campaign.twitch_id %}
-                                <a href="{% url 'twitch:campaign_detail' drop.campaign.twitch_id %}">{{ drop.name }}</a> (in {{ drop.campaign.name }})
+                                <a href="{% url 'twitch:campaign_detail' drop.campaign.twitch_id %}">{{ drop.name }}</a>
+                                (in {{ drop.campaign.name }})
                             {% else %}
                                 {{ drop.name }}
                             {% endif %}
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
-            {% if results.benefits %}
-                <h2 id="benefits-header">Benefits</h2>
-                <ul id="benefits-list">
+            </section>
+        {% endif %}
+        {% if results.benefits %}
+            <section aria-labelledby="benefits-header">
+                <h3 id="benefits-header">Benefits</h3>
+                <ul>
                     {% for benefit in results.benefits %}
                         <li id="benefit-{{ benefit.twitch_id }}">
                             {% with first_drop=benefit.drops.first %}
@@ -64,34 +81,38 @@
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
-            {% if results.reward_campaigns %}
-                <h2 id="reward-campaigns-header">Reward Campaigns</h2>
-                <ul id="reward-campaigns-list">
+            </section>
+        {% endif %}
+        {% if results.reward_campaigns %}
+            <section aria-labelledby="reward-campaigns-header">
+                <h3 id="reward-campaigns-header">Reward Campaigns</h3>
+                <ul>
                     {% for campaign in results.reward_campaigns %}
                         <li id="reward-campaign-{{ campaign.twitch_id }}">
-                            {% if campaign.brand %}
-                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">{{ campaign.brand }}: {{ campaign.name }}</a>
-                            {% else %}
-                                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">{{ campaign.name }}</a>
-                            {% endif %}
+                            <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                                {% if campaign.brand %}{{ campaign.brand }}: {% endif %}{{ campaign.name }}
+                            </a>
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
-            {% if results.badge_sets %}
-                <h2 id="badge-sets-header">Badge Sets</h2>
-                <ul id="badge-sets-list">
+            </section>
+        {% endif %}
+        {% if results.badge_sets %}
+            <section aria-labelledby="badge-sets-header">
+                <h3 id="badge-sets-header">Badge Sets</h3>
+                <ul>
                     {% for badge_set in results.badge_sets %}
                         <li id="badge-set-{{ badge_set.set_id }}">
                             <a href="{% url 'twitch:badge_set_detail' set_id=badge_set.set_id %}">{{ badge_set.set_id }}</a>
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
-            {% if results.badges %}
-                <h2 id="badges-header">Chat Badges</h2>
-                <ul id="badges-list">
+            </section>
+        {% endif %}
+        {% if results.badges %}
+            <section aria-labelledby="badges-header">
+                <h3 id="badges-header">Chat Badges</h3>
+                <ul>
                     {% for badge in results.badges %}
                         <li id="badge-{{ badge.badge_set.set_id }}-{{ badge.badge_id }}">
                             <a href="{% url 'twitch:badge_set_detail' set_id=badge.badge_set.set_id %}">{{ badge.title }}</a>
@@ -99,7 +120,7 @@
                         </li>
                     {% endfor %}
                 </ul>
-            {% endif %}
+            </section>
         {% endif %}
-    </div>
+    {% endif %}
 {% endblock content %}

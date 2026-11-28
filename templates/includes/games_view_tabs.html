@@ -1,0 +1,8 @@
+<nav class="page-tabs" aria-label="Games view">
+    <a class="page-tab"
+       href="{% url grid_url_name %}"
+       {% if active_view == "grid" %}aria-current="page"{% endif %}>Grid</a>
+    <a class="page-tab"
+       href="{% url list_url_name %}"
+       {% if active_view == "list" %}aria-current="page"{% endif %}>List</a>
+</nav>

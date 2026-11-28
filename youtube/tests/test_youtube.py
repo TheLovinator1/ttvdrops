@@ -125,8 +125,8 @@ class YouTubeIndexViewTest(TestCase):
         response: _MonkeyPatchedWSGIResponse = self.client.get(reverse("youtube:index"))
         content: str = response.content.decode()
 
-        activision_heading: str = ">Activision (Call of Duty)</h2>"
-        blizzard_heading: str = ">Battle.net / Blizzard</h2>"
+        activision_heading: str = ">Activision (Call of Duty)</h3>"
+        blizzard_heading: str = ">Battle.net / Blizzard</h3>"
 
         assert activision_heading in content
         assert blizzard_heading in content

@@ -1,0 +1,35 @@
+<script>
+    (() => {
+        const tabs = Array.from(document.querySelectorAll(".page-tab"));
+        const panels = document.querySelectorAll("[role='tabpanel']");
+        const defaultTab = tabs[0];
+
+        function activate(tab, updateUrl = false) {
+            tabs.forEach((item) => {
+                item.setAttribute("aria-selected", String(item === tab));
+            });
+            panels.forEach((panel) => {
+                panel.hidden = panel.id !== tab.dataset.tabTarget;
+            });
+            if (updateUrl) {
+                const url = new URL(window.location.href);
+                if (tab === defaultTab) {
+                    url.searchParams.delete("tab");
+                } else {
+                    url.searchParams.set("tab", tab.dataset.tabName);
+                }
+                window.history.replaceState({}, "", url);
+            }
+        }
+
+        const requestedTab = new URLSearchParams(window.location.search).get("tab");
+        const initialTab =
+            tabs.find((tab) => tab.dataset.tabName === requestedTab) || defaultTab;
+        if (initialTab) {
+            activate(initialTab);
+        }
+        tabs.forEach((tab) => {
+            tab.addEventListener("click", () => activate(tab, true));
+        });
+    })();
+</script>

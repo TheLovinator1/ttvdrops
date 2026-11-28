@@ -2,7 +2,6 @@
 {% load static %}
 {% load image_tags %}
 {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'history.css' %}" />
     {% if games %}
         {% for game in games %}
             <link rel="alternate"
@@ -21,206 +20,147 @@
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
-    <main>
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'twitch:org_list' %}">Organizations</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item" aria-current="page">
-                    <span class="breadcrumb-link active">{{ organization.name }}</span>
-                </li>
-            </ol>
-        </nav>
-        <ul class="nav nav-tabs mb-4"
-            role="tablist"
-            aria-label="Organization sections">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active"
-                        id="overview-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#overview-pane"
-                        type="button"
-                        role="tab"
-                        aria-controls="overview-pane"
-                        aria-selected="true">Overview</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link"
-                        id="history-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#history-pane"
-                        type="button"
-                        role="tab"
-                        aria-controls="history-pane"
-                        aria-selected="false">
-                    History
-                    {% if history_event_count %}
-                        <span class="badge badge-subtle theme-secondary ms-1">{{ history_event_count }}</span>
+    <nav aria-label="Breadcrumb">
+        <ol>
+            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+            <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+            <li><a href="{% url 'twitch:org_list' %}">Organizations</a></li>
+            <li aria-current="page">{{ organization.name }}</li>
+        </ol>
+    </nav>
+    <header>
+        <h2>{{ organization.name }}</h2>
+        <p>{{ org_game_summary }}</p>
+        <p>
+            <strong>{{ games_count }}</strong> game{{ games_count|pluralize }}
+            {% if total_campaigns %}&middot; <strong>{{ total_campaigns }}</strong> campaign{{ total_campaigns|pluralize }}{% endif %}
+        </p>
+        {% include "twitch/includes/external_site_links.html" with external_site_links=organization.external_site_links %}
+        <section aria-label="Organization details">
+            <h3>Organization details</h3>
+            <dl>
+                <dt>Organization ID</dt>
+                <dd><code>{{ organization.twitch_id }}</code></dd>
+                <dt>Published</dt>
+                <dd>
+                    <time datetime="{{ organization.added_at|date:'c' }}"
+                          title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time>
+                    <small>({{ organization.added_at|timesince }} ago)</small>
+                </dd>
+                <dt>Last updated</dt>
+                <dd>
+                    <time datetime="{{ organization.updated_at|date:'c' }}"
+                          title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time>
+                    <small>({{ organization.updated_at|timesince }} ago)</small>
+                </dd>
+            </dl>
+            {% if campaign_stats %}
+                <dl>
+                    {% if campaign_stats.active_campaigns %}
+                        <dt>Active</dt>
+                        <dd><data value="{{ campaign_stats.active_campaigns }}">{{ campaign_stats.active_campaigns }}</data></dd>
                     {% endif %}
-                </button>
-            </li>
-        </ul>
-        <div class="tab-content">
-            <div class="tab-pane fade show active"
-                 id="overview-pane"
-                 role="tabpanel"
-                 aria-labelledby="overview-tab"
-                 tabindex="0">
-                <header class="mb-5">
-                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
-                        <div>
-                            <h1 class="mb-2">{{ organization.name }}</h1>
-                            <p class="fs-sm fg-2 mb-0">
-                                <span class="fw-semibold">{{ games_count }}</span> game{{ games_count|pluralize }}
-                                {% if total_campaigns %}
-                                    · <span class="fw-semibold">{{ total_campaigns }}</span> campaign{{ total_campaigns|pluralize }}
-                                {% endif %}
-                            </p>
-                        </div>
-                        {% include "twitch/includes/external_site_links.html" with external_site_links=organization.external_site_links %}
-                    </div>
-                    <section class="card detail-card p-4" aria-label="Organization details">
-                        <dl class="row g-3 mb-0">
-                            <div class="col-12 md:col-4">
-                                <dt class="fs-xs fw-semibold fg-3 text-uppercase mb-1">Organization ID</dt>
-                                <dd class="mb-0">
-                                    <code class="fs-sm text-break">{{ organization.twitch_id }}</code>
-                                </dd>
-                            </div>
-                            <div class="col-12 sm:col-6 md:col-4">
-                                <dt class="fs-xs fw-semibold fg-3 text-uppercase mb-1">Published</dt>
-                                <dd class="mb-0">
-                                    <time datetime="{{ organization.added_at|date:'c' }}"
-                                          title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time>
-                                    <div class="fs-xs fg-3">{{ organization.added_at|timesince }} ago</div>
-                                </dd>
-                            </div>
-                            <div class="col-12 sm:col-6 md:col-4">
-                                <dt class="fs-xs fw-semibold fg-3 text-uppercase mb-1">Last updated</dt>
-                                <dd class="mb-0">
-                                    <time datetime="{{ organization.updated_at|date:'c' }}"
-                                          title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time>
-                                    <div class="fs-xs fg-3">{{ organization.updated_at|timesince }} ago</div>
-                                </dd>
-                            </div>
-                        </dl>
-                        {% if campaign_stats %}
-                            <hr class="border-subtle my-4" />
-                            <div class="row g-3"
-                                 role="group"
-                                 aria-label="Campaign statistics">
-                                {% if campaign_stats.active_campaigns %}
-                                    <div class="col-6 sm:col-4 lg:col d-flex flex-column justify-content-end">
-                                        <div class="fs-2xl fw-bold lh-1">{{ campaign_stats.active_campaigns }}</div>
-                                        <div class="fs-xs fw-semibold fg-3 text-uppercase mt-1">Active</div>
-                                    </div>
-                                {% endif %}
-                                {% if campaign_stats.upcoming_campaigns %}
-                                    <div class="col-6 sm:col-4 lg:col d-flex flex-column justify-content-end">
-                                        <div class="fs-2xl fw-bold lh-1">{{ campaign_stats.upcoming_campaigns }}</div>
-                                        <div class="fs-xs fw-semibold fg-3 text-uppercase mt-1">Upcoming</div>
-                                    </div>
-                                {% endif %}
-                                {% if campaign_stats.expired_campaigns %}
-                                    <div class="col-6 sm:col-4 lg:col d-flex flex-column justify-content-end">
-                                        <div class="fs-2xl fw-bold lh-1">{{ campaign_stats.expired_campaigns }}</div>
-                                        <div class="fs-xs fw-semibold fg-3 text-uppercase mt-1">Expired</div>
-                                    </div>
-                                {% endif %}
-                                {% if campaign_stats.first_campaign %}
-                                    <div class="col-6 sm:col-4 lg:col d-flex flex-column justify-content-end">
-                                        <div class="fs-2xl lh-1 text-nowrap">
-                                            <time class="fs-sm fw-semibold"
-                                                  datetime="{{ campaign_stats.first_campaign|date:'c' }}">{{ campaign_stats.first_campaign|date:"M d, Y" }}</time>
-                                        </div>
-                                        <div class="fs-xs fw-semibold fg-3 text-uppercase mt-1">First campaign</div>
-                                    </div>
-                                {% endif %}
-                                {% if campaign_stats.last_campaign %}
-                                    <div class="col-6 sm:col-4 lg:col d-flex flex-column justify-content-end">
-                                        <div class="fs-2xl lh-1 text-nowrap">
-                                            <time class="fs-sm fw-semibold"
-                                                  datetime="{{ campaign_stats.last_campaign|date:'c' }}">{{ campaign_stats.last_campaign|date:"M d, Y" }}</time>
-                                        </div>
-                                        <div class="fs-xs fw-semibold fg-3 text-uppercase mt-1">Latest campaign</div>
-                                    </div>
-                                {% endif %}
-                            </div>
-                        {% endif %}
-                    </section>
-                </header>
-                <h2 class="h5 mb-3">Games by {{ organization.name }}</h2>
-                <div class="table-card bg-1 border-subtle">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Game</th>
-                                    <th scope="col" class="text-end">Campaigns</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for game in games %}
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center gap-3">
-                                                <a href="{% url 'twitch:game_detail' game.twitch_id %}"
-                                                   class="flex-shrink-0 lh-1">
-                                                    {% if game.box_art_best_url %}
-                                                        {% picture game.box_art_best_url alt=game.get_game_name width=120 %}
-                                                    {% endif %}
-                                                </a>
-                                                <div>
-                                                    <a href="{% url 'twitch:game_detail' game.twitch_id %}"
-                                                       class="fw-semibold">{{ game.display_name }}</a>
-                                                    {% if game.slug %}<div class="fs-xs fg-3 mt-1">{{ game.slug }}</div>{% endif %}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="text-end">
-                                            <span class="badge badge-subtle theme-secondary">{{ game.campaign_count|default:0 }}</span>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="tab-pane fade"
-                 id="history-pane"
-                 role="tabpanel"
-                 aria-labelledby="history-tab"
-                 tabindex="0">
-                <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
+                    {% if campaign_stats.upcoming_campaigns %}
+                        <dt>Upcoming</dt>
+                        <dd><data value="{{ campaign_stats.upcoming_campaigns }}">{{ campaign_stats.upcoming_campaigns }}</data></dd>
+                    {% endif %}
+                    {% if campaign_stats.expired_campaigns %}
+                        <dt>Expired</dt>
+                        <dd><data value="{{ campaign_stats.expired_campaigns }}">{{ campaign_stats.expired_campaigns }}</data></dd>
+                    {% endif %}
+                    {% if campaign_stats.first_campaign %}
+                        <dt>First campaign</dt>
+                        <dd><time datetime="{{ campaign_stats.first_campaign|date:'c' }}">{{ campaign_stats.first_campaign|date:"M d, Y H:i" }}</time></dd>
+                    {% endif %}
+                    {% if campaign_stats.last_campaign %}
+                        <dt>Latest campaign</dt>
+                        <dd><time datetime="{{ campaign_stats.last_campaign|date:'c' }}">{{ campaign_stats.last_campaign|date:"M d, Y H:i" }}</time></dd>
+                    {% endif %}
+                </dl>
+            {% endif %}
+        </section>
+    </header>
+    <div class="page-tabs" role="tablist" aria-label="Organization sections">
+        <button type="button"
+                class="page-tab"
+                id="campaign-tab"
+                role="tab"
+                aria-selected="true"
+                aria-controls="campaign-panel"
+                data-tab-target="campaign-panel"
+                data-tab-name="campaign">Campaigns</button>
+        <button type="button"
+                class="page-tab"
+                id="history-tab"
+                role="tab"
+                aria-selected="false"
+                aria-controls="history-panel"
+                data-tab-target="history-panel"
+                data-tab-name="history">History{% if history_events %} ({{ history_events|length }}){% endif %}</button>
+        <button type="button"
+                class="page-tab"
+                id="json-tab"
+                role="tab"
+                aria-selected="false"
+                aria-controls="json-panel"
+                data-tab-target="json-panel"
+                data-tab-name="json">JSON</button>
+    </div>
+    <div id="campaign-panel"
+         role="tabpanel"
+         aria-labelledby="campaign-tab">
+    <section aria-labelledby="games-heading">
+        <h3 id="games-heading">Games by {{ organization.name }}</h3>
+        <div class="game-grid">
+            {% for game in games %}
+                <article class="game-card">
                     <div>
-                        <h2 class="h4 mb-1">Change log</h2>
-                        <p class="fs-sm fg-3 mb-0">Tracked changes for {{ organization.name }}, newest first.</p>
+                        {% if game.box_art_best_url %}
+                            <a href="{% url 'twitch:game_detail' game.twitch_id %}">
+                                <img src="{{ game.box_art_best_url }}"
+                                     alt="Box art for {{ game.get_game_name }}"
+                                     width="180"
+                                     height="240"
+                                     loading="lazy" />
+                            </a>
+                        {% else %}
+                            <small>No image</small>
+                        {% endif %}
                     </div>
-                    <a class="btn-outline theme-secondary btn-sm"
-                       href="{% url 'twitch:organization_history' organization.twitch_id %}">View full history →</a>
-                </div>
-                {% if history_events %}
-                    {% include "twitch/includes/history_table.html" with events=history_events %}
-                {% else %}
-                    <div class="card detail-card text-center py-5 px-3">
-                        <div class="card-body">
-                            <h2 class="h4 mb-2">No history events</h2>
-                            <p class="fg-2 mb-0">No changes have been recorded for this organization yet.</p>
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
+                    <h4>
+                        <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.get_game_name }}</a>
+                    </h4>
+                    <p><small>{{ game.campaign_count|default:0 }} campaign{{ game.campaign_count|default:0|pluralize }}</small></p>
+                </article>
+            {% endfor %}
         </div>
-    </main>
+    </section>
+    </div>
+    <div id="history-panel"
+         role="tabpanel"
+         aria-labelledby="history-tab"
+         hidden>
+    <section aria-labelledby="history-heading">
+        <header>
+            <h3 id="history-heading">Change log</h3>
+            <p>Tracked changes for {{ organization.name }}, newest first. <a href="{% url 'twitch:organization_history' organization.twitch_id %}">View full history &rarr;</a></p>
+        </header>
+        {% if history_events %}
+            {% include "twitch/includes/history_table.html" with events=history_events %}
+        {% else %}
+            <h4>No history events</h4>
+            <p>No changes have been recorded for this organization yet.</p>
+        {% endif %}
+    </section>
+    </div>
+    <div id="json-panel"
+         role="tabpanel"
+         aria-labelledby="json-tab"
+         hidden>
+        <section aria-labelledby="technical-heading">
+            <h3 id="technical-heading">Technical details</h3>
+            <pre><code>{{ technical_details_json }}</code></pre>
+        </section>
+    </div>
+    {% include "includes/tab_script.html" %}
 {% endblock content %}

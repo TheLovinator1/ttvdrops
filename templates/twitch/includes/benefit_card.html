@@ -1,0 +1,43 @@
+{% load image_tags %}
+{% load twitch_tags %}
+<article class="benefit-card{% if not show_image %} benefit-card-compact{% endif %}"
+         id="benefit-{{ benefit.twitch_id }}">
+    {% if show_image %}
+        <div class="benefit-media">
+            {% if benefit.image_best_url %}
+                {% picture benefit.image_best_url alt="Artwork for "|add:benefit.name width=72 %}
+            {% else %}
+                <small>No image</small>
+            {% endif %}
+        </div>
+    {% endif %}
+    <div class="benefit-body">
+        {% if not benefit.name|is_redundant_name:drop.drop.name %}<h6>{{ benefit.name }}</h6>{% endif %}
+        <p class="benefit-meta">
+            {% if benefit.is_ios_available %}<span class="badge">iOS available</span>{% endif %}
+            {% if benefit.distribution_type %}<span class="badge">{{ benefit.distribution_type|humanize_code }}</span>{% endif %}
+        </p>
+        {% if benefit.created_at %}
+            <p class="benefit-created">
+                <small>
+                    <abbr title="Created on Twitch">Created</abbr>
+                    <time datetime="{{ benefit.created_at|date:'c' }}"
+                          title="{{ benefit.created_at|date:'DATETIME_FORMAT' }}">{{ benefit.created_at|date:"M d, Y H:i" }}</time>
+                </small>
+            </p>
+        {% endif %}
+        {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
+            <p>
+                <strong>Awards badge:</strong>
+                <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
+                    {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 %}
+                    {{ drop.awarded_badge.title }}
+                </a>
+                {% if drop.awarded_badge.description %}
+                    <br />
+                    <small>{{ drop.awarded_badge.description|linebreaksbr }}</small>
+                {% endif %}
+            </p>
+        {% endif %}
+    </div>
+</article>

@@ -290,7 +290,7 @@ def _serialize_reward(reward: KickReward) -> V1RewardSchema:
     return V1RewardSchema(
         kick_id=reward.kick_id,
         name=reward.name,
-        image_url=reward.full_image_url,
+        image_url=reward.image_best_url,
         required_minutes_watched=reward.required_units,
         in_app_reward_type=reward.in_app_reward_type,
     )

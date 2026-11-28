@@ -304,7 +304,7 @@ class KickDropCampaign(auto_prefetch.Model):
         else:
             first_reward = self.rewards.first()  # pyright: ignore[reportAttributeAccessIssue]
         if first_reward and first_reward.image_url:
-            return first_reward.full_image_url
+            return first_reward.image_best_url
 
         if self.category and self.category.image_url:
             return self.category.image_url
@@ -410,6 +410,26 @@ class KickReward(auto_prefetch.Model):
         verbose_name="Image URL",
         help_text="May be a relative path (e.g. 'drops/reward-image/...').",
     )
+    image_file = models.ImageField(
+        help_text="Locally cached reward image served from this site.",
+        upload_to="kick/rewards/images/",
+        width_field="image_width",
+        height_field="image_height",
+        blank=True,
+        null=True,
+    )
+    image_width = models.PositiveIntegerField(
+        help_text="Width of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
+    image_height = models.PositiveIntegerField(
+        help_text="Height of cached image in pixels.",
+        editable=False,
+        blank=True,
+        null=True,
+    )
     required_units = models.PositiveIntegerField(
         default=0,
         verbose_name="Required Units",
@@ -472,6 +492,16 @@ class KickReward(auto_prefetch.Model):
         if self.image_url.startswith("http"):
             return self.image_url
         return "https://ext.cdn.kick.com/" + self.image_url
+
+    @property
+    def image_best_url(self) -> str:
+        """The best available reward image URL, preferring the local cache."""
+        try:
+            if self.image_file and getattr(self.image_file, "url", None):
+                return self.image_file.url
+        except (AttributeError, OSError, ValueError) as exc:
+            logger.debug("Failed to resolve KickReward.image_file url: %s", exc)
+        return self.full_image_url
 
     @property
     def in_app_reward_type_label(self) -> str:

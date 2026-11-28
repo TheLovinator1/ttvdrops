@@ -39,6 +39,14 @@ if TYPE_CHECKING:
 logger: logging.Logger = logging.getLogger("ttvdrops")
 
 MIN_LINKABLE_CHANNEL_NAME_LENGTH = 2
+DEFAULT_CAMPAIGN_IMAGE_URL = (
+    "https://static-cdn.jtvnw.net/twitch-quests-assets/CAMPAIGN/default.png"
+)
+
+
+def _is_default_campaign_image_url(url: str) -> bool:
+    """Return True when the URL is Twitch's placeholder campaign image."""
+    return url.rstrip("/") == DEFAULT_CAMPAIGN_IMAGE_URL
 
 
 def _external_slug(value: str) -> str:
@@ -1013,6 +1021,16 @@ class DropCampaign(auto_prefetch.Model):
             .select_related("game")
             .prefetch_related(
                 "game__owners",
+                Prefetch(
+                    "allow_channels",
+                    queryset=Channel.objects.only(
+                        "twitch_id",
+                        "name",
+                        "display_name",
+                        "display_names",
+                    ).order_by("display_name"),
+                    to_attr="channels_ordered",
+                ),
                 models.Prefetch(
                     "time_based_drops",
                     queryset=TimeBasedDrop.objects.prefetch_related("benefits"),
@@ -1988,7 +2006,13 @@ class DropCampaign(auto_prefetch.Model):
 
         for drop in drops:
             for benefit in drop.benefits.all():  # pyright: ignore[reportAttributeAccessIssue]
-                name: str = benefit.name.strip()
+                name: str = (
+                    " "
+                    .join(benefit.name.split())
+                    .replace("\uff08", " (")
+                    .replace("\uff09", ")")
+                )
+                name = " ".join(name.split())
                 if not name:
                     continue
 
@@ -2193,7 +2217,9 @@ class DropCampaign(auto_prefetch.Model):
             logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
 
         if self.image_url:
-            return normalize_twitch_image_url(self.image_url)
+            campaign_image_url: str = normalize_twitch_image_url(self.image_url)
+            if not _is_default_campaign_image_url(campaign_image_url):
+                return campaign_image_url
 
         # If no campaign image, use the first benefit image
         for drop in self.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
@@ -2216,7 +2242,10 @@ class DropCampaign(auto_prefetch.Model):
                 return self.image_file.url
         except (AttributeError, OSError, ValueError) as exc:
             logger.debug("Failed to resolve DropCampaign.image_file url: %s", exc)
-        return normalize_twitch_image_url(self.image_url or "")
+        campaign_image_url: str = normalize_twitch_image_url(self.image_url or "")
+        if _is_default_campaign_image_url(campaign_image_url):
+            return ""
+        return campaign_image_url
 
     @property
     def dashboard_image_url(self) -> str:
@@ -2224,7 +2253,10 @@ class DropCampaign(auto_prefetch.Model):
         benefit: DropBenefit | None = self.single_reward_benefit
         if benefit and benefit.image_asset_url:
             return normalize_twitch_image_url(benefit.image_asset_url)
-        return normalize_twitch_image_url(self.image_url or "")
+        campaign_image_url: str = normalize_twitch_image_url(self.image_url or "")
+        if _is_default_campaign_image_url(campaign_image_url):
+            return ""
+        return campaign_image_url
 
     @property
     def duration_iso(self) -> str:

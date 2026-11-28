@@ -1,0 +1,34 @@
+{% load static %}
+<footer class="site-footer">
+    <img src="{% static 'toycar_driving_lc.gif' %}"
+         alt="Animated toy car driving"
+         width="156"
+         height="156"
+         loading="lazy" />
+    <p>
+        <strong>CC0</strong>. Information wants to be free.
+    </p>
+    <p>
+        Data retrieval possible because of
+        <a href="https://github.com/DevilXD/TwitchDropsMiner">DevilXD/<wbr>TwitchDropsMiner</a>
+        and
+        <a href="https://github.com/SunkwiBOT/twitch-drops-api">SunkwiBOT/<wbr>twitch-drops-api</a>.
+    </p>
+    <nav aria-label="Footer navigation">
+        <ul>
+            <li><a href="{% url 'core:dataset_backups' %}">Datasets &amp; Backups</a></li>
+            <li><a href="{% url 'api-v1:openapi-view' %}">API Docs</a></li>
+            <li><a href="{% url 'core:docs_rss' %}">RSS Feeds</a></li>
+            <li><a href="{% url 'core:docs_mcp' %}">MCP Server</a></li>
+            <li><a href="{% url 'core:about' %}">About</a></li>
+            <li><a href="{% url 'core:debug' %}">Debug</a></li>
+            <li><a href="#main-content">Back to top</a></li>
+        </ul>
+    </nav>
+    <p>
+        <small>Times are shown in your timezone: <span id="footer-timezone">local time</span>.</small>
+    </p>
+    <p>
+        <small>Best viewed with any browser. This site is dedicated to the public domain.</small>
+    </p>
+</footer>

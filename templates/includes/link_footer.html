@@ -1,0 +1,57 @@
+<footer class="detail-links" aria-label="Links">
+    <div class="detail-links-grid">
+        {% if external_url or external_url_name %}
+            <div>
+                <div class="detail-links-title">External</div>
+                <div>
+                    {% if external_url %}
+                        <a href="{{ external_url }}">[{{ external_label }}]</a>
+                    {% elif external_url_name %}
+                        <a href="{% url external_url_name %}">[{{ external_label }}]</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+        {% if rss_url_name or atom_url_name or discord_url_name %}
+            <div>
+                <div class="detail-links-title">
+                    Subscribe
+                    {% if docs_url_name %}
+                        <a href="{% url docs_url_name %}"
+                           title="{{ docs_label|default:'Feed documentation' }}"
+                           class="detail-links-help">(?)</a>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if rss_url_name %}<a href="{% url rss_url_name %}">[rss]</a>{% endif %}
+                    {% if atom_url_name %}<a href="{% url atom_url_name %}">[atom]</a>{% endif %}
+                    {% if discord_url_name %}<a href="{% url discord_url_name %}">[discord-flavored]</a>{% endif %}
+                </div>
+            </div>
+        {% endif %}
+        {% if export_csv_url_name or export_json_url_name %}
+            <div>
+                <div class="detail-links-title">Export</div>
+                <div>
+                    {% if export_csv_url_name %}<a href="{% url export_csv_url_name %}">[csv]</a>{% endif %}
+                    {% if export_json_url_name %}<a href="{% url export_json_url_name %}">[json]</a>{% endif %}
+                </div>
+            </div>
+        {% endif %}
+        {% if api_url_name or docs_url_name %}
+            <div>
+                <div class="detail-links-title">
+                    Developer
+                    {% if docs_url_name and not rss_url_name and not atom_url_name and not discord_url_name %}
+                        <a href="{% url docs_url_name %}"
+                           title="{{ docs_label|default:'Documentation' }}"
+                           class="detail-links-help">(?)</a>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if api_url_name %}<a class="bracket-link" href="{% url api_url_name %}">{{ api_label|default:"API" }}</a>{% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</footer>

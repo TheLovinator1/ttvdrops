@@ -244,6 +244,16 @@ class TestPictureTag:
         assert 'src="https://static-cdn.jtvnw.net/ttv-boxart/1292861145.jpg"' in result
         assert 'loading="lazy"' in result
 
+    def test_kick_cdn_url_simple_img(self) -> None:
+        """Kick CDN URLs should not generate AVIF or WebP variants."""
+        result: SafeString = picture(
+            "https://ext.cdn.kick.com/drops/reward-image/reward.png",
+        )
+
+        assert "<picture>" not in result
+        assert "<source" not in result
+        assert 'src="https://ext.cdn.kick.com/drops/reward-image/reward.png"' in result
+
     def test_twitch_cdn_url_with_attributes(self) -> None:
         """Test Twitch CDN URL with optional attributes."""
         result: SafeString = picture(

@@ -12,179 +12,135 @@
           type="application/atom+xml"
           title="All Kick games (Discord-flavored)"
           href="{% url 'kick:game_feed_discord' %}" />
-    <style>
-        .kick-games-list-table {
-            --bs-table-bg: var(--bs-bg-1);
-        }
-
-        .kick-games-list-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            background-color: var(--bs-bg-1);
-            box-shadow: inset 0 -1px 0 var(--bs-border-color);
-        }
-
-        .kick-games-list-thumb {
-            width: 40px;
-            height: 53px;
-            object-fit: contain;
-        }
-    </style>
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'kick:game_list' %}">Games</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">List</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">All Games</h1>
-                        <span class="badge badge-subtle theme-secondary">
-                            {{ categories|length }} game{{ categories|length|pluralize }}
-                        </span>
-                    </div>
-                    <p class="fg-2 mb-0">Games on Kick with drop campaigns.</p>
-                </div>
-                <div class="d-flex flex-wrap align-items-center gap-2 align-self-start md:align-self-auto">
-                    <a class="btn-outline theme-secondary btn-sm"
-                       href="{% url 'kick:game_list' %}"
-                       title="View games as cards">Grid view</a>
-                    {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                    <div>
-                        <button class="btn-outline theme-secondary btn-sm"
-                                type="button"
-                                data-bs-toggle="menu"
-                                data-bs-placement="bottom-end"
-                                aria-expanded="false">Subscribe ▾</button>
-                        <div class="menu">
-                            <h6 class="menu-header">Feeds</h6>
-                            <a class="menu-item"
-                               href="{% url 'kick:game_feed' %}"
-                               title="RSS feed for all games">RSS</a>
-                            <a class="menu-item"
-                               href="{% url 'kick:game_feed_atom' %}"
-                               title="Atom feed for all games">Atom</a>
-                            <a class="menu-item"
-                               href="{% url 'kick:game_feed_discord' %}"
-                               title="Discord-flavored feed for all games">Discord-flavored</a>
-                            <hr class="menu-divider" />
-                            <h6 class="menu-header">Developer &amp; Help</h6>
-                            <a class="menu-item"
-                               href="{% url 'api-v1:kick-api-v1_list_games' %}"
-                               title="Kick games API">API</a>
-                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                        </div>
-                    </div>
-                </div>
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'kick:dashboard' %}">Kick</a></li>
+                <li><a href="{% url 'kick:game_list' %}">Games</a></li>
+                <li aria-current="page">List</li>
+            </ol>
+        </nav>
+        <h2>All Games</h2>
+        {% include "includes/games_view_tabs.html" with grid_url_name="kick:game_list" list_url_name="kick:game_list_table" active_view="list" %}
+        {% include "includes/link_footer.html" with rss_url_name="kick:game_feed" atom_url_name="kick:game_feed_atom" discord_url_name="kick:game_feed_discord" api_url_name="api-v1:kick-api-v1_list_games" docs_url_name="core:docs_rss" %}
+    </header>
+    {% if categories %}
+        <section aria-label="Filter games">
+            <div class="games-filter">
+                <label for="games-list-filter">Filter games:</label>
+                <input id="games-list-filter"
+                       type="search"
+                       placeholder="Filter by game..."
+                       autocomplete="off"
+                       aria-controls="games-list-table" />
+                <span id="games-list-count" aria-live="polite">{{ categories|length }} game{{ categories|length|pluralize }}</span>
+                <button id="games-list-clear" type="button" hidden>Clear</button>
             </div>
-        </header>
-        {% if categories %}
-            <div class="table-card bg-1 border-subtle overflow-visible">
-                <div class="table-responsive overflow-visible">
-                    <table class="table table-hover align-middle kick-games-list-table md:table-stacked">
-                        <thead>
-                            <tr>
-                                <th scope="col">Game</th>
-                                <th scope="col" class="text-end">Campaigns</th>
-                                <th scope="col" class="text-end">Active</th>
-                                <th scope="col" class="text-end">Upcoming</th>
-                                <th scope="col">Last drop</th>
-                                <th scope="col"><span class="visually-hidden">Actions</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for category in categories %}
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center gap-3">
-                                            <a href="{% url 'kick:game_detail' category.kick_id %}"
-                                               class="flex-shrink-0"
-                                               tabindex="-1"
-                                               aria-hidden="true">
-                                                {% if category.image_url %}
-                                                    <img src="{{ category.image_url }}"
-                                                         alt=""
-                                                         width="40"
-                                                         height="53"
-                                                         loading="lazy"
-                                                         class="kick-games-list-thumb rounded-2 bg-2" />
-                                                {% else %}
-                                                    <div class="kick-games-list-thumb rounded-2 bg-2 d-flex align-items-center justify-content-center fg-3 fs-xs">
-                                                        N/A
-                                                    </div>
-                                                {% endif %}
-                                            </a>
-                                            <div class="min-w-0">
-                                                <a href="{% url 'kick:game_detail' category.kick_id %}"
-                                                   class="fw-semibold fg-1 text-decoration-none">{{ category.name }}</a>
-                                                <div class="fs-xs fg-3">
-                                                    {{ category.campaign_count }} campaign{{ category.campaign_count|pluralize }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="text-end" data-cell="Campaigns">
-                                        <span class="badge badge-subtle theme-secondary">{{ category.campaign_count }}</span>
-                                    </td>
-                                    <td class="text-end" data-cell="Active">
-                                        {% if category.active_campaign_count %}
-                                            <span class="badge badge-subtle theme-success">{{ category.active_campaign_count }} active</span>
-                                        {% else %}
-                                            <span class="fg-3">None</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end" data-cell="Upcoming">
-                                        {% if category.upcoming_campaign_count %}
-                                            <span class="badge badge-subtle theme-info">{{ category.upcoming_campaign_count }} upcoming</span>
-                                        {% else %}
-                                            <span class="fg-3">None</span>
-                                        {% endif %}
-                                    </td>
-                                    <td data-cell="Last drop">
-                                        {% if category.last_campaign_ended_at %}
-                                            <time datetime="{{ category.last_campaign_ended_at|date:'c' }}"
-                                                  title="{{ category.last_campaign_ended_at|date:'DATETIME_FORMAT' }}">{{ category.last_campaign_ended_at|date:"M d, Y" }}</time>
-                                            <div class="fs-xs fg-3">{{ category.last_campaign_ended_at|timesince }} ago</div>
-                                        {% else %}
-                                            <span class="fg-3">None</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end" data-cell="Actions">
-                                        <a class="btn-text theme-secondary btn-sm"
-                                           href="{% url 'kick:game_detail' category.kick_id %}">View →</a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% else %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No Games Found</h2>
-                    <p class="fg-2 mb-0">No games are currently available.</p>
-                </div>
-            </section>
-        {% endif %}
-    </main>
+        </section>
+        <table id="games-list-table">
+            <thead>
+                <tr>
+                    <th scope="col">Game</th>
+                    <th scope="col">Campaigns</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Upcoming</th>
+                    <th scope="col">Last drop</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'kick:game_detail' category.kick_id %}"><strong>{{ category.name }}</strong></a>
+                        </td>
+                        <td><data value="{{ category.campaign_count }}">{{ category.campaign_count }}</data></td>
+                        <td>
+                            {% if category.active_campaign_count %}
+                                <data value="{{ category.active_campaign_count }}">{{ category.active_campaign_count }} active</data>
+                            {% else %}
+                                <small>None</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if category.upcoming_campaign_count %}
+                                <data value="{{ category.upcoming_campaign_count }}">{{ category.upcoming_campaign_count }} upcoming</data>
+                            {% else %}
+                                <small>None</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if category.last_campaign_ended_at %}
+                                <time datetime="{{ category.last_campaign_ended_at|date:'c' }}"
+                                      title="{{ category.last_campaign_ended_at|date:'DATETIME_FORMAT' }}">{{ category.last_campaign_ended_at|date:"M d, Y" }}</time>
+                                <br /><small>{{ category.last_campaign_ended_at|timesince }} ago</small>
+                            {% else %}
+                                <small>None</small>
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'kick:game_detail' category.kick_id %}">View &rarr;</a></td>
+                    </tr>
+                {% endfor %}
+                <tr id="games-list-no-results" hidden>
+                    <td colspan="6">No games match your filter.</td>
+                </tr>
+            </tbody>
+        </table>
+        <script>
+            (() => {
+                const input = document.getElementById("games-list-filter");
+                const table = document.getElementById("games-list-table");
+                const count = document.getElementById("games-list-count");
+                const clear = document.getElementById("games-list-clear");
+                const empty = document.getElementById("games-list-no-results");
+                if (!input || !table || !count || !table.tBodies.length) {
+                    return;
+                }
+
+                const rows = Array.from(table.tBodies[0].rows)
+                    .filter((row) => row.id !== "games-list-no-results")
+                    .map((row) => ({
+                        row,
+                        searchable: (row.cells[0]?.textContent || "").toLowerCase(),
+                    }));
+                const total = rows.length;
+                const formatCount = (value) => `${value} game${value === 1 ? "" : "s"}`;
+
+                const applyFilter = () => {
+                    const query = input.value.trim().toLowerCase();
+                    let visible = 0;
+                    for (const { row, searchable } of rows) {
+                        const matches = !query || searchable.includes(query);
+                        row.hidden = !matches;
+                        if (matches) {
+                            visible += 1;
+                        }
+                    }
+                    count.textContent = query
+                        ? `${formatCount(visible)} of ${formatCount(total)}`
+                        : formatCount(total);
+                    if (clear) {
+                        clear.hidden = !query;
+                    }
+                    if (empty) {
+                        empty.hidden = visible !== 0;
+                    }
+                };
+
+                input.addEventListener("input", applyFilter);
+                clear?.addEventListener("click", () => {
+                    input.value = "";
+                    applyFilter();
+                    input.focus();
+                });
+                applyFilter();
+            })();
+        </script>
+    {% else %}
+        <h3>No Games Found</h3>
+        <p>No games are currently available.</p>
+    {% endif %}
 {% endblock content %}

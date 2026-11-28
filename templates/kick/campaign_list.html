@@ -12,272 +12,165 @@
           type="application/atom+xml"
           title="All Kick campaigns (Discord-flavored)"
           href="{% url 'kick:campaign_feed_discord' %}" />
-    <style>
-    .campaign-media img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
-    .campaign-expired:hover { opacity: 1 !important; }
-    </style>
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container py-4">
-        {# Page Header & Breadcrumb #}
-        <header class="mb-3">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Campaigns</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-center justify-content-between gap-3">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <h1 class="h2 mb-0">Kick Drop Campaigns</h1>
-                    <span class="badge badge-subtle theme-secondary">
-                        {% if is_paginated %}{{ page_obj.paginator.count }}{% else %}{{ campaigns|length }}{% endif %}
-                        campaign{{ page_obj.paginator.count|default:campaigns|length|pluralize }}
-                    </span>
-                </div>
-                {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                <div class="align-self-start md:align-self-center">
-                    <button class="btn-outline theme-secondary btn-sm"
-                            type="button"
-                            data-bs-toggle="menu"
-                            data-bs-placement="bottom-end"
-                            aria-expanded="false">Subscribe ▾</button>
-                    <div class="menu">
-                        <h6 class="menu-header">Feeds</h6>
-                        <a class="menu-item"
-                           href="{% url 'kick:campaign_feed' %}"
-                           title="RSS feed for all campaigns">RSS</a>
-                        <a class="menu-item"
-                           href="{% url 'kick:campaign_feed_atom' %}"
-                           title="Atom feed for all campaigns">Atom</a>
-                        <a class="menu-item"
-                           href="{% url 'kick:campaign_feed_discord' %}"
-                           title="Discord-flavored feed for all campaigns">Discord-flavored</a>
-                        <hr class="menu-divider" />
-                        <h6 class="menu-header">Developer &amp; Help</h6>
-                        <a class="menu-item"
-                           href="{% url 'api-v1:kick-api-v1_list_campaigns' %}">API</a>
-                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                    </div>
-                </div>
-            </div>
-            <p class="fs-sm fg-3 mb-0 mt-2">
-                Scraped from <a href="https://web.kick.com/api/v1/drops/campaigns">Kick API</a>.
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'kick:dashboard' %}">Kick</a></li>
+                <li aria-current="page">Campaigns</li>
+            </ol>
+        </nav>
+        <h2>Kick Drop Campaigns</h2>
+        <p>
+            <small>
+                {% if is_paginated %}{{ page_obj.paginator.count }}{% else %}{{ campaigns|length }}{% endif %}
+                campaign{{ page_obj.paginator.count|default:campaigns|length|pluralize }}.
+            </small>
+        </p>
+        <p>
+            <small>Scraped from <a href="https://web.kick.com/api/v1/drops/campaigns">Kick API</a>.</small>
+        </p>
+        {% include "includes/link_footer.html" with rss_url_name="kick:campaign_feed" atom_url_name="kick:campaign_feed_atom" discord_url_name="kick:campaign_feed_discord" api_url_name="api-v1:kick-api-v1_list_campaigns" docs_url_name="core:docs_rss" %}
+    </header>
+    <section aria-label="Filters">
+        <h3>Filter campaigns</h3>
+        <form method="get" action="{% url 'kick:campaign_list' %}">
+            {% if selected_status %}
+                <input type="hidden" name="status" value="{{ selected_status }}" />
+            {% endif %}
+            <p>
+                <label for="campaign-search">Search campaigns, games or owners:</label>
+                <input type="search"
+                       id="campaign-search"
+                       name="q"
+                       value="{{ selected_query|default:'' }}"
+                       placeholder="Search campaigns, games, or owners..." />
             </p>
-        </header>
-        {% include "includes/campaign_status_tabs.html" %}
-        {# Slim Filter Row #}
-        <section aria-label="Filters" class="mb-4 pb-3 border-bottom">
-            <form method="get"
-                  action="{% url 'kick:campaign_list' %}"
-                  class="row g-2 align-items-center">
-                {% if selected_status %}
-                    <input type="hidden" name="status" value="{{ selected_status }}" />
-                {% endif %}
-                <div class="col-12 md:col-4">
-                    <label for="campaign-search" class="visually-hidden">Search campaigns</label>
-                    <input type="search"
-                           id="campaign-search"
-                           name="q"
-                           value="{{ selected_query|default:'' }}"
-                           placeholder="Search campaigns, games, or owners..."
-                           class="form-control" />
-                </div>
-                <div class="col-12 sm:col-6 md:col-4">
-                    <label for="game-filter" class="visually-hidden">Game</label>
-                    {# Bootstrap 6 removes .form-select; <select> uses .form-control #}
-                    <select class="form-control"
-                            id="game-filter"
-                            name="game"
-                            onchange="this.form.submit()">
-                        <option value="">All Games</option>
-                        {% for game in games %}
-                            <option value="{{ game.kick_id }}"
-                                    {% if selected_game == game.kick_id|stringformat:"s" %}selected{% endif %}>
-                                {{ game.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-12 md:col-4 d-flex gap-2">
-                    <button class="btn-solid theme-primary flex-grow-1" type="submit">Search</button>
-                    {% if selected_game or selected_status or selected_query %}
-                        <a href="{% url 'kick:campaign_list' %}"
-                           class="btn-outline theme-secondary">Reset</a>
-                    {% endif %}
-                </div>
-            </form>
-        </section>
-        {# Flat CSS Grid of Campaign Cards #}
-        {% if campaigns %}
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {% for campaign in campaigns %}
-                    {% with category=campaign.category %}
-                        <article class="card bg-1 hover-lift overflow-hidden {% if campaign.is_active %}border-success{% elif campaign.starts_at and campaign.starts_at > now %}border-info{% else %}opacity-75 campaign-expired{% endif %}">
-                            <div class="ratio-16x9 overflow-hidden bg-2 position-relative campaign-media">
-                                <a href="{% url 'kick:campaign_detail' campaign.kick_id %}"
-                                   class="d-block w-100 h-100">
-                                    {% if campaign.image_url %}
-                                        <img src="{{ campaign.image_url }}"
-                                             alt="Campaign artwork for {{ campaign.name }}"
-                                             width="320"
-                                             height="180"
-                                             loading="lazy" />
-                                    {% else %}
-                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">
-                                            No Artwork
-                                        </div>
-                                    {% endif %}
-                                </a>
-                                <div class="position-absolute top-0 start-0 p-2 z-1">
-                                    {% if campaign.is_active %}
-                                        <span class="badge badge-subtle theme-success">Active</span>
-                                    {% elif campaign.starts_at and campaign.starts_at > now %}
-                                        <span class="badge badge-subtle theme-info">Upcoming</span>
-                                    {% elif campaign.ends_at and campaign.ends_at < now %}
-                                        <span class="badge badge-subtle theme-danger">Expired</span>
-                                    {% else %}
-                                        <span class="badge badge-subtle theme-secondary">Unknown</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="card-body p-3 d-flex flex-column gap-2">
-                                <div class="d-flex align-items-center gap-2 min-w-0">
-                                    {% if category %}
-                                        {% if category.image_url %}
-                                            <div class="flex-shrink-0 overflow-hidden rounded-1 bg-2">
-                                                <img src="{{ category.image_url }}"
-                                                     alt=""
-                                                     width="24"
-                                                     height="32"
-                                                     loading="lazy" />
-                                            </div>
-                                        {% endif %}
-                                        <a href="{% url 'kick:game_detail' category.kick_id %}"
-                                           class="fs-sm fg-2 text-decoration-none text-truncate">
-                                            {{ category.name }}
-                                        </a>
-                                    {% else %}
-                                        <span class="fs-sm fg-2 text-truncate">Unknown game</span>
-                                    {% endif %}
-                                </div>
-                                <h3 class="h6 card-title mb-0">
-                                    <a href="{% url 'kick:campaign_detail' campaign.kick_id %}"
-                                       class="text-decoration-none fg-1">{{ campaign.name }}</a>
-                                </h3>
-                                {% if campaign.organization %}
-                                    <div class="fs-xs fg-3 text-truncate">
-                                        by
-                                        <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}"
-                                           class="fg-3 text-decoration-none">{{ campaign.organization.name }}</a>
-                                    </div>
-                                {% endif %}
-                                <div class="fs-xs fg-2 mt-auto"
-                                     {% if campaign.starts_at and campaign.ends_at %}title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }} → {{ campaign.ends_at|date:'DATETIME_FORMAT' }}"{% endif %}>
-                                    {% if campaign.is_active %}
-                                        Ends in {{ campaign.ends_at|timeuntil }}
-                                    {% elif campaign.starts_at and campaign.starts_at > now %}
-                                        Starts in {{ campaign.starts_at|timeuntil }}
-                                    {% elif campaign.starts_at and campaign.ends_at %}
-                                        {% if campaign.starts_at.year != campaign.ends_at.year %}
-                                            {{ campaign.starts_at|date:"d M Y" }}
-                                        {% else %}
-                                            {{ campaign.starts_at|date:"d M" }}
-                                        {% endif %}
-                                        → {{ campaign.ends_at|date:"d M Y" }}
-                                    {% else %}
-                                        Dates unavailable
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </article>
-                    {% endwith %}
-                {% endfor %}
-            </div>
-        {% else %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No Campaigns Found</h2>
-                    <p class="fg-2 mb-3">
-                        No campaigns match your current filters. Try adjusting your search criteria.
-                    </p>
-                    <a href="{% url 'kick:campaign_list' %}"
-                       class="btn-outline theme-primary">Clear Filters</a>
-                </div>
-            </section>
-        {% endif %}
-        {# Pagination #}
-        {% if is_paginated %}
-            <nav aria-label="Campaign pages" class="mt-4">
-                <ul class="pagination theme-primary justify-content-center flex-wrap mb-2">
-                    {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page=1"
-                               aria-label="First page">«</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.previous_page_number }}"
-                               aria-label="Previous">Previous</a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled"><span class="page-link">«</span></li>
-                        <li class="page-item disabled"><span class="page-link">Previous</span></li>
-                    {% endif %}
-                    {% for num in page_obj.paginator.page_range %}
-                        {% if page_obj.number == num %}
-                            <li class="page-item active">
-                                <span class="page-link" aria-current="page">{{ num }}</span>
-                            </li>
-                        {% elif num > page_obj.number|add:"-10" and num < page_obj.number|add:"10" %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                   href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ num }}">{{ num }}</a>
-                            </li>
-                        {% elif num == 1 or num == page_obj.paginator.num_pages %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                   href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ num }}">{{ num }}</a>
-                            </li>
-                        {% elif num == page_obj.number|add:"-10" or num == page_obj.number|add:"10" %}
-                            <li class="page-item disabled"><span class="page-link">…</span></li>
-                        {% endif %}
+            <p>
+                <label for="game-filter">Game:</label>
+                <select id="game-filter" name="game" onchange="this.form.submit()">
+                    <option value="">All Games</option>
+                    {% for game in games %}
+                        <option value="{{ game.kick_id }}"
+                                {% if selected_game == game.kick_id|stringformat:"s" %}selected{% endif %}>
+                            {{ game.name }}
+                        </option>
                     {% endfor %}
-                    {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link"
-                               href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.paginator.num_pages }}"
-                               aria-label="Last page">»</a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled"><span class="page-link">Next</span></li>
-                        <li class="page-item disabled"><span class="page-link">»</span></li>
+                </select>
+            </p>
+            <p>
+                <button type="submit">Search</button>
+                {% if selected_game or selected_status or selected_query %}
+                    <a href="{% url 'kick:campaign_list' %}">Reset</a>
+                {% endif %}
+            </p>
+        </form>
+    </section>
+    <hr />
+    {% include "includes/campaign_status_tabs.html" %}
+    {% if campaigns %}
+        <div class="campaign-grid">
+            {% for campaign in campaigns %}
+                {% with category=campaign.category %}
+                    <article class="campaign-card">
+                        {% if campaign.image_url %}
+                            <a href="{% url 'kick:campaign_detail' campaign.kick_id %}">
+                                <img src="{{ campaign.image_url }}"
+                                     alt="Campaign artwork for {{ campaign.name }}"
+                                     width="240"
+                                     height="135"
+                                     loading="lazy" />
+                            </a>
+                        {% else %}
+                            <small>No artwork</small>
+                        {% endif %}
+                        <h4>
+                            <a href="{% url 'kick:campaign_detail' campaign.kick_id %}">{{ campaign.name }}</a>
+                        </h4>
+                        <p>
+                            <small>
+                                Game:
+                                {% if category %}
+                                    <a href="{% url 'kick:game_detail' category.kick_id %}">{{ category.name }}</a>
+                                {% else %}
+                                    Unknown game
+                                {% endif %}
+                            </small>
+                        </p>
+                        {% if campaign.organization %}
+                            <p>
+                                <small>By <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}">{{ campaign.organization.name }}</a></small>
+                            </p>
+                        {% endif %}
+                        <p>
+                            <small>
+                                {% if campaign.starts_at and campaign.ends_at %}
+                                    <time datetime="{{ campaign.starts_at|date:'c' }}">{{ campaign.starts_at|date:"M d, Y" }}</time>
+                                    &ndash;
+                                    <time datetime="{{ campaign.ends_at|date:'c' }}">{{ campaign.ends_at|date:"M d, Y" }}</time>
+                                {% else %}
+                                    Dates unavailable
+                                {% endif %}
+                            </small>
+                        </p>
+                        <p>
+                            {% if campaign.is_active %}
+                                <span class="status-active">Active</span>
+                                - ends in {{ campaign.ends_at|timeuntil }}
+                            {% elif campaign.starts_at and campaign.starts_at > now %}
+                                <span class="status-upcoming">Upcoming</span>
+                                - starts in {{ campaign.starts_at|timeuntil }}
+                            {% elif campaign.ends_at and campaign.ends_at < now %}
+                                <span class="status-expired">Expired</span>
+                            {% else %}
+                                <span class="status-upcoming">Unknown</span>
+                            {% endif %}
+                        </p>
+                    </article>
+                {% endwith %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <h3>No Campaigns Found</h3>
+        <p>No campaigns match your current filters. Try adjusting your search criteria.</p>
+        <p><a href="{% url 'kick:campaign_list' %}">Clear Filters</a></p>
+    {% endif %}
+    {% if is_paginated %}
+        <nav aria-label="Campaign pages">
+            <p>
+                {% if page_obj.has_previous %}
+                    <a href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page=1" aria-label="First page">&laquo;</a>
+                    <a href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.previous_page_number }}" aria-label="Previous">Previous</a>
+                {% else %}
+                    &laquo; Previous
+                {% endif %}
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <strong aria-current="page">{{ num }}</strong>
+                    {% elif num > page_obj.number|add:"-10" and num < page_obj.number|add:"10" %}
+                        <a href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    {% elif num == 1 or num == page_obj.paginator.num_pages %}
+                        <a href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    {% elif num == page_obj.number|add:"-10" or num == page_obj.number|add:"10" %}
+                        &hellip;
                     {% endif %}
-                </ul>
-                <p class="text-center fs-xs fg-3 mb-0">
-                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
-                    campaigns (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
-                </p>
-            </nav>
-        {% endif %}
-    </main>
+                {% endfor %}
+                {% if page_obj.has_next %}
+                    <a href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                    <a href="?{% if selected_query %}q={{ selected_query|urlencode }}&{% endif %}{% if selected_game %}game={{ selected_game }}&{% endif %}{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.paginator.num_pages }}" aria-label="Last page">&raquo;</a>
+                {% else %}
+                    Next &raquo;
+                {% endif %}
+            </p>
+            <p>
+                <small>
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of
+                    {{ page_obj.paginator.count }} campaigns
+                    (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}).
+                </small>
+            </p>
+        </nav>
+    {% endif %}
 {% endblock content %}

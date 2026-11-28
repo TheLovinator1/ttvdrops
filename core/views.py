@@ -30,6 +30,7 @@ from core.mcp import documented_tools
 from core.mcp import server_card
 from kick.models import KickChannel
 from kick.models import KickDropCampaign
+from kick.models import KickReward
 from twitch.models import Channel
 from twitch.models import ChatBadge
 from twitch.models import ChatBadgeSet
@@ -1017,7 +1018,7 @@ def search_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-s
     Returns:
         HttpResponse: The rendered search results.
     """
-    query: str = request.GET.get("q", "")
+    query: str = request.GET.get("q", "").strip()
     results: dict[str, QuerySet] = {}
 
     if query:
@@ -1033,28 +1034,38 @@ def search_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-s
         badge_q: Q
 
         if len(query) < MIN_QUERY_LENGTH_FOR_FTS:
-            org_q = Q(name__istartswith=query) | Q(twitch_id__istartswith=query)
+            org_q = Q(name__icontains=query) | Q(twitch_id__istartswith=query)
             game_q = (
-                Q(name__istartswith=query)
-                | Q(display_name__istartswith=query)
+                Q(name__icontains=query)
+                | Q(display_name__icontains=query)
+                | Q(slug__icontains=query)
                 | Q(twitch_id__istartswith=query)
             )
             campaign_q = (
-                Q(name__istartswith=query)
+                Q(name__icontains=query)
                 | Q(description__icontains=query)
                 | Q(twitch_id__istartswith=query)
+                | Q(time_based_drops__benefits__name__icontains=query)
             )
-            drop_q = Q(name__istartswith=query) | Q(twitch_id__istartswith=query)
-            benefit_q = Q(name__istartswith=query) | Q(twitch_id__istartswith=query)
+            drop_q = (
+                Q(name__icontains=query)
+                | Q(twitch_id__istartswith=query)
+                | Q(benefits__name__icontains=query)
+            )
+            benefit_q = (
+                Q(name__icontains=query)
+                | Q(twitch_id__istartswith=query)
+                | Q(distribution_type__icontains=query)
+            )
             reward_q = (
-                Q(name__istartswith=query)
-                | Q(brand__istartswith=query)
+                Q(name__icontains=query)
+                | Q(brand__icontains=query)
                 | Q(summary__icontains=query)
                 | Q(twitch_id__istartswith=query)
             )
             badge_set_q = Q(set_id__istartswith=query)
             badge_q = (
-                Q(title__istartswith=query)
+                Q(title__icontains=query)
                 | Q(description__icontains=query)
                 | Q(badge_id__istartswith=query)
             )
@@ -1063,15 +1074,25 @@ def search_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-s
             game_q = (
                 Q(name__icontains=query)
                 | Q(display_name__icontains=query)
+                | Q(slug__icontains=query)
                 | Q(twitch_id__icontains=query)
             )
             campaign_q = (
                 Q(name__icontains=query)
                 | Q(description__icontains=query)
                 | Q(twitch_id__icontains=query)
+                | Q(time_based_drops__benefits__name__icontains=query)
             )
-            drop_q = Q(name__icontains=query) | Q(twitch_id__icontains=query)
-            benefit_q = Q(name__icontains=query) | Q(twitch_id__icontains=query)
+            drop_q = (
+                Q(name__icontains=query)
+                | Q(twitch_id__icontains=query)
+                | Q(benefits__name__icontains=query)
+            )
+            benefit_q = (
+                Q(name__icontains=query)
+                | Q(twitch_id__icontains=query)
+                | Q(distribution_type__icontains=query)
+            )
             reward_q = (
                 Q(name__icontains=query)
                 | Q(brand__icontains=query)
@@ -1097,14 +1118,17 @@ def search_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-s
 
         results["organizations"] = Organization.objects.filter(org_q)
         results["games"] = Game.objects.filter(game_q)
-        results["campaigns"] = DropCampaign.objects.filter(campaign_q).select_related(
-            "game",
+        results["campaigns"] = (
+            DropCampaign.objects.filter(campaign_q).select_related("game").distinct()
         )
-        results["drops"] = TimeBasedDrop.objects.filter(drop_q).select_related(
-            "campaign",
+        results["drops"] = (
+            TimeBasedDrop.objects.filter(drop_q).select_related("campaign").distinct()
         )
-        results["benefits"] = DropBenefit.objects.filter(benefit_q).prefetch_related(
-            "drops__campaign",
+        results["benefits"] = (
+            DropBenefit.objects
+            .filter(benefit_q)
+            .prefetch_related("drops__campaign")
+            .distinct()
         )
         results["reward_campaigns"] = RewardCampaign.objects.filter(
             reward_q,
@@ -1198,10 +1222,14 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
 
         # Collect unique benefits and metadata across all time-based drops
         seen_benefits: set[str] = set()
-        benefits_list: list[DropBenefit] = []
+        benefits_list: list[dict[str, Any]] = []
         min_watch: int = 0
         max_watch: int = 0
-        for drop in campaign.time_based_drops.all():  # pyright: ignore[reportAttributeAccessIssue]
+        drops: list[TimeBasedDrop] = sorted(
+            campaign.time_based_drops.all(),
+            key=lambda drop: drop.required_minutes_watched or 0,
+        )
+        for drop in drops:
             if drop.required_minutes_watched is not None:
                 if min_watch == 0 or drop.required_minutes_watched < min_watch:
                     min_watch = drop.required_minutes_watched
@@ -1209,7 +1237,10 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
             for benefit in drop.benefits.all():
                 if benefit.twitch_id not in seen_benefits:
                     seen_benefits.add(benefit.twitch_id)
-                    benefits_list.append(benefit)
+                    benefits_list.append({
+                        "benefit": benefit,
+                        "watch_minutes": drop.required_minutes_watched,
+                    })
 
         watch_range: str = ""
         if min_watch and max_watch:
@@ -1270,10 +1301,22 @@ def dashboard(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-loc
             if org not in kick_campaigns_by_game[game_key]["organizations"]:
                 kick_campaigns_by_game[game_key]["organizations"].append(org)
 
+        rewards: list[KickReward] = list(campaign.rewards.all())  # pyright: ignore[reportAttributeAccessIssue]
+        watch_minutes: list[int] = sorted(
+            reward.required_units for reward in rewards if reward.required_units
+        )
+        watch_range: str = ""
+        if watch_minutes:
+            if watch_minutes[0] == watch_minutes[-1]:
+                watch_range = f"{watch_minutes[0]}m watch"
+            else:
+                watch_range = f"{watch_minutes[0]}m-{watch_minutes[-1]}m watch"
+
         kick_campaigns_by_game[game_key]["campaigns"].append({
             "campaign": campaign,
             "channels": list(campaign.channels.all()),
-            "rewards": list(campaign.rewards.all()),  # pyright: ignore[reportAttributeAccessIssue]
+            "rewards": rewards,
+            "watch_range": watch_range,
         })
 
     active_reward_campaigns: QuerySet[RewardCampaign] = (

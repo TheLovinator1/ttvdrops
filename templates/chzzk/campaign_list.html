@@ -4,175 +4,100 @@
           type="application/rss+xml"
           title="All chzzk campaigns (RSS)"
           href="{% url 'chzzk:campaign_feed' %}" />
-    <style>
-        .chzzk-campaigns-table {
-            --bs-table-bg: var(--bs-bg-1);
-        }
-
-        .chzzk-campaigns-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            background-color: var(--bs-bg-1);
-            box-shadow: inset 0 -1px 0 var(--bs-border-color);
-        }
-    </style>
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'chzzk:dashboard' %}">Chzzk</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Campaigns</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">Chzzk Campaigns</h1>
-                        <span class="badge badge-subtle theme-secondary">
-                            {{ page_obj.paginator.count }} campaign{{ page_obj.paginator.count|pluralize }}
-                        </span>
-                    </div>
-                    <p class="fg-2 mb-0">Browse Chzzk drop campaigns, rewards and the archive.</p>
-                </div>
-                {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                <div class="align-self-start md:align-self-auto">
-                    <button class="btn-outline theme-secondary btn-sm"
-                            type="button"
-                            data-bs-toggle="menu"
-                            data-bs-placement="bottom-end"
-                            aria-expanded="false">Subscribe ▾</button>
-                    <div class="menu">
-                        <h6 class="menu-header">Feeds</h6>
-                        <a class="menu-item"
-                           href="{% url 'chzzk:campaign_feed' %}"
-                           title="RSS feed for all campaigns">RSS</a>
-                        <a class="menu-item"
-                           href="{% url 'chzzk:campaign_feed_atom' %}"
-                           title="Atom feed for all campaigns">Atom</a>
-                        <a class="menu-item"
-                           href="{% url 'chzzk:campaign_feed_discord' %}"
-                           title="Discord-flavored feed for all campaigns">Discord-flavored</a>
-                        <hr class="menu-divider" />
-                        <h6 class="menu-header">Developer &amp; Help</h6>
-                        <a class="menu-item"
-                           href="{% url 'api-v1:chzzk-api-v1_list_campaigns' %}">TTVDrops API</a>
-                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                    </div>
-                </div>
-            </div>
-        </header>
-        {% include "includes/campaign_status_tabs.html" with show_ios=True %}
-        {% if campaigns %}
-            <div class="table-card bg-1 border-subtle overflow-visible">
-                <div class="table-responsive overflow-visible">
-                    <table class="table table-striped table-hover chzzk-campaigns-table md:table-stacked">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Category (Korean)</th>
-                                <th>Category (English)</th>
-                                <th>iOS</th>
-                                <th>Start</th>
-                                <th>End</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for c in campaigns %}
-                                <tr>
-                                    <td>
-                                        <a href="{% url 'chzzk:campaign_detail' c.campaign_no %}">{{ c.title }}</a>
-                                    </td>
-                                    <td data-cell="Category (Korean)">
-                                        {% if c.category_value %}
-                                            <a href="{{ c.category_url }}">{{ c.category_value }}</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-cell="Category (English)">
-                                        {% if c.category_id_display %}
-                                            <a href="{{ c.category_url }}">{{ c.category_id_display }}</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-cell="iOS">
-                                        {% if c.has_ios_based_reward %}
-                                            <span class="badge badge-subtle theme-info">iOS</span>
-                                        {% endif %}
-                                    </td>
-                                    <td data-cell="Start">
-                                        {% if c.start_date %}
-                                            <time datetime="{{ c.start_date|date:'c' }}">{{ c.start_date|date:'M d, Y' }}</time>
-                                            {% if c.start_date > now %}
-                                                (in {{ c.start_date|timeuntil }})
-                                            {% else %}
-                                                ({{ c.start_date|timesince }} ago)
-                                            {% endif %}
-                                        {% endif %}
-                                    </td>
-                                    <td data-cell="End">
-                                        {% if c.end_date %}
-                                            <time datetime="{{ c.end_date|date:'c' }}">{{ c.end_date|date:'M d, Y' }}</time>
-                                            {% if c.end_date > now %}
-                                                (in {{ c.end_date|timeuntil }})
-                                            {% else %}
-                                                ({{ c.end_date|timesince }} ago)
-                                            {% endif %}
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            {% if is_paginated %}
-                <nav aria-label="Campaign pages" class="mt-4">
-                    <ul class="pagination theme-primary justify-content-center flex-wrap mb-2">
-                        {% if page_obj.has_previous %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                   href="?{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">Previous</span></li>
-                        {% endif %}
-                        <li class="page-item active">
-                            <span class="page-link" aria-current="page">{{ page_obj.number }}</span>
-                        </li>
-                        {% if page_obj.has_next %}
-                            <li class="page-item">
-                                <a class="page-link"
-                                   href="?{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
-                            </li>
-                        {% else %}
-                            <li class="page-item disabled"><span class="page-link">Next</span></li>
-                        {% endif %}
-                    </ul>
-                    <p class="text-center fs-xs fg-3 mb-0">
-                        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
-                        campaigns (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'chzzk:dashboard' %}">Chzzk</a></li>
+                <li aria-current="page">Campaigns</li>
+            </ol>
+        </nav>
+        <h2>Chzzk Campaigns</h2>
+        <p>
+            Browse Chzzk drop campaigns, rewards and the archive.
+            <small>{{ page_obj.paginator.count }} campaign{{ page_obj.paginator.count|pluralize }}.</small>
+        </p>
+        {% include "includes/link_footer.html" with rss_url_name="chzzk:campaign_feed" atom_url_name="chzzk:campaign_feed_atom" discord_url_name="chzzk:campaign_feed_discord" api_url_name="api-v1:chzzk-api-v1_list_campaigns" docs_url_name="core:docs_rss" %}
+    </header>
+    {% include "includes/campaign_status_tabs.html" with show_ios=True ios_label="iOS available" %}
+    {% if campaigns %}
+        <div class="campaign-grid">
+            {% for c in campaigns %}
+                <article class="campaign-card">
+                    {% if c.image_best_url %}
+                        <a href="{% url 'chzzk:campaign_detail' c.campaign_no %}">
+                            <img src="{{ c.image_best_url }}"
+                                 alt="Artwork for {{ c.title }}"
+                                 width="240"
+                                 height="135"
+                                 loading="lazy" />
+                        </a>
+                    {% else %}
+                        <small>No artwork</small>
+                    {% endif %}
+                    <h4>
+                        <a href="{% url 'chzzk:campaign_detail' c.campaign_no %}">{{ c.title }}</a>
+                    </h4>
+                    {% if c.category_display %}
+                        <p>
+                            <small>Game: <a href="{{ c.category_url }}">{{ c.category_display }}</a></small>
+                        </p>
+                    {% endif %}
+                    <p>
+                        <small>
+                            {% if c.start_date and c.end_date %}
+                                <time datetime="{{ c.start_date|date:'c' }}">{{ c.start_date|date:"M d, Y" }}</time>
+                                &ndash;
+                                <time datetime="{{ c.end_date|date:'c' }}">{{ c.end_date|date:"M d, Y" }}</time>
+                            {% else %}
+                                Dates unavailable
+                            {% endif %}
+                        </small>
                     </p>
-                </nav>
-            {% endif %}
-        {% else %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No Campaigns Found</h2>
-                    <p class="fg-2 mb-3">No campaigns match the selected filter.</p>
-                    <a class="btn-outline theme-primary"
-                       href="{% url 'chzzk:campaign_list' %}">Clear Filters</a>
-                </div>
-            </section>
-        {% endif %}
-    </main>
+                    <p>
+                        {% if c.start_date <= now and c.end_date >= now %}
+                            <span class="status-active">Active</span>
+                            - ends in {{ c.end_date|timeuntil }}
+                        {% elif c.start_date > now %}
+                            <span class="status-upcoming">Upcoming</span>
+                            - starts in {{ c.start_date|timeuntil }}
+                        {% else %}
+                            <span class="status-expired">Expired</span>
+                        {% endif %}
+                        {% if c.has_ios_based_reward %}<span class="badge">iOS</span>{% endif %}
+                    </p>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <h3>No Campaigns Found</h3>
+        <p>No campaigns match the selected filter.</p>
+        <p><a href="{% url 'chzzk:campaign_list' %}">Clear Filters</a></p>
+    {% endif %}
+    {% if is_paginated %}
+        <nav aria-label="Campaign pages">
+            <p>
+                {% if page_obj.has_previous %}
+                    <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+                {% else %}
+                    Previous
+                {% endif %}
+                | Page {{ page_obj.number }} |
+                {% if page_obj.has_next %}
+                    <a href="?{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+                {% else %}
+                    Next
+                {% endif %}
+            </p>
+            <p>
+                <small>
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of
+                    {{ page_obj.paginator.count }} campaigns
+                    (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}).
+                </small>
+            </p>
+        </nav>
+    {% endif %}
 {% endblock content %}

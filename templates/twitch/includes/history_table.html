@@ -1,75 +1,67 @@
 {% if events %}
-    <div class="table-card bg-1 border-subtle">
-        <div class="table-responsive">
-            <table class="table table-hover history-table md:table-stacked">
-                <thead>
-                    <tr>
-                        <th scope="col">When</th>
-                        <th scope="col">Type</th>
-                        <th scope="col">Object</th>
-                        <th scope="col">Change</th>
-                        <th scope="col">Source</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for event in events %}
-                        <tr>
-                            <td class="history-when">
-                                <time datetime="{{ event.created_at|date:'c' }}"
-                                      title="{{ event.created_at|date:'DATETIME_FORMAT' }}">{{ event.created_at|date:"M d, Y H:i" }}</time>
-                                <div class="fs-xs fg-3">{{ event.created_at|timesince }} ago</div>
-                            </td>
-                            <td data-cell="Type">
-                                <span class="badge badge-subtle theme-{{ event.theme }}">{{ event.model }}</span>
-                                <div class="fs-xs fg-3 mt-1">{{ event.label }}</div>
-                            </td>
-                            <td data-cell="Object">
-                                {% if event.object_url %}
-                                    <a class="history-object-link fw-semibold"
-                                       href="{{ event.object_url }}">{{ event.object_name }}</a>
-                                {% else %}
-                                    <span class="fw-semibold">{{ event.object_name }}</span>
-                                {% endif %}
-                            </td>
-                            <td data-cell="Change" class="history-change">
-                                {% if event.diff %}
-                                    {% include "twitch/includes/history_diff.html" with changes=event.diff|slice:":5" %}
-                                    {% if event.diff|length > 5 %}
-                                        <details class="history-more">
-                                            <summary class="fs-xs fg-3">+{{ event.diff|length|add:"-5" }} more change(s)</summary>
-                                            {% include "twitch/includes/history_diff.html" with changes=event.diff|slice:"5:" %}
-                                        </details>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="fs-sm fg-2">{{ event.summary }}</span>
-                                {% endif %}
-                                <a class="btn-text theme-secondary btn-sm mt-1"
-                                   href="{% url 'twitch:history_event_detail' event.slug %}">View details →</a>
-                            </td>
-                            <td data-cell="Source">
-                                {% if event.source_url %}
-                                    <a href="{{ event.source_url }}"
-                                       class="badge badge-subtle theme-secondary text-decoration-none"
-                                       title="{{ event.source }}">{{ event.source }}</a>
-                                {% else %}
-                                    <span class="badge badge-subtle theme-secondary">{{ event.source }}</span>
-                                {% endif %}
-                                {% if event.source_file %}
-                                    <div class="fs-xs fg-3 history-source-file"
-                                         title="{{ event.source_file }}">{{ event.source_file|truncatechars:55 }}</div>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <table>
+        <caption>Tracked changes</caption>
+        <thead>
+            <tr>
+                <th scope="col">When</th>
+                <th scope="col">Type</th>
+                <th scope="col">Object</th>
+                <th scope="col">Change</th>
+                <th scope="col">Source</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+                <tr>
+                    <td>
+                        <time datetime="{{ event.created_at|date:'c' }}"
+                              title="{{ event.created_at|date:'DATETIME_FORMAT' }}">{{ event.created_at|date:"M d, Y H:i" }}</time>
+                        <br />
+                        <small>{{ event.created_at|timesince }} ago</small>
+                    </td>
+                    <td>
+                        <strong>{{ event.model }}</strong>
+                        <br />
+                        <small>{{ event.label }}</small>
+                    </td>
+                    <td>
+                        {% if event.object_url %}
+                            <a href="{{ event.object_url }}">{{ event.object_name }}</a>
+                        {% else %}
+                            {{ event.object_name }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if event.diff %}
+                            {% include "twitch/includes/history_diff.html" with changes=event.diff|slice:":5" %}
+                            {% if event.diff|length > 5 %}
+                                <details>
+                                    <summary>+{{ event.diff|length|add:"-5" }} more change(s)</summary>
+                                    {% include "twitch/includes/history_diff.html" with changes=event.diff|slice:"5:" %}
+                                </details>
+                            {% endif %}
+                        {% else %}
+                            {{ event.summary }}
+                        {% endif %}
+                        <br />
+                        <a href="{% url 'twitch:history_event_detail' event.slug %}">View details &rarr;</a>
+                    </td>
+                    <td>
+                        {% if event.source_url %}
+                            <a href="{{ event.source_url }}" title="{{ event.source }}">{{ event.source }}</a>
+                        {% else %}
+                            {{ event.source }}
+                        {% endif %}
+                        {% if event.source_file %}
+                            <br />
+                            <small title="{{ event.source_file }}">{{ event.source_file|truncatechars:55 }}</small>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 {% else %}
-    <div class="card detail-card text-center py-5 px-3">
-        <div class="card-body">
-            <h2 class="h4 mb-2">No history events</h2>
-            <p class="fg-2 mb-0">No changes matched the selected filters. Try a wider period or reset the filters.</p>
-        </div>
-    </div>
+    <h2>No history events</h2>
+    <p>No changes matched the selected filters. Try a wider period or reset the filters.</p>
 {% endif %}

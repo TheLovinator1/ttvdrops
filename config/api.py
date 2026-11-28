@@ -71,9 +71,7 @@ api_v1 = NinjaAPI(
         "All campaign, game, organization, and reward data is available "
         "in structured JSON. No authentication required. "
         "Please be nice and limit requests to at most 1 per second. "
-        "The datasets at /datasets/ are a better choice for bulk analysis. "
-        "If you need a higher rate limit for a legitimate project, please reach out "
-        "via tlovinator@gmail.com or on Discord (TheLovinator)."
+        "The datasets at /datasets/ are a better choice for bulk analysis."
     ),
     urls_namespace="api-v1",
     docs_url="docs/",

@@ -1,128 +1,53 @@
 {% extends "base.html" %}
 {% load image_tags %}
-{% block extra_head %}
-    <style>
-        .badge-tile-img {
-            width: 72px;
-            height: 72px;
-            object-fit: contain;
-            filter: drop-shadow(0 6px 14px rgb(0 0 0 / 35%));
-        }
-
-        @media (prefers-reduced-motion: no-preference) {
-            .badge-tile-img {
-                transition: transform 0.2s ease;
-            }
-
-            .badge-tile:hover .badge-tile-img,
-            .badge-tile:focus-visible .badge-tile-img {
-                transform: scale(1.1);
-            }
-        }
-    </style>
-{% endblock extra_head %}
 {% block content %}
-    <main>
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Badges</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">Twitch Chat Badges</h1>
-                        <span class="badge badge-subtle theme-primary">
-                            {{ badge_data|length }} badge set{{ badge_data|length|pluralize }}
-                        </span>
-                        {% if total_badges %}
-                            <span class="badge badge-subtle theme-secondary">
-                                {{ total_badges }} badge{{ total_badges|pluralize }}
-                            </span>
-                        {% endif %}
-                    </div>
-                    <p class="fg-2 mb-0 text-pretty" style="max-width: 80ch;">
-                        Chat badges awarded through Twitch drop campaigns, grouped by set and version.
-                    </p>
-                </div>
-                <div class="align-self-start">
-                    <button class="btn-outline theme-secondary btn-sm"
-                            type="button"
-                            data-bs-toggle="menu"
-                            data-bs-placement="bottom-end"
-                            aria-expanded="false">Developer ▾</button>
-                    <div class="menu">
-                        <h6 class="menu-header">Developer &amp; Help</h6>
-                        <a class="menu-item"
-                           href="{% url 'api-v1:twitch-api-v1_list_badges' %}"
-                           title="Twitch chat badges API">Badges API</a>
-                        <a class="menu-item" href="{% url 'api-v1:openapi-view' %}">API docs</a>
-                    </div>
-                </div>
-            </div>
-        </header>
-        {% if badge_data %}
-            <div class="d-flex flex-column gap-3">
-                {% for data in badge_data %}
-                    <section class="card bg-1 overflow-hidden">
-                        <div class="card-header">
-                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                <div class="d-flex flex-wrap align-items-center gap-2">
-                                    <h2 class="h4 mb-0">
-                                        <a class="text-decoration-none"
-                                           href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">{{ data.set.set_id }}</a>
-                                    </h2>
-                                    {% if data.badges|length > 1 %}
-                                        <span class="badge badge-subtle theme-secondary">
-                                            {{ data.badges|length }} versions
-                                        </span>
-                                    {% endif %}
-                                </div>
-                                <a class="btn-outline theme-secondary btn-sm"
-                                   href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">View set →</a>
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+                <li aria-current="page">Badges</li>
+            </ol>
+        </nav>
+        <h2>Twitch Chat Badges</h2>
+        <p>
+            Chat badges awarded through Twitch drop campaigns, grouped by set and version.
+            <small>
+                {{ badge_data|length }} badge set{{ badge_data|length|pluralize }}{% if total_badges %},
+                {{ total_badges }} badge{{ total_badges|pluralize }}{% endif %}.
+            </small>
+        </p>
+        {% include "includes/link_footer.html" with api_url_name="api-v1:twitch-api-v1_list_badges" api_label="badges api" docs_url_name="api-v1:openapi-view" docs_label="api docs" %}
+    </header>
+    {% if badge_data %}
+        {% for data in badge_data %}
+            <article>
+                <header>
+                    <h3>
+                        <a href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}">{{ data.set.set_id }}</a>
+                        {% if data.badges|length > 1 %}<small>({{ data.badges|length }} versions)</small>{% endif %}
+                    </h3>
+                </header>
+                {% if data.badges %}
+                    <div class="badge-grid">
+                        {% for badge in data.badges %}
+                            <div class="badge-card">
+                                {% picture badge.image_url_4x alt=badge.title width=72 height=72 %}
+                                <strong>{{ badge.title }}</strong>
+                                {% if data.badges|length > 1 or badge.badge_id != "1" %}
+                                    <code>{{ badge.badge_id }}</code>
+                                {% endif %}
                             </div>
-                        </div>
-                        <div class="card-body">
-                            {% if data.badges %}
-                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                                    {% for badge in data.badges %}
-                                        <a class="badge-tile d-flex flex-column align-items-center justify-content-center text-center text-decoration-none bg-2 border border-subtle rounded-4 p-3 hover-lift"
-                                           href="{% url 'twitch:badge_set_detail' set_id=data.set.set_id %}"
-                                           title="{{ badge.title }}{% if badge.description and badge.description != badge.title %} - {{ badge.description }}{% endif %}">
-                                            {% picture badge.image_url_4x alt=badge.title width=72 height=72 css_class="badge-tile-img" %}
-                                            <div class="fw-semibold fs-sm mt-2 w-100 text-truncate">{{ badge.title }}</div>
-                                            {% if data.badges|length > 1 or badge.badge_id != "1" %}
-                                                <code class="fs-xs fg-3">{{ badge.badge_id }}</code>
-                                            {% endif %}
-                                        </a>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <p class="fg-2 mb-0">No badges in this set.</p>
-                            {% endif %}
-                        </div>
-                    </section>
-                {% endfor %}
-            </div>
-        {% else %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No badge sets found</h2>
-                    <p class="fg-2 mb-3">No Twitch chat badges have been imported yet.</p>
-                    <code class="d-inline-block bg-2 rounded-3 px-3 py-2">uv run python manage.py import_chat_badges</code>
-                </div>
-            </section>
-        {% endif %}
-    </main>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p>No badges in this set.</p>
+                {% endif %}
+            </article>
+        {% endfor %}
+    {% else %}
+        <h3>No badge sets found</h3>
+        <p>No Twitch chat badges have been imported yet.</p>
+        <p><code>uv run python manage.py import_chat_badges</code></p>
+    {% endif %}
 {% endblock content %}

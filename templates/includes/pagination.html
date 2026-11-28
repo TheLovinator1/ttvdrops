@@ -1,22 +1,19 @@
 {% if newer_cursor or older_cursor %}
-    <nav aria-label="History pagination"
-         class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-4">
-        <span class="fs-xs fg-3">Newest changes first</span>
-        <ul class="pagination theme-primary mb-0">
-            <li class="page-item {% if not newer_cursor %}disabled{% endif %}">
+    <nav aria-label="History pagination">
+        <p><small>Newest changes first.</small></p>
+        <ul>
+            <li>
                 {% if newer_cursor %}
-                    <a class="page-link"
-                       href="{{ history_base_url }}{{ page_join }}newer={{ newer_cursor|urlencode }}">← Newer</a>
+                    <a href="{{ history_base_url }}{{ page_join }}newer={{ newer_cursor|urlencode }}">&larr; Newer</a>
                 {% else %}
-                    <span class="page-link">← Newer</span>
+                    &larr; Newer
                 {% endif %}
             </li>
-            <li class="page-item {% if not older_cursor %}disabled{% endif %}">
+            <li>
                 {% if older_cursor %}
-                    <a class="page-link"
-                       href="{{ history_base_url }}{{ page_join }}older={{ older_cursor|urlencode }}">Older →</a>
+                    <a href="{{ history_base_url }}{{ page_join }}older={{ older_cursor|urlencode }}">Older &rarr;</a>
                 {% else %}
-                    <span class="page-link">Older →</span>
+                    Older &rarr;
                 {% endif %}
             </li>
         </ul>

@@ -1,0 +1,109 @@
+{% load image_tags %}
+<article class="dashboard-game" id="kick-game-article-{{ game_id }}">
+    <header class="dashboard-game-header">
+        {% if game_data.image %}
+            {% if game_data.kick_id %}
+                <a href="{% url 'kick:game_detail' game_data.kick_id %}">
+                    {% picture game_data.image alt="Image for "|add:game_data.name width=96 %}
+                </a>
+            {% else %}
+                {% picture game_data.image alt="Image for "|add:game_data.name width=96 %}
+            {% endif %}
+        {% endif %}
+        <div>
+            <h3>
+                {% if game_data.kick_id %}
+                    <a href="{% url 'kick:game_detail' game_data.kick_id %}">{{ game_data.name }}</a>
+                {% elif game_data.organizations %}
+                    {% for org in game_data.organizations %}
+                        <a href="{% url 'kick:organization_detail' org.kick_id %}">{{ org.name }}</a>{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                {% else %}
+                    {{ game_data.name }}
+                {% endif %}
+            </h3>
+            {% if game_data.kick_id and game_data.organizations %}
+                <p>
+                    <small>By
+                        {% for org in game_data.organizations %}
+                            <a href="{% url 'kick:organization_detail' org.kick_id %}">{{ org.name }}</a>{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    </small>
+                </p>
+            {% endif %}
+        </div>
+    </header>
+    {% for campaign_data in game_data.campaigns %}
+        {% with campaign=campaign_data.campaign %}
+            <section class="dashboard-campaign" id="kick-campaign-{{ campaign.kick_id }}">
+                <div class="dashboard-campaign-layout">
+                    {% with campaign_image=campaign.image_url %}
+                        {% if campaign_image %}
+                            <a class="dashboard-campaign-image"
+                               href="{% url 'kick:campaign_detail' campaign.kick_id %}">
+                                <img src="{{ campaign_image }}"
+                                     alt="Artwork for {{ campaign.name }}"
+                                     width="120"
+                                     loading="lazy" />
+                            </a>
+                        {% endif %}
+                    {% endwith %}
+                    <div class="dashboard-campaign-content">
+                        <header>
+                            <h4><a href="{% url 'kick:campaign_detail' campaign.kick_id %}">{{ campaign.name }}</a></h4>
+                            <p class="dashboard-campaign-meta">
+                                {% if campaign.organization %}
+                                    <span>By: <strong>{{ campaign.organization.name }}</strong></span>
+                                {% endif %}
+                                {% if campaign_data.watch_range %}
+                                    <span>Watch: <strong>{{ campaign_data.watch_range }}</strong></span>
+                                {% endif %}
+                                <span>
+                                    Channels:
+                                    {% if campaign_data.channels|length == 1 %}
+                                        {% with channel=campaign_data.channels.0 %}
+                                            <a href="{{ channel.channel_url }}">{{ channel.user.username|default:channel.slug }}</a>
+                                        {% endwith %}
+                                    {% elif campaign_data.channels %}
+                                        <a href="{% url 'kick:campaign_detail' campaign.kick_id %}#allowed-channels">{{ campaign_data.channels|length }} channel{{ campaign_data.channels|length|pluralize }}</a>
+                                    {% else %}
+                                        <a href="{{ campaign.url }}">Category-wide</a>
+                                    {% endif %}
+                                </span>
+                                <span>Started:
+                                    <time datetime="{{ campaign.starts_at|date:'c' }}"
+                                          title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">{{ campaign.starts_at|timesince }} ago</time>
+                                </span>
+                                <span>Ends:
+                                    <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                          title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">in {{ campaign.ends_at|timeuntil }}</time>
+                                </span>
+                            </p>
+                        </header>
+                        {% if campaign_data.rewards %}
+                            <div class="dashboard-reward-grid">
+                                {% for reward in campaign_data.rewards %}
+                                    <a class="dashboard-reward"
+                                       href="{% url 'kick:campaign_detail' campaign.kick_id %}#reward-{{ reward.kick_id }}"
+                                       title="{{ reward.name }}">
+                                        {% if reward.image_best_url %}
+                                            <img src="{{ reward.image_best_url }}"
+                                                 alt=""
+                                                 width="32"
+                                                 height="32"
+                                                 loading="lazy" />
+                                        {% endif %}
+                                        <span class="dashboard-reward-name">{{ reward.name }}</span>
+                                        {% if reward.required_units %}
+                                            <span class="dashboard-reward-time">{{ reward.required_units }}m</span>
+                                        {% endif %}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        {% endwith %}
+    {% endfor %}
+</article>

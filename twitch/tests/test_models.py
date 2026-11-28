@@ -146,6 +146,22 @@ class DropCampaignRewardSummaryTests(TestCase):
             "Campaign gives KawaiiDozer badge, Clover badge, Pearl badge and Joy badge"
         )
 
+    def test_normalizes_fullwidth_parentheses_in_reward_names(self) -> None:
+        """Reward names should use normal parentheses instead of full-width ones."""
+        campaign = self._make_campaign()
+        self._add_drop(
+            campaign,
+            1,
+            "Secret Crate:S15\uff08Epic\uff09",
+            "DIRECT_ENTITLEMENT",
+        )
+
+        campaign = DropCampaign.objects.prefetch_related(
+            "time_based_drops__benefits",
+        ).get(pk=campaign.pk)
+
+        assert campaign.reward_summary == ("Campaign gives Secret Crate:S15 (Epic)")
+
     def test_keeps_direct_entitlement_names_and_order(self) -> None:
         """Non-badge rewards should keep their names and campaign order."""
         campaign = self._make_campaign()

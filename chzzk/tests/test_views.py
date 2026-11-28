@@ -439,10 +439,10 @@ class ChzzkCampaignListFilterTests(TestCase):
             assert response.status_code == 200
             assert included.title in content
             assert excluded.title not in content
-            assert 'class="nav-link active"' in content
+            assert f'aria-current="page">{status.title()}</span>' in content
 
     def test_ios_only_tab_filters_ios_rewards(self) -> None:
-        """The iOS only tab should show only iOS-based campaigns."""
+        """The iOS available tab should show campaigns with iOS-based rewards."""
         now = timezone.now()
         ios_campaign = self._make_campaign(
             9201,
@@ -467,7 +467,7 @@ class ChzzkCampaignListFilterTests(TestCase):
         assert response.status_code == 200
         assert ios_campaign.title in content
         assert other_campaign.title not in content
-        assert "iOS only" in content
+        assert "iOS available" in content
 
 
 class ChzzkGameListViewTests(TestCase):

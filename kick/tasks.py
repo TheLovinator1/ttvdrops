@@ -15,3 +15,9 @@ def import_kick_drops(self) -> None:  # ruff:ignore[missing-type-function-argume
         call_command("import_kick_drops")
     except Exception as exc:
         raise self.retry(exc=exc) from exc
+
+
+@shared_task
+def download_all_kick_images() -> None:
+    """Download and cache all Kick reward images."""
+    call_command("download_kick_images")

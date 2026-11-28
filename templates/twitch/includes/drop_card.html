@@ -1,0 +1,46 @@
+{% load image_tags %}
+<article class="drop-card">
+    <div class="drop-media">
+        {% with first_benefit=drop.drop.benefits.all.0 %}
+            {% if first_benefit.image_best_url %}
+                {% picture first_benefit.image_best_url alt="Artwork for "|add:drop.drop.name width=160 height=160 %}
+            {% else %}
+                <small>No image</small>
+            {% endif %}
+        {% endwith %}
+    </div>
+    <div class="drop-main">
+        <h4>{{ drop.drop.name }}</h4>
+        <div class="benefit-list">
+            {% for benefit in drop.drop.benefits.all %}
+                {% include "twitch/includes/benefit_card.html" with benefit=benefit drop=drop show_image=False %}
+            {% empty %}
+                <small><em>No benefits.</em></small>
+            {% endfor %}
+        </div>
+    </div>
+    {% if drop.drop.required_subs or drop.drop.required_minutes_watched %}
+        <p class="drop-requirement">
+            {% if drop.drop.required_subs %}
+                {{ drop.drop.required_subs }} subscription{{ drop.drop.required_subs|pluralize }} required
+            {% elif drop.drop.required_minutes_watched %}
+                {{ drop.drop.required_minutes_watched }} minute{{ drop.drop.required_minutes_watched|pluralize }} watched
+            {% endif %}
+        </p>
+    {% endif %}
+    <div class="drop-dates">
+        <div>
+            {% if drop.drop.start_at %}
+                <time datetime="{{ drop.drop.start_at|date:'c' }}"
+                      title="{{ drop.drop.start_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.start_at|date:"M d, Y H:i" }}</time>
+            {% endif %}
+            {% if drop.drop.start_at and drop.drop.end_at %} &ndash; {% endif %}
+            {% if drop.drop.end_at %}
+                <time datetime="{{ drop.drop.end_at|date:'c' }}"
+                      title="{{ drop.drop.end_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.end_at|date:"M d, Y H:i" }}</time>
+            {% endif %}
+        </div>
+        <div class="drop-dates-muted">Timezone: {{ drop.timezone_name|default:"Unknown" }}</div>
+        <div class="drop-dates-muted">Duration: {{ drop.duration_text|default:"Unknown" }}</div>
+    </div>
+</article>

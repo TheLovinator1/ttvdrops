@@ -1,3 +1,5 @@
+import json
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -54,11 +56,20 @@ def dashboard_view(request: HttpRequest) -> HttpResponse:
         ).count(),
         "total_rewards": models.ChzzkReward.objects.count(),
     }
+    dashboard_games: OrderedDict[str, dict[str, str]] = OrderedDict()
+    for campaign in active_campaigns:
+        if campaign.category_id not in dashboard_games:
+            dashboard_games[campaign.category_id] = {
+                "name": campaign.category_display,
+                "url": campaign.category_url,
+            }
+
     return render(
         request=request,
         template_name="chzzk/dashboard.html",
         context={
             "active_campaigns": active_campaigns,
+            "dashboard_games": list(dashboard_games.values()),
             "counts": counts,
             "now": now,
             "page_title": "Chzzk Drops - Campaigns, Rewards and Schedule",
@@ -402,6 +413,49 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
             elapsed: float = (now - campaign.start_date).total_seconds()
             total: float = (campaign.end_date - campaign.start_date).total_seconds()
             campaign_progress_percent = round(elapsed / total * 100)
+    technical_details: dict[str, Any] = {
+        "campaign_no": campaign.campaign_no,
+        "title": campaign.title,
+        "description": campaign.description,
+        "image_url": campaign.image_url,
+        "image_best_url": campaign.image_best_url,
+        "category_type": campaign.category_type,
+        "category_id": campaign.category_id,
+        "category_value": campaign.category_value,
+        "category_display": campaign.category_display,
+        "pc_link_url": campaign.pc_link_url,
+        "mobile_link_url": campaign.mobile_link_url,
+        "service_id": campaign.service_id,
+        "state": campaign.state,
+        "status": campaign_status,
+        "start_date": (
+            campaign.start_date.isoformat() if campaign.start_date else None
+        ),
+        "end_date": campaign.end_date.isoformat() if campaign.end_date else None,
+        "has_ios_based_reward": campaign.has_ios_based_reward,
+        "drops_campaign_not_started": campaign.drops_campaign_not_started,
+        "campaign_reward_type": campaign.campaign_reward_type,
+        "reward_type": campaign.reward_type,
+        "account_link_url": campaign.account_link_url,
+        "scraped_at": campaign.scraped_at.isoformat() if campaign.scraped_at else None,
+        "source_api": campaign.source_api,
+        "rewards": [
+            {
+                "reward_no": reward.reward_no,
+                "title": reward.title,
+                "reward_type": reward.reward_type,
+                "campaign_reward_type": reward.campaign_reward_type,
+                "condition_type": reward.condition_type,
+                "condition_for_minutes": reward.condition_for_minutes,
+                "ios_based_reward": reward.ios_based_reward,
+                "code_remaining_count": reward.code_remaining_count,
+                "image_url": reward.image_url,
+                "image_best_url": reward.image_best_url,
+            }
+            for reward in rewards
+        ],
+    }
+
     return render(
         request=request,
         template_name="chzzk/campaign_detail.html",
@@ -411,6 +465,11 @@ def campaign_detail_view(request: HttpRequest, campaign_no: int) -> HttpResponse
             "rewards": rewards,
             "now": now,
             "campaign_progress_percent": campaign_progress_percent,
+            "technical_details_json": json.dumps(
+                technical_details,
+                indent=2,
+                ensure_ascii=False,
+            ),
             "page_title": f"{campaign.title} - Chzzk Drop Campaign and Rewards",
             "page_description": campaign.description or campaign.title,
             "discord_embed_accent_color": CHZZK_ACCENT_COLOR,

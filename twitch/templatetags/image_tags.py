@@ -82,9 +82,12 @@ def picture(  # ruff:ignore[too-many-positional-arguments]
     except (ValueError, OSError) as exc:
         logger.debug("Error while resolving media file %s: %s", src, exc)
 
-    # For Twitch CDN URLs, skip format conversion and use simple img tag
-    if "static-cdn.jtvnw.net" in src:
-        src = normalize_twitch_image_url(src)
+    # For Twitch and Kick CDN URLs, skip format conversion and use simple img tags.
+    is_twitch_cdn: bool = "static-cdn.jtvnw.net" in src
+    is_kick_cdn: bool = urlparse(src).netloc.endswith("kick.com")
+    if is_twitch_cdn or is_kick_cdn:
+        if is_twitch_cdn:
+            src = normalize_twitch_image_url(src)
         return format_html(
             format_string='<img src="{src}"{width}{height}{loading}{css_class}{style}{alt} />',
             src=src,

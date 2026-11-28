@@ -14,208 +14,198 @@
           href="{% url 'kick:game_campaign_feed_discord' category.kick_id %}" />
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'kick:game_list' %}">Games</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">{{ category.name }}</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row gap-3 align-items-start">
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'kick:dashboard' %}">Kick</a></li>
+                <li><a href="{% url 'kick:game_list' %}">Games</a></li>
+                <li aria-current="page">{{ category.name }}</li>
+            </ol>
+        </nav>
+        <div class="detail-header">
+            <div class="detail-media">
                 {% if category.image_url %}
-                    <div class="flex-shrink-0 overflow-hidden rounded-2 bg-2"
-                         style="width: 160px;
-                                max-width: 100%">
-                        <img src="{{ category.image_url }}"
-                             alt="{{ category.name }} artwork"
-                             width="160"
-                             loading="lazy"
-                             class="w-100 h-auto d-block" />
-                    </div>
+                    <img src="{{ category.image_url }}"
+                         alt="{{ category.name }} artwork"
+                         width="160"
+                         loading="lazy" />
                 {% endif %}
-                <div class="flex-grow-1">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                        <h1 class="h2 mb-0">{{ category.name }}</h1>
-                        <span class="badge badge-subtle theme-secondary">
-                            {{ total_campaigns }} campaign{{ total_campaigns|pluralize }}
-                        </span>
-                    </div>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        <span class="badge badge-subtle theme-success">Active: {{ active_campaigns|length }}</span>
-                        <span class="badge badge-subtle theme-info">Upcoming: {{ upcoming_campaigns|length }}</span>
-                        <span class="badge badge-subtle theme-danger">Expired: {{ expired_campaigns|length }}</span>
-                    </div>
-                    <dl class="row g-1 mb-3 fs-sm">
-                        <dt class="col-12 sm:col-3 fw-semibold mb-0">Kick ID</dt>
-                        <dd class="col-12 sm:col-9 mb-0">
-                            <code>{{ category.kick_id }}</code>
-                        </dd>
-                        <dt class="col-12 sm:col-3 fw-semibold mb-0">Added</dt>
-                        <dd class="col-12 sm:col-9 mb-0">
+            </div>
+            <div class="detail-body">
+                <h2>{{ category.name }}</h2>
+                    <p>
+                        <small>
+                            <data value="{{ total_campaigns }}">{{ total_campaigns }}</data> campaign{{ total_campaigns|pluralize }}
+                            | Active: <data value="{{ active_campaigns|length }}">{{ active_campaigns|length }}</data>
+                            | Upcoming: <data value="{{ upcoming_campaigns|length }}">{{ upcoming_campaigns|length }}</data>
+                            | Expired: <data value="{{ expired_campaigns|length }}">{{ expired_campaigns|length }}</data>
+                        </small>
+                    </p>
+                    <dl>
+                        <dt>Kick ID</dt>
+                        <dd><code>{{ category.kick_id }}</code></dd>
+                        <dt>Added</dt>
+                        <dd>
                             <time datetime="{{ category.added_at|date:'c' }}"
-                                  title="{{ category.added_at|date:'DATETIME_FORMAT' }}">{{ category.added_at|date:"M d, Y H:i" }}</time> ({{ category.added_at|timesince }} ago)
+                                  title="{{ category.added_at|date:'DATETIME_FORMAT' }}">{{ category.added_at|date:"M d, Y H:i" }}</time>
+                            <small>({{ category.added_at|timesince }} ago)</small>
                         </dd>
-                        <dt class="col-12 sm:col-3 fw-semibold mb-0">Last updated</dt>
-                        <dd class="col-12 sm:col-9 mb-0">
+                        <dt>Last updated</dt>
+                        <dd>
                             <time datetime="{{ category.updated_at|date:'c' }}"
-                                  title="{{ category.updated_at|date:'DATETIME_FORMAT' }}">{{ category.updated_at|date:"M d, Y H:i" }}</time> ({{ category.updated_at|timesince }} ago)
+                                  title="{{ category.updated_at|date:'DATETIME_FORMAT' }}">{{ category.updated_at|date:"M d, Y H:i" }}</time>
+                            <small>({{ category.updated_at|timesince }} ago)</small>
                         </dd>
                     </dl>
-                    <div class="d-flex flex-wrap justify-content-end align-items-center gap-2">
-                        {% if category.kick_url %}
-                            <a class="btn-solid theme-primary btn-sm"
-                               href="{{ category.kick_url }}"
-                               target="_blank"
-                               rel="noopener">View on Kick</a>
-                        {% endif %}
-                        {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                        <div>
-                            <button class="btn-outline theme-secondary btn-sm"
-                                    type="button"
-                                    data-bs-toggle="menu"
-                                    data-bs-placement="bottom-end"
-                                    aria-expanded="false">Subscribe ▾</button>
-                            <div class="menu">
-                                <h6 class="menu-header">Feeds</h6>
-                                <a class="menu-item"
-                                   href="{% url 'kick:game_campaign_feed' category.kick_id %}"
-                                   title="RSS feed for {{ category.name }} campaigns">RSS</a>
-                                <a class="menu-item"
-                                   href="{% url 'kick:game_campaign_feed_atom' category.kick_id %}"
-                                   title="Atom feed for {{ category.name }} campaigns">Atom</a>
-                                <a class="menu-item"
-                                   href="{% url 'kick:game_campaign_feed_discord' category.kick_id %}"
-                                   title="Discord-flavored feed for {{ category.name }} campaigns">Discord-flavored</a>
-                                <hr class="menu-divider" />
-                                <h6 class="menu-header">Developer &amp; Help</h6>
-                                <a class="menu-item"
-                                   href="{% url 'api-v1:kick-api-v1_get_game' category.kick_id %}">API</a>
-                                <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                    <footer class="detail-links" aria-label="Links">
+                        <div class="detail-links-grid">
+                            <div>
+                                <div class="detail-links-title">External</div>
+                                <div>
+                                    {% if category.kick_url %}
+                                        <a href="{{ category.kick_url }}" target="_blank" rel="noopener">[view on kick]</a>
+                                    {% endif %}
+                                    <a href="{% url 'kick:game_list' %}">[all games]</a>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="detail-links-title">
+                                        Subscribe
+                                        <a href="{% url 'core:docs_rss' %}"
+                                           title="Feed documentation"
+                                           class="detail-links-help">(?)</a>
+                                    </div>
+                                <div>
+                                    <a href="{% url 'kick:game_campaign_feed' category.kick_id %}" title="RSS feed for {{ category.name }} campaigns">[rss]</a>
+                                    <a href="{% url 'kick:game_campaign_feed_atom' category.kick_id %}" title="Atom feed for {{ category.name }} campaigns">[atom]</a>
+                                    <a href="{% url 'kick:game_campaign_feed_discord' category.kick_id %}" title="Discord-flavored feed for {{ category.name }} campaigns">[discord-flavored]</a>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="detail-links-title">Developer</div>
+                                <div>
+                                    <a href="{% url 'api-v1:kick-api-v1_get_game' category.kick_id %}">[api]</a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </footer>
             </div>
-        </header>
-        <ul class="nav nav-tabs mb-4"
-            role="tablist"
-            aria-label="Game campaign status filters">
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if not selected_status %}active{% endif %}"
-                   href="{% querystring status=None %}"
-                   {% if not selected_status %}aria-current="page"{% endif %}>All</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if selected_status == 'active' %}active{% endif %}"
-                   href="{% querystring status='active' %}"
-                   {% if selected_status == 'active' %}aria-current="page"{% endif %}>Available</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if selected_status == 'upcoming' %}active{% endif %}"
-                   href="{% querystring status='upcoming' %}"
-                   {% if selected_status == 'upcoming' %}aria-current="page"{% endif %}>Upcoming</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if selected_status == 'expired' %}active{% endif %}"
-                   href="{% querystring status='expired' %}"
-                   {% if selected_status == 'expired' %}aria-current="page"{% endif %}>Past</a>
-            </li>
-        </ul>
-        <section class="mb-4">
-            <h2 class="h5 mb-2">Campaign history</h2>
-            <p class="fg-2 mb-0">
-                {% if last_campaign_end_at %}
-                    {% if last_campaign_end_at > now %}
-                        The latest campaign ends
-                        <time datetime="{{ last_campaign_end_at|date:'c' }}"
-                              title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
-                        (in {{ last_campaign_end_at|timeuntil }}).
-                    {% else %}
-                        The last campaign ended
-                        <time datetime="{{ last_campaign_end_at|date:'c' }}"
-                              title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
-                        ({{ last_campaign_end_at|timesince }} ago).
-                    {% endif %}
+        </div>
+    </header>
+    <div class="page-tabs" role="tablist" aria-label="Game sections">
+        <button type="button"
+                class="page-tab"
+                id="campaign-tab"
+                role="tab"
+                aria-selected="true"
+                aria-controls="campaign-panel"
+                data-tab-target="campaign-panel"
+                data-tab-name="campaign">Campaigns</button>
+        <button type="button"
+                class="page-tab"
+                id="json-tab"
+                role="tab"
+                aria-selected="false"
+                aria-controls="json-panel"
+                data-tab-target="json-panel"
+                data-tab-name="json">JSON</button>
+    </div>
+    <div id="campaign-panel"
+         role="tabpanel"
+         aria-labelledby="campaign-tab">
+    <section aria-labelledby="campaign-history-heading">
+        <h3 id="campaign-history-heading">Campaign history</h3>
+        <p>
+            {% if last_campaign_end_at %}
+                {% if last_campaign_end_at > now %}
+                    The latest campaign ends
+                    <time datetime="{{ last_campaign_end_at|date:'c' }}"
+                          title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
+                    (in {{ last_campaign_end_at|timeuntil }}).
                 {% else %}
-                    No campaign history is available for this game yet.
+                    The last campaign ended
+                    <time datetime="{{ last_campaign_end_at|date:'c' }}"
+                          title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
+                    ({{ last_campaign_end_at|timesince }} ago).
                 {% endif %}
-                {% if average_gap_days %}
-                    On average, campaigns are about {{ average_gap_days|floatformat:1 }} days apart.
-                {% endif %}
-            </p>
-        </section>
-        {% if not selected_status or selected_status == "active" %}
-            {% if active_campaigns %}
-                <section aria-labelledby="active-campaigns-heading" class="mb-4">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="active-campaigns-heading" class="h4 mb-0">Active Campaigns</h2>
-                        <span class="badge badge-subtle theme-success">{{ active_campaigns|length }}</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {% for campaign in active_campaigns %}
-                            {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="active" status_label="Active" status_theme="success" %}
-                        {% endfor %}
-                    </div>
-                </section>
+            {% else %}
+                No campaign history is available for this game yet.
             {% endif %}
+            {% if average_gap_days %}On average, campaigns are about {{ average_gap_days|floatformat:1 }} days apart.{% endif %}
+        </p>
+    </section>
+    <nav class="page-tabs" aria-label="Game campaign status filters">
+        {% if not selected_status %}
+            <span class="page-tab" aria-current="page">All</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status=None %}">All</a>
         {% endif %}
-        {% if not selected_status or selected_status == "upcoming" %}
-            {% if upcoming_campaigns %}
-                <section aria-labelledby="upcoming-campaigns-heading" class="mb-4">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="upcoming-campaigns-heading" class="h4 mb-0">Upcoming Campaigns</h2>
-                        <span class="badge badge-subtle theme-info">{{ upcoming_campaigns|length }}</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {% for campaign in upcoming_campaigns %}
-                            {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="upcoming" status_label="Upcoming" status_theme="info" %}
-                        {% endfor %}
-                    </div>
-                </section>
-            {% endif %}
+        {% if selected_status == "active" %}
+            <span class="page-tab" aria-current="page">Available</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status='active' %}">Available</a>
         {% endif %}
-        {% if not selected_status or selected_status == "expired" %}
-            {% if expired_campaigns %}
-                <section aria-labelledby="expired-campaigns-heading" class="mb-4">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="expired-campaigns-heading" class="h4 mb-0">Expired Campaigns</h2>
-                        <span class="badge badge-subtle theme-danger">{{ expired_campaigns|length }}</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {% for campaign in expired_campaigns %}
-                            {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="expired" status_label="Expired" status_theme="danger" %}
-                        {% endfor %}
-                    </div>
-                </section>
-            {% endif %}
+        {% if selected_status == "upcoming" %}
+            <span class="page-tab" aria-current="page">Upcoming</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status='upcoming' %}">Upcoming</a>
         {% endif %}
-        {% if selected_status == "active" and not active_campaigns %}
-            <p id="empty-status-message" class="fg-3 fst-italic">No available campaigns for this game right now.</p>
-        {% elif selected_status == "upcoming" and not upcoming_campaigns %}
-            <p id="empty-status-message" class="fg-3 fst-italic">No upcoming campaigns for this game.</p>
-        {% elif selected_status == "expired" and not expired_campaigns %}
-            <p id="empty-status-message" class="fg-3 fst-italic">No past campaigns for this game.</p>
-        {% elif not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No Campaigns Found</h2>
-                    <p class="fg-2 mb-0">No campaigns found for this game.</p>
-                </div>
+        {% if selected_status == "expired" %}
+            <span class="page-tab" aria-current="page">Past</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status='expired' %}">Past</a>
+        {% endif %}
+    </nav>
+    {% if not selected_status or selected_status == "active" %}
+        {% if active_campaigns %}
+            <section aria-labelledby="active-campaigns-heading">
+                <h3 id="active-campaigns-heading">Active Campaigns (<data value="{{ active_campaigns|length }}">{{ active_campaigns|length }}</data>)</h3>
+                {% for campaign in active_campaigns %}
+                    {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="active" status_label="Active" status_theme="success" %}
+                {% endfor %}
             </section>
         {% endif %}
-    </main>
+    {% endif %}
+    {% if not selected_status or selected_status == "upcoming" %}
+        {% if upcoming_campaigns %}
+            <section aria-labelledby="upcoming-campaigns-heading">
+                <h3 id="upcoming-campaigns-heading">Upcoming Campaigns (<data value="{{ upcoming_campaigns|length }}">{{ upcoming_campaigns|length }}</data>)</h3>
+                {% for campaign in upcoming_campaigns %}
+                    {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="upcoming" status_label="Upcoming" status_theme="info" %}
+                {% endfor %}
+            </section>
+        {% endif %}
+    {% endif %}
+    {% if not selected_status or selected_status == "expired" %}
+        {% if expired_campaigns %}
+            <section aria-labelledby="expired-campaigns-heading">
+                <h3 id="expired-campaigns-heading">Expired Campaigns (<data value="{{ expired_campaigns|length }}">{{ expired_campaigns|length }}</data>)</h3>
+                {% for campaign in expired_campaigns %}
+                    {% include "kick/includes/campaign_card.html" with campaign=campaign status_key="expired" status_label="Expired" status_theme="danger" %}
+                {% endfor %}
+            </section>
+        {% endif %}
+    {% endif %}
+    {% if selected_status == "active" and not active_campaigns %}
+        <p id="empty-status-message"><em>No available campaigns for this game right now.</em></p>
+    {% elif selected_status == "upcoming" and not upcoming_campaigns %}
+        <p id="empty-status-message"><em>No upcoming campaigns for this game.</em></p>
+    {% elif selected_status == "expired" and not expired_campaigns %}
+        <p id="empty-status-message"><em>No past campaigns for this game.</em></p>
+    {% elif not active_campaigns and not upcoming_campaigns and not expired_campaigns %}
+        <h3>No Campaigns Found</h3>
+        <p>No campaigns found for this game.</p>
+    {% endif %}
+        </div>
+        <div id="json-panel"
+             role="tabpanel"
+             aria-labelledby="json-tab"
+             hidden>
+            <section aria-labelledby="technical-heading">
+                <h3 id="technical-heading">Technical details</h3>
+                <pre><code>{{ technical_details_json }}</code></pre>
+            </section>
+        </div>
+        {% include "includes/tab_script.html" %}
 {% endblock content %}

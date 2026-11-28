@@ -4,6 +4,7 @@ import csv
 import datetime
 import json
 import logging
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -775,10 +776,26 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
     org_name: str = organization.name or organization.twitch_id
     games_count: int = len(games)
     noun: str = "game" if games_count == 1 else "games"
+    game_names: list[str] = [
+        game.display_name or game.name or game.twitch_id for game in games
+    ]
+    if not game_names:
+        org_game_summary = f"{org_name} has no games in the TTVDrops archive yet."
+    elif len(game_names) == 1:
+        org_game_summary = f"{org_name} is the owner of {game_names[0]}."
+    elif len(game_names) == 2:  # ruff:ignore[magic-value-comparison]
+        org_game_summary = (
+            f"{org_name} is the owner of {game_names[0]} and {game_names[1]}."
+        )
+    else:
+        displayed_games: str = ", ".join(game_names[:3])
+        remaining_games: int = len(game_names) - 3
+        if remaining_games > 0:
+            displayed_games += f" and {remaining_games} more"
+        org_game_summary = f"{org_name} is the owner of {displayed_games}."
     org_description: str = (
-        f"{org_name} is a Twitch publisher in our drop archive with "
-        f"{games_count} {noun}. Follow new drops via RSS feeds or query rewards "
-        "with the JSON API."
+        f"{org_game_summary} Browse {games_count} {noun} in our Twitch drop "
+        "archive. Follow new drops via RSS feeds or query rewards with the JSON API."
     )
 
     url: str = build_absolute_uri(
@@ -849,14 +866,47 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
         expired_campaigns=Count("pk", filter=Q(end_at__lt=now)),
     )
 
+    technical_details: dict[str, Any] = {
+        "twitch_id": organization.twitch_id,
+        "name": organization.name,
+        "added_at": (
+            organization.added_at.isoformat() if organization.added_at else None
+        ),
+        "updated_at": (
+            organization.updated_at.isoformat() if organization.updated_at else None
+        ),
+        "games": [
+            {
+                "twitch_id": game.twitch_id,
+                "slug": game.slug,
+                "name": game.name,
+                "display_name": game.display_name,
+                "box_art": game.box_art,
+                "box_art_best_url": game.box_art_best_url,
+                "campaign_count": getattr(game, "campaign_count", 0),
+            }
+            for game in games
+        ],
+        "campaign_stats": {
+            key: value.isoformat() if hasattr(value, "isoformat") else value
+            for key, value in campaign_stats.items()
+        },
+    }
+
     context: dict[str, Any] = {
         "organization": organization,
         "games": games,
         "games_count": games_count,
+        "org_game_summary": org_game_summary,
         "total_campaigns": total_campaigns,
         "campaign_stats": campaign_stats,
         "history_events": history_events,
         "history_event_count": history_event_count,
+        "technical_details_json": json.dumps(
+            technical_details,
+            indent=2,
+            ensure_ascii=False,
+        ),
         **seo_context,
     }
 
@@ -864,7 +914,7 @@ def organization_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespon
 
 
 # MARK: /campaigns/
-def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-locals]
+def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignore[too-many-locals, too-many-statements]
     """Function-based view for drop campaigns list.
 
     Args:
@@ -985,8 +1035,57 @@ def drop_campaign_list_view(request: HttpRequest) -> HttpResponse:  # ruff:ignor
             ]),
         },
     )
+    campaigns_by_game: OrderedDict[str, dict[str, Any]] = OrderedDict()
+    for campaign in campaigns:
+        game: Game = campaign.game
+        game_id: str = game.twitch_id
+        if game_id not in campaigns_by_game:
+            campaigns_by_game[game_id] = {
+                "name": game.display_name,
+                "box_art": game.box_art_best_url,
+                "owners": list(game.owners.all()),
+                "campaigns": [],
+            }
+
+        seen_benefits: set[str] = set()
+        benefits_list: list[dict[str, Any]] = []
+        drops: list[TimeBasedDrop] = sorted(
+            campaign.time_based_drops.all(),
+            key=lambda drop: drop.required_minutes_watched or 0,
+        )
+        min_watch: int = 0
+        max_watch: int = 0
+        for drop in drops:
+            if drop.required_minutes_watched is not None:
+                if min_watch == 0 or drop.required_minutes_watched < min_watch:
+                    min_watch = drop.required_minutes_watched
+                max_watch = max(max_watch, drop.required_minutes_watched)
+            for benefit in drop.benefits.all():
+                if benefit.twitch_id not in seen_benefits:
+                    seen_benefits.add(benefit.twitch_id)
+                    benefits_list.append({
+                        "benefit": benefit,
+                        "watch_minutes": drop.required_minutes_watched,
+                    })
+
+        watch_range: str = ""
+        if min_watch and max_watch:
+            watch_range = (
+                f"{min_watch}m watch"
+                if min_watch == max_watch
+                else f"{min_watch}m-{max_watch}m watch"
+            )
+
+        campaigns_by_game[game_id]["campaigns"].append({
+            "campaign": campaign,
+            "allowed_channels": getattr(campaign, "channels_ordered", []),
+            "benefits": benefits_list,
+            "watch_range": watch_range,
+        })
+
     context: dict[str, Any] = {
         "campaigns": campaigns,
+        "campaigns_by_game": campaigns_by_game,
         "page_obj": campaigns,
         "is_paginated": campaigns.has_other_pages(),
         "games": Game.objects.all().order_by("display_name"),
@@ -1055,6 +1154,90 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
     )
     history_event_count: int = sum(queryset.count() for queryset in history_querysets)
 
+    def _iso(value: datetime.datetime | None) -> str | None:
+        """Return an ISO timestamp for JSON output."""
+        return value.isoformat() if value else None
+
+    technical_details: dict[str, Any] = {
+        "twitch_id": campaign.twitch_id,
+        "name": campaign.name,
+        "clean_name": campaign.clean_name,
+        "description": campaign.description,
+        "details_url": campaign.details_url,
+        "account_link_url": campaign.account_link_url,
+        "image_url": campaign.image_url,
+        "image_best_url": campaign.image_best_url,
+        "image_file": campaign.image_file.name if campaign.image_file else None,
+        "image_width": campaign.image_width,
+        "image_height": campaign.image_height,
+        "image_size_bytes": campaign.image_size_bytes,
+        "image_mime_type": campaign.image_mime_type,
+        "start_at": _iso(campaign.start_at),
+        "end_at": _iso(campaign.end_at),
+        "allow_is_enabled": campaign.allow_is_enabled,
+        "operation_names": campaign.operation_names,
+        "added_at": _iso(campaign.added_at),
+        "updated_at": _iso(campaign.updated_at),
+        "data_source": campaign.data_source,
+        "is_fully_imported": campaign.is_fully_imported,
+        "last_seen_at": _iso(campaign.last_seen_at),
+        "api_status": campaign.api_status,
+        "is_account_connected": campaign.is_account_connected,
+        "event_based_drops": campaign.event_based_drops,
+        "owner": (
+            {
+                "twitch_id": campaign.owner.twitch_id,
+                "name": campaign.owner.name,
+            }
+            if campaign.owner
+            else None
+        ),
+        "game": {
+            "twitch_id": campaign.game.twitch_id,
+            "slug": campaign.game.slug,
+            "name": campaign.game.name,
+            "display_name": campaign.game.display_name,
+            "box_art": campaign.game.box_art,
+            "box_art_best_url": campaign.game.box_art_best_url,
+            "box_art_width": campaign.game.box_art_width,
+            "box_art_height": campaign.game.box_art_height,
+            "added_at": _iso(campaign.game.added_at),
+            "updated_at": _iso(campaign.game.updated_at),
+        },
+        "allowed_channels": [
+            {
+                "twitch_id": channel.twitch_id,
+                "name": channel.name,
+                "display_name": channel.display_name,
+                "display_names": channel.display_names,
+            }
+            for channel in getattr(campaign, "channels_ordered", [])
+        ],
+        "drops": [
+            {
+                "twitch_id": drop.twitch_id,
+                "name": drop.name,
+                "required_minutes_watched": drop.required_minutes_watched,
+                "required_subs": drop.required_subs,
+                "start_at": _iso(drop.start_at),
+                "end_at": _iso(drop.end_at),
+                "benefits": [
+                    {
+                        "twitch_id": benefit.twitch_id,
+                        "name": benefit.name,
+                        "distribution_type": benefit.distribution_type,
+                        "created_at": _iso(benefit.created_at),
+                        "entitlement_limit": benefit.entitlement_limit,
+                        "is_ios_available": benefit.is_ios_available,
+                        "image_best_url": benefit.image_best_url,
+                    }
+                    for benefit in drop.benefits.all()
+                ],
+            }
+            for drop in campaign.time_based_drops.all()
+        ],
+    }
+
     context: dict[str, Any] = {
         "campaign": campaign,
         "now": now,
@@ -1067,6 +1250,11 @@ def drop_campaign_detail_view(request: HttpRequest, twitch_id: str) -> HttpRespo
         "campaign_progress_percent": campaign_progress_percent,
         "history_events": history_events,
         "history_event_count": history_event_count,
+        "technical_details_json": json.dumps(
+            technical_details,
+            indent=2,
+            ensure_ascii=False,
+        ),
     }
 
     campaign_name: str = campaign.name or campaign.clean_name or campaign.twitch_id
@@ -1355,12 +1543,39 @@ class GameDetailView(DetailView):
         upcoming_count: int = len(upcoming_campaigns)
         campaign_count: int = len(campaigns_list)
         reward_count: int = len(all_reward_campaigns)
+        if owners:
+            owner_phrase: str = f" by {owners[0].name or owners[0].twitch_id}"
+        else:
+            owner_phrase = ""
+
+        campaign_names: list[str] = []
+        seen_campaign_names: set[str] = set()
+        for campaign in campaigns_list:
+            campaign_name: str = campaign.clean_name or campaign.name
+            key: str = campaign_name.casefold()
+            if key in seen_campaign_names:
+                continue
+            seen_campaign_names.add(key)
+            campaign_names.append(campaign_name)
+
+        if campaign_names:
+            displayed_campaigns: str = ", ".join(campaign_names[:3])
+            remaining_campaigns: int = len(campaign_names) - 3
+            if remaining_campaigns > 0:
+                displayed_campaigns += f" and {remaining_campaigns} more"
+            campaign_phrase = f", including {displayed_campaigns}"
+        else:
+            campaign_phrase = ""
+
+        game_summary: str = (
+            f"{game_name} is a Twitch game{owner_phrase} with {active_count} active "
+            f"and {upcoming_count} upcoming drop campaigns, out of {campaign_count} "
+            f"archived campaign{'' if campaign_count == 1 else 's'}"
+            f"{campaign_phrase}."
+        )
         game_description: str = (
-            f"{game_name} Twitch drops: {active_count} active · "
-            f"{upcoming_count} upcoming · "
-            f"{campaign_count} campaign{'' if campaign_count == 1 else 's'} · "
-            f"{reward_count} reward{'' if reward_count == 1 else 's'}. "
-            "Explore our archive, follow game drops via RSS, or query the JSON API."
+            f"{game_summary} Browse active, upcoming and past drops with rewards, "
+            "watch requirements, start and end dates, and participating channels."
         )
         game_image: str | None = game.box_art_best_url
         game_image_width: int | None = game.box_art_width if game.box_art_file else None
@@ -1464,6 +1679,52 @@ class GameDetailView(DetailView):
             (campaign.start_at, campaign.end_at) for campaign in campaigns_list
         )
 
+        def _iso(value: datetime.datetime | None) -> str | None:
+            """Return an ISO timestamp for JSON output."""
+            return value.isoformat() if value else None
+
+        technical_details: dict[str, Any] = {
+            "twitch_id": game.twitch_id,
+            "slug": game.slug,
+            "name": game.name,
+            "display_name": game.display_name,
+            "box_art": game.box_art,
+            "box_art_best_url": game.box_art_best_url,
+            "box_art_width": game.box_art_width,
+            "box_art_height": game.box_art_height,
+            "added_at": _iso(game.added_at),
+            "updated_at": _iso(game.updated_at),
+            "owners": [
+                {
+                    "twitch_id": owner.twitch_id,
+                    "name": owner.name,
+                }
+                for owner in owners
+            ],
+            "campaigns": [
+                {
+                    "twitch_id": campaign.twitch_id,
+                    "name": campaign.name,
+                    "clean_name": campaign.clean_name,
+                    "start_at": _iso(campaign.start_at),
+                    "end_at": _iso(campaign.end_at),
+                }
+                for campaign in campaigns_list
+            ],
+            "reward_campaigns": [
+                {
+                    "twitch_id": campaign.twitch_id,
+                    "name": campaign.name,
+                    "brand": campaign.brand,
+                    "summary": campaign.summary,
+                    "starts_at": _iso(campaign.starts_at),
+                    "ends_at": _iso(campaign.ends_at),
+                    "is_sitewide": campaign.is_sitewide,
+                }
+                for campaign in all_reward_campaigns
+            ],
+        }
+
         context.update({
             "selected_status": self.request.GET.get("status", ""),
             "last_campaign_end_at": last_campaign_end_at,
@@ -1480,9 +1741,15 @@ class GameDetailView(DetailView):
             "last_campaign_date": last_campaign_date,
             "owner": owners[0] if owners else None,
             "owners": owners,
+            "game_summary": game_summary,
             "now": now,
             "history_events": history_events,
             "history_event_count": history_event_count,
+            "technical_details_json": json.dumps(
+                technical_details,
+                indent=2,
+                ensure_ascii=False,
+            ),
             **seo_context,
         })
 
@@ -2091,6 +2358,36 @@ class ChannelDetailView(DetailView):
             ("All channels", "/twitch/channels/"),
             ("Twitch", "https://www.twitch.tv/drops/campaigns"),
         )
+
+        def _iso(value: datetime.datetime | None) -> str | None:
+            """Return an ISO timestamp for JSON output."""
+            return value.isoformat() if value else None
+
+        technical_details: dict[str, Any] = {
+            "twitch_id": channel.twitch_id,
+            "name": channel.name,
+            "display_name": channel.display_name,
+            "display_names": channel.display_names,
+            "allowed_campaign_count": channel.allowed_campaign_count,
+            "added_at": _iso(channel.added_at),
+            "updated_at": _iso(channel.updated_at),
+            "campaigns": [
+                {
+                    "twitch_id": campaign.twitch_id,
+                    "name": campaign.name,
+                    "clean_name": campaign.clean_name,
+                    "start_at": _iso(campaign.start_at),
+                    "end_at": _iso(campaign.end_at),
+                    "game": {
+                        "twitch_id": campaign.game.twitch_id,
+                        "name": campaign.game.name,
+                        "display_name": campaign.game.display_name,
+                    },
+                }
+                for campaign in campaigns_list
+            ],
+        }
+
         context.update({
             "active_campaigns": active_campaigns,
             "upcoming_campaigns": upcoming_campaigns,
@@ -2098,6 +2395,11 @@ class ChannelDetailView(DetailView):
             "now": now,
             "history_events": history_events,
             "history_event_count": history_event_count,
+            "technical_details_json": json.dumps(
+                technical_details,
+                indent=2,
+                ensure_ascii=False,
+            ),
             **seo_context,
         })
 

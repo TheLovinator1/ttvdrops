@@ -1,144 +1,88 @@
 {% extends "base.html" %}
 {% block content %}
-    <main>
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Stats</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">Twitch Drops Statistics</h1>
-                        <span class="badge badge-subtle theme-primary">Archive overview</span>
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+                <li aria-current="page">Stats</li>
+            </ol>
+        </nav>
+        <h2>Twitch Drops Statistics</h2>
+        <p>
+            Totals, record holders and leaderboards from every Twitch drop campaign in the
+            archive. <small>Updated <time datetime="{{ now|date:'c' }}">{{ now|date:"M j, Y H:i" }}</time>.</small>
+        </p>
+        {% include "includes/link_footer.html" with api_url_name="api-v1:openapi-view" api_label="api docs" docs_url_name="core:docs_rss" %}
+    </header>
+    {% if not stats.counters.campaigns %}
+        <h3>No drops yet!</h3>
+        <p>The archive is empty, so there is nothing to brag about. Check back after the next drop import.</p>
+    {% else %}
+        <section aria-labelledby="totals-heading">
+            <h3 id="totals-heading">Archive totals</h3>
+            <div class="stat-grid">
+                {% for label, count in totals %}
+                    <div class="stat-card">
+                        <span class="stat-label">{{ label }}</span>
+                        <strong class="stat-value"><data value="{{ count }}">{{ count }}</data></strong>
                     </div>
-                    <p class="fg-2 mb-0 text-pretty" style="max-width: 80ch;">
-                        Totals, record holders, and leaderboards from every Twitch drop campaign in the archive.
-                    </p>
-                </div>
-                <div class="align-self-start">
-                    <button class="btn-outline theme-secondary btn-sm"
-                            type="button"
-                            data-bs-toggle="menu"
-                            data-bs-placement="bottom-end"
-                            aria-expanded="false">Developer ▾</button>
-                    <div class="menu">
-                        <h6 class="menu-header">Developer &amp; Help</h6>
-                        <a class="menu-item" href="{% url 'api-v1:openapi-view' %}">API docs</a>
-                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
-        </header>
-        {% if not stats.counters.campaigns %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No drops yet!</h2>
-                    <p class="fg-2 mb-0">The archive is empty, so there is nothing to brag about. Check back after the next drop import.</p>
-                </div>
-            </section>
-        {% else %}
-            <!-- Totals -->
-            <section aria-label="Totals" class="mb-4">
-                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                    <h2 class="h3 mb-0">Archive totals</h2>
-                    <span class="badge badge-subtle theme-secondary">Updated {{ now|date:"M j, Y H:i" }}</span>
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
-                    {% for label, count in totals %}
-                        <article class="card bg-1 hover-lift h-100">
-                            <div class="card-body text-center p-3">
-                                <div class="fs-2xl fw-bold lh-1
-                                            {% if label == "Active" %}fg-success{% elif label == "Upcoming" %}fg-info{% elif label == "Expired" %}fg-3{% endif %}">
-                                    {{ count }}
-                                </div>
-                                <div class="fs-xs fg-3 text-uppercase fw-semibold mt-2">{{ label }}</div>
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
-            </section>
-            <!-- Fun records -->
-            <section aria-label="Records" class="mb-4">
-                <h2 class="h3 mb-3">Fun records</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {% for record in stats.records %}
-                        <article class="card bg-1 hover-lift h-100">
-                            <div class="card-body d-flex flex-column gap-2">
-                                <div class="fs-xs fg-3 text-uppercase fw-semibold">{{ record.title }}</div>
-                                <div class="fs-xl fw-bold lh-sm">{{ record.value }}</div>
-                                <div class="fs-sm mt-auto">
-                                    {% if record.url %}
-                                        <a class="text-decoration-none" href="{{ record.url }}">{{ record.detail }}</a>
-                                    {% else %}
-                                        {{ record.detail }}
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </article>
-                    {% empty %}
-                        <p class="fg-2 mb-0">No records yet.</p>
-                    {% endfor %}
-                </div>
-            </section>
-            <!-- Leaderboards -->
-            <section aria-label="Leaderboards">
-                <h2 class="h3 mb-3">Leaderboards</h2>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {% for board in leaderboards %}
-                        <section class="card bg-1 h-100">
-                            <div class="card-header">
-                                <h3 class="h5 mb-0">{{ board.title }}</h3>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-hover align-middle mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th scope="col" class="text-center" style="width: 3rem">#</th>
-                                                <th scope="col">Name</th>
-                                                <th scope="col" class="text-end">Count</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for row in board.rows %}
-                                                <tr>
-                                                    <td class="text-center">
-                                                        <span class="badge badge-subtle {% if forloop.counter == 1 %}theme-warning{% else %}theme-secondary{% endif %}">
-                                                            {{ forloop.counter }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <a class="text-decoration-none" href="{{ row.url }}">{{ row.name }}</a>
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <span class="badge badge-subtle theme-secondary">{{ row.count }}</span>
-                                                    </td>
-                                                </tr>
-                                            {% empty %}
-                                                <tr>
-                                                    <td colspan="3" class="text-center fg-3 py-4">Nothing here yet.</td>
-                                                </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </section>
-                    {% endfor %}
-                </div>
-            </section>
-        {% endif %}
-    </main>
+        </section>
+        <section aria-labelledby="records-heading">
+            <h3 id="records-heading">Fun records</h3>
+            <div class="stat-grid">
+                {% for record in stats.records %}
+                    <div class="stat-card">
+                        <span class="stat-label">{{ record.title }}</span>
+                        <strong class="stat-value">{{ record.value }}</strong>
+                        {% if record.url %}
+                            <a href="{{ record.url }}">{{ record.detail }}</a>
+                        {% else %}
+                            <span>{{ record.detail }}</span>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <p>No records yet.</p>
+                {% endfor %}
+            </div>
+        </section>
+        <section aria-labelledby="leaderboards-heading">
+            <h3 id="leaderboards-heading">Leaderboards</h3>
+            {% for board in leaderboards %}
+                <article>
+                    <h4>{{ board.title }}</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">#</th>
+                                <th scope="col">Name</th>
+                                <th scope="col">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in board.rows %}
+                                <tr>
+                                    <td>
+                                        {% if forloop.counter == 1 %}
+                                            <strong>{{ forloop.counter }}</strong>
+                                        {% else %}
+                                            {{ forloop.counter }}
+                                        {% endif %}
+                                    </td>
+                                    <td><a href="{{ row.url }}">{{ row.name }}</a></td>
+                                    <td><data value="{{ row.count }}">{{ row.count }}</data></td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="3">Nothing here yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </article>
+            {% endfor %}
+        </section>
+    {% endif %}
 {% endblock content %}

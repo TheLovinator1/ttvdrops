@@ -1,76 +1,55 @@
 {% load image_tags %}
-<article id="reward-campaign-{{ campaign.twitch_id }}"
-         class="card bg-1 hover-lift overflow-hidden h-100 position-relative d-flex flex-column">
-    <div class="reward-campaign-upper bg-3">
-        <div class="ratio-16x9 reward-campaign-media overflow-hidden position-relative">
-            <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
-               class="d-block w-100 h-100">
-                {% if campaign.image_best_url %}
-                    {% picture campaign.image_best_url alt="" width=480 %}
-                {% else %}
-                    <div class="w-100 h-100 d-flex align-items-center justify-content-center fg-3 fs-sm">No artwork</div>
-                {% endif %}
+<article id="reward-campaign-{{ campaign.twitch_id }}">
+    <h3>
+        <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+            {% if campaign.brand %}{{ campaign.brand }}: {% endif %}{{ campaign.name }}
+        </a>
+    </h3>
+    <p>
+        {% if campaign.image_best_url %}
+            <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                {% picture campaign.image_best_url alt="" width=240 %}
             </a>
-            <div class="position-absolute top-0 start-0 p-2 z-1">
-                {% if card_status == "active" %}
-                    <span class="badge badge-subtle theme-success">Active</span>
-                {% elif card_status == "upcoming" %}
-                    <span class="badge badge-subtle theme-info">Upcoming</span>
-                {% else %}
-                    <span class="badge badge-subtle theme-secondary">Ended</span>
-                {% endif %}
-            </div>
-        </div>
-        <div class="p-4 d-flex flex-column gap-2">
-            <h3 class="fs-lg lh-sm mb-0">
-                <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}"
-                   class="text-decoration-none fg-1">
-                    {% if campaign.brand %}{{ campaign.brand }}: {% endif %}{{ campaign.name }}
-                </a>
-            </h3>
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                {% if card_status == "active" %}
-                    <span class="badge badge-subtle theme-secondary"
-                          title="Ends {{ campaign.ends_at|date:'DATETIME_FORMAT' }}">Ends in {{ campaign.ends_at|timeuntil }}</span>
-                {% elif card_status == "upcoming" %}
-                    <span class="badge badge-subtle theme-secondary"
-                          title="Starts {{ campaign.starts_at|date:'DATETIME_FORMAT' }}">Starts in {{ campaign.starts_at|timeuntil }}</span>
-                {% else %}
-                    <span class="badge badge-subtle theme-secondary"
-                          title="Ended {{ campaign.ends_at|date:'DATETIME_FORMAT' }}">Ended {{ campaign.ends_at|timesince }} ago</span>
-                {% endif %}
-                {% if campaign.game %}
-                    <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}"
-                       class="badge badge-subtle theme-primary text-decoration-none">{{ campaign.game.get_game_name }}</a>
-                {% elif campaign.is_sitewide %}
-                    <span class="badge badge-subtle theme-accent">Site-wide</span>
-                {% else %}
-                    <a href="{% url 'twitch:game_less_rewards' %}"
-                       class="badge badge-subtle theme-warning text-decoration-none">Brand reward</a>
-                {% endif %}
-            </div>
-            {% if campaign.summary %}
-                <p class="fs-sm fg-2 mb-0 text-pretty">{{ campaign.summary|truncatewords:28 }}</p>
-            {% endif %}
-        </div>
-    </div>
+        {% else %}
+            <small>No artwork.</small>
+        {% endif %}
+    </p>
+    <p>
+        {% if card_status == "active" %}
+            <strong>Active</strong> -
+            <time datetime="{{ campaign.ends_at|date:'c' }}"
+                  title="Ends {{ campaign.ends_at|date:'DATETIME_FORMAT' }}">ends in {{ campaign.ends_at|timeuntil }}</time>
+        {% elif card_status == "upcoming" %}
+            <strong>Upcoming</strong> -
+            <time datetime="{{ campaign.starts_at|date:'c' }}"
+                  title="Starts {{ campaign.starts_at|date:'DATETIME_FORMAT' }}">starts in {{ campaign.starts_at|timeuntil }}</time>
+        {% else %}
+            <strong>Ended</strong> -
+            <time datetime="{{ campaign.ends_at|date:'c' }}"
+                  title="Ended {{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|timesince }} ago</time>
+        {% endif %}
+        {% if campaign.game %}
+            | <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.get_game_name }}</a>
+        {% elif campaign.is_sitewide %}
+            | Site-wide
+        {% else %}
+            | <a href="{% url 'twitch:game_less_rewards' %}">Brand reward</a>
+        {% endif %}
+    </p>
+    {% if campaign.summary %}
+        <p>{{ campaign.summary|truncatewords:28 }}</p>
+    {% endif %}
     {% with rewards=campaign.rewards.all %}
         {% if rewards %}
-            <hr class="m-0 border-subtle" />
-            <div class="reward-campaign-drops bg-1 p-4">
-                <div class="fs-xs fw-semibold fg-3 text-uppercase mb-2"
-                     style="letter-spacing: 0.04em">Rewards</div>
-                <div class="d-flex flex-wrap gap-2">
-                    {% for reward in rewards %}
-                        <span class="d-inline-flex align-items-center gap-2 bg-2 rounded-3 px-2 py-1 fs-xs">
-                            {% if reward.thumbnail_image_url or reward.banner_image_url %}
-                                {% picture reward.image_best_url alt="" width=24 height=24 css_class="rounded-2 object-fit-cover" %}
-                            {% endif %}
-                            {{ reward.name }}
-                        </span>
-                    {% endfor %}
-                </div>
-            </div>
+            <p>
+                <small>Rewards:</small>
+                {% for reward in rewards %}
+                    {% if reward.thumbnail_image_url or reward.banner_image_url %}
+                        {% picture reward.image_best_url alt="" width=24 height=24 %}
+                    {% endif %}
+                    {{ reward.name }}{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            </p>
         {% endif %}
     {% endwith %}
 </article>

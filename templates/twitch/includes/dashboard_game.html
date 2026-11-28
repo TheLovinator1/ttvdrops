@@ -1,0 +1,85 @@
+{% load image_tags %}
+<article class="dashboard-game" id="twitch-game-article-{{ game_id }}">
+    <header class="dashboard-game-header">
+        {% if game_data.box_art %}
+            <a href="{% url 'twitch:game_detail' game_id %}">
+                {% picture game_data.box_art alt="Box art for "|add:game_data.name width=96 height=128 %}
+            </a>
+        {% endif %}
+        <div class="dashboard-game-info">
+            <h3><a href="{% url 'twitch:game_detail' game_id %}">{{ game_data.name }}</a></h3>
+            {% if game_data.owners %}
+                <p>
+                    <small>Owned by
+                        {% for org in game_data.owners %}
+                            <a href="{% url 'twitch:organization_detail' org.twitch_id %}">{{ org.name }}</a>{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    </small>
+                </p>
+            {% endif %}
+        </div>
+    </header>
+    {% for campaign_data in game_data.campaigns %}
+        {% with campaign=campaign_data.campaign %}
+            <section class="dashboard-campaign" id="twitch-campaign-{{ campaign.twitch_id }}">
+                <header class="dashboard-campaign-header">
+                    <h4><a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a></h4>
+                </header>
+                <p class="dashboard-campaign-meta">
+                    {% if campaign_data.watch_range %}
+                        <span>Watch: <strong>{{ campaign_data.watch_range }}</strong></span>
+                    {% endif %}
+                    <span>
+                        Channels:
+                        {% if campaign_data.allowed_channels|length == 1 %}
+                            {% with channel=campaign_data.allowed_channels.0 %}
+                                <a href="{% url 'twitch:channel_detail' channel.twitch_id %}">{{ channel.display_name|default:channel.name }}</a>
+                            {% endwith %}
+                        {% elif campaign_data.allowed_channels %}
+                            <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}#allowed-channels">{{ campaign_data.allowed_channels|length }} channel{{ campaign_data.allowed_channels|length|pluralize }}</a>
+                        {% else %}
+                            <a href="{{ campaign.game.twitch_directory_url }}">Category-wide</a>
+                        {% endif %}
+                    </span>
+                </p>
+                <dl class="dashboard-campaign-dates">
+                    <dt>Started</dt>
+                    <dd>
+                        <time datetime="{{ campaign.start_at|date:'c' }}"
+                              title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M j, Y H:i" }}</time>
+                        <small>({{ campaign.start_at|timesince }} ago)</small>
+                    </dd>
+                    <dt>Ends</dt>
+                    <dd>
+                        <time datetime="{{ campaign.end_at|date:'c' }}"
+                              title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M j, Y H:i" }}</time>
+                        <small>({{ campaign.end_at|timeuntil }})</small>
+                    </dd>
+                </dl>
+                {% if campaign_data.benefits %}
+                    <div class="reward-tile-grid">
+                        {% for reward_data in campaign_data.benefits %}
+                            {% with benefit=reward_data.benefit %}
+                                <a class="reward-tile"
+                                   href="{% url 'twitch:campaign_detail' campaign.twitch_id %}#benefit-{{ benefit.twitch_id }}"
+                                   title="{{ benefit.name }}">
+                                    <span class="reward-tile-media">
+                                        {% if benefit.image_best_url %}
+                                            <img src="{{ benefit.image_best_url }}"
+                                                 alt=""
+                                                 loading="lazy" />
+                                        {% endif %}
+                                        {% if reward_data.watch_minutes %}
+                                            <span class="reward-tile-time">{{ reward_data.watch_minutes }}m</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="reward-tile-name">{{ benefit.name }}</span>
+                                </a>
+                            {% endwith %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+        {% endwith %}
+    {% endfor %}
+</article>

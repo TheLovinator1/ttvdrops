@@ -1,266 +1,186 @@
 {% extends "base.html" %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-5">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Feed documentation</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
-                <div>
-                    <h1 class="h2 mb-2">RSS &amp; Atom Feeds</h1>
-                    <p class="fg-2 mb-0 text-pretty" style="max-width: 70ch;">
-                        Follow new Twitch, Kick, and Chzzk drops in a feed reader, Discord
-                        server, or bot. Every feed is also available as Atom and a
-                        Discord-formatted variant.
-                    </p>
-                </div>
-            </div>
-        </header>
-        <div class="alert theme-info mb-5" role="note">
-            <div>There is no rate limit, but please don't be stupid.</div>
-        </div>
-        <section class="mb-5" aria-labelledby="formats-heading">
-            <h2 id="formats-heading" class="h4 mb-3">Feed formats</h2>
-            <div class="row g-4">
-                <div class="col-12 md:col-4">
-                    <h3 class="h6 mb-1">RSS</h3>
-                    <p class="fs-sm fg-2 mb-0">Standard RSS 2.0 feeds supported by almost every feed reader.</p>
-                </div>
-                <div class="col-12 md:col-4">
-                    <h3 class="h6 mb-1">Atom</h3>
-                    <p class="fs-sm fg-2 mb-0">Atom 1.0 feeds with ISO-8601 timestamps for modern readers.</p>
-                </div>
-                <div class="col-12 md:col-4">
-                    <h3 class="h6 mb-1">Discord</h3>
-                    <p class="fs-sm fg-2 mb-0">Atom feed with Discord Markdown and relative timestamps.</p>
-                </div>
-            </div>
-        </section>
-        <section class="mb-5" aria-labelledby="twitch-feeds-heading">
-            <div class="mb-3">
-                <h2 id="twitch-feeds-heading" class="h4 mb-1">Twitch feeds</h2>
-                <p class="fs-sm fg-2 mb-0">New games, campaigns, organizations, and rewards.</p>
-            </div>
-            <div class="table-card border-subtle">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 md:table-stacked">
-                        <thead>
-                            <tr>
-                                <th scope="col">Feed</th>
-                                <th scope="col">RSS</th>
-                                <th scope="col">Atom</th>
-                                <th scope="col">Discord</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">New games</div>
-                                    <code class="fs-xs fg-3">{% url 'core:game_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:game_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:game_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:game_feed_discord' %}">Discord</a></td>
-                            </tr>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Campaigns</div>
-                                    <code class="fs-xs fg-3">{% url 'core:campaign_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:campaign_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:campaign_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:campaign_feed_discord' %}">Discord</a></td>
-                            </tr>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Organizations</div>
-                                    <code class="fs-xs fg-3">{% url 'core:organization_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:organization_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:organization_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:organization_feed_discord' %}">Discord</a></td>
-                            </tr>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Reward campaigns</div>
-                                    <code class="fs-xs fg-3">{% url 'core:reward_campaign_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:reward_campaign_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:reward_campaign_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:reward_campaign_feed_discord' %}">Discord</a></td>
-                            </tr>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Site-wide rewards</div>
-                                    <code class="fs-xs fg-3">{% url 'core:sitewide_reward_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:sitewide_reward_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:sitewide_reward_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:sitewide_reward_feed_discord' %}">Discord</a></td>
-                            </tr>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Brand rewards</div>
-                                    <code class="fs-xs fg-3">{% url 'core:game_less_reward_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:game_less_reward_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:game_less_reward_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:game_less_reward_feed_discord' %}">Discord</a></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        <section class="mb-5" aria-labelledby="kick-feeds-heading">
-            <div class="mb-3">
-                <h2 id="kick-feeds-heading" class="h4 mb-1">Kick feeds</h2>
-                <p class="fs-sm fg-2 mb-0">New campaigns, games, and organizations.</p>
-            </div>
-            <div class="table-card border-subtle">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 md:table-stacked">
-                        <thead>
-                            <tr>
-                                <th scope="col">Feed</th>
-                                <th scope="col">RSS</th>
-                                <th scope="col">Atom</th>
-                                <th scope="col">Discord</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Campaigns</div>
-                                    <code class="fs-xs fg-3">{% url 'kick:campaign_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'kick:campaign_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'kick:campaign_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'kick:campaign_feed_discord' %}">Discord</a></td>
-                            </tr>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Games</div>
-                                    <code class="fs-xs fg-3">{% url 'kick:game_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'kick:game_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'kick:game_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'kick:game_feed_discord' %}">Discord</a></td>
-                            </tr>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Organizations</div>
-                                    <code class="fs-xs fg-3">{% url 'kick:organization_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'kick:organization_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'kick:organization_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'kick:organization_feed_discord' %}">Discord</a></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        <section class="mb-5" aria-labelledby="chzzk-feeds-heading">
-            <div class="mb-3">
-                <h2 id="chzzk-feeds-heading" class="h4 mb-1">Chzzk feeds</h2>
-                <p class="fs-sm fg-2 mb-0">New Chzzk drop campaigns.</p>
-            </div>
-            <div class="table-card border-subtle">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 md:table-stacked">
-                        <thead>
-                            <tr>
-                                <th scope="col">Feed</th>
-                                <th scope="col">RSS</th>
-                                <th scope="col">Atom</th>
-                                <th scope="col">Discord</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td data-cell="Feed">
-                                    <div class="fw-semibold">Campaigns</div>
-                                    <code class="fs-xs fg-3">{% url 'chzzk:campaign_feed' %}</code>
-                                </td>
-                                <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'chzzk:campaign_feed' %}">RSS</a></td>
-                                <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'chzzk:campaign_feed_atom' %}">Atom</a></td>
-                                <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'chzzk:campaign_feed_discord' %}">Discord</a></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-        <section class="mb-5" aria-labelledby="options-heading">
-            <h2 id="options-heading" class="h4 mb-3">Options</h2>
-            <dl class="row g-2 mb-0 fs-sm">
-                <dt class="col-12 sm:col-3 fw-semibold mb-0">
-                    <code>?limit=</code>
-                </dt>
-                <dd class="col-12 sm:col-9 mb-0">
-                    Limit the number of items returned. Supported by most feeds.
-                </dd>
-                <dt class="col-12 sm:col-3 fw-semibold mb-0">
-                    <code>?hide_paid=1</code>
-                </dt>
-                <dd class="col-12 sm:col-9 mb-0">
-                    Twitch campaign feeds only. Hides campaigns that require paid subscriptions.
-                </dd>
-            </dl>
-        </section>
-        {% if game %}
-            <section aria-labelledby="game-feeds-heading">
-                <div class="mb-3">
-                    <h2 id="game-feeds-heading" class="h4 mb-1">Feeds for {{ game.display_name }}</h2>
-                    <p class="fs-sm fg-2 mb-0">
-                        Scoped feeds for one game. The rewards feed is empty when the game
-                        has no active reward campaigns.
-                    </p>
-                </div>
-                <div class="table-card border-subtle">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 md:table-stacked">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Feed</th>
-                                    <th scope="col">RSS</th>
-                                    <th scope="col">Atom</th>
-                                    <th scope="col">Discord</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td data-cell="Feed">
-                                        <div class="fw-semibold">Campaigns</div>
-                                        <code class="fs-xs fg-3">{% url 'core:game_campaign_feed' game.twitch_id %}</code>
-                                    </td>
-                                    <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:game_campaign_feed' game.twitch_id %}">RSS</a></td>
-                                    <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:game_campaign_feed_atom' game.twitch_id %}">Atom</a></td>
-                                    <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:game_campaign_feed_discord' game.twitch_id %}">Discord</a></td>
-                                </tr>
-                                <tr>
-                                    <td data-cell="Feed">
-                                        <div class="fw-semibold">Rewards</div>
-                                        <code class="fs-xs fg-3">{% url 'core:game_reward_feed' game.twitch_id %}</code>
-                                    </td>
-                                    <td data-cell="RSS"><a href="{{ BASE_URL }}{% url 'core:game_reward_feed' game.twitch_id %}">RSS</a></td>
-                                    <td data-cell="Atom"><a href="{{ BASE_URL }}{% url 'core:game_reward_feed_atom' game.twitch_id %}">Atom</a></td>
-                                    <td data-cell="Discord"><a href="{{ BASE_URL }}{% url 'core:game_reward_feed_discord' game.twitch_id %}">Discord</a></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-        {% endif %}
-    </main>
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li aria-current="page">Feed documentation</li>
+            </ol>
+        </nav>
+        <h2><abbr title="Really Simple Syndication">RSS</abbr> &amp; Atom Feeds</h2>
+        <p>
+            Follow new Twitch, Kick and Chzzk drops in a feed reader, Discord server or bot.
+            Every feed is also available as Atom and a Discord-formatted variant.
+        </p>
+    </header>
+    <aside aria-label="Rate limit note">
+        <p>There is no rate limit, but please don't be stupid.</p>
+    </aside>
+    <article aria-labelledby="formats-heading">
+        <h3 id="formats-heading">Feed formats</h3>
+        <dl>
+            <dt><abbr title="Really Simple Syndication">RSS</abbr></dt>
+            <dd>Standard RSS 2.0 feeds supported by almost every feed reader.</dd>
+            <dt>Atom</dt>
+            <dd>Atom 1.0 feeds with ISO-8601 timestamps for modern readers.</dd>
+            <dt>Discord</dt>
+            <dd>Atom feed with Discord Markdown and relative timestamps.</dd>
+        </dl>
+    </article>
+    <article aria-labelledby="twitch-feeds-heading">
+        <h3 id="twitch-feeds-heading">Twitch feeds</h3>
+        <p>New games, campaigns, organizations and rewards.</p>
+        <table>
+            <caption>Twitch feed URLs</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Feed</th>
+                    <th scope="col">RSS</th>
+                    <th scope="col">Atom</th>
+                    <th scope="col">Discord</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">New games<br /><code>{% url 'core:game_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'core:game_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:game_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:game_feed_discord' %}">Discord</a></td>
+                </tr>
+                <tr>
+                    <th scope="row">Campaigns<br /><code>{% url 'core:campaign_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'core:campaign_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:campaign_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:campaign_feed_discord' %}">Discord</a></td>
+                </tr>
+                <tr>
+                    <th scope="row">Organizations<br /><code>{% url 'core:organization_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'core:organization_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:organization_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:organization_feed_discord' %}">Discord</a></td>
+                </tr>
+                <tr>
+                    <th scope="row">Reward campaigns<br /><code>{% url 'core:reward_campaign_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'core:reward_campaign_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:reward_campaign_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:reward_campaign_feed_discord' %}">Discord</a></td>
+                </tr>
+                <tr>
+                    <th scope="row">Site-wide rewards<br /><code>{% url 'core:sitewide_reward_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'core:sitewide_reward_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:sitewide_reward_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:sitewide_reward_feed_discord' %}">Discord</a></td>
+                </tr>
+                <tr>
+                    <th scope="row">Brand rewards<br /><code>{% url 'core:game_less_reward_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'core:game_less_reward_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:game_less_reward_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'core:game_less_reward_feed_discord' %}">Discord</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </article>
+    <article aria-labelledby="kick-feeds-heading">
+        <h3 id="kick-feeds-heading">Kick feeds</h3>
+        <p>New campaigns, games and organizations.</p>
+        <table>
+            <caption>Kick feed URLs</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Feed</th>
+                    <th scope="col">RSS</th>
+                    <th scope="col">Atom</th>
+                    <th scope="col">Discord</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">Campaigns<br /><code>{% url 'kick:campaign_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:campaign_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:campaign_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:campaign_feed_discord' %}">Discord</a></td>
+                </tr>
+                <tr>
+                    <th scope="row">Games<br /><code>{% url 'kick:game_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:game_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:game_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:game_feed_discord' %}">Discord</a></td>
+                </tr>
+                <tr>
+                    <th scope="row">Organizations<br /><code>{% url 'kick:organization_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:organization_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:organization_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'kick:organization_feed_discord' %}">Discord</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </article>
+    <article aria-labelledby="chzzk-feeds-heading">
+        <h3 id="chzzk-feeds-heading">Chzzk feeds</h3>
+        <p>New Chzzk drop campaigns.</p>
+        <table>
+            <caption>Chzzk feed URLs</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Feed</th>
+                    <th scope="col">RSS</th>
+                    <th scope="col">Atom</th>
+                    <th scope="col">Discord</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">Campaigns<br /><code>{% url 'chzzk:campaign_feed' %}</code></th>
+                    <td><a href="{{ BASE_URL }}{% url 'chzzk:campaign_feed' %}">RSS</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'chzzk:campaign_feed_atom' %}">Atom</a></td>
+                    <td><a href="{{ BASE_URL }}{% url 'chzzk:campaign_feed_discord' %}">Discord</a></td>
+                </tr>
+            </tbody>
+        </table>
+    </article>
+    <article aria-labelledby="options-heading">
+        <h3 id="options-heading">Options</h3>
+        <dl>
+            <dt><code>?limit=</code></dt>
+            <dd>Limit the number of items returned. Supported by most feeds.</dd>
+            <dt><code>?hide_paid=1</code></dt>
+            <dd>
+                Twitch campaign feeds only. Hides campaigns that require paid subscriptions.
+            </dd>
+        </dl>
+    </article>
+    {% if game %}
+        <article aria-labelledby="game-feeds-heading">
+            <h3 id="game-feeds-heading">Feeds for {{ game.display_name }}</h3>
+            <p>
+                Scoped feeds for one game. The rewards feed is empty when the game has no active
+                reward campaigns.
+            </p>
+            <table>
+                <caption>Feeds for {{ game.display_name }}</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Feed</th>
+                        <th scope="col">RSS</th>
+                        <th scope="col">Atom</th>
+                        <th scope="col">Discord</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">Campaigns<br /><code>{% url 'core:game_campaign_feed' game.twitch_id %}</code></th>
+                        <td><a href="{{ BASE_URL }}{% url 'core:game_campaign_feed' game.twitch_id %}">RSS</a></td>
+                        <td><a href="{{ BASE_URL }}{% url 'core:game_campaign_feed_atom' game.twitch_id %}">Atom</a></td>
+                        <td><a href="{{ BASE_URL }}{% url 'core:game_campaign_feed_discord' game.twitch_id %}">Discord</a></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Rewards<br /><code>{% url 'core:game_reward_feed' game.twitch_id %}</code></th>
+                        <td><a href="{{ BASE_URL }}{% url 'core:game_reward_feed' game.twitch_id %}">RSS</a></td>
+                        <td><a href="{{ BASE_URL }}{% url 'core:game_reward_feed_atom' game.twitch_id %}">Atom</a></td>
+                        <td><a href="{{ BASE_URL }}{% url 'core:game_reward_feed_discord' game.twitch_id %}">Discord</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </article>
+    {% endif %}
 {% endblock content %}

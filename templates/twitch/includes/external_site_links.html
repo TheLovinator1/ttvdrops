@@ -1,12 +1,12 @@
 {% if external_site_links %}
-    <div class="d-flex flex-wrap align-items-center gap-3 mt-3 pt-3 border-top border-subtle">
-        <span class="fs-xs fg-3 text-uppercase" style="letter-spacing: 0.04em">Also on</span>
+    <p>
+        <small>Also on:</small>
         {% for link in external_site_links %}
-            <a class="btn-text theme-secondary btn-xs"
-               href="{{ link.url }}"
+            <a href="{{ link.url }}"
                target="_blank"
                rel="noopener"
-               title="View on {{ link.name }}">{{ link.name }}</a>
+               referrerpolicy="origin"
+               title="View on {{ link.name }}">{{ link.name }}</a>{% if not forloop.last %} |{% endif %}
         {% endfor %}
-    </div>
+    </p>
 {% endif %}

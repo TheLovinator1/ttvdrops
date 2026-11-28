@@ -1,39 +1,53 @@
 {% extends "base.html" %}
 {% load image_tags %}
 {% block content %}
-    <h1>{{ badge_set.set_id }}</h1>
-    <nav aria-label="breadcrumb" class="mb-2">
-        <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item">
-                <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-            </li>
-            <li class="breadcrumb-divider"></li>
-            <li class="breadcrumb-item">
-                <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-            </li>
-            <li class="breadcrumb-divider"></li>
-            <li class="breadcrumb-item">
-                <a class="breadcrumb-link" href="{% url 'twitch:badge_list' %}">Badges</a>
-            </li>
-            <li class="breadcrumb-divider"></li>
-            <li class="breadcrumb-item" aria-current="page">
-                <span class="breadcrumb-link active">{{ badge_set.set_id }}</span>
-            </li>
+    <nav aria-label="Breadcrumb">
+        <ol>
+            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+            <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+            <li><a href="{% url 'twitch:badge_list' %}">Badges</a></li>
+            <li aria-current="page">{{ badge_set.set_id }}</li>
         </ol>
     </nav>
+    <header>
+        <h2>{{ badge_set.set_id }}</h2>
+    </header>
     {% if badges %}
-        <table class="table table-striped table-hover">
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">Badge ID</th>
+                    <th scope="col">Image</th>
+                    <th scope="col">Title</th>
+                    <th scope="col">Description</th>
+                    <th scope="col">Images</th>
+                    <th scope="col">Click action</th>
+                </tr>
+            </thead>
             <tbody>
                 {% for badge in badges %}
                     <tr>
+                        <td><code>{{ badge.badge_id }}</code></td>
                         <td>
-                            <code>{{ badge.badge_id }}</code>
-                        </td>
-                        <td>
-                            {% picture badge.image_url_4x alt=badge.title width=72 style="width: 72px !important; height: 72px !important; object-fit: contain" %}
+                            {% picture badge.image_url_4x alt=badge.title width=72 %}
                         </td>
                         <td>{{ badge.title }}</td>
-                        <td>{{ badge.description }}</td>
+                        <td>
+                            {{ badge.description }}
+                            {% if badge.award_campaigns %}
+                                <details>
+                                    <summary>Campaigns with the same name</summary>
+                                    <p>The following campaigns have the same name as this badge and may be awarding it:</p>
+                                    <ul>
+                                        {% for campaign in badge.award_campaigns %}
+                                            <li>
+                                                <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                            {% endif %}
+                        </td>
                         <td>
                             <a href="{{ badge.image_url_1x }}">[18px]</a>
                             <a href="{{ badge.image_url_2x }}">[36px]</a>
@@ -43,20 +57,6 @@
                             {% if badge.click_url %}<a href="{{ badge.click_url }}">{{ badge.click_action }}</a>{% endif %}
                         </td>
                     </tr>
-                    {% if badge.award_campaigns %}
-                        <!-- If there are campaigns awarding this badge, show them in a nested row -->
-                        <div>
-                            The following campaigns have the same name as this badge and may be awarding it:
-                            <ul>
-                                {% for campaign in badge.award_campaigns %}
-                                    <!-- Note: We can't be sure if these campaigns are actually awarding this badge, but it's likely given the name match. -->
-                                    <li>
-                                        <a href="{% url 'twitch:campaign_detail' campaign.twitch_id %}">{{ campaign.clean_name }}</a>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endif %}
                 {% endfor %}
             </tbody>
         </table>

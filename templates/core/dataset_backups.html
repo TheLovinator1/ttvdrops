@@ -1,52 +1,66 @@
 {% extends "base.html" %}
 {% block content %}
-    <main>
-        <h1>Dataset Backups</h1>
-        <section>
-            <h2>About this dataset</h2>
-            <p>This site tracks and publishes open drop campaign data from Twitch and Kick.</p>
-            <p>
-                Campaign metadata in the downloadable datasets and public JSON API is released under
-                <strong>CC0</strong> so you can reuse it freely. The underlying source data is scraped from Twitch and Kick
-                APIs and pages; we do not control the upstream content and cannot guarantee its accuracy or
-                permanence. Linked third-party images, logos, and trademarks may remain subject to separate rights.
-            </p>
-            <p>Note that some drops have missing or incomplete data due to Twitch API limitations.</p>
-            <p>
-                Reward campaign data is sourced from
-                <a href="https://github.com/SunkwiBOT/twitch-drops-api">SunkwiBOT/twitch-drops-api</a>.
-                Raw JSON exports are available in the same repository as
-                <a href="https://github.com/SunkwiBOT/twitch-drops-api/blob/main/drops.json">drops.json</a>
-                and
-                <a href="https://github.com/SunkwiBOT/twitch-drops-api/blob/main/rewards.json">rewards.json</a>.
-            </p>
-            <p>
-                Kick data is fetched directly from the public
-                <a href="https://web.kick.com/api/v1/drops/campaigns">Kick campaigns API</a>
-                on a recurring schedule.
-            </p>
-            <p>
-                Need a custom format for your workflow or research pipeline?
-                <a href="https://github.com/TheLovinator1/ttvdrops/issues">Open a GitHub issue</a>
-                and describe what you need.
-            </p>
-        </section>
-        <section>
-            <h2>Kick JSON API</h2>
-            <p>
-                Fully imported Kick campaigns are also available through the public paginated
-                <a href="{% url 'api-v1:kick-api-v1_list_campaigns' %}">Kick campaign JSON API</a>.
-                Responses include campaign dates, game and organization metadata, rewards, and the full
-                channel list stored for each campaign.
-            </p>
-            <p>
-                Use <code>page</code> and <code>page_size</code> for pagination. Filter by Kick category ID with
-                <code>game</code>, or by the computed campaign state with
-                <code>status=active</code>, <code>status=upcoming</code>, <code>status=expired</code>,
-                or <code>status=unknown</code>.
-                Page numbers and page sizes have a minimum of 1, and the maximum page size is 500.
-            </p>
-            <pre><code>{
+    <nav aria-label="Breadcrumb">
+        <ol>
+            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+            <li aria-current="page">Dataset</li>
+        </ol>
+    </nav>
+    <header>
+        <h2>Dataset Backups</h2>
+    </header>
+    <article>
+        <h3>About this dataset</h3>
+        <p>This site tracks and publishes open drop campaign data from Twitch and Kick.</p>
+        <p>
+            Campaign metadata in the downloadable datasets and public JSON API is released under
+            <strong><abbr title="Creative Commons Zero">CC0</abbr></strong> so you can reuse it
+            freely. The underlying source data is scraped from Twitch and Kick APIs and pages; we
+            do not control the upstream content and cannot guarantee its accuracy or permanence.
+            Linked third-party images, logos and trademarks may remain subject to separate rights.
+        </p>
+        <p>Note that some drops have missing or incomplete data due to Twitch API limitations.</p>
+        <p>
+            Reward campaign data is sourced from
+            <a href="https://github.com/SunkwiBOT/twitch-drops-api">SunkwiBOT/twitch-drops-api</a>.
+            Raw JSON exports are available in the same repository as
+            <a href="https://github.com/SunkwiBOT/twitch-drops-api/blob/main/drops.json">drops.json</a>
+            and
+            <a href="https://github.com/SunkwiBOT/twitch-drops-api/blob/main/rewards.json">rewards.json</a>.
+        </p>
+        <p>
+            Kick data is fetched directly from the public
+            <a href="https://web.kick.com/api/v1/drops/campaigns">Kick campaigns API</a>
+            on a recurring schedule.
+        </p>
+        <p>
+            Need a custom format for your workflow or research pipeline?
+            <a href="https://github.com/TheLovinator1/ttvdrops/issues">Open a GitHub issue</a>
+            and describe what you need.
+        </p>
+    </article>
+    <article>
+        <h3>Kick JSON API</h3>
+        <p>
+            Fully imported Kick campaigns are also available through the public paginated
+            <a href="{% url 'api-v1:kick-api-v1_list_campaigns' %}">Kick campaign JSON API</a>.
+            Responses include campaign dates, game and organization metadata, rewards, and the
+            full channel list stored for each campaign.
+        </p>
+        <dl>
+            <dt><code>page</code></dt>
+            <dd>Page number. Minimum 1.</dd>
+            <dt><code>page_size</code></dt>
+            <dd>Items per page. Minimum 1, maximum 500.</dd>
+            <dt><code>game</code></dt>
+            <dd>Filter by Kick category ID.</dd>
+            <dt><code>status</code></dt>
+            <dd>
+                Filter by <code>active</code>, <code>upcoming</code>, <code>expired</code> or
+                <code>unknown</code>.
+            </dd>
+        </dl>
+        <pre><code>{
   "total": 1,
   "page": 1,
   "page_size": 100,
@@ -62,34 +76,36 @@
     "rewards": [{ "name": "...", "required_minutes_watched": 30 }]
   }]
 }</code></pre>
-            <p>
-                Timestamps use ISO 8601 in UTC and may be <code>null</code> when the source does not provide a date. Campaigns with
-                incomplete dates receive the computed status <code>unknown</code> and are excluded from status-based filtering.
-                Each item includes every stored channel and raw reward without RSS truncation or reward-name merging.
-                Consumers can stop pagination when <code>items</code> is empty or when
-                <code>page * page_size &gt;= total</code>.
-            </p>
-            <p>
-                An empty <code>channels</code> list means no channel restriction data is stored. It does not
-                by itself guarantee that a campaign is available on every channel.
-            </p>
-        </section>
-        <section>
-            <h2>Twitch JSON API</h2>
-            <p>
-                Fully imported Twitch campaigns are available through the public paginated
-                <a href="{% url 'api-v1:twitch-api-v1_list_campaigns' %}">Twitch campaign JSON API</a>.
-                Responses include campaign dates, game and organization metadata, allowed channels, drops,
-                and rewards for each campaign.
-            </p>
-            <p>
-                Use <code>page</code> and <code>page_size</code> for pagination. Filter by Twitch game ID with
-                <code>game</code>, or by the computed campaign state with
-                <code>status=active</code>, <code>status=upcoming</code>, <code>status=expired</code>,
-                or <code>status=unknown</code>.
-                Page numbers and page sizes have a minimum of 1, and the maximum page size is 500.
-            </p>
-            <pre><code>{
+        <p>
+            Timestamps use <abbr title="International Organization for Standardization">ISO</abbr>
+            8601 in <abbr title="Coordinated Universal Time">UTC</abbr> and may be
+            <code>null</code> when the source does not provide a date. Campaigns with incomplete
+            dates receive the computed status <code>unknown</code> and are excluded from
+            status-based filtering. Each item includes every stored channel and raw reward
+            without RSS truncation or reward-name merging. Consumers can stop pagination when
+            <code>items</code> is empty or when <code>page * page_size &gt;= total</code>.
+        </p>
+        <p>
+            An empty <code>channels</code> list means no channel restriction data is stored. It
+            does not by itself guarantee that a campaign is available on every channel.
+        </p>
+    </article>
+    <article>
+        <h3>Twitch JSON API</h3>
+        <p>
+            Fully imported Twitch campaigns are available through the public paginated
+            <a href="{% url 'api-v1:twitch-api-v1_list_campaigns' %}">Twitch campaign JSON API</a>.
+            Responses include campaign dates, game and organization metadata, allowed channels,
+            drops and rewards for each campaign.
+        </p>
+        <p>
+            Use <code>page</code> and <code>page_size</code> for pagination. Filter by Twitch game
+            ID with <code>game</code>, or by the computed campaign state with
+            <code>status=active</code>, <code>status=upcoming</code>, <code>status=expired</code>
+            or <code>status=unknown</code>. Page numbers and page sizes have a minimum of 1, and
+            the maximum page size is 500.
+        </p>
+        <pre><code>{
   "total": 1,
   "page": 1,
   "page_size": 100,
@@ -105,49 +121,50 @@
     "drops": [{ "name": "...", "benefits": ["..."] }]
   }]
 }</code></pre>
-            <p>
-                Timestamps use ISO 8601 in UTC and may be <code>null</code> when the source does not provide a date. Campaigns with
-                incomplete dates receive the computed status <code>unknown</code> and are excluded from status-based filtering.
-            </p>
-            <p>
-                Additional endpoints include
-                <a href="{% url 'api-v1:twitch-api-v1_list_games' %}">games</a>,
-                <a href="{% url 'api-v1:twitch-api-v1_list_organizations' %}">organizations</a>,
-                <a href="{% url 'api-v1:twitch-api-v1_list_channels' %}">channels</a>,
-                <a href="{% url 'api-v1:twitch-api-v1_list_reward_campaigns' %}">reward campaigns</a>, and
-                <a href="{% url 'api-v1:twitch-api-v1_list_badges' %}">chat badges</a>
-                all public and paginated. Each list endpoint has a corresponding detail view by ID.
-            </p>
-        </section>
-        {% if datasets %}
-            <table class="table table-striped table-hover">
-                <thead>
+        <p>
+            Timestamps use ISO 8601 in UTC and may be <code>null</code> when the source does not
+            provide a date. Campaigns with incomplete dates receive the computed status
+            <code>unknown</code> and are excluded from status-based filtering.
+        </p>
+        <p>
+            Additional endpoints include
+            <a href="{% url 'api-v1:twitch-api-v1_list_games' %}">games</a>,
+            <a href="{% url 'api-v1:twitch-api-v1_list_organizations' %}">organizations</a>,
+            <a href="{% url 'api-v1:twitch-api-v1_list_channels' %}">channels</a>,
+            <a href="{% url 'api-v1:twitch-api-v1_list_reward_campaigns' %}">reward campaigns</a>
+            and <a href="{% url 'api-v1:twitch-api-v1_list_badges' %}">chat badges</a>, all
+            public and paginated. Each list endpoint has a corresponding detail view by ID.
+        </p>
+    </article>
+    {% if datasets %}
+        <table>
+            <caption>Available dataset downloads</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Updated</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dataset in datasets %}
                     <tr>
-                        <th>Name</th>
-                        <th>Size</th>
-                        <th>Updated</th>
+                        <td>
+                            <a href="{% url 'core:dataset_backup_download' dataset.download_path %}">{{ dataset.name }}</a>
+                        </td>
+                        <td>{{ dataset.size }}</td>
+                        <td>
+                            <time datetime="{{ dataset.updated_at|date:'c' }}"
+                                  title="{{ dataset.updated_at|date:'DATETIME_FORMAT' }}">
+                                {{ dataset.updated_at|timesince }} ago ({{ dataset.updated_at|date:'M d, Y H:i' }})
+                            </time>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    {% for dataset in datasets %}
-                        <tr>
-                            <td>
-                                <a href="{% url 'core:dataset_backup_download' dataset.download_path %}">{{ dataset.name }}</a>
-                            </td>
-                            <td>{{ dataset.size }}</td>
-                            <td>
-                                <time datetime="{{ dataset.updated_at|date:'c' }}"
-                                      title="{{ dataset.updated_at|date:'DATETIME_FORMAT' }}">
-                                    {{ dataset.updated_at|timesince }} ago ({{ dataset.updated_at|date:'M d, Y H:i' }})
-                                </time>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p>{{ dataset_count }} dataset{% if dataset_count != 1 %}s{% endif %} available.</p>
-        {% else %}
-            <p>No dataset backups found.</p>
-        {% endif %}
-    </main>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p>{{ dataset_count }} dataset{% if dataset_count != 1 %}s{% endif %} available. <small>(<data value="{{ dataset_count }}">{{ dataset_count }}</data> files)</small></p>
+    {% else %}
+        <p>No dataset backups found.</p>
+    {% endif %}
 {% endblock content %}

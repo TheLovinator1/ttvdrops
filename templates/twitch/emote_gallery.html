@@ -1,30 +1,27 @@
 {% extends "base.html" %}
 {% load image_tags %}
 {% block content %}
-  <h1>Emotes</h1>
-  <!-- Add breadcrumbs -->
-  <nav aria-label="breadcrumb" class="mb-2">
-    <ol class="breadcrumb mb-0">
-      <li class="breadcrumb-item">
-        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-      </li>
-      <li class="breadcrumb-divider"></li>
-      <li class="breadcrumb-item">
-        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-      </li>
-      <li class="breadcrumb-divider"></li>
-      <li class="breadcrumb-item" aria-current="page">
-        <span class="breadcrumb-link active">Emotes</span>
-      </li>
-    </ol>
-  </nav>
-  {% for emote in emotes %}
-    <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"
-       title="{{ emote.campaign.name }}"
-       style="display: inline-block">
-      {% picture emote.image_url alt="Emote" width=96 height=96 style="max-width: 96px; max-height: 96px" %}
-    </a>
-  {% empty %}
-    <p>No drop campaigns with emotes found.</p>
-  {% endfor %}
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+                <li aria-current="page">Emotes</li>
+            </ol>
+        </nav>
+        <h2>Emotes</h2>
+        <p>Emotes earned as Twitch drop rewards.</p>
+    </header>
+    {% if emotes %}
+        <div class="emote-grid">
+            {% for emote in emotes %}
+                <a href="{% url 'twitch:campaign_detail' emote.campaign.twitch_id %}"
+                   title="{{ emote.campaign.name }}">
+                    {% picture emote.image_url alt="Emote" width=96 height=96 %}
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>No drop campaigns with emotes found.</p>
+    {% endif %}
 {% endblock content %}

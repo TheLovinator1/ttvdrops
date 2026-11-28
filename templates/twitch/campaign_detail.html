@@ -2,7 +2,6 @@
 {% load static %}
 {% load image_tags %}
 {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'history.css' %}" />
     {% if campaign and campaign.game %}
         <link rel="alternate"
               type="application/rss+xml"
@@ -19,543 +18,245 @@
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container pb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'twitch:campaign_list' %}">Campaigns</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link"
-                       href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item" aria-current="page">
-                    <span class="breadcrumb-link active">{{ campaign.clean_name }}</span>
-                </li>
-            </ol>
-        </nav>
-        <ul class="nav nav-tabs mb-4" role="tablist" aria-label="Campaign sections">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active"
-                        id="overview-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#overview-pane"
-                        type="button"
-                        role="tab"
-                        aria-controls="overview-pane"
-                        aria-selected="true">Overview</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link"
-                        id="history-tab"
-                        data-bs-toggle="tab"
-                        data-bs-target="#history-pane"
-                        type="button"
-                        role="tab"
-                        aria-controls="history-pane"
-                        aria-selected="false">
-                    History
-                    {% if history_event_count %}
-                        <span class="badge badge-subtle theme-secondary ms-1">{{ history_event_count }}</span>
+    <article>
+        <header>
+            <div class="detail-header">
+                <div class="detail-media">
+                    {% if campaign.image_best_url %}
+                        {% picture campaign.image_best_url alt=campaign.name width=160 %}
+                    {% else %}
+                        <small>No image</small>
                     {% endif %}
-                </button>
-            </li>
-        </ul>
-        <div class="tab-content">
-            <div class="tab-pane fade show active"
-                 id="overview-pane"
-                 role="tabpanel"
-                 aria-labelledby="overview-tab"
-                 tabindex="0">
-                <header class="mb-4">
-                    <div class="d-flex flex-column md:flex-row align-items-start gap-3">
-                        <div class="flex-shrink-0" style="width: 180px; max-width: 100%">
-                            {% if campaign.image_best_url %}
-                                {% picture campaign.image_best_url alt="Artwork for "|add:campaign.name width=180 css_class="w-100 h-auto rounded-2" %}
-                            {% else %}
-                                <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3"
-                                     style="aspect-ratio: 1 / 1">No Image</div>
-                            {% endif %}
-                        </div>
-                        <div class="flex-grow-1 min-w-0">
-                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                <h1 class="h2 mb-0">{{ campaign.clean_name }}</h1>
-                                {% if campaign_status == "active" %}
-                                    <span class="badge badge-subtle theme-success">Active</span>
-                                {% elif campaign_status == "upcoming" %}
-                                    <span class="badge badge-subtle theme-info">Upcoming</span>
-                                {% elif campaign_status == "expired" %}
-                                    <span class="badge badge-subtle theme-danger">Expired</span>
-                                {% else %}
-                                    <span class="badge badge-subtle theme-secondary">Unknown</span>
-                                {% endif %}
-                                {% if campaign_status == "active" and campaign.end_at %}
-                                    <span class="badge badge-subtle theme-warning">Ends in {{ campaign.end_at|timeuntil }}</span>
-                                {% elif campaign_status == "upcoming" and campaign.start_at %}
-                                    <span class="badge badge-subtle theme-info">Starts in {{ campaign.start_at|timeuntil }}</span>
-                                {% endif %}
-                            </div>
-                            {% if campaign.name != campaign.clean_name %}
-                                <p class="fg-2 mb-2">{{ campaign.name }}</p>
-                            {% endif %}
-                            {% if owners %}
-                                <p class="fs-sm fg-2 mb-2">
-                                    Owned by
-                                    {% for owner in owners %}
-                                        <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
-                                        {% if not forloop.last %}-{% endif %}
-                                    {% endfor %}
-                                </p>
-                            {% endif %}
-                            {% if campaign.description %}
-                                <p class="fg-2 mb-0">{{ campaign.description_with_links|linebreaksbr }}</p>
-                            {% else %}
-                                <p class="fg-3 fst-italic mb-0">No description</p>
-                            {% endif %}
-                            {% with reward_summary=campaign.reward_summary %}
-                                {% if reward_summary %}
-                                    <p class="fs-sm fg-2 mt-2 mb-0">{{ reward_summary }}</p>
-                                {% endif %}
-                            {% endwith %}
-                            <div class="d-flex flex-wrap align-items-center gap-2 mt-4">
-                                {% if allowed_channels|length == 1 %}
-                                    {% with channel=allowed_channels.0 %}
-                                        <a class="btn-solid theme-primary btn-sm"
-                                           href="https://www.twitch.tv/{{ channel.name }}"
-                                           target="_blank"
-                                           rel="noopener"
-                                           title="Watch {{ channel.display_name|default:channel.name }} on Twitch">
-                                            Watch {{ channel.display_name|default:channel.name }}
-                                        </a>
-                                    {% endwith %}
-                                {% elif allowed_channels %}
-                                    <a class="btn-solid theme-primary btn-sm"
-                                       href="{{ campaign.game.twitch_directory_url }}"
-                                       target="_blank"
-                                       rel="noopener"
-                                       title="Find a participating live channel for {{ campaign.game.display_name }}">
-                                        Find a participating live channel
-                                    </a>
-                                {% else %}
-                                    <a class="btn-solid theme-primary btn-sm"
-                                       href="{{ campaign.game.twitch_directory_url }}"
-                                       target="_blank"
-                                       rel="noopener"
-                                       title="Find streamers playing {{ campaign.game.display_name }} with drops enabled">
-                                        Go to a participating live channel
-                                    </a>
-                                {% endif %}
-                                {% if campaign.details_url %}
-                                    <a class="btn-outline theme-secondary btn-sm"
-                                       href="{{ campaign.details_url }}"
-                                       title="Details for {{ campaign.name }}">
-                                        {% if campaign.details_url == campaign.account_link_url %}
-                                            Details / Connect
-                                        {% else %}
-                                            Details
-                                        {% endif %}
-                                    </a>
-                                {% endif %}
-                                {% if campaign.account_link_url and campaign.account_link_url != campaign.details_url %}
-                                    <a class="btn-outline theme-secondary btn-sm"
-                                       href="{{ campaign.account_link_url }}"
-                                       title="Connect your account for {{ campaign.name }}">Connect</a>
-                                {% endif %}
+                </div>
+                <div class="detail-body">
+                    <h1>{{ campaign.clean_name }}</h1>
+                    <nav class="breadcrumb-inline" aria-label="Breadcrumb">
+                        <ol>
+                            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                            <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+                            <li><a href="{% url 'twitch:campaign_list' %}">Campaigns</a></li>
+                            <li><a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a></li>
+                            <li aria-current="page">{{ campaign.clean_name }}</li>
+                        </ol>
+                    </nav>
+                    {% if owners %}
+                        <p>
+                            Owned by
+                            {% for owner in owners %}
+                                <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>{% if not forloop.last %} - {% endif %}
+                            {% endfor %}
+                        </p>
+                    {% endif %}
+                    {% if campaign.description %}
+                        <p>{{ campaign.description_with_links|linebreaksbr }}</p>
+                    {% else %}
+                        <p><em>No description.</em></p>
+                    {% endif %}
+                    {% with reward_summary=campaign.reward_summary %}
+                        {% if reward_summary %}<p>{{ reward_summary }}</p>{% endif %}
+                    {% endwith %}
+                    <dl>
+                        <dt>Published</dt>
+                        <dd>
+                            <time datetime="{{ campaign.added_at|date:'c' }}"
+                                  title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time>
+                            <small>({{ campaign.added_at|timesince }} ago)</small>
+                        </dd>
+                        <dt>Last updated</dt>
+                        <dd>
+                            <time datetime="{{ campaign.updated_at|date:'c' }}"
+                                  title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time>
+                            <small>({{ campaign.updated_at|timesince }} ago)</small>
+                        </dd>
+                        <dt>{% if campaign.end_at < now %}Ended{% else %}Ends in{% endif %}</dt>
+                        <dd>
+                            <time datetime="{{ campaign.end_at|date:'c' }}"
+                                  title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M d, Y H:i" }}</time>
+                            <small>
+                                {% if campaign.end_at < now %}({{ campaign.end_at|timesince }} ago){% else %}(in {{ campaign.end_at|timeuntil }}){% endif %}
+                            </small>
+                        </dd>
+                        <dt>{% if campaign.start_at > now %}Starts in{% else %}Started{% endif %}</dt>
+                        <dd>
+                            <time datetime="{{ campaign.start_at|date:'c' }}"
+                                  title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M d, Y H:i" }}</time>
+                            <small>
+                                {% if campaign.start_at > now %}(in {{ campaign.start_at|timeuntil }}){% else %}({{ campaign.start_at|timesince }} ago){% endif %}
+                            </small>
+                        </dd>
+                        <dt>Duration</dt>
+                        <dd>{{ campaign.end_at|timeuntil:campaign.start_at }}</dd>
+                        <dt>Data source</dt>
+                        <dd>{{ campaign.data_source|default:"Unknown" }}</dd>
+                    </dl>
+                    <footer class="detail-links" aria-label="Links">
+                        <div class="detail-links-grid">
+                            <div>
+                                <div class="detail-links-title">External</div>
                                 <div>
-                                    <button class="btn-outline theme-secondary btn-sm"
-                                            type="button"
-                                            data-bs-toggle="menu"
-                                            data-bs-placement="bottom-end"
-                                            aria-expanded="false">Subscribe ▾</button>
-                                    <div class="menu">
-                                        <h6 class="menu-header">Subscribe</h6>
-                                        <a class="menu-item"
-                                           href="{% url 'core:game_campaign_feed' campaign.game.twitch_id %}"
-                                           title="RSS feed for {{ campaign.game.display_name }} campaigns">RSS</a>
-                                        <a class="menu-item"
-                                           href="{% url 'core:game_campaign_feed_atom' campaign.game.twitch_id %}"
-                                           title="Atom feed for {{ campaign.game.display_name }} campaigns">Atom</a>
-                                        <a class="menu-item"
-                                           href="{% url 'core:game_campaign_feed_discord' campaign.game.twitch_id %}"
-                                           title="Discord-flavored feed for {{ campaign.game.display_name }} campaigns">Discord-flavored</a>
-                                        <hr class="menu-divider" />
-                                        <h6 class="menu-header">Developer &amp; Help</h6>
-                                        <a class="menu-item"
-                                           href="{% url 'api-v1:twitch-api-v1_get_campaign' campaign.twitch_id %}"
-                                           title="Twitch campaign API">API</a>
-                                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                                    </div>
+                                    {% if campaign.details_url %}<a href="{{ campaign.details_url }}">[details]</a>{% endif %}
+                                    {% if campaign.account_link_url %}<a href="{{ campaign.account_link_url }}">[connect]</a>{% endif %}
                                 </div>
                             </div>
-                            {% include "twitch/includes/external_site_links.html" with external_site_links=campaign.external_site_links %}
-                        </div>
-                    </div>
-                </header>
-
-                {# Rewards first: what visitors came for. #}
-                <section aria-labelledby="drops-heading" class="card detail-card mb-4">
-                    <h2 id="drops-heading"
-                        class="card-header px-4 py-3 h5 mb-0 d-flex flex-row flex-wrap justify-content-start align-items-center gap-2">
-                        Drops
-                        <span class="badge badge-subtle theme-secondary">{{ drops|length }}</span>
-                    </h2>
-                    {% if drops %}
-                        <div class="card-body p-0">
-                            {% for drop in drops %}
-                                <div class="p-4{% if not forloop.first %} border-top border-subtle{% endif %}">
-                                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
-                                        <h3 class="h5 mb-1">{{ drop.drop.name }}</h3>
-                                        <div class="d-flex flex-wrap gap-1">
-                                            {% if drop.drop.required_minutes_watched is not None %}
-                                                <span class="badge badge-subtle theme-secondary">
-                                                    {{ drop.drop.required_minutes_watched }} minute{{ drop.drop.required_minutes_watched|pluralize }} watched
-                                                </span>
-                                            {% endif %}
-                                            {% if drop.drop.required_subs %}
-                                                <span class="badge badge-subtle theme-secondary">
-                                                    {{ drop.drop.required_subs }} subscription{{ drop.drop.required_subs|pluralize }} required
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    <dl class="detail-grid mb-3 fs-sm">
-                                        <dt>Starts</dt>
-                                        <dd>
-                                            {% if drop.drop.start_at %}
-                                                <time datetime="{{ drop.drop.start_at|date:'c' }}"
-                                                      title="{{ drop.drop.start_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.start_at|date:"M d, Y H:i" }}</time>
-                                            {% else %}
-                                                <span class="fg-3 fst-italic">Not available</span>
-                                            {% endif %}
-                                        </dd>
-                                        <dt>Ends</dt>
-                                        <dd>
-                                            {% if drop.drop.end_at %}
-                                                <time datetime="{{ drop.drop.end_at|date:'c' }}"
-                                                      title="{{ drop.drop.end_at|date:'DATETIME_FORMAT' }}">{{ drop.drop.end_at|date:"M d, Y H:i" }}</time>
-                                            {% else %}
-                                                <span class="fg-3 fst-italic">Not available</span>
-                                            {% endif %}
-                                        </dd>
-                                        <dt>Duration</dt>
-                                        <dd>{{ drop.duration_text|default:"Unknown" }}</dd>
-                                        <dt>Timezone</dt>
-                                        <dd>{{ drop.timezone_name }}</dd>
-                                    </dl>
-                                    <h4 class="h6 mb-2">Benefits</h4>
-                                    <div class="d-flex flex-column gap-3">
-                                        {% for benefit in drop.drop.benefits.all %}
-                                            <div class="d-flex flex-column sm:flex-row gap-3 border-top border-subtle pt-3">
-                                                <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
-                                                    {% if benefit.image_best_url %}
-                                                        {% picture benefit.image_best_url alt="Artwork for "|add:benefit.name width=96 css_class="w-100 h-auto rounded-2" %}
-                                                    {% else %}
-                                                        <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
-                                                             style="aspect-ratio: 1 / 1">No Image</div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="flex-grow-1 min-w-0">
-                                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                                        <h5 class="h6 mb-0">{{ benefit.name }}</h5>
-                                                        {% if benefit.is_ios_available %}
-                                                            <span class="badge badge-subtle theme-info">iOS available</span>
-                                                        {% endif %}
-                                                        <span class="badge badge-subtle theme-secondary">{{ benefit.distribution_type|default:"Unknown distribution" }}</span>
-                                                    </div>
-                                                    <details class="fs-xs">
-                                                        <summary class="fg-3 mb-2" style="cursor: pointer">Benefit details</summary>
-                                                        <dl class="detail-grid">
-                                                            <dt>Twitch ID</dt>
-                                                            <dd>
-                                                                <code>{{ benefit.twitch_id }}</code>
-                                                            </dd>
-                                                            <dt>Distribution type</dt>
-                                                            <dd>{{ benefit.distribution_type|default:"Unknown" }}</dd>
-                                                            <dt>Entitlement limit</dt>
-                                                            <dd>{{ benefit.entitlement_limit }}</dd>
-                                                            <dt>iOS available</dt>
-                                                            <dd>{{ benefit.is_ios_available|yesno:"Yes,No" }}</dd>
-                                                            <dt>Created</dt>
-                                                            <dd>
-                                                                {% if benefit.created_at %}
-                                                                    <time datetime="{{ benefit.created_at|date:'c' }}"
-                                                                          title="{{ benefit.created_at|date:'DATETIME_FORMAT' }}">{{ benefit.created_at|date:"M d, Y H:i" }}</time>
-                                                                {% else %}
-                                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                                {% endif %}
-                                                            </dd>
-                                                            <dt>Image URL</dt>
-                                                            <dd class="text-break">
-                                                                {% if benefit.image_best_url %}
-                                                                    <a href="{{ benefit.image_best_url }}"
-                                                                       target="_blank"
-                                                                       rel="noopener"
-                                                                       title="{{ benefit.image_best_url }}">Open image</a>
-                                                                {% else %}
-                                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                                {% endif %}
-                                                            </dd>
-                                                        </dl>
-                                                    </details>
-                                                    {% if benefit.distribution_type == "BADGE" and drop.awarded_badge %}
-                                                        <div class="mt-2 fs-sm">
-                                                            <strong>Awards badge:</strong>
-                                                            <a href="{% url 'twitch:badge_set_detail' set_id=drop.awarded_badge.badge_set.set_id %}">
-                                                                {% picture drop.awarded_badge.image_url_2x alt=drop.awarded_badge.title|add:" badge" width=24 height=24 style="vertical-align: middle; margin-right: 4px" %}
-                                                                {{ drop.awarded_badge.title }}
-                                                            </a>
-                                                            {% if drop.awarded_badge.description %}
-                                                                <div class="fg-3 mt-1">{{ drop.awarded_badge.description|linebreaksbr }}</div>
-                                                            {% endif %}
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        {% empty %}
-                                            <p class="fg-3 fst-italic mb-0">No benefits</p>
+                            {% if campaign.external_site_links %}
+                                <div>
+                                    <div class="detail-links-title">Also on</div>
+                                    <div>
+                                        {% for link in campaign.external_site_links %}
+                                            <a href="{{ link.url }}"
+                                               target="_blank"
+                                               rel="noopener"
+                                               referrerpolicy="origin"
+                                               title="View on {{ link.name }}">[{{ link.name|lower }}]</a>
                                         {% endfor %}
                                     </div>
                                 </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="p-5 text-center">
-                            <h3 class="h4 mb-2">No Drops</h3>
-                            <p class="fg-2 mb-0">No drops are available for this campaign.</p>
-                        </div>
-                    {% endif %}
-                </section>
-
-                {% if allowed_channels %}
-                    <section aria-labelledby="allowed-channels-heading" class="mb-4">
-                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                            <h2 id="allowed-channels-heading" class="h5 mb-0">Allowed Channels</h2>
-                            <span class="badge badge-subtle theme-secondary">{{ allowed_channels|length }}</span>
-                        </div>
-                        <div class="d-flex flex-wrap gap-2">
-                            {% for channel in allowed_channels %}
-                                <a class="chip theme-secondary"
-                                   href="{% url 'twitch:channel_detail' channel.twitch_id %}"
-                                   title="ID: {{ channel.twitch_id }} | name: {{ channel.name }} | display names: {{ channel.display_names|join:', ' }}">{{ channel.display_name }}</a>
-                            {% endfor %}
-                        </div>
-                    </section>
-                {% endif %}
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-                    <section class="card detail-card" aria-labelledby="campaign-dates-heading">
-                        <h2 id="campaign-dates-heading"
-                            class="card-header px-4 py-3 h5 mb-0">Campaign dates</h2>
-                        <div class="card-body p-4">
-                            <dl class="detail-grid fs-sm mb-0">
-                                <dt>Starts</dt>
-                                <dd>
-                                    {% if campaign.start_at %}
-                                        <time datetime="{{ campaign.start_at|date:'c' }}"
-                                              title="{{ campaign.start_at|date:'DATETIME_FORMAT' }}">{{ campaign.start_at|date:"M d, Y H:i" }}</time>
-                                        <small>
-                                            {% if campaign.start_at > now %}
-                                                (in {{ campaign.start_at|timeuntil }})
-                                            {% else %}
-                                                ({{ campaign.start_at|timesince }} ago)
-                                            {% endif %}
-                                        </small>
-                                    {% else %}
-                                        <span class="fg-3 fst-italic">Not available</span>
-                                    {% endif %}
-                                </dd>
-                                <dt>Ends</dt>
-                                <dd>
-                                    {% if campaign.end_at %}
-                                        <time datetime="{{ campaign.end_at|date:'c' }}"
-                                              title="{{ campaign.end_at|date:'DATETIME_FORMAT' }}">{{ campaign.end_at|date:"M d, Y H:i" }}</time>
-                                        <small>
-                                            {% if campaign.end_at > now %}
-                                                (in {{ campaign.end_at|timeuntil }})
-                                            {% else %}
-                                                ({{ campaign.end_at|timesince }} ago)
-                                            {% endif %}
-                                        </small>
-                                    {% else %}
-                                        <span class="fg-3 fst-italic">Not available</span>
-                                    {% endif %}
-                                </dd>
-                                <dt>Duration</dt>
-                                <dd>
-                                    {% if campaign.start_at and campaign.end_at %}
-                                        {{ campaign.end_at|timeuntil:campaign.start_at }}
-                                    {% else %}
-                                        <span class="fg-3 fst-italic">Not available</span>
-                                    {% endif %}
-                                </dd>
-                            </dl>
-                            {% if campaign.start_at and campaign.end_at %}
-                                <div class="campaign-progress mt-3"
-                                     role="progressbar"
-                                     aria-label="Campaign progress"
-                                     aria-valuenow="{{ campaign_progress_percent }}"
-                                     aria-valuemin="0"
-                                     aria-valuemax="100">
-                                    <div class="campaign-progress-bar"
-                                         style="width: {{ campaign_progress_percent }}%"></div>
-                                </div>
-                                <small class="d-block mt-2" style="color: #aeb4bd">
-                                    {% if campaign_status == "active" %}
-                                        {{ campaign_progress_percent }}% elapsed · ends in {{ campaign.end_at|timeuntil }}
-                                    {% elif campaign_status == "upcoming" %}
-                                        Starts in {{ campaign.start_at|timeuntil }}
-                                    {% else %}
-                                        Campaign ended
-                                    {% endif %}
-                                </small>
                             {% endif %}
-                        </div>
-                    </section>
-
-                    <section class="card detail-card" aria-labelledby="game-details-heading">
-                        <h2 id="game-details-heading"
-                            class="card-header px-4 py-3 h5 mb-0">Game</h2>
-                        <div class="card-body p-4 d-flex flex-column sm:flex-row gap-3 align-items-start">
-                            <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
-                                {% if campaign.game.box_art_best_url %}
-                                    {% picture campaign.game.box_art_best_url alt="Box art for "|add:campaign.game.get_game_name width=96 css_class="w-100 h-auto rounded-2" %}
-                                {% else %}
-                                    <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
-                                         style="aspect-ratio: 1 / 1">No Image</div>
-                                {% endif %}
-                            </div>
-                            <div class="flex-grow-1 min-w-0">
-                                <h3 class="h5 mb-1">
-                                    <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
-                                </h3>
-                                <p class="fs-sm fg-2 mb-3">
-                                    {{ game_campaign_count }} campaign{{ game_campaign_count|pluralize }}
-                                    {% if game_active_campaign_count %}
-                                        · {{ game_active_campaign_count }} active
-                                    {% endif %}
-                                </p>
-                                <a class="btn-outline theme-secondary btn-sm"
-                                   href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">
-                                    View all campaigns for this game →
-                                </a>
-                            </div>
-                        </div>
-                    </section>
-                </div>
-
-                <details class="card detail-card technical-details mb-4">
-                    <summary>Technical details</summary>
-                    <div class="card-body p-4">
-                        <dl class="detail-grid fs-sm mb-0">
-                            <dt>Twitch ID</dt>
-                            <dd>
-                                <code>{{ campaign.twitch_id }}</code>
-                            </dd>
-                            <dt>Allow enabled</dt>
-                            <dd>{{ campaign.allow_is_enabled|yesno:"Yes,No" }}</dd>
-                            <dt>Fully imported</dt>
-                            <dd>{{ campaign.is_fully_imported|yesno:"Yes,No" }}</dd>
-                            <dt>Operation names</dt>
-                            <dd>
-                                <div class="d-flex flex-wrap gap-1">
-                                    {% for operation in campaign.operation_names %}
-                                        <span class="badge badge-subtle theme-secondary">{{ operation }}</span>
-                                    {% empty %}
-                                        <span class="fg-3 fst-italic">None</span>
-                                    {% endfor %}
+                            <div>
+                                <div class="detail-links-title">
+                                    Subscribe
+                                    <a href="{% url 'core:docs_rss' %}"
+                                       title="RSS feed documentation"
+                                       class="detail-links-help">(?)</a>
                                 </div>
-                            </dd>
-                            <dt>Data source</dt>
-                            <dd>{{ campaign.data_source|default:"Unknown" }}</dd>
-                            <dt>Published</dt>
-                            <dd>
-                                <time datetime="{{ campaign.added_at|date:'c' }}"
-                                      title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time>
-                                <small>({{ campaign.added_at|timesince }} ago)</small>
-                            </dd>
-                            <dt>Last updated</dt>
-                            <dd>
-                                <time datetime="{{ campaign.updated_at|date:'c' }}"
-                                      title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time>
-                                <small>({{ campaign.updated_at|timesince }} ago)</small>
-                            </dd>
-                            <dt>Game slug</dt>
-                            <dd>
-                                <code>{{ campaign.game.slug|default:"Unknown" }}</code>
-                            </dd>
-                            <dt>Game Twitch ID</dt>
-                            <dd>
-                                <code>{{ campaign.game.twitch_id }}</code>
-                            </dd>
-                            <dt>Details URL</dt>
-                            <dd class="text-break">
-                                {% if campaign.details_url %}
-                                    <a href="{{ campaign.details_url }}"
-                                       target="_blank"
-                                       rel="noopener">{{ campaign.details_url }}</a>
-                                {% else %}
-                                    <span class="fg-3 fst-italic">Not available</span>
-                                {% endif %}
-                            </dd>
-                            <dt>Account link URL</dt>
-                            <dd class="text-break">
-                                {% if campaign.account_link_url %}
-                                    <a href="{{ campaign.account_link_url }}"
-                                       target="_blank"
-                                       rel="noopener">{{ campaign.account_link_url }}</a>
-                                {% else %}
-                                    <span class="fg-3 fst-italic">Not available</span>
-                                {% endif %}
-                            </dd>
-                            <dt>Image URL</dt>
-                            <dd class="text-break">
-                                {% if campaign.image_best_url %}
-                                    <a href="{{ campaign.image_best_url }}"
-                                       target="_blank"
-                                       rel="noopener"
-                                       title="{{ campaign.image_best_url }}">Open image</a>
-                                {% else %}
-                                    <span class="fg-3 fst-italic">Not available</span>
-                                {% endif %}
-                            </dd>
-                        </dl>
-                    </div>
-                </details>
-            </div>
-            <div class="tab-pane fade"
-                 id="history-pane"
-                 role="tabpanel"
-                 aria-labelledby="history-tab"
-                 tabindex="0">
-                <div class="d-flex flex-wrap align-items-end justify-content-between gap-3 mb-3">
-                    <div>
-                        <h2 class="h4 mb-1">Change log</h2>
-                        <p class="fs-sm fg-3 mb-0">Tracked changes for {{ campaign.clean_name }}, newest first.</p>
-                    </div>
-                    <a class="btn-outline theme-secondary btn-sm"
-                       href="{% url 'twitch:campaign_history' campaign.twitch_id %}">View full history →</a>
-                </div>
-                {% if history_events %}
-                    {% include "twitch/includes/history_table.html" with events=history_events %}
-                {% else %}
-                    <div class="card detail-card text-center py-5 px-3">
-                        <div class="card-body">
-                            <h2 class="h4 mb-2">No history events</h2>
-                            <p class="fg-2 mb-0">No changes have been recorded for this campaign yet.</p>
+                                <div>
+                                    Campaigns:
+                                    <a href="{% url 'core:game_campaign_feed' campaign.game.twitch_id %}" title="RSS feed for {{ campaign.game.display_name }} campaigns">[rss]</a>
+                                    <a href="{% url 'core:game_campaign_feed_atom' campaign.game.twitch_id %}" title="Atom feed for {{ campaign.game.display_name }} campaigns">[atom]</a>
+                                    <a href="{% url 'core:game_campaign_feed_discord' campaign.game.twitch_id %}" title="Discord-flavored feed for {{ campaign.game.display_name }} campaigns">[discord-flavored]</a>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="detail-links-title">Developer</div>
+                                <div>
+                                    <a class="bracket-link" href="{% url 'api-v1:twitch-api-v1_get_campaign' campaign.twitch_id %}" title="Twitch campaign API">API</a>
+                                    <a href="{% url 'twitch:campaign_history' campaign.twitch_id %}" title="Campaign history">[history]</a>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                {% endif %}
+                    </footer>
+                </div>
             </div>
+        </header>
+        <div class="page-tabs" role="tablist" aria-label="Campaign sections">
+            <button type="button"
+                    class="page-tab"
+                    id="campaign-tab"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="campaign-panel"
+                    data-tab-target="campaign-panel"
+                    data-tab-name="campaign">Campaign</button>
+            <button type="button"
+                    class="page-tab"
+                    id="history-tab"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="history-panel"
+                    data-tab-target="history-panel"
+                    data-tab-name="history">History{% if history_events %} ({{ history_events|length }}){% endif %}</button>
+            <button type="button"
+                    class="page-tab"
+                    id="technical-tab"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="technical-panel"
+                    data-tab-target="technical-panel"
+                    data-tab-name="json">JSON</button>
         </div>
-    </main>
+        <div id="campaign-panel"
+             role="tabpanel"
+             aria-labelledby="campaign-tab">
+        <section aria-labelledby="drops-heading">
+            <h3 id="drops-heading">Drops (<data value="{{ drops|length }}">{{ drops|length }}</data>)</h3>
+            {% if drops %}
+                {% for drop in drops %}
+                    {% include "twitch/includes/drop_card.html" with drop=drop %}
+                {% endfor %}
+            {% else %}
+                <h4>No Drops</h4>
+                <p>No drops are available for this campaign.</p>
+            {% endif %}
+        </section>
+        <section id="allowed-channels" aria-labelledby="allowed-channels-heading">
+            <h3 id="allowed-channels-heading">Allowed Channels{% if allowed_channels %} (<data value="{{ allowed_channels|length }}">{{ allowed_channels|length }}</data>){% endif %}</h3>
+            {% if allowed_channels %}
+                <ul class="channel-list">
+                    {% for channel in allowed_channels %}
+                        <li>
+                            <a href="{% url 'twitch:channel_detail' channel.twitch_id %}"
+                               title="ID: {{ channel.twitch_id }} | name: {{ channel.name }} | display names: {{ channel.display_names|join:', ' }}">{{ channel.display_name }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>
+                    <a href="{{ campaign.game.twitch_directory_url }}"
+                       title="Find streamers playing {{ campaign.game.display_name }} with drops enabled">Go to a participating live channel</a>
+                </p>
+            {% endif %}
+        </section>
+        </div>
+        <div id="history-panel"
+             role="tabpanel"
+             aria-labelledby="history-tab"
+             hidden>
+    <section aria-labelledby="history-heading">
+        <header>
+            <h3 id="history-heading">Change log</h3>
+            <p>Tracked changes for {{ campaign.clean_name }}, newest first. <a href="{% url 'twitch:campaign_history' campaign.twitch_id %}">View full history &rarr;</a></p>
+        </header>
+        {% if history_events %}
+            {% include "twitch/includes/history_table.html" with events=history_events %}
+        {% else %}
+            <h4>No history events</h4>
+            <p>No changes have been recorded for this campaign yet.</p>
+        {% endif %}
+    </section>
+        </div>
+        <div id="technical-panel"
+             role="tabpanel"
+             aria-labelledby="technical-tab"
+             hidden>
+            <section aria-labelledby="technical-heading">
+                <h3 id="technical-heading">Technical details</h3>
+                <pre><code>{{ technical_details_json }}</code></pre>
+            </section>
+        </div>
+        <script>
+            (() => {
+                const tabs = Array.from(document.querySelectorAll(".page-tab"));
+                const panels = document.querySelectorAll("[role='tabpanel']");
+                const defaultTab = tabs[0];
+
+                function activate(tab, updateUrl = false) {
+                    tabs.forEach((item) => {
+                        item.setAttribute("aria-selected", String(item === tab));
+                    });
+                    panels.forEach((panel) => {
+                        panel.hidden = panel.id !== tab.dataset.tabTarget;
+                    });
+                    if (updateUrl) {
+                        const url = new URL(window.location.href);
+                        if (tab.dataset.tabName === "campaign") {
+                            url.searchParams.delete("tab");
+                        } else {
+                            url.searchParams.set("tab", tab.dataset.tabName);
+                        }
+                        window.history.replaceState({}, "", url);
+                    }
+                }
+
+                const requestedTab = new URLSearchParams(window.location.search).get("tab");
+                const initialTab =
+                    tabs.find((tab) => tab.dataset.tabName === requestedTab) || defaultTab;
+                if (initialTab) {
+                    activate(initialTab);
+                }
+                tabs.forEach((tab) => {
+                    tab.addEventListener("click", () => activate(tab, true));
+                });
+            })();
+        </script>
+    </article>
 {% endblock content %}

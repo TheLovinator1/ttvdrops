@@ -288,6 +288,7 @@ CELERY_TASK_ROUTES: dict[str, dict[str, str]] = {
     "twitch.tasks.import_chat_badges": {"queue": "api-fetches"},
     "twitch.tasks.backup_database": {"queue": "default"},
     "kick.tasks.import_kick_drops": {"queue": "api-fetches"},
+    "kick.tasks.download_all_kick_images": {"queue": "image-downloads"},
     "chzzk.tasks.discover_chzzk_campaigns": {"queue": "api-fetches"},
     "chzzk.tasks.import_chzzk_campaign_task": {"queue": "imports"},
     "chzzk.tasks.download_all_chzzk_images": {"queue": "image-downloads"},
@@ -330,6 +331,12 @@ CELERY_BEAT_SCHEDULE: dict[str, Any] = {
     "download-chzzk-images-weekly": {
         "task": "chzzk.tasks.download_all_chzzk_images",
         "schedule": crontab(hour=4, minute=10, day_of_week=0),
+        "options": {"queue": "image-downloads"},
+    },
+    # Weekly Kick reward image refresh (Sunday 04:20 UTC).
+    "download-kick-images-weekly": {
+        "task": "kick.tasks.download_all_kick_images",
+        "schedule": crontab(hour=4, minute=20, day_of_week=0),
         "options": {"queue": "image-downloads"},
     },
     # Weekly chat badge refresh (Sunday 03:00 UTC).

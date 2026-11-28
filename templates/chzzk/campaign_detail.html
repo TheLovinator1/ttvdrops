@@ -14,403 +14,193 @@
           href="{% url 'chzzk:campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container pb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'chzzk:dashboard' %}">Chzzk</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'chzzk:campaign_list' %}">Campaigns</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link"
-                       href="{{ campaign.category_url }}">{{ campaign.category_display }}</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item" aria-current="page">
-                    <span class="breadcrumb-link active">{{ campaign.title }}</span>
-                </li>
-            </ol>
-        </nav>
-        <header class="mb-4">
-            <div class="d-flex flex-column md:flex-row align-items-start gap-3">
-                <div class="flex-shrink-0" style="width: 200px; max-width: 100%">
+    <article>
+        <header>
+            <div class="detail-header">
+                <div class="detail-media">
                     {% if campaign.image_best_url %}
                         <img src="{{ campaign.image_best_url }}"
                              alt="{{ campaign.title }}"
                              width="200"
-                             loading="lazy"
-                             class="w-100 h-auto rounded-2" />
+                             loading="lazy" />
                     {% else %}
-                        <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3"
-                             style="aspect-ratio: 1 / 1">No Image</div>
+                        <small>No image</small>
                     {% endif %}
                 </div>
-                <div class="flex-grow-1 min-w-0">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">{{ campaign.title }}</h1>
-                        {% if campaign_status == "active" %}
-                            <span class="badge badge-subtle theme-success">Active</span>
-                            {% if campaign.end_date %}
-                                <span class="badge badge-subtle theme-warning">Ends in {{ campaign.end_date|timeuntil }}</span>
-                            {% endif %}
-                        {% elif campaign_status == "upcoming" %}
-                            <span class="badge badge-subtle theme-info">Upcoming</span>
-                            {% if campaign.start_date %}
-                                <span class="badge badge-subtle theme-info">Starts in {{ campaign.start_date|timeuntil }}</span>
-                            {% endif %}
-                        {% else %}
-                            <span class="badge badge-subtle theme-danger">Expired</span>
-                        {% endif %}
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        {% if campaign.category_display %}
-                            <a class="badge badge-subtle theme-secondary text-decoration-none"
-                               href="{{ campaign.category_url }}">{{ campaign.category_display }}</a>
-                        {% endif %}
-                        {% if campaign.reward_type %}
-                            <span class="badge badge-subtle theme-secondary">{{ campaign.reward_type }}</span>
-                        {% endif %}
-                        <span class="badge badge-subtle theme-secondary">{{ rewards|length }} reward{{ rewards|length|pluralize }}</span>
-                    </div>
-                    {% if campaign.description %}
-                        <p class="fg-2 mb-0">{{ campaign.description|linebreaksbr }}</p>
-                    {% endif %}
-                    <div class="d-flex flex-wrap align-items-center gap-2 mt-4">
-                        {% if campaign.pc_link_url %}
-                            <a class="btn-solid theme-primary btn-sm"
-                               href="{{ campaign.pc_link_url }}"
-                               target="_blank"
-                               rel="noopener"
-                               title="Details for {{ campaign.title }}">
-                                {% if campaign.pc_link_url == campaign.account_link_url %}
-                                    Details / Connect
-                                {% else %}
-                                    Details
+                <div class="detail-body">
+                    <h1>{{ campaign.title }}</h1>
+                    <nav class="breadcrumb-inline" aria-label="Breadcrumb">
+                        <ol>
+                            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                            <li><a href="{% url 'chzzk:dashboard' %}">Chzzk</a></li>
+                            <li><a href="{% url 'chzzk:campaign_list' %}">Campaigns</a></li>
+                            <li><a href="{{ campaign.category_url }}">{{ campaign.category_display }}</a></li>
+                            <li aria-current="page">{{ campaign.title }}</li>
+                        </ol>
+                    </nav>
+                        <p>
+                            {% if campaign_status == "active" %}
+                                <strong>Active</strong>
+                                {% if campaign.end_date %}
+                                    - ends in <time datetime="{{ campaign.end_date|date:'c' }}">{{ campaign.end_date|timeuntil }}</time>
                                 {% endif %}
-                            </a>
+                            {% elif campaign_status == "upcoming" %}
+                                <strong>Upcoming</strong>
+                                {% if campaign.start_date %}
+                                    - starts in <time datetime="{{ campaign.start_date|date:'c' }}">{{ campaign.start_date|timeuntil }}</time>
+                                {% endif %}
+                            {% else %}
+                                <strong>Expired</strong>
+                            {% endif %}
+                        </p>
+                        <p>
+                            {% if campaign.category_display %}
+                                <a href="{{ campaign.category_url }}">{{ campaign.category_display }}</a>
+                            {% endif %}
+                            {% if campaign.reward_type %}| {{ campaign.reward_type }}{% endif %}
+                            | {{ rewards|length }} reward{{ rewards|length|pluralize }}
+                        </p>
+                        {% if campaign.description %}
+                            <p>{{ campaign.description|linebreaksbr }}</p>
                         {% endif %}
-                        {% if campaign.account_link_url and campaign.account_link_url != campaign.pc_link_url %}
-                            <a class="btn-outline theme-secondary btn-sm"
-                               href="{{ campaign.account_link_url }}"
-                               target="_blank"
-                               rel="noopener"
-                               title="Connect your account for {{ campaign.title }}">Connect</a>
-                        {% endif %}
-                        {% if campaign.mobile_link_url and campaign.mobile_link_url != campaign.pc_link_url %}
-                            <a class="btn-outline theme-secondary btn-sm"
-                               href="{{ campaign.mobile_link_url }}"
-                               target="_blank"
-                               rel="noopener"
-                               title="Mobile link for {{ campaign.title }}">Mobile</a>
-                        {% endif %}
-                        <a class="btn-outline theme-secondary btn-sm"
-                           href="{{ campaign.chzzk_api_url }}"
-                           target="_blank"
-                           rel="noopener"
-                           title="Raw Chzzk API response for {{ campaign.title }}">Chzzk API</a>
-                        {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                        <div>
-                            <button class="btn-outline theme-secondary btn-sm"
-                                    type="button"
-                                    data-bs-toggle="menu"
-                                    data-bs-placement="bottom-end"
-                                    aria-expanded="false">Subscribe ▾</button>
-                            <div class="menu">
-                                <h6 class="menu-header">Feeds</h6>
-                                <a class="menu-item"
-                                   href="{% url 'chzzk:campaign_feed' %}"
-                                   title="RSS feed for all campaigns">RSS</a>
-                                <a class="menu-item"
-                                   href="{% url 'chzzk:campaign_feed_atom' %}"
-                                   title="Atom feed for all campaigns">Atom</a>
-                                <a class="menu-item"
-                                   href="{% url 'chzzk:campaign_feed_discord' %}"
-                                   title="Discord-flavored feed for all campaigns">Discord-flavored</a>
-                                <hr class="menu-divider" />
-                                <h6 class="menu-header">Developer &amp; Help</h6>
-                                <a class="menu-item"
-                                   href="{% url 'api-v1:chzzk-api-v1_get_campaign' campaign.campaign_no %}">TTVDrops API</a>
-                                <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                        <dl>
+                            <dt>Scraped</dt>
+                            <dd>
+                                <time datetime="{{ campaign.scraped_at|date:'c' }}"
+                                      title="{{ campaign.scraped_at|date:'DATETIME_FORMAT' }}">{{ campaign.scraped_at|date:"M d, Y H:i" }}</time>
+                                <small>({{ campaign.scraped_at|timesince }} ago)</small>
+                            </dd>
+                            <dt>{% if campaign.start_date > now %}Starts in{% else %}Started{% endif %}</dt>
+                            <dd>
+                                <time datetime="{{ campaign.start_date|date:'c' }}"
+                                      title="{{ campaign.start_date|date:'DATETIME_FORMAT' }}">{{ campaign.start_date|date:"M d, Y H:i" }}</time>
+                                <small>{% if campaign.start_date > now %}(in {{ campaign.start_date|timeuntil }}){% else %}({{ campaign.start_date|timesince }} ago){% endif %}</small>
+                            </dd>
+                            <dt>{% if campaign.end_date > now %}Ends in{% else %}Ended{% endif %}</dt>
+                            <dd>
+                                <time datetime="{{ campaign.end_date|date:'c' }}"
+                                      title="{{ campaign.end_date|date:'DATETIME_FORMAT' }}">{{ campaign.end_date|date:"M d, Y H:i" }}</time>
+                                <small>{% if campaign.end_date > now %}(in {{ campaign.end_date|timeuntil }}){% else %}({{ campaign.end_date|timesince }} ago){% endif %}</small>
+                            </dd>
+                            <dt>Duration</dt>
+                            <dd>{{ campaign.end_date|timeuntil:campaign.start_date }}</dd>
+                            <dt>Reward type</dt>
+                            <dd>{{ campaign.reward_type|default:"Unknown" }}</dd>
+                            {% if campaign.campaign_reward_type %}
+                                <dt>Campaign reward type</dt>
+                                <dd>{{ campaign.campaign_reward_type }}</dd>
+                            {% endif %}
+                        </dl>
+                        <footer class="detail-links" aria-label="Links">
+                            <div class="detail-links-grid">
+                                <div>
+                                    <div class="detail-links-title">External</div>
+                                    <div>
+                                        {% if campaign.pc_link_url %}
+                                            <a href="{{ campaign.pc_link_url }}" target="_blank" rel="noopener" title="Details for {{ campaign.title }}">[details]</a>
+                                        {% endif %}
+                                        {% if campaign.account_link_url and campaign.account_link_url != campaign.pc_link_url %}
+                                            <a href="{{ campaign.account_link_url }}" target="_blank" rel="noopener" title="Connect your account for {{ campaign.title }}">[connect]</a>
+                                        {% endif %}
+                                        {% if campaign.mobile_link_url and campaign.mobile_link_url != campaign.pc_link_url %}
+                                            <a href="{{ campaign.mobile_link_url }}" target="_blank" rel="noopener" title="Mobile link for {{ campaign.title }}">[mobile]</a>
+                                        {% endif %}
+                                        <a href="{{ campaign.chzzk_api_url }}" target="_blank" rel="noopener" title="Raw Chzzk API response for {{ campaign.title }}">[chzzk api]</a>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="detail-links-title">
+                                        Subscribe
+                                        <a href="{% url 'core:docs_rss' %}"
+                                           title="Feed documentation"
+                                           class="detail-links-help">(?)</a>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'chzzk:campaign_feed' %}" title="RSS feed for all campaigns">[rss]</a>
+                                        <a href="{% url 'chzzk:campaign_feed_atom' %}" title="Atom feed for all campaigns">[atom]</a>
+                                        <a href="{% url 'chzzk:campaign_feed_discord' %}" title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="detail-links-title">Developer</div>
+                                    <div>
+                                        <a href="{% url 'api-v1:chzzk-api-v1_get_campaign' campaign.campaign_no %}">[api]</a>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        </footer>
                 </div>
             </div>
         </header>
-
-        {# Rewards first: what visitors came for. #}
-        <section aria-labelledby="rewards-heading" class="mb-4">
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                <h2 id="rewards-heading" class="h5 mb-0">Rewards</h2>
-                <span class="badge badge-subtle theme-secondary">{{ rewards|length }}</span>
-            </div>
+        <div class="page-tabs" role="tablist" aria-label="Campaign sections">
+            <button type="button"
+                    class="page-tab"
+                    id="campaign-tab"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="campaign-panel"
+                    data-tab-target="campaign-panel"
+                    data-tab-name="campaign">Campaign</button>
+            <button type="button"
+                    class="page-tab"
+                    id="json-tab"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="json-panel"
+                    data-tab-target="json-panel"
+                    data-tab-name="json">JSON</button>
+        </div>
+        <div id="campaign-panel"
+             role="tabpanel"
+             aria-labelledby="campaign-tab">
+        <section aria-labelledby="rewards-heading">
+            <h3 id="rewards-heading">Rewards (<data value="{{ rewards|length }}">{{ rewards|length }}</data>)</h3>
             {% if rewards %}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {% for reward in rewards %}
-                        <article class="card detail-card">
-                            <div class="card-body p-3 d-flex flex-column sm:flex-row gap-3">
-                                <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
-                                    {% if reward.image_best_url %}
-                                        <img src="{{ reward.image_best_url }}"
-                                             alt="{{ reward.title }}"
-                                             width="96"
-                                             loading="lazy"
-                                             class="w-100 h-auto rounded-2" />
-                                    {% else %}
-                                        <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
-                                             style="aspect-ratio: 1 / 1">No Image</div>
-                                    {% endif %}
-                                </div>
-                                <div class="flex-grow-1 min-w-0">
-                                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-                                        <h3 class="h6 mb-0">{{ reward.title }}</h3>
-                                        <span class="badge badge-subtle theme-secondary">#{{ reward.reward_no }}</span>
-                                    </div>
-                                    <div class="d-flex flex-wrap gap-1 mb-2">
-                                        <span class="badge badge-subtle theme-secondary">{{ reward.condition_for_minutes }} min</span>
-                                        <span class="badge badge-subtle theme-secondary">{{ reward.condition_type }}</span>
-                                        <span class="badge badge-subtle theme-secondary">{{ reward.reward_type }}</span>
-                                        {% if reward.campaign_reward_type %}
-                                            <span class="badge badge-subtle theme-secondary">{{ reward.campaign_reward_type }}</span>
-                                        {% endif %}
-                                        {% if reward.ios_based_reward %}
-                                            <span class="badge badge-subtle theme-info">iOS</span>
-                                        {% endif %}
-                                    </div>
-                                    <details class="fs-xs">
-                                        <summary class="fg-3" style="cursor: pointer">Reward details</summary>
-                                        <dl class="detail-grid mt-2 mb-0">
-                                            <dt>Reward no</dt>
-                                            <dd>{{ reward.reward_no }}</dd>
-                                            <dt>Reward type</dt>
-                                            <dd>{{ reward.reward_type }}</dd>
-                                            <dt>Campaign reward type</dt>
-                                            <dd>
-                                                {% if reward.campaign_reward_type %}
-                                                    {{ reward.campaign_reward_type }}
-                                                {% else %}
-                                                    <span class="fg-3 fst-italic">None</span>
-                                                {% endif %}
-                                            </dd>
-                                            <dt>Condition type</dt>
-                                            <dd>{{ reward.condition_type }}</dd>
-                                            <dt>Minutes required</dt>
-                                            <dd>{{ reward.condition_for_minutes }}</dd>
-                                            <dt>iOS reward</dt>
-                                            <dd>{{ reward.ios_based_reward|yesno:"Yes,No" }}</dd>
-                                            <dt>Codes remaining</dt>
-                                            <dd>{{ reward.code_remaining_count }}</dd>
-                                            <dt>Image filename</dt>
-                                            <dd class="text-break">
-                                                {% if reward.image_filename %}
-                                                    {{ reward.image_filename }}
-                                                {% else %}
-                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                {% endif %}
-                                            </dd>
-                                            <dt>Image URL</dt>
-                                            <dd class="text-break">
-                                                {% if reward.image_best_url %}
-                                                    <a href="{{ reward.image_best_url }}"
-                                                       target="_blank"
-                                                       rel="noopener"
-                                                       title="{{ reward.image_best_url }}">Open image</a>
-                                                {% else %}
-                                                    <span class="fg-3 fst-italic">Not available</span>
-                                                {% endif %}
-                                            </dd>
-                                        </dl>
-                                    </details>
-                                </div>
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
+                {% for reward in rewards %}
+                    <article class="drop-card" id="reward-{{ reward.reward_no }}">
+                        <div class="drop-media">
+                            {% if reward.image_best_url %}
+                                <img src="{{ reward.image_best_url }}"
+                                     alt="Artwork for {{ reward.title }}"
+                                     width="96"
+                                     height="96"
+                                     loading="lazy" />
+                            {% else %}
+                                <small>No image</small>
+                            {% endif %}
+                        </div>
+                        <div class="drop-main">
+                            <h4>{{ reward.title }}</h4>
+                            <p>
+                                {% if reward.reward_type %}<span class="badge">{{ reward.reward_type }}</span>{% endif %}
+                                {% if reward.campaign_reward_type %}<span class="badge">{{ reward.campaign_reward_type }}</span>{% endif %}
+                                {% if reward.ios_based_reward %}<span class="badge">iOS</span>{% endif %}
+                            </p>
+                        </div>
+                        <p class="drop-requirement">
+                            {% if reward.condition_for_minutes %}
+                                {{ reward.condition_for_minutes }} minutes watched
+                            {% else %}
+                                No watch-time requirement
+                            {% endif %}
+                        </p>
+                    </article>
+                {% endfor %}
             {% else %}
-                <div class="card detail-card text-center py-5 px-3">
-                    <div class="card-body">
-                        <h3 class="h4 mb-2">No Rewards</h3>
-                        <p class="fg-2 mb-0">No rewards are available for this campaign.</p>
-                    </div>
-                </div>
+                <h4>No Rewards</h4>
+                <p>No rewards are available for this campaign.</p>
             {% endif %}
         </section>
-
-        <section class="card detail-card mb-4" aria-labelledby="campaign-dates-heading">
-            <h2 id="campaign-dates-heading"
-                class="card-header px-4 py-3 h5 mb-0">Campaign dates</h2>
-            <div class="card-body p-4">
-                <dl class="detail-grid fs-sm mb-0">
-                    <dt>Starts</dt>
-                    <dd>
-                        <time datetime="{{ campaign.start_date|date:'c' }}"
-                              title="{{ campaign.start_date|date:'DATETIME_FORMAT' }}">{{ campaign.start_date|date:"M d, Y H:i" }}</time>
-                        <small>
-                            {% if campaign.start_date > now %}
-                                (in {{ campaign.start_date|timeuntil }})
-                            {% else %}
-                                ({{ campaign.start_date|timesince }} ago)
-                            {% endif %}
-                        </small>
-                    </dd>
-                    <dt>Ends</dt>
-                    <dd>
-                        <time datetime="{{ campaign.end_date|date:'c' }}"
-                              title="{{ campaign.end_date|date:'DATETIME_FORMAT' }}">{{ campaign.end_date|date:"M d, Y H:i" }}</time>
-                        <small>
-                            {% if campaign.end_date > now %}
-                                (in {{ campaign.end_date|timeuntil }})
-                            {% else %}
-                                ({{ campaign.end_date|timesince }} ago)
-                            {% endif %}
-                        </small>
-                    </dd>
-                    <dt>Duration</dt>
-                    <dd>{{ campaign.end_date|timeuntil:campaign.start_date }}</dd>
-                </dl>
-                {% if campaign.start_date and campaign.end_date %}
-                    <div class="campaign-progress mt-3"
-                         role="progressbar"
-                         aria-label="Campaign progress"
-                         aria-valuenow="{{ campaign_progress_percent }}"
-                         aria-valuemin="0"
-                         aria-valuemax="100">
-                        <div class="campaign-progress-bar"
-                             style="width: {{ campaign_progress_percent }}%"></div>
-                    </div>
-                    <small class="d-block mt-2" style="color: #aeb4bd">
-                        {% if campaign_status == "active" %}
-                            {{ campaign_progress_percent }}% elapsed · ends in {{ campaign.end_date|timeuntil }}
-                        {% elif campaign_status == "upcoming" %}
-                            Starts in {{ campaign.start_date|timeuntil }}
-                        {% else %}
-                            Campaign ended
-                        {% endif %}
-                    </small>
-                {% endif %}
-            </div>
-        </section>
-
-        <details class="card detail-card technical-details mb-4">
-            <summary>Technical details</summary>
-            <div class="card-body p-4">
-                <dl class="detail-grid fs-sm mb-0">
-                    <dt>Campaign no</dt>
-                    <dd>{{ campaign.campaign_no }}</dd>
-                    <dt>Raw status</dt>
-                    <dd>{{ campaign_status|capfirst }}</dd>
-                    <dt>State</dt>
-                    <dd>{{ campaign.state }}</dd>
-                    <dt>Category type</dt>
-                    <dd>{{ campaign.category_type }}</dd>
-                    {% if campaign.category_id %}
-                        <dt>Category ID</dt>
-                        <dd>
-                            <a href="{{ campaign.category_url }}"
-                               title="{{ campaign.category_id }}"><code>{{ campaign.category_id_display }}</code></a>
-                        </dd>
-                    {% endif %}
-                    <dt>Reward type</dt>
-                    <dd>
-                        {% if campaign.reward_type %}
-                            {{ campaign.reward_type }}
-                        {% else %}
-                            <span class="fg-3 fst-italic">Unknown</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Campaign reward type</dt>
-                    <dd>
-                        {% if campaign.campaign_reward_type %}
-                            {{ campaign.campaign_reward_type }}
-                        {% else %}
-                            <span class="fg-3 fst-italic">None</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Service ID</dt>
-                    <dd>
-                        {% if campaign.service_id %}
-                            <code>{{ campaign.service_id }}</code>
-                        {% else %}
-                            <span class="fg-3 fst-italic">Unknown</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Source API</dt>
-                    <dd>
-                        {% if campaign.source_api %}
-                            {{ campaign.source_api }}
-                        {% else %}
-                            <span class="fg-3 fst-italic">Unknown</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Scraped at</dt>
-                    <dd>
-                        <time datetime="{{ campaign.scraped_at|date:'c' }}"
-                              title="{{ campaign.scraped_at|date:'DATETIME_FORMAT' }}">{{ campaign.scraped_at|date:"M d, Y H:i" }}</time>
-                        <small>({{ campaign.scraped_at|timesince }} ago)</small>
-                    </dd>
-                    <dt>iOS-based reward</dt>
-                    <dd>{{ campaign.has_ios_based_reward|yesno:"Yes,No" }}</dd>
-                    <dt>Not started</dt>
-                    <dd>{{ campaign.drops_campaign_not_started|yesno:"Yes,No" }}</dd>
-                    <dt>PC link</dt>
-                    <dd class="text-break">
-                        {% if campaign.pc_link_url %}
-                            <a href="{{ campaign.pc_link_url }}"
-                               target="_blank"
-                               rel="noopener">{{ campaign.pc_link_url }}</a>
-                        {% else %}
-                            <span class="fg-3 fst-italic">Not available</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Mobile link</dt>
-                    <dd class="text-break">
-                        {% if campaign.mobile_link_url %}
-                            <a href="{{ campaign.mobile_link_url }}"
-                               target="_blank"
-                               rel="noopener">{{ campaign.mobile_link_url }}</a>
-                        {% else %}
-                            <span class="fg-3 fst-italic">Not available</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Account link</dt>
-                    <dd class="text-break">
-                        {% if campaign.account_link_url %}
-                            <a href="{{ campaign.account_link_url }}"
-                               target="_blank"
-                               rel="noopener">{{ campaign.account_link_url }}</a>
-                        {% else %}
-                            <span class="fg-3 fst-italic">Not available</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Image filename</dt>
-                    <dd class="text-break">
-                        {% if campaign.image_filename %}
-                            {{ campaign.image_filename }}
-                        {% else %}
-                            <span class="fg-3 fst-italic">Not available</span>
-                        {% endif %}
-                    </dd>
-                    <dt>Image URL</dt>
-                    <dd class="text-break">
-                        {% if campaign.image_url %}
-                            <a href="{{ campaign.image_url }}"
-                               target="_blank"
-                               rel="noopener"
-                               title="{{ campaign.image_url }}">Open original image</a>
-                        {% else %}
-                            <span class="fg-3 fst-italic">Not available</span>
-                        {% endif %}
-                    </dd>
-                </dl>
-            </div>
-        </details>
-    </main>
+        </div>
+        <div id="json-panel"
+             role="tabpanel"
+             aria-labelledby="json-tab"
+             hidden>
+            <section aria-labelledby="technical-heading">
+                <h3 id="technical-heading">Technical details</h3>
+                <pre><code>{{ technical_details_json }}</code></pre>
+            </section>
+        </div>
+        {% include "includes/tab_script.html" %}
+    </article>
 {% endblock content %}

@@ -1,0 +1,72 @@
+{% load image_tags %}
+<article class="dashboard-campaign" id="reward-campaign-{{ campaign.twitch_id }}">
+    <div class="dashboard-campaign-layout">
+        {% if campaign.image_best_url %}
+            <a class="dashboard-campaign-image"
+               href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                {% picture campaign.image_best_url alt="Artwork for "|add:campaign.name width=120 %}
+            </a>
+        {% endif %}
+        <div class="dashboard-campaign-content">
+            <header>
+                <h4>
+                    <a href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}">
+                        {% if campaign.brand %}{{ campaign.brand }}: {% endif %}{{ campaign.name }}
+                    </a>
+                </h4>
+                <p class="dashboard-campaign-meta">
+                    {% if campaign.brand %}
+                        <span>Brand: <strong>{{ campaign.brand }}</strong></span>
+                    {% endif %}
+                    <span>
+                        Game:
+                        {% if campaign.game %}
+                            <a href="{% url 'twitch:game_detail' campaign.game.twitch_id %}">{{ campaign.game.display_name }}</a>
+                        {% elif campaign.is_sitewide %}
+                            Site-wide
+                        {% else %}
+                            -
+                        {% endif %}
+                    </span>
+                    {% if date_mode == "upcoming" %}
+                        <span>Starts:
+                            <time datetime="{{ campaign.starts_at|date:'c' }}"
+                                  title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">in {{ campaign.starts_at|timeuntil }}</time>
+                        </span>
+                    {% elif date_mode == "expired" %}
+                        <span>Ended:
+                            <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|timesince }} ago</time>
+                        </span>
+                    {% else %}
+                        <span>Ends:
+                            <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">in {{ campaign.ends_at|timeuntil }}</time>
+                        </span>
+                    {% endif %}
+                </p>
+            </header>
+            {% if campaign.summary %}
+                <p><small>{{ campaign.summary }}</small></p>
+            {% endif %}
+            <div class="dashboard-reward-grid">
+                {% for reward in campaign.rewards.all %}
+                    <a class="dashboard-reward"
+                       href="{% url 'twitch:reward_campaign_detail' campaign.twitch_id %}#reward-{{ reward.twitch_id }}"
+                       title="{{ reward.name }}">
+                        {% if reward.image_best_url %}
+                            <img src="{{ reward.image_best_url }}"
+                                 alt=""
+                                 width="32"
+                                 height="32"
+                                 loading="lazy" />
+                        {% endif %}
+                        <span class="dashboard-reward-name">{{ reward.name }}</span>
+                    </a>
+                {% empty %}
+                    <small>No rewards listed.</small>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</article>

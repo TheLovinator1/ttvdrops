@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import OrderedDict
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -175,6 +176,52 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         .order_by("-starts_at")
     )
 
+    kick_campaigns_by_game: OrderedDict[str, dict[str, object]] = OrderedDict()
+    for campaign in active_campaigns:
+        if campaign.category is None:
+            game_key = "unknown"
+            game_name = "Unknown game"
+            game_image = ""
+            game_kick_id = None
+        else:
+            game_key = str(campaign.category.kick_id)
+            game_name = campaign.category.name
+            game_image = campaign.category.image_url
+            game_kick_id = campaign.category.kick_id
+
+        if game_key not in kick_campaigns_by_game:
+            kick_campaigns_by_game[game_key] = {
+                "name": game_name,
+                "image": game_image,
+                "kick_id": game_kick_id,
+                "campaigns": [],
+                "organizations": [],
+            }
+
+        if campaign.organization:
+            organizations = kick_campaigns_by_game[game_key]["organizations"]
+            if campaign.organization not in organizations:
+                organizations.append(campaign.organization)
+
+        rewards: list[KickReward] = list(campaign.rewards.all())
+        watch_minutes: list[int] = sorted(
+            reward.required_units for reward in rewards if reward.required_units
+        )
+        watch_range: str = ""
+        if watch_minutes:
+            watch_range = (
+                f"{watch_minutes[0]}m watch"
+                if watch_minutes[0] == watch_minutes[-1]
+                else f"{watch_minutes[0]}m-{watch_minutes[-1]}m watch"
+            )
+
+        kick_campaigns_by_game[game_key]["campaigns"].append({
+            "campaign": campaign,
+            "channels": list(campaign.channels.all()),
+            "rewards": rewards,
+            "watch_range": watch_range,
+        })
+
     seo_context: dict[str, str] = _build_seo_context(
         page_title="Kick Drops, Reward Campaigns and Drop Archive",
         page_description="Overview of active Kick drop campaigns.",
@@ -184,6 +231,7 @@ def dashboard(request: HttpRequest) -> HttpResponse:
         "kick/dashboard.html",
         {
             "active_campaigns": active_campaigns,
+            "kick_campaigns_by_game": kick_campaigns_by_game,
             "now": now,
             **seo_context,
         },
@@ -288,7 +336,7 @@ def campaign_list_view(request: HttpRequest) -> HttpResponse:
 
 
 # MARK: /kick/campaigns/<kick_id>/
-def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
+def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:  # ruff:ignore[too-many-locals]
     """Detail view for a single Kick drop campaign.
 
     Args:
@@ -404,6 +452,80 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
         ("Watch on Kick", f"https://kick.com/category/{category_slug}"),
         ("All campaigns", "/kick/campaigns/"),
     )
+
+    def _iso(value: datetime.datetime | None) -> str | None:
+        """Return an ISO timestamp for JSON output."""
+        return value.isoformat() if value else None
+
+    technical_details: dict[str, Any] = {
+        "kick_id": campaign.kick_id,
+        "name": campaign.name,
+        "status": campaign.status,
+        "starts_at": _iso(campaign.starts_at),
+        "ends_at": _iso(campaign.ends_at),
+        "connect_url": campaign.connect_url,
+        "url": campaign.url,
+        "rule_id": campaign.rule_id,
+        "rule_name": campaign.rule_name,
+        "created_at": _iso(campaign.created_at),
+        "api_updated_at": _iso(campaign.api_updated_at),
+        "added_at": _iso(campaign.added_at),
+        "updated_at": _iso(campaign.updated_at),
+        "is_fully_imported": campaign.is_fully_imported,
+        "organization": (
+            {
+                "kick_id": campaign.organization.kick_id,
+                "name": campaign.organization.name,
+                "logo_url": campaign.organization.logo_url,
+                "url": campaign.organization.url,
+                "restricted": campaign.organization.restricted,
+            }
+            if campaign.organization
+            else None
+        ),
+        "category": (
+            {
+                "kick_id": campaign.category.kick_id,
+                "name": campaign.category.name,
+                "slug": campaign.category.slug,
+                "image_url": campaign.category.image_url,
+            }
+            if campaign.category
+            else None
+        ),
+        "channels": [
+            {
+                "kick_id": channel.kick_id,
+                "slug": channel.slug,
+                "description": channel.description,
+                "banner_picture_url": channel.banner_picture_url,
+                "channel_url": channel.channel_url,
+                "user": (
+                    {
+                        "kick_id": channel.user.kick_id,
+                        "username": channel.user.username,
+                        "profile_picture": channel.user.profile_picture,
+                    }
+                    if channel.user
+                    else None
+                ),
+            }
+            for channel in channels
+        ],
+        "rewards": [
+            {
+                "kick_id": reward.kick_id,
+                "name": reward.name,
+                "image_url": reward.image_url,
+                "image_best_url": reward.image_best_url,
+                "required_units": reward.required_units,
+                "in_app_reward_type": reward.in_app_reward_type,
+                "in_app_reward_type_label": reward.in_app_reward_type_label,
+            }
+            for reward in rewards
+        ],
+    }
+
     return render(
         request,
         "kick/campaign_detail.html",
@@ -414,6 +536,11 @@ def campaign_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse:
             "now": now,
             "campaign_progress_percent": campaign_progress_percent,
             "breadcrumb_schema": breadcrumb_schema,
+            "technical_details_json": json.dumps(
+                technical_details,
+                indent=2,
+                ensure_ascii=False,
+            ),
             **seo_context,
         },
     )
@@ -574,6 +701,34 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
         ("All campaigns", f"/kick/campaigns/?game={category.kick_id}"),
         ("Kick Drops", "https://kick.com/drops"),
     )
+    technical_details: dict[str, Any] = {
+        "kick_id": category.kick_id,
+        "name": category.name,
+        "slug": category.slug,
+        "image_url": category.image_url,
+        "added_at": category.added_at.isoformat() if category.added_at else None,
+        "updated_at": category.updated_at.isoformat() if category.updated_at else None,
+        "campaigns": [
+            {
+                "kick_id": campaign.kick_id,
+                "name": campaign.name,
+                "status": campaign.status,
+                "starts_at": (
+                    campaign.starts_at.isoformat() if campaign.starts_at else None
+                ),
+                "ends_at": (campaign.ends_at.isoformat() if campaign.ends_at else None),
+                "organization": (
+                    {
+                        "kick_id": campaign.organization.kick_id,
+                        "name": campaign.organization.name,
+                    }
+                    if campaign.organization
+                    else None
+                ),
+            }
+            for campaign in all_campaigns
+        ],
+    }
     return render(
         request,
         "kick/category_detail.html",
@@ -588,6 +743,11 @@ def category_detail_view(request: HttpRequest, kick_id: int) -> HttpResponse:
             "average_gap_days": average_gap_days,
             "now": now,
             "breadcrumb_schema": breadcrumb_schema,
+            "technical_details_json": json.dumps(
+                technical_details,
+                indent=2,
+                ensure_ascii=False,
+            ),
             **seo_context,
         },
     )
@@ -697,6 +857,46 @@ def organization_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse
             "modified_date": org.updated_at.isoformat(),
         },
     )
+    technical_details: dict[str, Any] = {
+        "kick_id": org.kick_id,
+        "name": org.name,
+        "logo_url": org.logo_url,
+        "url": org.url,
+        "restricted": org.restricted,
+        "added_at": org.added_at.isoformat() if org.added_at else None,
+        "updated_at": org.updated_at.isoformat() if org.updated_at else None,
+        "campaigns": [
+            {
+                "kick_id": campaign.kick_id,
+                "name": campaign.name,
+                "status": campaign.status,
+                "starts_at": (
+                    campaign.starts_at.isoformat() if campaign.starts_at else None
+                ),
+                "ends_at": (campaign.ends_at.isoformat() if campaign.ends_at else None),
+                "category": (
+                    {
+                        "kick_id": campaign.category.kick_id,
+                        "name": campaign.category.name,
+                        "slug": campaign.category.slug,
+                    }
+                    if campaign.category
+                    else None
+                ),
+                "rewards": [
+                    {
+                        "kick_id": reward.kick_id,
+                        "name": reward.name,
+                        "required_units": reward.required_units,
+                        "image_best_url": reward.image_best_url,
+                    }
+                    for reward in campaign.rewards.all()
+                ],
+            }
+            for campaign in campaigns
+        ],
+    }
+
     return render(
         request,
         "kick/organization_detail.html",
@@ -705,6 +905,11 @@ def organization_detail_view(request: HttpRequest, kick_id: str) -> HttpResponse
             "campaigns": campaigns,
             "now": now,
             "breadcrumb_schema": breadcrumb_schema,
+            "technical_details_json": json.dumps(
+                technical_details,
+                indent=2,
+                ensure_ascii=False,
+            ),
             **seo_context,
         },
     )

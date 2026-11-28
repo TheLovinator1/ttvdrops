@@ -15,109 +15,73 @@
           href="{% url 'core:game_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
-    <main>
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Games</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                <h1 class="h2 mb-0">All Games</h1>
-                <div class="d-flex align-items-center gap-2">
-                    <a href="{% url 'twitch:games_list' %}"
-                       class="btn-outline theme-secondary btn-sm"
-                       title="View games as list">List view</a>
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+                <li aria-current="page">Games</li>
+            </ol>
+        </nav>
+        <h2>All Games</h2>
+        {% include "includes/games_view_tabs.html" with grid_url_name="twitch:games_grid" list_url_name="twitch:games_list" active_view="grid" %}
+        <footer class="detail-links" aria-label="Links">
+            <div class="detail-links-grid">
+                <div>
+                    <div class="detail-links-title">
+                                        Subscribe
+                                        <a href="{% url 'core:docs_rss' %}"
+                                           title="Feed documentation"
+                                           class="detail-links-help">(?)</a>
+                                    </div>
                     <div>
-                        <button class="btn-outline theme-secondary btn-sm"
-                                type="button"
-                                data-bs-toggle="menu"
-                                data-bs-placement="bottom-end"
-                                aria-expanded="false">Subscribe / Export ▾</button>
-                        <div class="menu">
-                            <h6 class="menu-header">Subscribe</h6>
-                            <a class="menu-item" href="{% url 'core:game_feed' %}" title="RSS feed for all games">RSS</a>
-                            <a class="menu-item"
-                               href="{% url 'core:game_feed_atom' %}"
-                               title="Atom feed for all games">Atom</a>
-                            <a class="menu-item"
-                               href="{% url 'core:game_feed_discord' %}"
-                               title="Discord-flavored feed for all games">Discord-flavored</a>
-                            <hr class="menu-divider" />
-                            <h6 class="menu-header">Export</h6>
-                            <a class="menu-item"
-                               href="{% url 'twitch:export_games_csv' %}"
-                               title="Export all games as CSV">CSV</a>
-                            <a class="menu-item"
-                               href="{% url 'twitch:export_games_json' %}"
-                               title="Export all games as JSON">JSON</a>
-                            <hr class="menu-divider" />
-                            <h6 class="menu-header">Developer &amp; Help</h6>
-                            <a class="menu-item"
-                               href="{% url 'api-v1:twitch-api-v1_list_games' %}"
-                               title="Twitch games API">API</a>
-                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                        </div>
+                        <a href="{% url 'core:game_feed' %}" title="RSS feed for all games">[rss]</a>
+                        <a href="{% url 'core:game_feed_atom' %}" title="Atom feed for all games">[atom]</a>
+                        <a href="{% url 'core:game_feed_discord' %}" title="Discord-flavored feed for all games">[discord-flavored]</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="detail-links-title">Export</div>
+                    <div>
+                        <a href="{% url 'twitch:export_games_csv' %}" title="Export all games as CSV">[csv]</a>
+                        <a href="{% url 'twitch:export_games_json' %}" title="Export all games as JSON">[json]</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="detail-links-title">Developer</div>
+                    <div>
+                        <a class="bracket-link" href="{% url 'api-v1:twitch-api-v1_list_games' %}" title="Twitch games API">API</a>
                     </div>
                 </div>
             </div>
-        </header>
-        {% if games_by_org %}
-            <section>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
-                    {% for organization, games in games_by_org.items %}
-                        {% for item in games %}
-                            <article style="padding: 0.25rem;
-                                            border-radius: 8px;
-                                            flex: 1 1 160px;
-                                            text-align: center">
-                                <div style="margin-bottom: 0.25rem;">
-                                    {% if item.game.box_art_best_url %}
-                                        <a href="{% url 'twitch:game_detail' item.game.twitch_id %}">
-                                            {% picture item.game.box_art_best_url alt="Box art for "|add:item.game.display_name width=180 height=240 style="border-radius: 8px" %}
-                                        </a>
-                                    {% else %}
-                                        <div style="width: 180px;
-                                                    height: 240px;
-                                                    border: 1px solid;
-                                                    border-radius: 8px;
-                                                    display: flex;
-                                                    align-items: center;
-                                                    justify-content: center;
-                                                    font-size: 0.8rem;
-                                                    margin: 0 auto">
-                                            🎮
-                                            <br />
-                                            No Image
-                                        </div>
-                                    {% endif %}
-                                </div>
-                                <h4 style="margin: 0;">
-                                    <a href="{% url 'twitch:game_detail' item.game.twitch_id %}"
-                                       style="text-decoration: none;
-                                              color: inherit">{{ item.game.display_name }}</a>
-                                </h4>
-                            </article>
-                        {% endfor %}
+        </footer>
+    </header>
+    {% if games_by_org %}
+        <section aria-label="Games grouped by organization">
+            <div class="game-grid">
+                {% for organization, games in games_by_org.items %}
+                    {% for item in games %}
+                        <article class="game-card">
+                            <div>
+                                {% if item.game.box_art_best_url %}
+                                    <a href="{% url 'twitch:game_detail' item.game.twitch_id %}">
+                                        {% picture item.game.box_art_best_url alt="Box art for "|add:item.game.display_name width=180 height=240 %}
+                                    </a>
+                                {% else %}
+                                    <small>No image</small>
+                                {% endif %}
+                            </div>
+                            <h4>
+                                <a href="{% url 'twitch:game_detail' item.game.twitch_id %}">{{ item.game.display_name }}</a>
+                            </h4>
+                            <p><small>{{ organization }}</small></p>
+                        </article>
                     {% endfor %}
-                </div>
-            </section>
-        {% else %}
-            <section style="text-align: center; padding: 3rem 1rem;">
-                <div style="font-size: 4rem; margin-bottom: 1rem;">🎮</div>
-                <h2 style="margin: 0 0 1rem 0;">No Games Found</h2>
-                <p style="margin: 0; font-size: 1.1rem;">No games are currently available.</p>
-            </section>
-        {% endif %}
-    </main>
+                {% endfor %}
+            </div>
+        </section>
+    {% else %}
+        <h3>No Games Found</h3>
+        <p>No games are currently available.</p>
+    {% endif %}
 {% endblock content %}

@@ -14,110 +14,101 @@
           href="{% url 'kick:organization_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Organizations</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
-                <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">Kick Organizations</h1>
-                        <span class="badge badge-subtle theme-secondary">
-                            {{ orgs|length }} organization{{ orgs|length|pluralize }}
-                        </span>
-                    </div>
-                    <p class="fg-2 mb-0">Organizations that run Kick drop campaigns.</p>
-                </div>
-                {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                <div class="align-self-start md:align-self-auto">
-                    <button class="btn-outline theme-secondary btn-sm"
-                            type="button"
-                            data-bs-toggle="menu"
-                            data-bs-placement="bottom-end"
-                            aria-expanded="false">Subscribe ▾</button>
-                    <div class="menu">
-                        <h6 class="menu-header">Feeds</h6>
-                        <a class="menu-item"
-                           href="{% url 'kick:organization_feed' %}"
-                           title="RSS feed for all organizations">RSS</a>
-                        <a class="menu-item"
-                           href="{% url 'kick:organization_feed_atom' %}"
-                           title="Atom feed for all organizations">Atom</a>
-                        <a class="menu-item"
-                           href="{% url 'kick:organization_feed_discord' %}"
-                           title="Discord-flavored feed for all organizations">Discord-flavored</a>
-                        <hr class="menu-divider" />
-                        <h6 class="menu-header">Developer &amp; Help</h6>
-                        <a class="menu-item"
-                           href="{% url 'api-v1:kick-api-v1_list_organizations' %}"
-                           title="Kick organizations API">API</a>
-                        <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                    </div>
-                </div>
-            </div>
-        </header>
-        {% if orgs %}
-            <div class="list-group">
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'kick:dashboard' %}">Kick</a></li>
+                <li aria-current="page">Organizations</li>
+            </ol>
+        </nav>
+        <h2>Kick Organizations</h2>
+        <p><small>{{ orgs|length }} organization{{ orgs|length|pluralize }}</small></p>
+        {% include "includes/link_footer.html" with rss_url_name="kick:organization_feed" atom_url_name="kick:organization_feed_atom" discord_url_name="kick:organization_feed_discord" api_url_name="api-v1:kick-api-v1_list_organizations" docs_url_name="core:docs_rss" %}
+    </header>
+    {% if orgs %}
+        <div class="page-tabs" role="tablist" aria-label="Organization view">
+            <button type="button"
+                    class="page-tab"
+                    id="cards-tab"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="org-cards-panel"
+                    data-tab-target="org-cards-panel"
+                    data-tab-name="cards">Cards</button>
+            <button type="button"
+                    class="page-tab"
+                    id="list-tab"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="org-list-panel"
+                    data-tab-target="org-list-panel"
+                    data-tab-name="list">List</button>
+        </div>
+        <div id="org-cards-panel"
+             role="tabpanel"
+             aria-labelledby="cards-tab">
+            <div class="org-grid">
                 {% for org in orgs %}
-                    <div class="list-group-item d-flex align-items-center gap-3">
-                        <a class="flex-shrink-0 text-decoration-none"
-                           href="{% url 'kick:organization_detail' org.kick_id %}"
-                           tabindex="-1"
-                           aria-hidden="true">
-                            <div class="overflow-hidden rounded-2 bg-2 d-flex align-items-center justify-content-center fw-semibold fg-3"
-                                 style="width: 44px;
-                                        height: 44px">
-                                {% if org.logo_url %}
-                                    <img src="{{ org.logo_url }}"
-                                         alt=""
-                                         width="44"
-                                         height="44"
-                                         loading="lazy"
-                                         class="w-100 h-100 object-fit-contain" />
-                                {% else %}
-                                    {{ org.name|first|upper }}
-                                {% endif %}
-                            </div>
-                        </a>
-                        <div class="flex-grow-1 min-w-0">
-                            <a class="fw-semibold fg-1 text-decoration-none text-truncate d-block"
-                               href="{% url 'kick:organization_detail' org.kick_id %}">{{ org.name }}</a>
-                            <div class="fs-xs fg-3 d-flex flex-wrap align-items-center gap-2">
-                                <span>{{ org.campaign_count }} campaign{{ org.campaign_count|pluralize }}</span>
-                                {% if org.url %}
-                                    <span aria-hidden="true">·</span>
-                                    <a class="fg-3"
-                                       href="{{ org.url }}"
-                                       target="_blank"
-                                       rel="noopener"
-                                       title="Visit {{ org.name }} website">Website ↗</a>
-                                {% endif %}
-                            </div>
+                    <article class="org-card">
+                        <div class="org-logo">
+                            {% if org.logo_url %}
+                                <img src="{{ org.logo_url }}"
+                                     alt=""
+                                     width="64"
+                                     height="64"
+                                     loading="lazy" />
+                            {% else %}
+                                <span>{{ org.name|first|upper }}</span>
+                            {% endif %}
                         </div>
-                        <span class="badge badge-subtle theme-secondary">{{ org.campaign_count }}</span>
-                    </div>
+                        <div class="org-info">
+                            <h3>
+                                <a href="{% url 'kick:organization_detail' org.kick_id %}">{{ org.name }}</a>
+                            </h3>
+                            <p><small><data value="{{ org.campaign_count }}">{{ org.campaign_count }}</data> campaign{{ org.campaign_count|pluralize }}</small></p>
+                            {% if org.url %}
+                                <p><small><a href="{{ org.url }}" target="_blank" rel="noopener" title="Visit {{ org.name }} website">Website &nearr;</a></small></p>
+                            {% endif %}
+                        </div>
+                    </article>
                 {% endfor %}
             </div>
-        {% else %}
-            <section class="card bg-1 text-center py-5 px-3">
-                <div class="card-body align-items-center">
-                    <h2 class="h4 mb-2">No Organizations Found</h2>
-                    <p class="fg-2 mb-0">No organizations are currently available.</p>
-                </div>
-            </section>
-        {% endif %}
-    </main>
+        </div>
+        <div id="org-list-panel"
+             role="tabpanel"
+             aria-labelledby="list-tab"
+             hidden>
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">Organization</th>
+                        <th scope="col">Campaigns</th>
+                        <th scope="col">Website</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for org in orgs %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'kick:organization_detail' org.kick_id %}"><strong>{{ org.name }}</strong></a>
+                            </td>
+                            <td><data value="{{ org.campaign_count }}">{{ org.campaign_count }}</data> campaign{{ org.campaign_count|pluralize }}</td>
+                            <td>
+                                {% if org.url %}
+                                    <a href="{{ org.url }}" target="_blank" rel="noopener" title="Visit {{ org.name }} website">Website &nearr;</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "includes/tab_script.html" %}
+    {% else %}
+        <h3>No Organizations Found</h3>
+        <p>No organizations are currently available.</p>
+    {% endif %}
 {% endblock content %}

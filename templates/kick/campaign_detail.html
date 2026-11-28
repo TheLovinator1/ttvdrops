@@ -16,314 +16,254 @@
     {% endif %}
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container pb-4">
-        <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb mb-0">
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'kick:dashboard' %}">Kick</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item">
-                    <a class="breadcrumb-link" href="{% url 'kick:campaign_list' %}">Campaigns</a>
-                </li>
-                <li class="breadcrumb-divider"></li>
-                <li class="breadcrumb-item" aria-current="page">
-                    <span class="breadcrumb-link active">{{ campaign.name }}</span>
-                </li>
-            </ol>
-        </nav>
-        <header class="mb-4">
-            <div class="d-flex flex-column md:flex-row align-items-start gap-3">
-                <div class="flex-shrink-0" style="width: 200px; max-width: 100%">
+    <article>
+        <header>
+            <div class="detail-header">
+                <div class="detail-media">
                     {% if campaign.image_url %}
                         <img src="{{ campaign.image_url }}"
                              alt="{{ campaign.name }} image"
                              width="200"
-                             height="200"
-                             loading="lazy"
-                             class="w-100 h-auto rounded-2" />
+                             loading="lazy" />
                     {% else %}
-                        <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3"
-                             style="aspect-ratio: 1 / 1">No Image</div>
+                        <small>No image</small>
                     {% endif %}
                 </div>
-                <div class="flex-grow-1 min-w-0">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">{{ campaign.name }}</h1>
-                        {% if campaign.ends_at and campaign.ends_at > now %}
-                            <span class="badge badge-subtle theme-success">Active</span>
-                            <span class="badge badge-subtle theme-warning">Ends in {{ campaign.ends_at|timeuntil }}</span>
-                        {% elif campaign.starts_at and campaign.starts_at > now %}
-                            <span class="badge badge-subtle theme-info">Upcoming</span>
-                            <span class="badge badge-subtle theme-info">Starts in {{ campaign.starts_at|timeuntil }}</span>
-                        {% elif campaign.ends_at %}
-                            <span class="badge badge-subtle theme-danger">Expired</span>
-                        {% endif %}
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        {% if campaign.category %}
-                            <a class="badge badge-subtle theme-secondary text-decoration-none"
-                               href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a>
-                        {% endif %}
-                        {% if campaign.organization %}
-                            <a class="badge badge-subtle theme-secondary text-decoration-none"
-                               href="{% url 'kick:organization_detail' campaign.organization.kick_id %}">{{ campaign.organization.name }}</a>
-                        {% endif %}
-                        {% if campaign.channels.count %}
-                            <span class="badge badge-subtle theme-secondary">{{ campaign.channels.count }} participating channel{{ campaign.channels.count|pluralize }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2">
-                        {% if campaign.category and campaign.rule_name == "Watch to redeem" %}
-                            <a class="btn-solid theme-primary btn-sm"
-                               href="{{ campaign.category.kick_url }}"
-                               target="_blank"
-                               rel="noopener"
-                               title="Find a participating live Kick channel">Go to a participating live channel</a>
-                        {% endif %}
-                        {% if campaign.url %}
-                            <a class="btn-outline theme-secondary btn-sm"
-                               href="{{ campaign.url }}"
-                               target="_blank"
-                               rel="noopener"
-                               title="Details for {{ campaign.name }}">Details</a>
-                        {% endif %}
-                        {% if campaign.connect_url %}
-                            <a class="btn-outline theme-secondary btn-sm"
-                               href="{{ campaign.connect_url }}"
-                               target="_blank"
-                               rel="noopener"
-                               title="Connect your account for {{ campaign.name }}">Connect</a>
-                        {% endif %}
-                        <div>
-                            <button class="btn-outline theme-secondary btn-sm"
-                                    type="button"
-                                    data-bs-toggle="menu"
-                                    data-bs-placement="bottom-end"
-                                    aria-expanded="false">Links ▾</button>
-                            <div class="menu">
-                                <h6 class="menu-header">External</h6>
-                                {% if campaign.connect_url %}
-                                    <a class="menu-item"
-                                       href="{{ campaign.connect_url }}"
-                                       title="Connect URL for {{ campaign.name }}">Connect</a>
+                <div class="detail-body">
+                    <h1>{{ campaign.name }}</h1>
+                    <nav class="breadcrumb-inline" aria-label="Breadcrumb">
+                        <ol>
+                            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                            <li><a href="{% url 'kick:dashboard' %}">Kick</a></li>
+                            <li><a href="{% url 'kick:campaign_list' %}">Campaigns</a></li>
+                            {% if campaign.category %}
+                                <li><a href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a></li>
+                            {% endif %}
+                            <li aria-current="page">{{ campaign.name }}</li>
+                        </ol>
+                    </nav>
+                        <p>
+                            {% if campaign.ends_at and campaign.ends_at > now %}
+                                <strong>Active</strong> -
+                                <time datetime="{{ campaign.ends_at|date:'c' }}">Ends in {{ campaign.ends_at|timeuntil }}</time>
+                            {% elif campaign.starts_at and campaign.starts_at > now %}
+                                <strong>Upcoming</strong> -
+                                <time datetime="{{ campaign.starts_at|date:'c' }}">Starts in {{ campaign.starts_at|timeuntil }}</time>
+                            {% elif campaign.ends_at %}
+                                <strong>Expired</strong>
+                            {% endif %}
+                        </p>
+                        <p>
+                            {% if campaign.category %}
+                                <a href="{% url 'kick:game_detail' campaign.category.kick_id %}">{{ campaign.category.name }}</a>
+                            {% endif %}
+                            {% if campaign.organization %}
+                                | <a href="{% url 'kick:organization_detail' campaign.organization.kick_id %}">{{ campaign.organization.name }}</a>
+                            {% endif %}
+                            {% if campaign.channels.count %}
+                                | {{ campaign.channels.count }} participating channel{{ campaign.channels.count|pluralize }}
+                            {% endif %}
+                        </p>
+                        <dl>
+                            <dt>Published</dt>
+                            <dd>
+                                <time datetime="{{ campaign.added_at|date:'c' }}"
+                                      title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time>
+                                <small>({{ campaign.added_at|timesince }} ago)</small>
+                            </dd>
+                            <dt>Last updated</dt>
+                            <dd>
+                                <time datetime="{{ campaign.updated_at|date:'c' }}"
+                                      title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time>
+                                <small>({{ campaign.updated_at|timesince }} ago)</small>
+                            </dd>
+                            <dt>{% if campaign.starts_at and campaign.starts_at > now %}Starts in{% else %}Started{% endif %}</dt>
+                            <dd>
+                                {% if campaign.starts_at %}
+                                    <time datetime="{{ campaign.starts_at|date:'c' }}"
+                                          title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">{{ campaign.starts_at|date:"M d, Y H:i" }}</time>
+                                    <small>{% if campaign.starts_at > now %}(in {{ campaign.starts_at|timeuntil }}){% else %}({{ campaign.starts_at|timesince }} ago){% endif %}</small>
+                                {% else %}
+                                    <em>Not available</em>
                                 {% endif %}
-                                {% if campaign.url %}
-                                    <a class="menu-item"
-                                       href="{{ campaign.url }}"
-                                       title="About URL for {{ campaign.name }}">About</a>
+                            </dd>
+                            <dt>{% if campaign.ends_at and campaign.ends_at > now %}Ends in{% else %}Ended{% endif %}</dt>
+                            <dd>
+                                {% if campaign.ends_at %}
+                                    <time datetime="{{ campaign.ends_at|date:'c' }}"
+                                          title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|date:"M d, Y H:i" }}</time>
+                                    <small>{% if campaign.ends_at > now %}(in {{ campaign.ends_at|timeuntil }}){% else %}({{ campaign.ends_at|timesince }} ago){% endif %}</small>
+                                {% else %}
+                                    <em>Not available</em>
                                 {% endif %}
-                                {% if campaign.category %}
-                                    <hr class="menu-divider" />
-                                    <h6 class="menu-header">Subscribe</h6>
-                                    <a class="menu-item"
-                                       href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}"
-                                       title="RSS feed for {{ campaign.category.name }} campaigns">RSS</a>
-                                    <a class="menu-item"
-                                       href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}"
-                                       title="Atom feed for {{ campaign.category.name }} campaigns">Atom</a>
-                                    <a class="menu-item"
-                                       href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}"
-                                       title="Discord-flavored feed for {{ campaign.category.name }} campaigns">Discord-flavored</a>
-                                {% endif %}
-                                <hr class="menu-divider" />
-                                <h6 class="menu-header">Help</h6>
-                                <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        {# Rewards first: what visitors came for. #}
-        <section aria-labelledby="rewards-heading" class="mb-4">
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                <h2 id="rewards-heading" class="h5 mb-0">Rewards</h2>
-                <span class="badge badge-subtle theme-secondary">{{ rewards|length }}</span>
-            </div>
-            {% if rewards %}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {% for reward in rewards %}
-                        <article class="card detail-card">
-                            <div class="card-body p-4 d-flex gap-3 align-items-start">
-                                <div class="flex-shrink-0" style="width: 96px; max-width: 100%">
-                                    {% if reward.full_image_url %}
-                                        <img src="{{ reward.full_image_url }}"
-                                             alt="{{ reward.name }}"
-                                             width="96"
-                                             height="96"
-                                             loading="lazy"
-                                             class="w-100 h-auto rounded-2" />
-                                    {% else %}
-                                        <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3 fs-xs"
-                                             style="aspect-ratio: 1 / 1">No Image</div>
-                                    {% endif %}
+                            </dd>
+                            {% if campaign.duration %}
+                                <dt>Duration</dt>
+                                <dd>{{ campaign.duration }}</dd>
+                            {% endif %}
+                            <dt>Rule</dt>
+                            <dd>{{ campaign.rule_name|default:"Unknown" }}</dd>
+                        </dl>
+                        <footer class="detail-links" aria-label="Links">
+                            <div class="detail-links-grid">
+                                <div>
+                                    <div class="detail-links-title">External</div>
+                                    <div>
+                                        {% if campaign.category and campaign.rule_name == "Watch to redeem" %}
+                                            <a href="{{ campaign.category.kick_url }}" target="_blank" rel="noopener" title="View {{ campaign.category.name }} on Kick">[category]</a>
+                                        {% endif %}
+                                        {% if campaign.url %}
+                                            <a href="{{ campaign.url }}"
+                                               target="_blank"
+                                               rel="noopener"
+                                               title="{% if 'kick.com' in campaign.url %}View channel on Kick{% else %}Details for {{ campaign.name }}{% endif %}">
+                                                {% if "kick.com" in campaign.url %}[channel]{% else %}[details]{% endif %}
+                                            </a>
+                                        {% endif %}
+                                        {% if campaign.connect_url %}<a href="{{ campaign.connect_url }}" target="_blank" rel="noopener" title="Connect your account for {{ campaign.name }}">[connect]</a>{% endif %}
+                                    </div>
                                 </div>
-                                <div class="flex-grow-1 min-w-0">
-                                    <h3 class="h6 mb-2">{{ reward.name }}</h3>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        {% if reward.required_units %}
-                                            <span class="badge badge-subtle theme-secondary">Watch {{ reward.required_units }} minutes to earn</span>
-                                        {% else %}
-                                            <span class="badge badge-subtle theme-secondary">No watch-time requirement</span>
-                                        {% endif %}
-                                        {% if reward.in_app_reward_type_label %}
-                                            <span class="badge badge-subtle theme-secondary">{{ reward.in_app_reward_type_label }} reward</span>
-                                        {% endif %}
+                                {% if campaign.category %}
+                                    <div>
+                                        <div class="detail-links-title">
+                                        Subscribe
+                                        <a href="{% url 'core:docs_rss' %}"
+                                           title="Feed documentation"
+                                           class="detail-links-help">(?)</a>
+                                    </div>
+                                        <div>
+                                            <a href="{% url 'kick:game_campaign_feed' campaign.category.kick_id %}" title="RSS feed for {{ campaign.category.name }} campaigns">[rss]</a>
+                                            <a href="{% url 'kick:game_campaign_feed_atom' campaign.category.kick_id %}" title="Atom feed for {{ campaign.category.name }} campaigns">[atom]</a>
+                                            <a href="{% url 'kick:game_campaign_feed_discord' campaign.category.kick_id %}" title="Discord-flavored feed for {{ campaign.category.name }} campaigns">[discord-flavored]</a>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                <div>
+                                    <div class="detail-links-title">Developer</div>
+                                    <div>
+                                        <a href="{% url 'api-v1:kick-api-v1_get_campaign' campaign.kick_id %}" title="Kick campaign API">[api]</a>
                                     </div>
                                 </div>
                             </div>
-                        </article>
-                    {% endfor %}
+                        </footer>
                 </div>
+            </div>
+        </header>
+        <div class="page-tabs" role="tablist" aria-label="Campaign sections">
+            <button type="button"
+                    class="page-tab"
+                    id="campaign-tab"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="campaign-panel"
+                    data-tab-target="campaign-panel"
+                    data-tab-name="campaign">Campaign</button>
+            <button type="button"
+                    class="page-tab"
+                    id="json-tab"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="json-panel"
+                    data-tab-target="json-panel"
+                    data-tab-name="json">JSON</button>
+        </div>
+        <div id="campaign-panel"
+             role="tabpanel"
+             aria-labelledby="campaign-tab">
+        <section aria-labelledby="rewards-heading">
+            <h3 id="rewards-heading">Rewards (<data value="{{ rewards|length }}">{{ rewards|length }}</data>)</h3>
+            {% if rewards %}
+                {% for reward in rewards %}
+                    <article class="drop-card" id="reward-{{ reward.kick_id }}">
+                        <div class="drop-media">
+                            {% if reward.image_best_url %}
+                                <img src="{{ reward.image_best_url }}"
+                                     alt="Artwork for {{ reward.name }}"
+                                     width="96"
+                                     height="96"
+                                     loading="lazy" />
+                            {% else %}
+                                <small>No image</small>
+                            {% endif %}
+                        </div>
+                        <div class="drop-main">
+                            <h4>{{ reward.name }}</h4>
+                            {% if reward.in_app_reward_type_label %}
+                                <p><span class="badge">{{ reward.in_app_reward_type_label }}</span></p>
+                            {% endif %}
+                        </div>
+                        <p class="drop-requirement">
+                            {% if reward.required_units %}
+                                {{ reward.required_units }} minutes watched
+                            {% else %}
+                                No watch-time requirement
+                            {% endif %}
+                        </p>
+                    </article>
+                {% endfor %}
             {% else %}
-                <div class="card detail-card text-center py-5 px-3">
-                    <div class="card-body">
-                        <h2 class="h4 mb-2">No Rewards</h2>
-                        <p class="fg-2 mb-0">No drops are available for this campaign.</p>
-                    </div>
-                </div>
+                <h4>No Rewards</h4>
+                <p>No drops are available for this campaign.</p>
             {% endif %}
         </section>
-
-        <section class="card detail-card mb-4" aria-labelledby="campaign-dates-heading">
-            <h2 id="campaign-dates-heading"
-                class="card-header px-4 py-3 h5 mb-0">Campaign dates</h2>
-            <div class="card-body p-4">
-                <dl class="detail-grid fs-sm mb-0">
-                    <dt>{% if campaign.starts_at and campaign.starts_at > now %}Starts{% else %}Started{% endif %}</dt>
-                    <dd>
-                        {% if campaign.starts_at %}
-                            <time datetime="{{ campaign.starts_at|date:'c' }}"
-                                  title="{{ campaign.starts_at|date:'DATETIME_FORMAT' }}">{{ campaign.starts_at|date:"M d, Y H:i" }}</time>
-                            <small>
-                                {% if campaign.starts_at > now %}
-                                    (in {{ campaign.starts_at|timeuntil }})
-                                {% else %}
-                                    ({{ campaign.starts_at|timesince }} ago)
-                                {% endif %}
-                            </small>
-                        {% else %}
-                            <span class="fg-3 fst-italic">Not available</span>
-                        {% endif %}
-                    </dd>
-                    <dt>{% if campaign.ends_at and campaign.ends_at > now %}Ends{% else %}Ended{% endif %}</dt>
-                    <dd>
-                        {% if campaign.ends_at %}
-                            <time datetime="{{ campaign.ends_at|date:'c' }}"
-                                  title="{{ campaign.ends_at|date:'DATETIME_FORMAT' }}">{{ campaign.ends_at|date:"M d, Y H:i" }}</time>
-                            <small>
-                                {% if campaign.ends_at > now %}
-                                    (in {{ campaign.ends_at|timeuntil }})
-                                {% else %}
-                                    ({{ campaign.ends_at|timesince }} ago)
-                                {% endif %}
-                            </small>
-                        {% else %}
-                            <span class="fg-3 fst-italic">Not available</span>
-                        {% endif %}
-                    </dd>
-                    {% if campaign.duration %}
-                        <dt>Duration</dt>
-                        <dd>{{ campaign.duration }}</dd>
-                    {% endif %}
-                </dl>
-                {% if campaign.starts_at and campaign.ends_at %}
-                    <div class="campaign-progress mt-3"
-                         role="progressbar"
-                         aria-label="Campaign progress"
-                         aria-valuenow="{{ campaign_progress_percent }}"
-                         aria-valuemin="0"
-                         aria-valuemax="100">
-                        <div class="campaign-progress-bar"
-                             style="width: {{ campaign_progress_percent }}%"></div>
-                    </div>
-                    <small class="d-block mt-2" style="color: #aeb4bd">
-                        {% if campaign.ends_at > now and campaign.starts_at <= now %}
-                            {{ campaign_progress_percent }}% elapsed · ends in {{ campaign.ends_at|timeuntil }}
-                        {% elif campaign.starts_at > now %}
-                            Starts in {{ campaign.starts_at|timeuntil }}
-                        {% else %}
-                            Campaign ended
-                        {% endif %}
-                    </small>
-                {% endif %}
-            </div>
-        </section>
-
         {% if channels %}
-            <section aria-labelledby="allowed-channels-heading" class="mb-4">
-                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <h2 id="allowed-channels-heading" class="h5 mb-0">Participating Channels</h2>
-                    <span class="badge badge-subtle theme-secondary">{{ channels|length }}</span>
-                </div>
-                <div class="d-flex flex-wrap gap-2">
+            <section aria-labelledby="allowed-channels-heading">
+                <h3 id="allowed-channels-heading">Participating Channels (<data value="{{ channels|length }}">{{ channels|length }}</data>)</h3>
+                <ul>
                     {% for channel in channels %}
-                        <a class="chip theme-secondary" href="{{ channel.channel_url }}">
-                            {% if channel.user %}{{ channel.user.username }}{% else %}{{ channel.name }}{% endif %}
-                        </a>
+                        <li>
+                            <a href="{{ channel.channel_url }}">
+                                {% if channel.user %}{{ channel.user.username }}{% else %}{{ channel.name }}{% endif %}
+                            </a>
+                        </li>
                     {% endfor %}
-                </div>
+                </ul>
             </section>
         {% endif %}
+        </div>
+        <div id="json-panel"
+             role="tabpanel"
+             aria-labelledby="json-tab"
+             hidden>
+            <section aria-labelledby="technical-heading">
+                <h3 id="technical-heading">Technical details</h3>
+                <pre><code>{{ technical_details_json }}</code></pre>
+            </section>
+        </div>
+        <script>
+            (() => {
+                const tabs = Array.from(document.querySelectorAll(".page-tab"));
+                const panels = document.querySelectorAll("[role='tabpanel']");
+                const defaultTab = tabs[0];
 
-        <details class="card detail-card technical-details mb-4">
-            <summary>Technical details</summary>
-            <div class="card-body p-4">
-                <dl class="detail-grid fs-sm mb-0">
-                    <dt>Kick ID</dt>
-                    <dd>
-                        <code>{{ campaign.kick_id }}</code>
-                    </dd>
-                    <dt>Rule</dt>
-                    <dd>{{ campaign.rule_name|default:"Unknown" }}</dd>
-                    <dt>Added</dt>
-                    <dd>
-                        <time datetime="{{ campaign.added_at|date:'c' }}"
-                              title="{{ campaign.added_at|date:'DATETIME_FORMAT' }}">{{ campaign.added_at|date:"M d, Y H:i" }}</time>
-                        <small>({{ campaign.added_at|timesince }} ago)</small>
-                    </dd>
-                    <dt>Updated</dt>
-                    <dd>
-                        <time datetime="{{ campaign.updated_at|date:'c' }}"
-                              title="{{ campaign.updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.updated_at|date:"M d, Y H:i" }}</time>
-                        <small>({{ campaign.updated_at|timesince }} ago)</small>
-                    </dd>
-                    {% if campaign.created_at %}
-                        <dt>Created</dt>
-                        <dd>
-                            <time datetime="{{ campaign.created_at|date:'c' }}"
-                                  title="{{ campaign.created_at|date:'DATETIME_FORMAT' }}">{{ campaign.created_at|date:"M d, Y H:i" }}</time>
-                            <small>({{ campaign.created_at|timesince }} ago)</small>
-                        </dd>
-                    {% endif %}
-                    {% if campaign.api_updated_at %}
-                        <dt>API updated</dt>
-                        <dd>
-                            <time datetime="{{ campaign.api_updated_at|date:'c' }}"
-                                  title="{{ campaign.api_updated_at|date:'DATETIME_FORMAT' }}">{{ campaign.api_updated_at|date:"M d, Y H:i" }}</time>
-                            <small>({{ campaign.api_updated_at|timesince }} ago)</small>
-                        </dd>
-                    {% endif %}
-                    {% if campaign.category %}
-                        <dt>Category ID</dt>
-                        <dd>
-                            <code>{{ campaign.category.kick_id }}</code>
-                        </dd>
-                    {% endif %}
-                    {% if campaign.organization %}
-                        <dt>Organization ID</dt>
-                        <dd>
-                            <code>{{ campaign.organization.kick_id }}</code>
-                        </dd>
-                    {% endif %}
-                </dl>
-            </div>
-        </details>
-    </main>
+                function activate(tab, updateUrl = false) {
+                    tabs.forEach((item) => {
+                        item.setAttribute("aria-selected", String(item === tab));
+                    });
+                    panels.forEach((panel) => {
+                        panel.hidden = panel.id !== tab.dataset.tabTarget;
+                    });
+                    if (updateUrl) {
+                        const url = new URL(window.location.href);
+                        if (tab.dataset.tabName === "campaign") {
+                            url.searchParams.delete("tab");
+                        } else {
+                            url.searchParams.set("tab", tab.dataset.tabName);
+                        }
+                        window.history.replaceState({}, "", url);
+                    }
+                }
+
+                const requestedTab = new URLSearchParams(window.location.search).get("tab");
+                const initialTab =
+                    tabs.find((tab) => tab.dataset.tabName === requestedTab) || defaultTab;
+                if (initialTab) {
+                    activate(initialTab);
+                }
+                tabs.forEach((tab) => {
+                    tab.addEventListener("click", () => activate(tab, true));
+                });
+            })();
+        </script>
+    </article>
 {% endblock content %}

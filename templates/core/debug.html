@@ -1,18 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-    <h1>Debug</h1>
-    <p>
-        Generated at: <time datetime="{{ now|date:'c' }}"
-       title="{{ now|date:'DATETIME_FORMAT' }}">{{ now }}</time>
-    </p>
+    <nav aria-label="Breadcrumb">
+        <ol>
+            <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+            <li aria-current="page">Debug</li>
+        </ol>
+    </nav>
+    <header>
+        <h2>Debug</h2>
+        <p>
+            Generated at <time datetime="{{ now|date:'c' }}"
+                              title="{{ now|date:'DATETIME_FORMAT' }}">{{ now }}</time>.
+        </p>
+    </header>
     <section>
-        <h2>Distinct GraphQL operation_names ({{ operation_names_with_counts|length }})</h2>
+        <h3>Distinct GraphQL operation names (<data value="{{ operation_names_with_counts|length }}">{{ operation_names_with_counts|length }}</data>)</h3>
         {% if operation_names_with_counts %}
-            <table class="table table-striped table-hover" id="operation-names-table">
+            <table id="operation-names-table">
+                <caption>GraphQL operation names</caption>
                 <thead>
                     <tr>
-                        <th>Operation Name</th>
-                        <th>Count</th>
+                        <th scope="col">Operation Name</th>
+                        <th scope="col">Count</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -27,21 +36,22 @@
         {% endif %}
     </section>
     <section>
-        <h2>Games Without an Assigned Owner ({{ games_without_owner|length }})</h2>
+        <h3>Games Without an Assigned Owner (<data value="{{ games_without_owner|length }}">{{ games_without_owner|length }}</data>)</h3>
         {% if games_without_owner %}
             <ul>
                 {% for game in games_without_owner %}
                     <li>
-                        <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.display_name }}</a> (ID: {{ game.twitch_id }})
+                        <a href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.display_name }}</a>
+                        (ID: <data value="{{ game.twitch_id }}">{{ game.twitch_id }}</data>)
                     </li>
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Campaigns without Images ({{ broken_image_campaigns|length }})</h2>
+        <h3>Campaigns without Images (<data value="{{ broken_image_campaigns|length }}">{{ broken_image_campaigns|length }}</data>)</h3>
         {% if broken_image_campaigns %}
             <ul>
                 {% for c in broken_image_campaigns %}
@@ -52,11 +62,11 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Benefits without image URLs ({{ broken_benefit_images|length }})</h2>
+        <h3>Benefits without image URLs (<data value="{{ broken_benefit_images|length }}">{{ broken_benefit_images|length }}</data>)</h3>
         {% if broken_benefit_images %}
             <ul>
                 {% for b in broken_benefit_images %}
@@ -74,11 +84,11 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Active Campaigns without Images ({{ active_missing_image|length }})</h2>
+        <h3>Active Campaigns without Images (<data value="{{ active_missing_image|length }}">{{ active_missing_image|length }}</data>)</h3>
         {% if active_missing_image %}
             <ul>
                 {% for c in active_missing_image %}
@@ -89,11 +99,11 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Time-Based Drops Without Benefits ({{ drops_without_benefits|length }})</h2>
+        <h3>Time-Based Drops Without Benefits (<data value="{{ drops_without_benefits|length }}">{{ drops_without_benefits|length }}</data>)</h3>
         {% if drops_without_benefits %}
             <ul>
                 {% for d in drops_without_benefits %}
@@ -105,11 +115,11 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Campaigns With Invalid Dates ({{ invalid_date_campaigns|length }})</h2>
+        <h3>Campaigns With Invalid Dates (<data value="{{ invalid_date_campaigns|length }}">{{ invalid_date_campaigns|length }}</data>)</h3>
         {% if invalid_date_campaigns %}
             <ul>
                 {% for c in invalid_date_campaigns %}
@@ -134,11 +144,11 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Kick Campaigns With Unknown Status ({{ kick_unknown_campaigns|length }})</h2>
+        <h3>Kick Campaigns With Unknown Status (<data value="{{ kick_unknown_campaigns|length }}">{{ kick_unknown_campaigns|length }}</data>)</h3>
         {% if kick_unknown_campaigns %}
             <ul>
                 {% for c in kick_unknown_campaigns %}
@@ -163,11 +173,11 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Twitch Reward Campaigns With Unknown Status ({{ twitch_reward_unknown_campaigns|length }})</h2>
+        <h3>Twitch Reward Campaigns With Unknown Status (<data value="{{ twitch_reward_unknown_campaigns|length }}">{{ twitch_reward_unknown_campaigns|length }}</data>)</h3>
         {% if twitch_reward_unknown_campaigns %}
             <ul>
                 {% for c in twitch_reward_unknown_campaigns %}
@@ -192,38 +202,37 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Duplicate Campaign Names Per Game ({{ duplicate_name_campaigns|length }})</h2>
+        <h3>Duplicate Campaign Names Per Game (<data value="{{ duplicate_name_campaigns|length }}">{{ duplicate_name_campaigns|length }}</data>)</h3>
         {% if duplicate_name_campaigns %}
-            <table class="table table-striped table-hover">
+            <table>
+                <caption>Duplicate campaign names</caption>
                 <thead>
                     <tr>
-                        <th>Game</th>
-                        <th>Campaign Name</th>
-                        <th>Count</th>
+                        <th scope="col">Game</th>
+                        <th scope="col">Campaign Name</th>
+                        <th scope="col">Count</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in duplicate_name_campaigns %}
                         <tr>
-                            <td>
-                                <a href="{% url 'twitch:game_detail' row.game__twitch_id %}">{{ row.game__display_name }}</a>
-                            </td>
+                            <td><a href="{% url 'twitch:game_detail' row.game__twitch_id %}">{{ row.game__display_name }}</a></td>
                             <td>{{ row.name }}</td>
-                            <td>{{ row.name_count }}</td>
+                            <td><data value="{{ row.name_count }}">{{ row.name_count }}</data></td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Campaigns Missing DropCampaignDetails ({{ campaigns_missing_dropcampaigndetails|length }})</h2>
+        <h3>Campaigns Missing DropCampaignDetails (<data value="{{ campaigns_missing_dropcampaigndetails|length }}">{{ campaigns_missing_dropcampaigndetails|length }}</data>)</h3>
         {% if campaigns_missing_dropcampaigndetails %}
             <ul>
                 {% for c in campaigns_missing_dropcampaigndetails %}
@@ -235,13 +244,13 @@
                 {% endfor %}
             </ul>
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Data Source Diff - Drop Campaigns</h2>
+        <h3>Data Source Diff - Drop Campaigns</h3>
         <p>Comparing campaigns by <code>data_source</code> field in the DB.</p>
-        <h3>Only in SunkwiBOT/twitch-drops-api ({{ sunkibot_only_drops_count }})</h3>
+        <h4>Only in SunkwiBOT/twitch-drops-api (<data value="{{ sunkibot_only_drops_count }}">{{ sunkibot_only_drops_count }}</data>)</h4>
         {% if sunkibot_only_drops %}
             <ul>
                 {% for c in sunkibot_only_drops %}
@@ -252,12 +261,12 @@
                 {% endfor %}
             </ul>
             {% if sunkibot_only_drops_count > 200 %}
-                <p><em>… and {{ sunkibot_only_drops_count|add:"-200" }} more (showing first 200)</em></p>
+                <p><em>&hellip; and {{ sunkibot_only_drops_count|add:"-200" }} more (showing first 200)</em></p>
             {% endif %}
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
-        <h3>Only in TwitchDropsMiner ({{ miner_only_drops_count }})</h3>
+        <h4>Only in TwitchDropsMiner (<data value="{{ miner_only_drops_count }}">{{ miner_only_drops_count }}</data>)</h4>
         {% if miner_only_drops %}
             <ul>
                 {% for c in miner_only_drops %}
@@ -268,43 +277,39 @@
                 {% endfor %}
             </ul>
             {% if miner_only_drops_count > 200 %}
-                <p><em>… and {{ miner_only_drops_count|add:"-200" }} more (showing first 200)</em></p>
+                <p><em>&hellip; and {{ miner_only_drops_count|add:"-200" }} more (showing first 200)</em></p>
             {% endif %}
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
     <section>
-        <h2>Data Source Diff - Reward Campaigns</h2>
-        <h3>Only in SunkwiBOT/twitch-drops-api ({{ sunkibot_only_rewards_count }})</h3>
+        <h3>Data Source Diff - Reward Campaigns</h3>
+        <h4>Only in SunkwiBOT/twitch-drops-api (<data value="{{ sunkibot_only_rewards_count }}">{{ sunkibot_only_rewards_count }}</data>)</h4>
         {% if sunkibot_only_rewards %}
             <ul>
                 {% for c in sunkibot_only_rewards %}
-                    <li>
-                        <a href="{% url 'twitch:reward_campaign_detail' c.twitch_id %}">{{ c.name }}</a>
-                    </li>
+                    <li><a href="{% url 'twitch:reward_campaign_detail' c.twitch_id %}">{{ c.name }}</a></li>
                 {% endfor %}
             </ul>
             {% if sunkibot_only_rewards_count > 200 %}
-                <p><em>… and {{ sunkibot_only_rewards_count|add:"-200" }} more (showing first 200)</em></p>
+                <p><em>&hellip; and {{ sunkibot_only_rewards_count|add:"-200" }} more (showing first 200)</em></p>
             {% endif %}
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
-        <h3>Only in TwitchDropsMiner ({{ miner_only_rewards_count }})</h3>
+        <h4>Only in TwitchDropsMiner (<data value="{{ miner_only_rewards_count }}">{{ miner_only_rewards_count }}</data>)</h4>
         {% if miner_only_rewards %}
             <ul>
                 {% for c in miner_only_rewards %}
-                    <li>
-                        <a href="{% url 'twitch:reward_campaign_detail' c.twitch_id %}">{{ c.name }}</a>
-                    </li>
+                    <li><a href="{% url 'twitch:reward_campaign_detail' c.twitch_id %}">{{ c.name }}</a></li>
                 {% endfor %}
             </ul>
             {% if miner_only_rewards_count > 200 %}
-                <p><em>… and {{ miner_only_rewards_count|add:"-200" }} more (showing first 200)</em></p>
+                <p><em>&hellip; and {{ miner_only_rewards_count|add:"-200" }} more (showing first 200)</em></p>
             {% endif %}
         {% else %}
-            <p>None ✅</p>
+            <p>None &#9989;</p>
         {% endif %}
     </section>
 {% endblock content %}

@@ -14,192 +14,136 @@
           href="{% url 'chzzk:campaign_feed_discord' %}" />
 {% endblock extra_head %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'chzzk:dashboard' %}">Chzzk</a>
-                    </li>
-                    {% if category_type|lower == "game" %}
-                        <li class="breadcrumb-divider"></li>
-                        <li class="breadcrumb-item">
-                            <a class="breadcrumb-link" href="{% url 'chzzk:game_list' %}">Games</a>
-                        </li>
-                    {% endif %}
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">{{ category_display }}</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row gap-3 align-items-start">
-                <div class="flex-shrink-0" style="width: 180px; max-width: 100%">
-                    {% if latest_campaign.image_best_url %}
-                        <img src="{{ latest_campaign.image_best_url }}"
-                             alt="{{ category_display }} artwork"
-                             width="180"
-                             loading="lazy"
-                             class="w-100 h-auto rounded-2" />
-                    {% else %}
-                        <div class="w-100 d-flex align-items-center justify-content-center rounded-2 bg-2 fg-3"
-                             style="aspect-ratio: 1 / 1">No Image</div>
-                    {% endif %}
-                </div>
-                <div class="flex-grow-1">
-                    <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
-                        <div>
-                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                                <h1 class="h2 mb-0">{{ category_display }}</h1>
-                                <span class="badge badge-subtle theme-secondary">{{ category_type }}</span>
-                                <span class="badge badge-subtle theme-secondary">
-                                    {{ campaigns|length }} campaign{{ campaigns|length|pluralize }}
-                                </span>
-                            </div>
-                            <div class="d-flex flex-wrap align-items-center gap-2">
-                                <span class="badge badge-subtle theme-success">Active: {{ active_count }}</span>
-                                <span class="badge badge-subtle theme-info">Upcoming: {{ upcoming_count }}</span>
-                                <span class="badge badge-subtle theme-danger">Expired: {{ expired_count }}</span>
-                                <span class="badge badge-subtle theme-secondary">{{ reward_count }} reward{{ reward_count|pluralize }}</span>
-                            </div>
-                        </div>
-                        <div class="d-flex flex-wrap align-items-center gap-2 align-self-start md:align-self-auto">
-                            <a class="btn-outline theme-secondary btn-sm"
-                               href="{% url 'chzzk:campaign_list' %}">All campaigns</a>
-                            {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'chzzk:dashboard' %}">Chzzk</a></li>
+                {% if category_type|lower == "game" %}
+                    <li><a href="{% url 'chzzk:game_list' %}">Games</a></li>
+                {% endif %}
+                <li aria-current="page">{{ category_display }}</li>
+            </ol>
+        </nav>
+        <div class="detail-header">
+            <div class="detail-media">
+                {% if latest_campaign.image_best_url %}
+                    <img src="{{ latest_campaign.image_best_url }}"
+                         alt="{{ category_display }} artwork"
+                         width="180"
+                         loading="lazy" />
+                {% else %}
+                    <small>No image</small>
+                {% endif %}
+            </div>
+            <div class="detail-body">
+                <h2>{{ category_display }}</h2>
+                    <p>
+                        <small>
+                            {{ category_type }}
+                            | {{ campaigns|length }} campaign{{ campaigns|length|pluralize }}
+                            | Active: <data value="{{ active_count }}">{{ active_count }}</data>
+                            | Upcoming: <data value="{{ upcoming_count }}">{{ upcoming_count }}</data>
+                            | Expired: <data value="{{ expired_count }}">{{ expired_count }}</data>
+                            | {{ reward_count }} reward{{ reward_count|pluralize }}
+                        </small>
+                    </p>
+                    <footer class="detail-links" aria-label="Links">
+                        <div class="detail-links-grid">
                             <div>
-                                <button class="btn-outline theme-secondary btn-sm"
-                                        type="button"
-                                        data-bs-toggle="menu"
-                                        data-bs-placement="bottom-end"
-                                        aria-expanded="false">Subscribe ▾</button>
-                                <div class="menu">
-                                    <h6 class="menu-header">Feeds</h6>
-                                    <a class="menu-item"
-                                       href="{% url 'chzzk:campaign_feed' %}"
-                                       title="RSS feed for all campaigns">RSS</a>
-                                    <a class="menu-item"
-                                       href="{% url 'chzzk:campaign_feed_atom' %}"
-                                       title="Atom feed for all campaigns">Atom</a>
-                                    <a class="menu-item"
-                                       href="{% url 'chzzk:campaign_feed_discord' %}"
-                                       title="Discord-flavored feed for all campaigns">Discord-flavored</a>
-                                    <hr class="menu-divider" />
-                                    <h6 class="menu-header">Developer &amp; Help</h6>
-                                    <a class="menu-item"
-                                       href="{% url 'api-v1:chzzk-api-v1_list_campaigns' %}?category_type={{ category_type|urlencode }}&category_id={{ category_id|urlencode }}">TTVDrops API</a>
-                                    <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
+                                <div class="detail-links-title">External</div>
+                                <div>
+                                    <a href="{% url 'chzzk:campaign_list' %}">[all campaigns]</a>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="detail-links-title">
+                                        Subscribe
+                                        <a href="{% url 'core:docs_rss' %}"
+                                           title="Feed documentation"
+                                           class="detail-links-help">(?)</a>
+                                    </div>
+                                <div>
+                                    <a href="{% url 'chzzk:campaign_feed' %}" title="RSS feed for all campaigns">[rss]</a>
+                                    <a href="{% url 'chzzk:campaign_feed_atom' %}" title="Atom feed for all campaigns">[atom]</a>
+                                    <a href="{% url 'chzzk:campaign_feed_discord' %}" title="Discord-flavored feed for all campaigns">[discord-flavored]</a>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="detail-links-title">Developer</div>
+                                <div>
+                                    <a href="{% url 'api-v1:chzzk-api-v1_list_campaigns' %}?category_type={{ category_type|urlencode }}&category_id={{ category_id|urlencode }}">[api]</a>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </footer>
             </div>
-        </header>
-        <ul class="nav nav-tabs mb-4"
-            role="tablist"
-            aria-label="Category campaign status filters">
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if not selected_status %}active{% endif %}"
-                   href="{% querystring status=None %}"
-                   {% if not selected_status %}aria-current="page"{% endif %}>All</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if selected_status == 'active' %}active{% endif %}"
-                   href="{% querystring status='active' %}"
-                   {% if selected_status == 'active' %}aria-current="page"{% endif %}>Available</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if selected_status == 'upcoming' %}active{% endif %}"
-                   href="{% querystring status='upcoming' %}"
-                   {% if selected_status == 'upcoming' %}aria-current="page"{% endif %}>Upcoming</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link {% if selected_status == 'expired' %}active{% endif %}"
-                   href="{% querystring status='expired' %}"
-                   {% if selected_status == 'expired' %}aria-current="page"{% endif %}>Past</a>
-            </li>
-        </ul>
-        <section class="mb-4">
-            <h2 class="h5 mb-2">Campaign history</h2>
-            <p class="fg-2 mb-0">
-                {% if last_campaign_end_at %}
-                    {% if last_campaign_end_at > now %}
-                        The latest campaign ends
-                        <time datetime="{{ last_campaign_end_at|date:'c' }}"
-                              title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
-                        (in {{ last_campaign_end_at|timeuntil }}).
-                    {% else %}
-                        The last campaign ended
-                        <time datetime="{{ last_campaign_end_at|date:'c' }}"
-                              title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
-                        ({{ last_campaign_end_at|timesince }} ago).
-                    {% endif %}
+        </div>
+    </header>
+    <section aria-labelledby="campaign-history-heading">
+        <h3 id="campaign-history-heading">Campaign history</h3>
+        <p>
+            {% if last_campaign_end_at %}
+                {% if last_campaign_end_at > now %}
+                    The latest campaign ends
+                    <time datetime="{{ last_campaign_end_at|date:'c' }}"
+                          title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
+                    (in {{ last_campaign_end_at|timeuntil }}).
                 {% else %}
-                    No campaign history is available for this category yet.
+                    The last campaign ended
+                    <time datetime="{{ last_campaign_end_at|date:'c' }}"
+                          title="{{ last_campaign_end_at|date:'DATETIME_FORMAT' }}">{{ last_campaign_end_at|date:"M d, Y H:i" }}</time>
+                    ({{ last_campaign_end_at|timesince }} ago).
                 {% endif %}
-                {% if average_gap_days %}
-                    On average, campaigns are about {{ average_gap_days|floatformat:1 }} days apart.
-                {% endif %}
-            </p>
-        </section>
-        {% if not selected_status or selected_status == "active" %}
-            {% if active_campaigns %}
-                <section aria-labelledby="active-campaigns-heading" class="mb-4">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="active-campaigns-heading" class="h4 mb-0">Active Campaigns</h2>
-                        <span class="badge badge-subtle theme-success">{{ active_campaigns|length }}</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {% for campaign in active_campaigns %}
-                            {% include "chzzk/includes/campaign_card.html" with campaign=campaign show_category=False %}
-                        {% endfor %}
-                    </div>
-                </section>
+            {% else %}
+                No campaign history is available for this category yet.
             {% endif %}
+            {% if average_gap_days %}On average, campaigns are about {{ average_gap_days|floatformat:1 }} days apart.{% endif %}
+        </p>
+    </section>
+    <nav aria-label="Category campaign status filters">
+        <ul>
+            <li>{% if not selected_status %}<strong>All</strong>{% else %}<a href="{% querystring status=None %}">All</a>{% endif %}</li>
+            <li>{% if selected_status == 'active' %}<strong>Available</strong>{% else %}<a href="{% querystring status='active' %}">Available</a>{% endif %}</li>
+            <li>{% if selected_status == 'upcoming' %}<strong>Upcoming</strong>{% else %}<a href="{% querystring status='upcoming' %}">Upcoming</a>{% endif %}</li>
+            <li>{% if selected_status == 'expired' %}<strong>Past</strong>{% else %}<a href="{% querystring status='expired' %}">Past</a>{% endif %}</li>
+        </ul>
+    </nav>
+    {% if not selected_status or selected_status == "active" %}
+        {% if active_campaigns %}
+            <section aria-labelledby="active-campaigns-heading">
+                <h3 id="active-campaigns-heading">Active Campaigns (<data value="{{ active_campaigns|length }}">{{ active_campaigns|length }}</data>)</h3>
+                {% for campaign in active_campaigns %}
+                    {% include "chzzk/includes/campaign_card.html" with campaign=campaign show_category=False %}
+                {% endfor %}
+            </section>
         {% endif %}
-        {% if not selected_status or selected_status == "upcoming" %}
-            {% if upcoming_campaigns %}
-                <section aria-labelledby="upcoming-campaigns-heading" class="mb-4">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="upcoming-campaigns-heading" class="h4 mb-0">Upcoming Campaigns</h2>
-                        <span class="badge badge-subtle theme-info">{{ upcoming_campaigns|length }}</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {% for campaign in upcoming_campaigns %}
-                            {% include "chzzk/includes/campaign_card.html" with campaign=campaign show_category=False %}
-                        {% endfor %}
-                    </div>
-                </section>
-            {% endif %}
+    {% endif %}
+    {% if not selected_status or selected_status == "upcoming" %}
+        {% if upcoming_campaigns %}
+            <section aria-labelledby="upcoming-campaigns-heading">
+                <h3 id="upcoming-campaigns-heading">Upcoming Campaigns (<data value="{{ upcoming_campaigns|length }}">{{ upcoming_campaigns|length }}</data>)</h3>
+                {% for campaign in upcoming_campaigns %}
+                    {% include "chzzk/includes/campaign_card.html" with campaign=campaign show_category=False %}
+                {% endfor %}
+            </section>
         {% endif %}
-        {% if not selected_status or selected_status == "expired" %}
-            {% if expired_campaigns %}
-                <section aria-labelledby="expired-campaigns-heading">
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                        <h2 id="expired-campaigns-heading" class="h4 mb-0">Expired Campaigns</h2>
-                        <span class="badge badge-subtle theme-danger">{{ expired_campaigns|length }}</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {% for campaign in expired_campaigns %}
-                            {% include "chzzk/includes/campaign_card.html" with campaign=campaign show_category=False %}
-                        {% endfor %}
-                    </div>
-                </section>
-            {% endif %}
+    {% endif %}
+    {% if not selected_status or selected_status == "expired" %}
+        {% if expired_campaigns %}
+            <section aria-labelledby="expired-campaigns-heading">
+                <h3 id="expired-campaigns-heading">Expired Campaigns (<data value="{{ expired_campaigns|length }}">{{ expired_campaigns|length }}</data>)</h3>
+                {% for campaign in expired_campaigns %}
+                    {% include "chzzk/includes/campaign_card.html" with campaign=campaign show_category=False %}
+                {% endfor %}
+            </section>
         {% endif %}
-        {% if selected_status == "active" and not active_campaigns %}
-            <p id="empty-status-message" class="fg-3 fst-italic">
-                No available campaigns for this category right now.
-            </p>
-        {% elif selected_status == "upcoming" and not upcoming_campaigns %}
-            <p id="empty-status-message" class="fg-3 fst-italic">No upcoming campaigns for this category.</p>
-        {% elif selected_status == "expired" and not expired_campaigns %}
-            <p id="empty-status-message" class="fg-3 fst-italic">No past campaigns for this category.</p>
-        {% endif %}
-    </main>
+    {% endif %}
+    {% if selected_status == "active" and not active_campaigns %}
+        <p id="empty-status-message"><em>No available campaigns for this category right now.</em></p>
+    {% elif selected_status == "upcoming" and not upcoming_campaigns %}
+        <p id="empty-status-message"><em>No upcoming campaigns for this category.</em></p>
+    {% elif selected_status == "expired" and not expired_campaigns %}
+        <p id="empty-status-message"><em>No past campaigns for this category.</em></p>
+    {% endif %}
 {% endblock content %}

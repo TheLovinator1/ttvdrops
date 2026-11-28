@@ -15,109 +15,71 @@
 {% endblock extra_head %}
 {% block body_class %}dashboard-page{% endblock body_class %}
 {% block content %}
-    <main class="xl:container py-4">
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">Chzzk</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="row g-4 align-items-center">
-                <div class="col-12 lg:col-7">
-                    <span class="badge badge-subtle theme-primary rounded-pill mb-3">Chzzk Drops Archive</span>
-                    <h1 class="h2 mb-3">Chzzk Drops, Campaigns &amp; Rewards</h1>
-                    <p class="fs-lg fg-2 mb-4">
-                        CHZZK is a South Korean alternative to Twitch. Browse active Chzzk
-                        drop campaigns, watch requirements, and rewards.
-                    </p>
-                    <div class="d-flex flex-wrap gap-2">
-                        <a class="btn-solid theme-primary"
-                           href="{% url 'chzzk:campaign_list' %}">Browse all campaigns</a>
-                        <a class="btn-outline theme-secondary"
-                           href="https://chzzk.naver.com/"
-                           target="_blank"
-                           rel="noopener">Visit Chzzk</a>
-                        {# Bootstrap 6 Menu (toggle and .menu must be direct siblings) #}
-                        <div>
-                            <button class="btn-outline theme-secondary"
-                                    type="button"
-                                    data-bs-toggle="menu"
-                                    data-bs-placement="bottom-end"
-                                    aria-expanded="false">Subscribe ▾</button>
-                            <div class="menu">
-                                <h6 class="menu-header">Feeds</h6>
-                                <a class="menu-item"
-                                   href="{% url 'chzzk:campaign_feed' %}"
-                                   title="RSS feed for all campaigns">RSS</a>
-                                <a class="menu-item"
-                                   href="{% url 'chzzk:campaign_feed_atom' %}"
-                                   title="Atom feed for all campaigns">Atom</a>
-                                <a class="menu-item"
-                                   href="{% url 'chzzk:campaign_feed_discord' %}"
-                                   title="Discord-flavored feed for all campaigns">Discord-flavored</a>
-                                <hr class="menu-divider" />
-                                <h6 class="menu-header">Developer &amp; Help</h6>
-                                <a class="menu-item" href="{% url 'api-v1:chzzk-api-v1_stats' %}">API</a>
-                                <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 lg:col-5">
-                    <div class="row g-3" role="group" aria-label="Chzzk archive statistics">
-                        <div class="col-6">
-                            <div class="card bg-1 p-4">
-                                <div class="fs-2xl fw-bold">{{ counts.active_campaigns }}</div>
-                                <div class="fs-xs fw-semibold fg-3 mt-2 text-uppercase">Active campaigns</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="card bg-1 p-4">
-                                <div class="fs-2xl fw-bold">{{ counts.total_campaigns }}</div>
-                                <div class="fs-xs fw-semibold fg-3 mt-2 text-uppercase">Campaigns archived</div>
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="card bg-1 p-4">
-                                <div class="fs-2xl fw-bold">{{ counts.total_rewards }}</div>
-                                <div class="fs-xs fw-semibold fg-3 mt-2 text-uppercase">Rewards tracked</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
-        <section aria-labelledby="active-campaigns-heading">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <h2 id="active-campaigns-heading" class="h4 mb-0">Active campaigns</h2>
-                    <span class="badge badge-subtle theme-success">{{ active_campaigns|length }}</span>
-                </div>
-                <a class="btn-text theme-secondary btn-sm text-nowrap"
-                   href="{% url 'chzzk:campaign_list' %}">View all campaigns →</a>
-            </div>
-            {% if active_campaigns %}
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {% for campaign in active_campaigns %}
-                        {% include "chzzk/includes/campaign_card.html" with campaign=campaign show_category=True %}
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li aria-current="page">Chzzk</li>
+            </ol>
+        </nav>
+        <h2>Chzzk Drops, Campaigns &amp; Rewards</h2>
+        <p>
+            <abbr title="Chzzk">CHZZK</abbr> is a South Korean alternative to Twitch. Browse
+            active Chzzk drop campaigns, watch requirements and rewards.
+        </p>
+        <p>
+            <a href="{% url 'chzzk:campaign_list' %}">Browse all campaigns</a> |
+            <a href="https://chzzk.naver.com/" target="_blank" rel="noopener">Visit Chzzk</a>
+        </p>
+        {% include "includes/link_footer.html" with rss_url_name="chzzk:campaign_feed" atom_url_name="chzzk:campaign_feed_atom" discord_url_name="chzzk:campaign_feed_discord" api_url_name="api-v1:chzzk-api-v1_stats" docs_url_name="core:docs_rss" %}
+    </header>
+    <div class="dashboard-layout">
+        <aside class="dashboard-toc" aria-label="Chzzk page contents">
+            <h3 class="dashboard-toc-title">Games</h3>
+            <nav aria-label="Games on this page">
+                <ul>
+                    {% for game in dashboard_games %}
+                        <li>
+                            <a href="{{ game.url }}" title="{{ game.name }}">{{ game.name }}</a>
+                        </li>
                     {% endfor %}
-                </div>
-            {% else %}
-                <div class="card bg-1 text-center py-5 px-3">
-                    <div class="card-body">
-                        <h3 class="h4 mb-2">No active Chzzk campaigns right now</h3>
-                        <p class="fg-2 mb-3">Check back later, or browse the campaign archive.</p>
-                        <a class="btn-outline theme-primary"
-                           href="{% url 'chzzk:campaign_list' %}">Browse all campaigns</a>
+                </ul>
+            </nav>
+        </aside>
+        <div class="dashboard-content">
+            <section aria-labelledby="stats-heading">
+                <h3 id="stats-heading">Archive statistics</h3>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Active campaigns</span>
+                        <strong class="stat-value"><data value="{{ counts.active_campaigns }}">{{ counts.active_campaigns }}</data></strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Campaigns archived</span>
+                        <strong class="stat-value"><data value="{{ counts.total_campaigns }}">{{ counts.total_campaigns }}</data></strong>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Rewards tracked</span>
+                        <strong class="stat-value"><data value="{{ counts.total_rewards }}">{{ counts.total_rewards }}</data></strong>
                     </div>
                 </div>
-            {% endif %}
-        </section>
-    </main>
+            </section>
+            <hr />
+            <section aria-labelledby="active-campaigns-heading">
+                <header>
+                    <h3 id="active-campaigns-heading">Active campaigns (<data value="{{ active_campaigns|length }}">{{ active_campaigns|length }}</data>)</h3>
+                    <p><a href="{% url 'chzzk:campaign_list' %}">View all campaigns &rarr;</a></p>
+                </header>
+                {% if active_campaigns %}
+                    {% for campaign in active_campaigns %}
+                        {% include "chzzk/includes/dashboard_campaign.html" with campaign=campaign %}
+                    {% endfor %}
+                {% else %}
+                    <h4>No active Chzzk campaigns right now</h4>
+                    <p>Check back later, or browse the campaign archive.</p>
+                    <p><a href="{% url 'chzzk:campaign_list' %}">Browse all campaigns</a></p>
+                {% endif %}
+            </section>
+        </div>
+    </div>
 {% endblock content %}

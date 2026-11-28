@@ -1,31 +1,29 @@
-<ul class="nav nav-tabs mb-3"
-    role="tablist"
-    aria-label="Campaign status filters">
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if not selected_status %}active{% endif %}"
-           href="{% querystring status=None page=None %}"
-           {% if not selected_status %}aria-current="page"{% endif %}>All</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if selected_status == 'active' %}active{% endif %}"
-           href="{% querystring status='active' page=None %}"
-           {% if selected_status == 'active' %}aria-current="page"{% endif %}>Active</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if selected_status == 'upcoming' %}active{% endif %}"
-           href="{% querystring status='upcoming' page=None %}"
-           {% if selected_status == 'upcoming' %}aria-current="page"{% endif %}>Upcoming</a>
-    </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link {% if selected_status == 'expired' %}active{% endif %}"
-           href="{% querystring status='expired' page=None %}"
-           {% if selected_status == 'expired' %}aria-current="page"{% endif %}>Expired</a>
-    </li>
-    {% if show_ios %}
-        <li class="nav-item" role="presentation">
-            <a class="nav-link {% if selected_status == 'ios' %}active{% endif %}"
-               href="{% querystring status='ios' page=None %}"
-               {% if selected_status == 'ios' %}aria-current="page"{% endif %}>{{ ios_label|default:"iOS only" }}</a>
-        </li>
+<nav class="page-tabs" aria-label="Campaign status filters">
+    {% if not selected_status %}
+        <span class="page-tab" aria-current="page">All</span>
+    {% else %}
+        <a class="page-tab" href="{% querystring status=None page=None %}">All</a>
     {% endif %}
-</ul>
+    {% if selected_status == "active" %}
+        <span class="page-tab" aria-current="page">Active</span>
+    {% else %}
+        <a class="page-tab" href="{% querystring status='active' page=None %}">Active</a>
+    {% endif %}
+    {% if selected_status == "upcoming" %}
+        <span class="page-tab" aria-current="page">Upcoming</span>
+    {% else %}
+        <a class="page-tab" href="{% querystring status='upcoming' page=None %}">Upcoming</a>
+    {% endif %}
+    {% if selected_status == "expired" %}
+        <span class="page-tab" aria-current="page">Expired</span>
+    {% else %}
+        <a class="page-tab" href="{% querystring status='expired' page=None %}">Expired</a>
+    {% endif %}
+    {% if show_ios %}
+        {% if selected_status == "ios" %}
+            <span class="page-tab" aria-current="page">{{ ios_label|default:"iOS available" }}</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status='ios' page=None %}">{{ ios_label|default:"iOS available" }}</a>
+        {% endif %}
+    {% endif %}
+</nav>

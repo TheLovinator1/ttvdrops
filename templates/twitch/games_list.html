@@ -13,322 +13,179 @@
           type="application/atom+xml"
           title="Newly added games (Discord-flavored)"
           href="{% url 'core:game_feed_discord' %}" />
-    <style>
-        .games-list-table {
-            --bs-table-bg: var(--bs-bg-1);
-        }
-
-        .games-list-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 2;
-            background-color: var(--bs-bg-1);
-            box-shadow: inset 0 -1px 0 var(--bs-border-color);
-        }
-
-        .games-list-table td[data-cell]::before {
-            color: var(--bs-fg-3);
-            font-size: 0.75rem;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-
-        .games-list-thumb,
-        .games-list-thumb-placeholder {
-            width: 40px;
-            height: 53px;
-            border-radius: var(--bs-radius-3);
-        }
-
-        .games-list-thumb {
-            object-fit: cover;
-        }
-
-        .games-list-thumb-placeholder {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--bs-fg-3);
-            background: var(--bs-bg-2);
-        }
-
-        .games-list-link {
-            color: var(--bs-fg-1);
-            text-decoration: none;
-        }
-
-        .games-list-link:hover {
-            text-decoration: underline;
-            text-underline-offset: 0.15em;
-        }
-
-        .games-list-owner {
-            color: var(--bs-fg-2);
-            text-decoration: none;
-        }
-
-        .games-list-owner:hover {
-            color: var(--bs-fg-1);
-            text-decoration: underline;
-            text-underline-offset: 0.15em;
-        }
-    </style>
 {% endblock extra_head %}
 {% block content %}
-    <main>
-        <header class="mb-4">
-            <nav aria-label="breadcrumb" class="mb-2">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'core:dashboard' %}">Home</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'twitch:dashboard' %}">Twitch</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item">
-                        <a class="breadcrumb-link" href="{% url 'twitch:games_grid' %}">Games</a>
-                    </li>
-                    <li class="breadcrumb-divider"></li>
-                    <li class="breadcrumb-item" aria-current="page">
-                        <span class="breadcrumb-link active">List</span>
-                    </li>
-                </ol>
-            </nav>
-            <div class="d-flex flex-column md:flex-row md:align-items-end justify-content-between gap-3">
+    <header>
+        <nav aria-label="Breadcrumb">
+            <ol>
+                <li><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li><a href="{% url 'twitch:dashboard' %}">Twitch</a></li>
+                <li><a href="{% url 'twitch:games_grid' %}">Games</a></li>
+                <li aria-current="page">List</li>
+            </ol>
+        </nav>
+        <h2>All Games</h2>
+        {% include "includes/games_view_tabs.html" with grid_url_name="twitch:games_grid" list_url_name="twitch:games_list" active_view="list" %}
+        <footer class="detail-links" aria-label="Links">
+            <div class="detail-links-grid">
                 <div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                        <h1 class="h2 mb-0">All Games</h1>
-                        <span class="badge badge-subtle theme-secondary">
-                            {{ games|length }} game{{ games|length|pluralize }}
-                        </span>
-                    </div>
-                    <p class="fg-2 mb-0 text-pretty" style="max-width: 80ch;">
-                        Every game with a Twitch drop campaign in the archive, with box art, organizations, and campaign counts.
-                    </p>
-                </div>
-                <div class="d-flex flex-wrap align-items-center gap-2 align-self-start md:align-self-auto">
-                    <a href="{% url 'twitch:games_grid' %}"
-                       class="btn-outline theme-secondary"
-                       title="View games as grid">Grid view</a>
+                    <div class="detail-links-title">
+                                        Subscribe
+                                        <a href="{% url 'core:docs_rss' %}"
+                                           title="Feed documentation"
+                                           class="detail-links-help">(?)</a>
+                                    </div>
                     <div>
-                        <button class="btn-outline theme-secondary"
-                                type="button"
-                                data-bs-toggle="menu"
-                                data-bs-placement="bottom-end"
-                                aria-expanded="false">Subscribe / Export ▾</button>
-                        <div class="menu">
-                            <h6 class="menu-header">Subscribe</h6>
-                            <a class="menu-item"
-                               href="{% url 'core:game_feed' %}"
-                               title="RSS feed for all games">RSS</a>
-                            <a class="menu-item"
-                               href="{% url 'core:game_feed_atom' %}"
-                               title="Atom feed for all games">Atom</a>
-                            <a class="menu-item"
-                               href="{% url 'core:game_feed_discord' %}"
-                               title="Discord-flavored feed for all games">Discord-flavored</a>
-                            <hr class="menu-divider" />
-                            <h6 class="menu-header">Export</h6>
-                            <a class="menu-item"
-                               href="{% url 'twitch:export_games_csv' %}"
-                               title="Export all games as CSV">CSV</a>
-                            <a class="menu-item"
-                               href="{% url 'twitch:export_games_json' %}"
-                               title="Export all games as JSON">JSON</a>
-                            <hr class="menu-divider" />
-                            <h6 class="menu-header">Developer &amp; Help</h6>
-                            <a class="menu-item"
-                               href="{% url 'api-v1:twitch-api-v1_list_games' %}"
-                               title="Twitch games API">API</a>
-                            <a class="menu-item" href="{% url 'core:docs_rss' %}">Feed documentation</a>
-                        </div>
+                        <a href="{% url 'core:game_feed' %}" title="RSS feed for all games">[rss]</a>
+                        <a href="{% url 'core:game_feed_atom' %}" title="Atom feed for all games">[atom]</a>
+                        <a href="{% url 'core:game_feed_discord' %}" title="Discord-flavored feed for all games">[discord-flavored]</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="detail-links-title">Export</div>
+                    <div>
+                        <a href="{% url 'twitch:export_games_csv' %}" title="Export all games as CSV">[csv]</a>
+                        <a href="{% url 'twitch:export_games_json' %}" title="Export all games as JSON">[json]</a>
+                    </div>
+                </div>
+                <div>
+                    <div class="detail-links-title">Developer</div>
+                    <div>
+                        <a class="bracket-link" href="{% url 'api-v1:twitch-api-v1_list_games' %}" title="Twitch games API">API</a>
                     </div>
                 </div>
             </div>
-        </header>
-        {% if games %}
-            <section aria-label="Filter games" class="card bg-1 p-3 mb-4">
-                <div class="d-flex flex-column sm:flex-row align-items-stretch sm:align-items-center gap-3">
-                    <div class="flex-grow-1">
-                        <label class="visually-hidden" for="games-list-filter">Filter games</label>
-                        <input class="form-control"
-                               id="games-list-filter"
-                               type="search"
-                               placeholder="Filter by game or organization…"
-                               autocomplete="off"
-                               aria-controls="games-list-table" />
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <span id="games-list-count"
-                              class="fs-xs fg-3 text-nowrap"
-                              aria-live="polite">{{ games|length }} games</span>
-                        <button id="games-list-clear"
-                                class="btn-outline theme-secondary btn-sm"
-                                type="button"
-                                hidden>Clear</button>
-                    </div>
-                </div>
-            </section>
-            <div class="table-card bg-1 border-subtle overflow-visible">
-                <div class="table-responsive overflow-visible">
-                    <table id="games-list-table"
-                           class="table table-hover align-middle games-list-table md:table-stacked">
-                        <thead>
-                            <tr>
-                                <th scope="col">Game</th>
-                                <th scope="col">Organization</th>
-                                <th scope="col" class="md:text-end">Campaigns</th>
-                                <th scope="col" class="md:text-end">Active</th>
-                                <th scope="col" class="md:text-end">Upcoming</th>
-                                <th scope="col">Last drop</th>
-                                <th scope="col"><span class="visually-hidden">Actions</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for game in games %}
-                                <tr>
-                                    <td data-cell="Game">
-                                        <div class="d-flex align-items-center justify-content-start gap-3">
-                                            <div class="flex-shrink-0">
-                                                {% if game.box_art_best_url %}
-                                                    {% picture game.box_art_best_url alt="" width=40 height=53 css_class="games-list-thumb" %}
-                                                {% else %}
-                                                    <div class="games-list-thumb-placeholder" aria-hidden="true">
-                                                        <svg width="18"
-                                                             height="18"
-                                                             viewBox="0 0 24 24"
-                                                             fill="none"
-                                                             stroke="currentColor"
-                                                             stroke-width="2">
-                                                            <path d="M6 11h4M8 9v4M15 10h.01M18 12h.01M12 6h6a3 3 0 0 1 3 3v3a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6V9a3 3 0 0 1 3-3h6Z" />
-                                                        </svg>
-                                                    </div>
-                                                {% endif %}
-                                            </div>
-                                            <div class="min-w-0">
-                                                <a class="games-list-link fw-semibold"
-                                                   href="{% url 'twitch:game_detail' game.twitch_id %}">{{ game.get_game_name }}</a>
-                                                {% if game.slug %}
-                                                    <div class="fs-xs fg-3 text-truncate">{{ game.slug }}</div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td data-cell="Organization">
-                                        <div class="d-flex flex-column column-gap-2 row-gap-1">
-                                            {% for owner in game.owners.all %}
-                                                <a class="games-list-owner fs-sm"
-                                                   href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>
-                                            {% empty %}
-                                                <span class="fs-sm fg-3">None</span>
-                                            {% endfor %}
-                                        </div>
-                                    </td>
-                                    <td data-cell="Campaigns" class="md:text-end">
-                                        <span class="badge badge-subtle theme-secondary">{{ game.campaign_count }}</span>
-                                    </td>
-                                    <td data-cell="Active" class="md:text-end">
-                                        {% if game.active_count %}
-                                            <span class="badge badge-subtle theme-success">{{ game.active_count }} active</span>
-                                        {% else %}
-                                            <span class="fg-3">None</span>
-                                        {% endif %}
-                                    </td>
-                                    <td data-cell="Upcoming" class="md:text-end">
-                                        {% if game.upcoming_count %}
-                                            <span class="badge badge-subtle theme-info">{{ game.upcoming_count }} upcoming</span>
-                                        {% else %}
-                                            <span class="fg-3">None</span>
-                                        {% endif %}
-                                    </td>
-                                    <td data-cell="Last drop">
-                                        {% if game.last_campaign_ended_at %}
-                                            <time datetime="{{ game.last_campaign_ended_at|date:'c' }}"
-                                                  title="{{ game.last_campaign_ended_at|date:'DATETIME_FORMAT' }}">{{ game.last_campaign_ended_at|date:"M d, Y" }}</time>
-                                            <div class="fs-xs fg-3">{{ game.last_campaign_ended_at|timesince }} ago</div>
-                                        {% else %}
-                                            <span class="fg-3">None</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="md:text-end">
-                                        <a class="btn-text theme-secondary btn-sm"
-                                           href="{% url 'twitch:game_detail' game.twitch_id %}">View →</a>
-                                    </td>
-                                </tr>
+        </footer>
+    </header>
+    {% if games %}
+        <section aria-label="Filter games">
+            <div class="games-filter">
+                <label for="games-list-filter">Filter games:</label>
+                <input id="games-list-filter"
+                       type="search"
+                       placeholder="Filter by game or organization..."
+                       autocomplete="off"
+                       aria-controls="games-list-table" />
+                <span id="games-list-count" aria-live="polite">{{ games|length }} games</span>
+                <button id="games-list-clear" type="button" hidden>Clear</button>
+            </div>
+        </section>
+        <table id="games-list-table">
+            <thead>
+                <tr>
+                    <th scope="col">Game</th>
+                    <th scope="col">Organization</th>
+                    <th scope="col">Campaigns</th>
+                    <th scope="col">Active</th>
+                    <th scope="col">Upcoming</th>
+                    <th scope="col">Last drop</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for game in games %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'twitch:game_detail' game.twitch_id %}"><strong>{{ game.get_game_name }}</strong></a>
+                        </td>
+                        <td>
+                            {% for owner in game.owners.all %}
+                                <a href="{% url 'twitch:organization_detail' owner.twitch_id %}">{{ owner.name }}</a>{% if not forloop.last %}<br />{% endif %}
+                            {% empty %}
+                                <small>None</small>
                             {% endfor %}
-                            <tr id="games-list-no-results" hidden>
-                                <td colspan="7" class="text-center py-4 fg-3">No games match your filter.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <script>
-                (() => {
-                    const input = document.getElementById("games-list-filter");
-                    const table = document.getElementById("games-list-table");
-                    const count = document.getElementById("games-list-count");
-                    const clear = document.getElementById("games-list-clear");
-                    const empty = document.getElementById("games-list-no-results");
-                    if (!input || !table || !count || !table.tBodies.length) {
-                        return;
+                        </td>
+                        <td><data value="{{ game.campaign_count }}">{{ game.campaign_count }}</data></td>
+                        <td>
+                            {% if game.active_count %}
+                                <data value="{{ game.active_count }}">{{ game.active_count }} active</data>
+                            {% else %}
+                                <small>None</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if game.upcoming_count %}
+                                <data value="{{ game.upcoming_count }}">{{ game.upcoming_count }} upcoming</data>
+                            {% else %}
+                                <small>None</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if game.last_campaign_ended_at %}
+                                <time datetime="{{ game.last_campaign_ended_at|date:'c' }}"
+                                      title="{{ game.last_campaign_ended_at|date:'DATETIME_FORMAT' }}">{{ game.last_campaign_ended_at|date:"M d, Y" }}</time>
+                                <br /><small>{{ game.last_campaign_ended_at|timesince }} ago</small>
+                            {% else %}
+                                <small>None</small>
+                            {% endif %}
+                        </td>
+                        <td><a href="{% url 'twitch:game_detail' game.twitch_id %}">View &rarr;</a></td>
+                    </tr>
+                {% endfor %}
+                <tr id="games-list-no-results" hidden>
+                    <td colspan="7">No games match your filter.</td>
+                </tr>
+            </tbody>
+        </table>
+        <script>
+            (() => {
+                const input = document.getElementById("games-list-filter");
+                const table = document.getElementById("games-list-table");
+                const count = document.getElementById("games-list-count");
+                const clear = document.getElementById("games-list-clear");
+                const empty = document.getElementById("games-list-no-results");
+                if (!input || !table || !count || !table.tBodies.length) {
+                    return;
+                }
+
+                const rows = Array.from(table.tBodies[0].rows)
+                    .filter((row) => row.id !== "games-list-no-results")
+                    .map((row) => ({
+                        row,
+                        searchable: Array.from(row.cells)
+                            .slice(0, 2)
+                            .map((cell) => cell.textContent)
+                            .join(" ")
+                            .toLowerCase(),
+                    }));
+                const total = rows.length;
+
+                const formatCount = (value) => `${value} game${value === 1 ? "" : "s"}`;
+
+                const applyFilter = () => {
+                    const query = input.value.trim().toLowerCase();
+                    let visible = 0;
+
+                    for (const { row, searchable } of rows) {
+                        const matches = !query || searchable.includes(query);
+                        row.hidden = !matches;
+                        if (matches) {
+                            visible += 1;
+                        }
                     }
 
-                    const rows = Array.from(table.tBodies[0].rows)
-                        .filter((row) => row.id !== "games-list-no-results")
-                        .map((row) => ({
-                            row,
-                            searchable: Array.from(row.cells)
-                                .slice(0, 2)
-                                .map((cell) => cell.textContent)
-                                .join(" ")
-                                .toLowerCase(),
-                        }));
-                    const total = rows.length;
+                    count.textContent = query
+                        ? `${formatCount(visible)} of ${formatCount(total)}`
+                        : formatCount(total);
+                    if (clear) {
+                        clear.hidden = !query;
+                    }
+                    if (empty) {
+                        empty.hidden = visible !== 0;
+                    }
+                };
 
-                    const formatCount = (value) => `${value} game${value === 1 ? "" : "s"}`;
-
-                    const applyFilter = () => {
-                        const query = input.value.trim().toLowerCase();
-                        let visible = 0;
-
-                        for (const { row, searchable } of rows) {
-                            const matches = !query || searchable.includes(query);
-                            row.hidden = !matches;
-                            if (matches) {
-                                visible += 1;
-                            }
-                        }
-
-                        count.textContent = query
-                            ? `${formatCount(visible)} of ${formatCount(total)}`
-                            : formatCount(total);
-                        if (clear) {
-                            clear.hidden = !query;
-                        }
-                        if (empty) {
-                            empty.hidden = visible !== 0;
-                        }
-                    };
-
-                    input.addEventListener("input", applyFilter);
-                    clear?.addEventListener("click", () => {
-                        input.value = "";
-                        applyFilter();
-                        input.focus();
-                    });
+                input.addEventListener("input", applyFilter);
+                clear?.addEventListener("click", () => {
+                    input.value = "";
                     applyFilter();
-                })();
-            </script>
-        {% else %}
-            <div class="card bg-1 text-center py-5 px-3">
-                <div class="card-body">
-                    <h2 class="h4 mb-2">No games found</h2>
-                    <p class="fg-2 mb-0">No Twitch drop campaigns have been archived yet.</p>
-                </div>
-            </div>
-        {% endif %}
-    </main>
+                    input.focus();
+                });
+                applyFilter();
+            })();
+        </script>
+    {% else %}
+        <h3>No games found</h3>
+        <p>No Twitch drop campaigns have been archived yet.</p>
+    {% endif %}
 {% endblock content %}
