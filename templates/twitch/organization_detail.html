@@ -29,33 +29,28 @@
         </ol>
     </nav>
     <header>
-        <h2>{{ organization.name }}</h2>
-        <p>{{ org_game_summary }}</p>
-        <p>
-            <strong>{{ games_count }}</strong> game{{ games_count|pluralize }}
-            {% if total_campaigns %}&middot; <strong>{{ total_campaigns }}</strong> campaign{{ total_campaigns|pluralize }}{% endif %}
-        </p>
-        {% include "twitch/includes/external_site_links.html" with external_site_links=organization.external_site_links %}
-        <section aria-label="Organization details">
-            <h3>Organization details</h3>
-            <dl>
-                <dt>Organization ID</dt>
-                <dd><code>{{ organization.twitch_id }}</code></dd>
-                <dt>Published</dt>
-                <dd>
-                    <time datetime="{{ organization.added_at|date:'c' }}"
-                          title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time>
-                    <small>({{ organization.added_at|timesince }} ago)</small>
-                </dd>
-                <dt>Last updated</dt>
-                <dd>
-                    <time datetime="{{ organization.updated_at|date:'c' }}"
-                          title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time>
-                    <small>({{ organization.updated_at|timesince }} ago)</small>
-                </dd>
-            </dl>
-            {% if campaign_stats %}
+        <div class="detail-header">
+            <div class="detail-body">
+                <h1>{{ organization.name }}</h1>
+                <p>{{ org_game_summary }}</p>
+                <p>
+                    <strong>{{ games_count }}</strong> game{{ games_count|pluralize }}
+                    {% if total_campaigns %}&middot; <strong>{{ total_campaigns }}</strong> campaign{{ total_campaigns|pluralize }}{% endif %}
+                </p>
+                {% include "twitch/includes/external_site_links.html" with external_site_links=organization.external_site_links %}
                 <dl>
+                    <dt>Published</dt>
+                    <dd>
+                        <time datetime="{{ organization.added_at|date:'c' }}"
+                              title="{{ organization.added_at|date:'DATETIME_FORMAT' }}">{{ organization.added_at|date:"M d, Y H:i" }}</time>
+                        <small>({{ organization.added_at|timesince }} ago)</small>
+                    </dd>
+                    <dt>Last updated</dt>
+                    <dd>
+                        <time datetime="{{ organization.updated_at|date:'c' }}"
+                              title="{{ organization.updated_at|date:'DATETIME_FORMAT' }}">{{ organization.updated_at|date:"M d, Y H:i" }}</time>
+                        <small>({{ organization.updated_at|timesince }} ago)</small>
+                    </dd>
                     {% if campaign_stats.active_campaigns %}
                         <dt>Active</dt>
                         <dd><data value="{{ campaign_stats.active_campaigns }}">{{ campaign_stats.active_campaigns }}</data></dd>
@@ -65,7 +60,7 @@
                         <dd><data value="{{ campaign_stats.upcoming_campaigns }}">{{ campaign_stats.upcoming_campaigns }}</data></dd>
                     {% endif %}
                     {% if campaign_stats.expired_campaigns %}
-                        <dt>Expired</dt>
+                        <dt>Expired campaigns</dt>
                         <dd><data value="{{ campaign_stats.expired_campaigns }}">{{ campaign_stats.expired_campaigns }}</data></dd>
                     {% endif %}
                     {% if campaign_stats.first_campaign %}
@@ -77,8 +72,8 @@
                         <dd><time datetime="{{ campaign_stats.last_campaign|date:'c' }}">{{ campaign_stats.last_campaign|date:"M d, Y H:i" }}</time></dd>
                     {% endif %}
                 </dl>
-            {% endif %}
-        </section>
+            </div>
+        </div>
     </header>
     <div class="page-tabs" role="tablist" aria-label="Organization sections">
         <button type="button"

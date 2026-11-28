@@ -101,13 +101,27 @@
             {% if average_gap_days %}On average, campaigns are about {{ average_gap_days|floatformat:1 }} days apart.{% endif %}
         </p>
     </section>
-    <nav aria-label="Category campaign status filters">
-        <ul>
-            <li>{% if not selected_status %}<strong>All</strong>{% else %}<a href="{% querystring status=None %}">All</a>{% endif %}</li>
-            <li>{% if selected_status == 'active' %}<strong>Available</strong>{% else %}<a href="{% querystring status='active' %}">Available</a>{% endif %}</li>
-            <li>{% if selected_status == 'upcoming' %}<strong>Upcoming</strong>{% else %}<a href="{% querystring status='upcoming' %}">Upcoming</a>{% endif %}</li>
-            <li>{% if selected_status == 'expired' %}<strong>Past</strong>{% else %}<a href="{% querystring status='expired' %}">Past</a>{% endif %}</li>
-        </ul>
+    <nav class="page-tabs" aria-label="Category campaign status filters">
+        {% if not selected_status %}
+            <span class="page-tab" aria-current="page">All</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status=None %}">All</a>
+        {% endif %}
+        {% if selected_status == "active" %}
+            <span class="page-tab" aria-current="page">Available</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status='active' %}">Available</a>
+        {% endif %}
+        {% if selected_status == "upcoming" %}
+            <span class="page-tab" aria-current="page">Upcoming</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status='upcoming' %}">Upcoming</a>
+        {% endif %}
+        {% if selected_status == "expired" %}
+            <span class="page-tab" aria-current="page">Past</span>
+        {% else %}
+            <a class="page-tab" href="{% querystring status='expired' %}">Past</a>
+        {% endif %}
     </nav>
     {% if not selected_status or selected_status == "active" %}
         {% if active_campaigns %}
